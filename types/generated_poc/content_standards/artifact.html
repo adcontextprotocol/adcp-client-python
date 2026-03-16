@@ -59,46 +59,27 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    property_id: Annotated[
+        identifier.Identifier,
+        Field(description=&#39;Identifier for the property where this artifact appears&#39;),
+    ]
     artifact_id: Annotated[
         str,
         Field(
             description=&#34;Identifier for this artifact within the property. The property owner defines the scheme (e.g., &#39;article_12345&#39;, &#39;episode_42_segment_3&#39;, &#39;post_abc123&#39;).&#34;
         ),
     ]
-    assets: Annotated[
-        list[Assets | Assets1 | Assets2 | Assets3],
+    variant_id: Annotated[
+        str | None,
         Field(
-            description=&#39;Artifact assets in document flow order - text blocks, images, video, audio&#39;
+            description=&#34;Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: &#39;en&#39;, &#39;es-MX&#39;, &#39;v2&#39;, &#39;headline_test_b&#39;. The combination of artifact_id + variant_id must be unique.&#34;
         ),
-    ]
+    ] = None
     format_id: Annotated[
         format_id_1.FormatId | None,
         Field(
             description=&#39;Optional reference to a format definition. Uses the same format registry as creative formats.&#39;
         ),
-    ] = None
-    identifiers: Annotated[
-        Identifiers | None, Field(description=&#39;Platform-specific identifiers for this artifact&#39;)
-    ] = None
-    last_update_time: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;When the artifact was last modified (ISO 8601 format)&#39;),
-    ] = None
-    metadata: Annotated[
-        Metadata | None, Field(description=&#39;Rich metadata extracted from the artifact&#39;)
-    ] = None
-    property_id: Annotated[
-        identifier.Identifier,
-        Field(description=&#39;Identifier for the property where this artifact appears&#39;),
-    ]
-    provenance: Annotated[
-        provenance_1.Provenance | None,
-        Field(
-            description=&#39;Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact — individual assets can override with their own provenance.&#39;
-        ),
-    ] = None
-    published_time: Annotated[
-        AwareDatetime | None, Field(description=&#39;When the artifact was published (ISO 8601 format)&#39;)
     ] = None
     url: Annotated[
         AnyUrl | None,
@@ -106,11 +87,30 @@ el.replaceWith(d);
             description=&#39;Optional URL for this artifact (web page, podcast feed, video page). Not all artifacts have URLs (e.g., Instagram content, podcast segments, TV scenes).&#39;
         ),
     ] = None
-    variant_id: Annotated[
-        str | None,
+    published_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;When the artifact was published (ISO 8601 format)&#39;)
+    ] = None
+    last_update_time: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When the artifact was last modified (ISO 8601 format)&#39;),
+    ] = None
+    assets: Annotated[
+        list[Assets | Assets1 | Assets2 | Assets3],
         Field(
-            description=&#34;Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: &#39;en&#39;, &#39;es-MX&#39;, &#39;v2&#39;, &#39;headline_test_b&#39;. The combination of artifact_id + variant_id must be unique.&#34;
+            description=&#39;Artifact assets in document flow order - text blocks, images, video, audio&#39;
         ),
+    ]
+    metadata: Annotated[
+        Metadata | None, Field(description=&#39;Rich metadata extracted from the artifact&#39;)
+    ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(
+            description=&#39;Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact — individual assets can override with their own provenance.&#39;
+        ),
+    ] = None
+    identifiers: Annotated[
+        Identifiers | None, Field(description=&#39;Platform-specific identifiers for this artifact&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -314,11 +314,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AssetAccess2(AdCPBaseModel):
+    method: Literal[&#39;service_account&#39;]
+    provider: Annotated[Provider, Field(description=&#39;Cloud provider&#39;)]
     credentials: Annotated[
         dict[str, Any] | None, Field(description=&#39;Service account credentials&#39;)
-    ] = None
-    method: Literal[&#39;service_account&#39;]
-    provider: Annotated[Provider, Field(description=&#39;Cloud provider&#39;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -424,27 +424,27 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets(AdCPBaseModel):
-    content: Annotated[str, Field(description=&#39;Text content&#39;)]
-    heading_level: Annotated[
-        int | None, Field(description=&#39;Heading level (1-6), only for role=heading&#39;, ge=1, le=6)
-    ] = None
-    language: Annotated[
-        str | None,
-        Field(
-            description=&#34;BCP 47 language tag for this text (e.g., &#39;en&#39;, &#39;es-MX&#39;). Useful when artifact contains mixed-language content.&#34;
-        ),
-    ] = None
-    provenance: Annotated[
-        provenance_1.Provenance | None,
-        Field(description=&#39;Provenance for this text block, overrides artifact-level provenance&#39;),
-    ] = None
+    type: Literal[&#39;text&#39;]
     role: Annotated[
         Role | None,
         Field(
             description=&#34;Role of this text in the document. Use &#39;title&#39; for the main artifact title, &#39;description&#39; for summaries.&#34;
         ),
     ] = None
-    type: Literal[&#39;text&#39;]</code></pre>
+    content: Annotated[str, Field(description=&#39;Text content&#39;)]
+    language: Annotated[
+        str | None,
+        Field(
+            description=&#34;BCP 47 language tag for this text (e.g., &#39;en&#39;, &#39;es-MX&#39;). Useful when artifact contains mixed-language content.&#34;
+        ),
+    ] = None
+    heading_level: Annotated[
+        int | None, Field(description=&#39;Heading level (1-6), only for role=heading&#39;, ge=1, le=6)
+    ] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(description=&#39;Provenance for this text block, overrides artifact-level provenance&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -513,19 +513,19 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets1(AdCPBaseModel):
+    type: Literal[&#39;image&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Image URL&#39;)]
     access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
         None
     )
     alt_text: Annotated[str | None, Field(description=&#39;Alt text or image description&#39;)] = None
     caption: Annotated[str | None, Field(description=&#39;Image caption&#39;)] = None
+    width: Annotated[int | None, Field(description=&#39;Image width in pixels&#39;)] = None
     height: Annotated[int | None, Field(description=&#39;Image height in pixels&#39;)] = None
     provenance: Annotated[
         provenance_1.Provenance | None,
         Field(description=&#39;Provenance for this image, overrides artifact-level provenance&#39;),
-    ] = None
-    type: Literal[&#39;image&#39;]
-    url: Annotated[AnyUrl, Field(description=&#39;Image URL&#39;)]
-    width: Annotated[int | None, Field(description=&#39;Image width in pixels&#39;)] = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -602,21 +602,21 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets2(AdCPBaseModel):
+    type: Literal[&#39;video&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Video URL&#39;)]
     access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
         None
     )
     duration_ms: Annotated[int | None, Field(description=&#39;Video duration in milliseconds&#39;)] = None
-    provenance: Annotated[
-        provenance_1.Provenance | None,
-        Field(description=&#39;Provenance for this video, overrides artifact-level provenance&#39;),
-    ] = None
-    thumbnail_url: Annotated[AnyUrl | None, Field(description=&#39;Video thumbnail URL&#39;)] = None
     transcript: Annotated[str | None, Field(description=&#39;Video transcript&#39;)] = None
     transcript_source: Annotated[
         TranscriptSource | None, Field(description=&#39;How the transcript was generated&#39;)
     ] = None
-    type: Literal[&#39;video&#39;]
-    url: Annotated[AnyUrl, Field(description=&#39;Video URL&#39;)]</code></pre>
+    thumbnail_url: Annotated[AnyUrl | None, Field(description=&#39;Video thumbnail URL&#39;)] = None
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(description=&#39;Provenance for this video, overrides artifact-level provenance&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -693,20 +693,20 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets3(AdCPBaseModel):
+    type: Literal[&#39;audio&#39;]
+    url: Annotated[AnyUrl, Field(description=&#39;Audio URL&#39;)]
     access: Annotated[AssetAccess | None, Field(description=&#39;Authentication for secured URLs&#39;)] = (
         None
     )
     duration_ms: Annotated[int | None, Field(description=&#39;Audio duration in milliseconds&#39;)] = None
-    provenance: Annotated[
-        provenance_1.Provenance | None,
-        Field(description=&#39;Provenance for this audio, overrides artifact-level provenance&#39;),
-    ] = None
     transcript: Annotated[str | None, Field(description=&#39;Audio transcript&#39;)] = None
     transcript_source: Annotated[
         TranscriptSource1 | None, Field(description=&#39;How the transcript was generated&#39;)
     ] = None
-    type: Literal[&#39;audio&#39;]
-    url: Annotated[AnyUrl, Field(description=&#39;Audio URL&#39;)]</code></pre>
+    provenance: Annotated[
+        provenance_1.Provenance | None,
+        Field(description=&#39;Provenance for this audio, overrides artifact-level provenance&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -783,10 +783,10 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     apple_podcast_id: Annotated[str | None, Field(description=&#39;Apple Podcasts ID&#39;)] = None
-    podcast_guid: Annotated[str | None, Field(description=&#39;Podcast GUID (from RSS feed)&#39;)] = None
-    rss_url: Annotated[AnyUrl | None, Field(description=&#39;RSS feed URL&#39;)] = None
     spotify_show_id: Annotated[str | None, Field(description=&#39;Spotify show ID&#39;)] = None
-    youtube_video_id: Annotated[str | None, Field(description=&#39;YouTube video ID&#39;)] = None</code></pre>
+    podcast_guid: Annotated[str | None, Field(description=&#39;Podcast GUID (from RSS feed)&#39;)] = None
+    youtube_video_id: Annotated[str | None, Field(description=&#39;YouTube video ID&#39;)] = None
+    rss_url: Annotated[AnyUrl | None, Field(description=&#39;RSS feed URL&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -854,18 +854,18 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    author: Annotated[str | None, Field(description=&#39;Artifact author name&#39;)] = None
     canonical: Annotated[AnyUrl | None, Field(description=&#39;Canonical URL&#39;)] = None
-    json_ld: Annotated[
-        list[dict[str, Any]] | None, Field(description=&#39;JSON-LD structured data (schema.org)&#39;)
-    ] = None
+    author: Annotated[str | None, Field(description=&#39;Artifact author name&#39;)] = None
     keywords: Annotated[str | None, Field(description=&#39;Artifact keywords&#39;)] = None
     open_graph: Annotated[
         dict[str, Any] | None, Field(description=&#39;Open Graph protocol metadata&#39;)
     ] = None
     twitter_card: Annotated[dict[str, Any] | None, Field(description=&#39;Twitter Card metadata&#39;)] = (
         None
-    )</code></pre>
+    )
+    json_ld: Annotated[
+        list[dict[str, Any]] | None, Field(description=&#39;JSON-LD structured data (schema.org)&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

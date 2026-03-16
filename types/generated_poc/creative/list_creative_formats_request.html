@@ -148,36 +148,21 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(description=&#39;Return only these specific format IDs&#39;, min_length=1),
+    ] = None
+    type: Annotated[
+        Type | None,
+        Field(
+            description=&#39;Filter by format type (technical categories with distinct requirements)&#39;
+        ),
+    ] = None
     asset_types: Annotated[
         list[AssetType] | None,
         Field(
             description=&#34;Filter to formats that include these asset types. For third-party tags, search for &#39;html&#39; or &#39;javascript&#39;. E.g., [&#39;image&#39;, &#39;text&#39;] returns formats with images and text, [&#39;javascript&#39;] returns formats accepting JavaScript tags.&#34;,
             min_length=1,
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
-    format_ids: Annotated[
-        list[format_id.FormatId] | None,
-        Field(description=&#39;Return only these specific format IDs&#39;, min_length=1),
-    ] = None
-    input_format_ids: Annotated[
-        list[format_id.FormatId] | None,
-        Field(
-            description=&#34;Filter to formats whose input_format_ids includes any of these format IDs. Returns formats that accept these creatives as input — inspect each result&#39;s output_format_ids to see what they can produce.&#34;,
-            min_length=1,
-        ),
-    ] = None
-    is_responsive: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#39;
-        ),
-    ] = None
-    max_height: Annotated[
-        int | None,
-        Field(
-            description=&#39;Maximum height in pixels (inclusive). Returns formats with height &lt;= this value. Omit for responsive/fluid formats.&#39;
         ),
     ] = None
     max_width: Annotated[
@@ -186,10 +171,10 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Maximum width in pixels (inclusive). Returns formats with width &lt;= this value. Omit for responsive/fluid formats.&#39;
         ),
     ] = None
-    min_height: Annotated[
+    max_height: Annotated[
         int | None,
         Field(
-            description=&#39;Minimum height in pixels (inclusive). Returns formats with height &gt;= this value.&#39;
+            description=&#39;Maximum height in pixels (inclusive). Returns formats with height &lt;= this value. Omit for responsive/fluid formats.&#39;
         ),
     ] = None
     min_width: Annotated[
@@ -198,8 +183,40 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Minimum width in pixels (inclusive). Returns formats with width &gt;= this value.&#39;
         ),
     ] = None
+    min_height: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum height in pixels (inclusive). Returns formats with height &gt;= this value.&#39;
+        ),
+    ] = None
+    is_responsive: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#39;
+        ),
+    ] = None
     name_search: Annotated[
         str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
+    ] = None
+    wcag_level: Annotated[
+        wcag_level_1.WcagLevel | None,
+        Field(
+            description=&#39;Filter to formats that meet at least this WCAG conformance level (A &lt; AA &lt; AAA)&#39;
+        ),
+    ] = None
+    disclosure_positions: Annotated[
+        list[disclosure_position.DisclosurePosition] | None,
+        Field(
+            description=&#34;Filter to formats that support all of these disclosure positions. When a format has disclosure_capabilities, match against those positions. Otherwise fall back to supported_disclosure_positions. Use to find formats compatible with a brief&#39;s compliance requirements.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    disclosure_persistence: Annotated[
+        list[disclosure_persistence_1.DisclosurePersistence] | None,
+        Field(
+            description=&#39;Filter to formats where each requested persistence mode is supported by at least one position in disclosure_capabilities. Different positions may satisfy different modes. Use to find formats compatible with jurisdiction-specific persistence requirements (e.g., continuous for EU AI Act).&#39;,
+            min_length=1,
+        ),
     ] = None
     output_format_ids: Annotated[
         list[format_id.FormatId] | None,
@@ -208,19 +225,16 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    pagination: pagination_request.PaginationRequest | None = None
-    type: Annotated[
-        Type | None,
+    input_format_ids: Annotated[
+        list[format_id.FormatId] | None,
         Field(
-            description=&#39;Filter by format type (technical categories with distinct requirements)&#39;
+            description=&#34;Filter to formats whose input_format_ids includes any of these format IDs. Returns formats that accept these creatives as input — inspect each result&#39;s output_format_ids to see what they can produce.&#34;,
+            min_length=1,
         ),
     ] = None
-    wcag_level: Annotated[
-        wcag_level_1.WcagLevel | None,
-        Field(
-            description=&#39;Filter to formats that meet at least this WCAG conformance level (A &lt; AA &lt; AAA)&#39;
-        ),
-    ] = None</code></pre>
+    pagination: pagination_request.PaginationRequest | None = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -244,6 +258,14 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.disclosure_persistence"><code class="name">var <span class="ident">disclosure_persistence</span> : list[<a title="adcp.types.generated_poc.enums.disclosure_persistence.DisclosurePersistence" href="../enums/disclosure_persistence.html#adcp.types.generated_poc.enums.disclosure_persistence.DisclosurePersistence">DisclosurePersistence</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.disclosure_positions"><code class="name">var <span class="ident">disclosure_positions</span> : list[<a title="adcp.types.generated_poc.enums.disclosure_position.DisclosurePosition" href="../enums/disclosure_position.html#adcp.types.generated_poc.enums.disclosure_position.DisclosurePosition">DisclosurePosition</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -418,9 +440,11 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent" href="#adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent">ListCreativeFormatsRequestCreativeAgent</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.asset_types" href="#adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.asset_types">asset_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.context" href="#adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.disclosure_persistence" href="#adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.disclosure_persistence">disclosure_persistence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.disclosure_positions" href="#adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.disclosure_positions">disclosure_positions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.ext" href="#adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.format_ids" href="#adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.input_format_ids" href="#adcp.types.generated_poc.creative.list_creative_formats_request.ListCreativeFormatsRequestCreativeAgent.input_format_ids">input_format_ids</a></code></li>

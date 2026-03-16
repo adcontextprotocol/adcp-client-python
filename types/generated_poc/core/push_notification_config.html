@@ -59,19 +59,19 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    credentials: Annotated[
-        str,
-        Field(
-            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
-            min_length=32,
-        ),
-    ]
     schemes: Annotated[
         list[auth_scheme.AuthenticationScheme],
         Field(
             description=&#34;Array of authentication schemes. Supported: [&#39;Bearer&#39;] for simple token auth, [&#39;HMAC-SHA256&#39;] for signature verification (recommended for production)&#34;,
             max_length=1,
             min_length=1,
+        ),
+    ]
+    credentials: Annotated[
+        str,
+        Field(
+            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
+            min_length=32,
         ),
     ]</code></pre>
 </details>
@@ -126,10 +126,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
-    authentication: Annotated[
-        Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
-    ]
+    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]
     token: Annotated[
         str | None,
         Field(
@@ -137,7 +134,10 @@ validated to form a valid model.</p>
             min_length=16,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]</code></pre>
+    authentication: Annotated[
+        Authentication,
+        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

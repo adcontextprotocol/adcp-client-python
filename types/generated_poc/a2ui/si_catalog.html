@@ -1,0 +1,1813 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.a2ui.si_catalog API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.a2ui.si_catalog</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Action"><code class="flex name class">
+<span>class <span class="ident">Action</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Action(AdCPBaseModel):
+    name: Annotated[str, Field(description=&#39;Action identifier&#39;)]
+    context: Annotated[
+        dict[str, bound_value.A2UiBoundValue] | None,
+        Field(description=&#39;Context data to include with action&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Action.context"><code class="name">var <span class="ident">context</span> : dict[str, <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Action.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Action.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Action4"><code class="flex name class">
+<span>class <span class="ident">Action4</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Action4(AdCPBaseModel):
+    name: str
+    context: dict[str, bound_value.A2UiBoundValue] | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Action4.context"><code class="name">var <span class="ident">context</span> : dict[str, <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Action4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Action4.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Align"><code class="flex name class">
+<span>class <span class="ident">Align</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Align(Enum):
+    start = &#39;start&#39;
+    center = &#39;center&#39;
+    end = &#39;end&#39;
+    stretch = &#39;stretch&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Align.center"><code class="name">var <span class="ident">center</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Align.end"><code class="name">var <span class="ident">end</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Align.start"><code class="name">var <span class="ident">start</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Align.stretch"><code class="name">var <span class="ident">stretch</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.AppHandoff"><code class="flex name class">
+<span>class <span class="ident">AppHandoff</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AppHandoff(AdCPBaseModel):
+    apps: Annotated[dict[str, Apps], Field(description=&#39;Platform-specific app configurations&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.AppHandoff.apps"><code class="name">var <span class="ident">apps</span> : dict[str, <a title="adcp.types.generated_poc.a2ui.si_catalog.Apps" href="#adcp.types.generated_poc.a2ui.si_catalog.Apps">Apps</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.AppHandoff.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Apps"><code class="flex name class">
+<span>class <span class="ident">Apps</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Apps(AdCPBaseModel):
+    appId: str | None = None
+    deepLink: str | None = None
+    url: AnyUrl | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Apps.appId"><code class="name">var <span class="ident">appId</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Apps.deepLink"><code class="name">var <span class="ident">deepLink</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Apps.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Apps.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Button"><code class="flex name class">
+<span>class <span class="ident">Button</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Button(AdCPBaseModel):
+    label: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Button label text&#39;)]
+    action: Annotated[Action, Field(description=&#39;Action to trigger on click&#39;)]
+    variant: Variant3 | None = Variant3.primary
+    disabled: bound_value.A2UiBoundValue | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Button.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Action" href="#adcp.types.generated_poc.a2ui.si_catalog.Action">Action</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Button.disabled"><code class="name">var <span class="ident">disabled</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Button.label"><code class="name">var <span class="ident">label</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Button.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Button.variant"><code class="name">var <span class="ident">variant</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Variant3" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant3">Variant3</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Card"><code class="flex name class">
+<span>class <span class="ident">Card</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Card(AdCPBaseModel):
+    title: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Card title&#39;)]
+    subtitle: Annotated[bound_value.A2UiBoundValue | None, Field(description=&#39;Card subtitle&#39;)] = (
+        None
+    )
+    image: Annotated[bound_value.A2UiBoundValue | None, Field(description=&#39;Card image URL&#39;)] = None
+    badge: Annotated[
+        bound_value.A2UiBoundValue | None, Field(description=&#34;Badge text (e.g., &#39;New&#39;, &#39;Sale&#39;)&#34;)
+    ] = None
+    action: Annotated[Action4 | None, Field(description=&#39;Action to trigger on card click&#39;)] = None
+    children: Annotated[list[str] | None, Field(description=&#39;Child component IDs&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Card.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Action4" href="#adcp.types.generated_poc.a2ui.si_catalog.Action4">Action4</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Card.badge"><code class="name">var <span class="ident">badge</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Card.children"><code class="name">var <span class="ident">children</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Card.image"><code class="name">var <span class="ident">image</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Card.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Card.subtitle"><code class="name">var <span class="ident">subtitle</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Card.title"><code class="name">var <span class="ident">title</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Column"><code class="flex name class">
+<span>class <span class="ident">Column</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Column(AdCPBaseModel):
+    children: Annotated[list[str], Field(description=&#39;Child component IDs&#39;)]
+    gap: Annotated[str | None, Field(description=&#39;Gap between children&#39;)] = &#39;8px&#39;
+    align: Align | None = Align.stretch</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Column.align"><code class="name">var <span class="ident">align</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Align" href="#adcp.types.generated_poc.a2ui.si_catalog.Align">Align</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Column.children"><code class="name">var <span class="ident">children</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Column.gap"><code class="name">var <span class="ident">gap</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Column.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component"><code class="flex name class">
+<span>class <span class="ident">Component</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Component(Enum):
+    Text = &#39;Text&#39;
+    Button = &#39;Button&#39;
+    Link = &#39;Link&#39;
+    Image = &#39;Image&#39;
+    Card = &#39;Card&#39;
+    ProductCard = &#39;ProductCard&#39;
+    List = &#39;List&#39;
+    Row = &#39;Row&#39;
+    Column = &#39;Column&#39;
+    IntegrationAction = &#39;IntegrationAction&#39;
+    AppHandoff = &#39;AppHandoff&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.AppHandoff"><code class="name">var <span class="ident">AppHandoff</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.Button"><code class="name">var <span class="ident">Button</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.Card"><code class="name">var <span class="ident">Card</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.Column"><code class="name">var <span class="ident">Column</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.Image"><code class="name">var <span class="ident">Image</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.IntegrationAction"><code class="name">var <span class="ident">IntegrationAction</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.Link"><code class="name">var <span class="ident">Link</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.List"><code class="name">var <span class="ident">List</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.ProductCard"><code class="name">var <span class="ident">ProductCard</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.Row"><code class="name">var <span class="ident">Row</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Component.Text"><code class="name">var <span class="ident">Text</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Image"><code class="flex name class">
+<span>class <span class="ident">Image</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Image(AdCPBaseModel):
+    src: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Image source URL&#39;)]
+    alt: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Alt text for accessibility&#39;)]
+    width: Annotated[int | None, Field(description=&#39;Image width in pixels&#39;)] = None
+    height: Annotated[int | None, Field(description=&#39;Image height in pixels&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Image.alt"><code class="name">var <span class="ident">alt</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Image.height"><code class="name">var <span class="ident">height</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Image.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Image.src"><code class="name">var <span class="ident">src</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Image.width"><code class="name">var <span class="ident">width</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction"><code class="flex name class">
+<span>class <span class="ident">IntegrationAction</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IntegrationAction(AdCPBaseModel):
+    type: Annotated[Type, Field(description=&#39;Integration type&#39;)]
+    label: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Button label&#39;)]
+    url: Annotated[
+        bound_value.A2UiBoundValue | None, Field(description=&#39;Integration endpoint URL&#39;)
+    ] = None
+    highlighted: Annotated[bool | None, Field(description=&#39;Visually emphasize this action&#39;)] = False</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.highlighted"><code class="name">var <span class="ident">highlighted</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.label"><code class="name">var <span class="ident">label</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Type" href="#adcp.types.generated_poc.a2ui.si_catalog.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.url"><code class="name">var <span class="ident">url</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Justify"><code class="flex name class">
+<span>class <span class="ident">Justify</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Justify(Enum):
+    start = &#39;start&#39;
+    center = &#39;center&#39;
+    end = &#39;end&#39;
+    between = &#39;between&#39;
+    around = &#39;around&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Justify.around"><code class="name">var <span class="ident">around</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Justify.between"><code class="name">var <span class="ident">between</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Justify.center"><code class="name">var <span class="ident">center</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Justify.end"><code class="name">var <span class="ident">end</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Justify.start"><code class="name">var <span class="ident">start</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Layout"><code class="flex name class">
+<span>class <span class="ident">Layout</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Layout(Enum):
+    vertical = &#39;vertical&#39;
+    horizontal = &#39;horizontal&#39;
+    grid = &#39;grid&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Layout.grid"><code class="name">var <span class="ident">grid</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Layout.horizontal"><code class="name">var <span class="ident">horizontal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Layout.vertical"><code class="name">var <span class="ident">vertical</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Link"><code class="flex name class">
+<span>class <span class="ident">Link</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Link(AdCPBaseModel):
+    label: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Link text&#39;)]
+    url: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;URL to navigate to&#39;)]
+    external: Annotated[bool | None, Field(description=&#39;Opens in new tab if true&#39;)] = True</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Link.external"><code class="name">var <span class="ident">external</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Link.label"><code class="name">var <span class="ident">label</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Link.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Link.url"><code class="name">var <span class="ident">url</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.List"><code class="flex name class">
+<span>class <span class="ident">List</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class List(AdCPBaseModel):
+    items: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Path to array in data model&#39;)]
+    template: Annotated[Template, Field(description=&#39;Template for list items&#39;)]
+    emptyMessage: Annotated[
+        bound_value.A2UiBoundValue | None, Field(description=&#39;Message to show when list is empty&#39;)
+    ] = None
+    layout: Layout | None = Layout.vertical</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.List.emptyMessage"><code class="name">var <span class="ident">emptyMessage</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.List.items"><code class="name">var <span class="ident">items</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.List.layout"><code class="name">var <span class="ident">layout</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Layout" href="#adcp.types.generated_poc.a2ui.si_catalog.Layout">Layout</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.List.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.List.template"><code class="name">var <span class="ident">template</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Template" href="#adcp.types.generated_poc.a2ui.si_catalog.Template">Template</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard"><code class="flex name class">
+<span>class <span class="ident">ProductCard</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProductCard(AdCPBaseModel):
+    title: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Product name&#39;)]
+    price: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Price display string&#39;)]
+    image: Annotated[bound_value.A2UiBoundValue | None, Field(description=&#39;Product image URL&#39;)] = (
+        None
+    )
+    description: Annotated[
+        bound_value.A2UiBoundValue | None, Field(description=&#39;Product description&#39;)
+    ] = None
+    badge: Annotated[
+        bound_value.A2UiBoundValue | None, Field(description=&#34;Badge text (e.g., &#39;Best Seller&#39;)&#34;)
+    ] = None
+    ctaLabel: Annotated[
+        bound_value.A2UiBoundValue | None, Field(description=&#39;CTA button label&#39;)
+    ] = None
+    action: Action4 | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Action4" href="#adcp.types.generated_poc.a2ui.si_catalog.Action4">Action4</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.badge"><code class="name">var <span class="ident">badge</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.ctaLabel"><code class="name">var <span class="ident">ctaLabel</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.description"><code class="name">var <span class="ident">description</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.image"><code class="name">var <span class="ident">image</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.price"><code class="name">var <span class="ident">price</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.title"><code class="name">var <span class="ident">title</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Row"><code class="flex name class">
+<span>class <span class="ident">Row</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Row(AdCPBaseModel):
+    children: Annotated[list[str], Field(description=&#39;Child component IDs&#39;)]
+    gap: Annotated[str | None, Field(description=&#39;Gap between children&#39;)] = &#39;8px&#39;
+    align: Align | None = Align.center
+    justify: Justify | None = Justify.start</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Row.align"><code class="name">var <span class="ident">align</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Align" href="#adcp.types.generated_poc.a2ui.si_catalog.Align">Align</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Row.children"><code class="name">var <span class="ident">children</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Row.gap"><code class="name">var <span class="ident">gap</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Row.justify"><code class="name">var <span class="ident">justify</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Justify" href="#adcp.types.generated_poc.a2ui.si_catalog.Justify">Justify</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Row.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog"><code class="flex name class">
+<span>class <span class="ident">SiComponentCatalog</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SiComponentCatalog(AdCPBaseModel):
+    catalogId: Annotated[
+        Literal[&#39;si-standard&#39;], Field(description=&#39;SI standard component catalog&#39;)
+    ] = &#39;si-standard&#39;
+    components: Annotated[
+        list[Component] | None, Field(description=&#39;Available component types&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.catalogId"><code class="name">var <span class="ident">catalogId</span> : Literal['si-standard']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.components"><code class="name">var <span class="ident">components</span> : list[<a title="adcp.types.generated_poc.a2ui.si_catalog.Component" href="#adcp.types.generated_poc.a2ui.si_catalog.Component">Component</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Template"><code class="flex name class">
+<span>class <span class="ident">Template</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Template(AdCPBaseModel):
+    componentId: Annotated[str, Field(description=&#39;ID of component to use as template&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Template.componentId"><code class="name">var <span class="ident">componentId</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Template.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Text"><code class="flex name class">
+<span>class <span class="ident">Text</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Text(AdCPBaseModel):
+    text: Annotated[bound_value.A2UiBoundValue, Field(description=&#39;Text content to display&#39;)]
+    variant: Variant | None = Variant.body</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Text.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Text.text"><code class="name">var <span class="ident">text</span> : <a title="adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue" href="bound_value.html#adcp.types.generated_poc.a2ui.bound_value.A2UiBoundValue">A2UiBoundValue</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Text.variant"><code class="name">var <span class="ident">variant</span> : <a title="adcp.types.generated_poc.a2ui.si_catalog.Variant" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant">Variant</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Type"><code class="flex name class">
+<span>class <span class="ident">Type</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type(Enum):
+    mcp = &#39;mcp&#39;
+    a2a = &#39;a2a&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Type.a2a"><code class="name">var <span class="ident">a2a</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Type.mcp"><code class="name">var <span class="ident">mcp</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant"><code class="flex name class">
+<span>class <span class="ident">Variant</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Variant(Enum):
+    body = &#39;body&#39;
+    heading = &#39;heading&#39;
+    caption = &#39;caption&#39;
+    label = &#39;label&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant.body"><code class="name">var <span class="ident">body</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant.caption"><code class="name">var <span class="ident">caption</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant.heading"><code class="name">var <span class="ident">heading</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant.label"><code class="name">var <span class="ident">label</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant3"><code class="flex name class">
+<span>class <span class="ident">Variant3</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Variant3(Enum):
+    primary = &#39;primary&#39;
+    secondary = &#39;secondary&#39;
+    text = &#39;text&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant3.primary"><code class="name">var <span class="ident">primary</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant3.secondary"><code class="name">var <span class="ident">secondary</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.a2ui.si_catalog.Variant3.text"><code class="name">var <span class="ident">text</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.a2ui" href="index.html">adcp.types.generated_poc.a2ui</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Action" href="#adcp.types.generated_poc.a2ui.si_catalog.Action">Action</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Action.context" href="#adcp.types.generated_poc.a2ui.si_catalog.Action.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Action.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Action.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Action.name" href="#adcp.types.generated_poc.a2ui.si_catalog.Action.name">name</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Action4" href="#adcp.types.generated_poc.a2ui.si_catalog.Action4">Action4</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Action4.context" href="#adcp.types.generated_poc.a2ui.si_catalog.Action4.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Action4.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Action4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Action4.name" href="#adcp.types.generated_poc.a2ui.si_catalog.Action4.name">name</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Align" href="#adcp.types.generated_poc.a2ui.si_catalog.Align">Align</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Align.center" href="#adcp.types.generated_poc.a2ui.si_catalog.Align.center">center</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Align.end" href="#adcp.types.generated_poc.a2ui.si_catalog.Align.end">end</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Align.start" href="#adcp.types.generated_poc.a2ui.si_catalog.Align.start">start</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Align.stretch" href="#adcp.types.generated_poc.a2ui.si_catalog.Align.stretch">stretch</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.AppHandoff" href="#adcp.types.generated_poc.a2ui.si_catalog.AppHandoff">AppHandoff</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.AppHandoff.apps" href="#adcp.types.generated_poc.a2ui.si_catalog.AppHandoff.apps">apps</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.AppHandoff.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.AppHandoff.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Apps" href="#adcp.types.generated_poc.a2ui.si_catalog.Apps">Apps</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Apps.appId" href="#adcp.types.generated_poc.a2ui.si_catalog.Apps.appId">appId</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Apps.deepLink" href="#adcp.types.generated_poc.a2ui.si_catalog.Apps.deepLink">deepLink</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Apps.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Apps.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Apps.url" href="#adcp.types.generated_poc.a2ui.si_catalog.Apps.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Button" href="#adcp.types.generated_poc.a2ui.si_catalog.Button">Button</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Button.action" href="#adcp.types.generated_poc.a2ui.si_catalog.Button.action">action</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Button.disabled" href="#adcp.types.generated_poc.a2ui.si_catalog.Button.disabled">disabled</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Button.label" href="#adcp.types.generated_poc.a2ui.si_catalog.Button.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Button.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Button.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Button.variant" href="#adcp.types.generated_poc.a2ui.si_catalog.Button.variant">variant</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Card" href="#adcp.types.generated_poc.a2ui.si_catalog.Card">Card</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Card.action" href="#adcp.types.generated_poc.a2ui.si_catalog.Card.action">action</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Card.badge" href="#adcp.types.generated_poc.a2ui.si_catalog.Card.badge">badge</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Card.children" href="#adcp.types.generated_poc.a2ui.si_catalog.Card.children">children</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Card.image" href="#adcp.types.generated_poc.a2ui.si_catalog.Card.image">image</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Card.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Card.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Card.subtitle" href="#adcp.types.generated_poc.a2ui.si_catalog.Card.subtitle">subtitle</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Card.title" href="#adcp.types.generated_poc.a2ui.si_catalog.Card.title">title</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Column" href="#adcp.types.generated_poc.a2ui.si_catalog.Column">Column</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Column.align" href="#adcp.types.generated_poc.a2ui.si_catalog.Column.align">align</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Column.children" href="#adcp.types.generated_poc.a2ui.si_catalog.Column.children">children</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Column.gap" href="#adcp.types.generated_poc.a2ui.si_catalog.Column.gap">gap</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Column.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Column.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component" href="#adcp.types.generated_poc.a2ui.si_catalog.Component">Component</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.AppHandoff" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.AppHandoff">AppHandoff</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.Button" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.Button">Button</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.Card" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.Card">Card</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.Column" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.Column">Column</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.Image" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.Image">Image</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.IntegrationAction" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.IntegrationAction">IntegrationAction</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.Link" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.Link">Link</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.List" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.List">List</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.ProductCard" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.ProductCard">ProductCard</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.Row" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.Row">Row</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Component.Text" href="#adcp.types.generated_poc.a2ui.si_catalog.Component.Text">Text</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Image" href="#adcp.types.generated_poc.a2ui.si_catalog.Image">Image</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Image.alt" href="#adcp.types.generated_poc.a2ui.si_catalog.Image.alt">alt</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Image.height" href="#adcp.types.generated_poc.a2ui.si_catalog.Image.height">height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Image.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Image.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Image.src" href="#adcp.types.generated_poc.a2ui.si_catalog.Image.src">src</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Image.width" href="#adcp.types.generated_poc.a2ui.si_catalog.Image.width">width</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction" href="#adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction">IntegrationAction</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.highlighted" href="#adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.highlighted">highlighted</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.label" href="#adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.type" href="#adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.url" href="#adcp.types.generated_poc.a2ui.si_catalog.IntegrationAction.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Justify" href="#adcp.types.generated_poc.a2ui.si_catalog.Justify">Justify</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Justify.around" href="#adcp.types.generated_poc.a2ui.si_catalog.Justify.around">around</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Justify.between" href="#adcp.types.generated_poc.a2ui.si_catalog.Justify.between">between</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Justify.center" href="#adcp.types.generated_poc.a2ui.si_catalog.Justify.center">center</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Justify.end" href="#adcp.types.generated_poc.a2ui.si_catalog.Justify.end">end</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Justify.start" href="#adcp.types.generated_poc.a2ui.si_catalog.Justify.start">start</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Layout" href="#adcp.types.generated_poc.a2ui.si_catalog.Layout">Layout</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Layout.grid" href="#adcp.types.generated_poc.a2ui.si_catalog.Layout.grid">grid</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Layout.horizontal" href="#adcp.types.generated_poc.a2ui.si_catalog.Layout.horizontal">horizontal</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Layout.vertical" href="#adcp.types.generated_poc.a2ui.si_catalog.Layout.vertical">vertical</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Link" href="#adcp.types.generated_poc.a2ui.si_catalog.Link">Link</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Link.external" href="#adcp.types.generated_poc.a2ui.si_catalog.Link.external">external</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Link.label" href="#adcp.types.generated_poc.a2ui.si_catalog.Link.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Link.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Link.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Link.url" href="#adcp.types.generated_poc.a2ui.si_catalog.Link.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.List" href="#adcp.types.generated_poc.a2ui.si_catalog.List">List</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.List.emptyMessage" href="#adcp.types.generated_poc.a2ui.si_catalog.List.emptyMessage">emptyMessage</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.List.items" href="#adcp.types.generated_poc.a2ui.si_catalog.List.items">items</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.List.layout" href="#adcp.types.generated_poc.a2ui.si_catalog.List.layout">layout</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.List.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.List.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.List.template" href="#adcp.types.generated_poc.a2ui.si_catalog.List.template">template</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard">ProductCard</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.action" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard.action">action</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.badge" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard.badge">badge</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.ctaLabel" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard.ctaLabel">ctaLabel</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.description" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.image" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard.image">image</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.price" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard.price">price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.ProductCard.title" href="#adcp.types.generated_poc.a2ui.si_catalog.ProductCard.title">title</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Row" href="#adcp.types.generated_poc.a2ui.si_catalog.Row">Row</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Row.align" href="#adcp.types.generated_poc.a2ui.si_catalog.Row.align">align</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Row.children" href="#adcp.types.generated_poc.a2ui.si_catalog.Row.children">children</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Row.gap" href="#adcp.types.generated_poc.a2ui.si_catalog.Row.gap">gap</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Row.justify" href="#adcp.types.generated_poc.a2ui.si_catalog.Row.justify">justify</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Row.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Row.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog" href="#adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog">SiComponentCatalog</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.catalogId" href="#adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.catalogId">catalogId</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.components" href="#adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.components">components</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.SiComponentCatalog.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Template" href="#adcp.types.generated_poc.a2ui.si_catalog.Template">Template</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Template.componentId" href="#adcp.types.generated_poc.a2ui.si_catalog.Template.componentId">componentId</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Template.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Template.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Text" href="#adcp.types.generated_poc.a2ui.si_catalog.Text">Text</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Text.model_config" href="#adcp.types.generated_poc.a2ui.si_catalog.Text.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Text.text" href="#adcp.types.generated_poc.a2ui.si_catalog.Text.text">text</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Text.variant" href="#adcp.types.generated_poc.a2ui.si_catalog.Text.variant">variant</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Type" href="#adcp.types.generated_poc.a2ui.si_catalog.Type">Type</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Type.a2a" href="#adcp.types.generated_poc.a2ui.si_catalog.Type.a2a">a2a</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Type.mcp" href="#adcp.types.generated_poc.a2ui.si_catalog.Type.mcp">mcp</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant">Variant</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant.body" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant.body">body</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant.caption" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant.caption">caption</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant.heading" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant.heading">heading</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant.label" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant.label">label</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant3" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant3">Variant3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant3.primary" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant3.primary">primary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant3.secondary" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant3.secondary">secondary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.a2ui.si_catalog.Variant3.text" href="#adcp.types.generated_poc.a2ui.si_catalog.Variant3.text">text</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

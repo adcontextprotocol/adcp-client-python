@@ -59,9 +59,9 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    list_id: Annotated[str, Field(description=&#39;ID of the property list to delete&#39;)]
     context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
-    list_id: Annotated[str, Field(description=&#39;ID of the property list to delete&#39;)]</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

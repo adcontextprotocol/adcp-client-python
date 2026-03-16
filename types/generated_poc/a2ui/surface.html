@@ -59,6 +59,7 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    surfaceId: Annotated[str, Field(description=&#39;Unique identifier for this surface&#39;)]
     catalogId: Annotated[
         str | None, Field(description=&#39;Component catalog to use for rendering&#39;)
     ] = &#39;standard&#39;
@@ -66,14 +67,13 @@ el.replaceWith(d);
         list[component.A2UiComponent],
         Field(description=&#39;Flat list of components (adjacency list structure)&#39;),
     ]
-    dataModel: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Application data that components can bind to&#39;)
-    ] = None
     rootId: Annotated[
         str | None,
         Field(description=&#39;ID of the root component (if not specified, first component is root)&#39;),
     ] = None
-    surfaceId: Annotated[str, Field(description=&#39;Unique identifier for this surface&#39;)]</code></pre>
+    dataModel: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Application data that components can bind to&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

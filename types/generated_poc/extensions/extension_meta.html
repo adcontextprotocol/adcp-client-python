@@ -59,26 +59,16 @@ el.replaceWith(d);
     field_schema: Annotated[
         Literal[&#39;http://json-schema.org/draft-07/schema#&#39;], Field(alias=&#39;$schema&#39;)
     ]
-    additionalProperties: Annotated[
-        Any | None,
-        Field(description=&#39;Whether additional properties are allowed in the extension data&#39;),
-    ] = None
-    description: Annotated[str, Field(description=&#39;Description of what this extension provides&#39;)]
-    docs_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to documentation for implementors of this extension&#39;)
-    ] = None
-    properties: Annotated[
-        dict[str, Any],
-        Field(description=&#39;Schema properties defining the structure of ext.{namespace} data&#39;),
+    field_id: Annotated[
+        str,
+        Field(
+            alias=&#39;$id&#39;,
+            description=&#39;Extension ID following pattern /schemas/extensions/{namespace}.json&#39;,
+            pattern=&#39;^/schemas/extensions/[a-z][a-z0-9_]*\\.json$&#39;,
+        ),
     ]
-    required: Annotated[
-        list[str] | None, Field(description=&#39;Required properties within the extension data&#39;)
-    ] = None
     title: Annotated[str, Field(description=&#39;Human-readable title for the extension&#39;)]
-    type: Annotated[
-        Literal[&#39;object&#39;],
-        Field(description=&#39;Extensions must be objects (data within ext.{namespace})&#39;),
-    ]
+    description: Annotated[str, Field(description=&#39;Description of what this extension provides&#39;)]
     valid_from: Annotated[
         str,
         Field(
@@ -92,6 +82,24 @@ el.replaceWith(d);
             description=&#34;Last AdCP version this extension is compatible with (e.g., &#39;3.0&#39;). Omit if extension is still valid for current and future versions.&#34;,
             pattern=&#39;^\\d+\\.\\d+$&#39;,
         ),
+    ] = None
+    docs_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to documentation for implementors of this extension&#39;)
+    ] = None
+    type: Annotated[
+        Literal[&#39;object&#39;],
+        Field(description=&#39;Extensions must be objects (data within ext.{namespace})&#39;),
+    ]
+    properties: Annotated[
+        dict[str, Any],
+        Field(description=&#39;Schema properties defining the structure of ext.{namespace} data&#39;),
+    ]
+    required: Annotated[
+        list[str] | None, Field(description=&#39;Required properties within the extension data&#39;)
+    ] = None
+    additionalProperties: Annotated[
+        Any | None,
+        Field(description=&#39;Whether additional properties are allowed in the extension data&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -120,6 +128,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.docs_url"><code class="name">var <span class="ident">docs_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_id"><code class="name">var <span class="ident">field_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -188,6 +200,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.additionalProperties" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.additionalProperties">additionalProperties</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.description" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.docs_url" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.docs_url">docs_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_id" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_id">field_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_schema" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_schema">field_schema</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.model_config" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.properties" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.properties">properties</a></code></li>

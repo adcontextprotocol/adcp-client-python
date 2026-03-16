@@ -122,16 +122,20 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    type: Annotated[
+        Literal[&#39;platform&#39;],
+        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
+    ]
+    platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    is_live: Annotated[
+        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+    ]
     activation_key: Annotated[
         activation_key_1.ActivationKey | None,
         Field(
             description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
-    ] = None
-    deployed_at: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
@@ -140,14 +144,10 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
-    ]
-    platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
-    type: Annotated[
-        Literal[&#39;platform&#39;],
-        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
-    ]</code></pre>
+    deployed_at: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -223,17 +223,20 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    type: Annotated[
+        Literal[&#39;agent&#39;],
+        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
+    ]
+    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
     account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    is_live: Annotated[
+        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+    ]
     activation_key: Annotated[
         activation_key_1.ActivationKey | None,
         Field(
             description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;
         ),
-    ] = None
-    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
-    deployed_at: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
@@ -242,13 +245,10 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
-    ]
-    type: Annotated[
-        Literal[&#39;agent&#39;],
-        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
-    ]</code></pre>
+    deployed_at: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

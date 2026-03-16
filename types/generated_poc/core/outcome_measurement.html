@@ -59,20 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    attribution: Annotated[
-        str,
-        Field(
-            description=&#39;Attribution methodology&#39;,
-            examples=[&#39;deterministic_purchase&#39;, &#39;probabilistic&#39;],
-        ),
-    ]
-    reporting: Annotated[
-        str,
-        Field(
-            description=&#39;Reporting frequency and format&#39;,
-            examples=[&#39;weekly_dashboard&#39;, &#39;real_time_api&#39;],
-        ),
-    ]
     type: Annotated[
         str,
         Field(
@@ -80,12 +66,26 @@ el.replaceWith(d);
             examples=[&#39;incremental_sales_lift&#39;, &#39;brand_lift&#39;, &#39;foot_traffic&#39;],
         ),
     ]
+    attribution: Annotated[
+        str,
+        Field(
+            description=&#39;Attribution methodology&#39;,
+            examples=[&#39;deterministic_purchase&#39;, &#39;probabilistic&#39;],
+        ),
+    ]
     window: Annotated[
         duration.Duration | None,
         Field(
             description=&#39;Attribution window as a structured duration (e.g., {&#34;interval&#34;: 30, &#34;unit&#34;: &#34;days&#34;}).&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    reporting: Annotated[
+        str,
+        Field(
+            description=&#39;Reporting frequency and format&#39;,
+            examples=[&#39;weekly_dashboard&#39;, &#39;real_time_api&#39;],
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

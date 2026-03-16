@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.governance.check_governance_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.governance.check_governance_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Binding"><code class="flex name class">
+<span>class <span class="ident">Binding</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Binding(Enum):
+    proposed = &#39;proposed&#39;
+    committed = &#39;committed&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Binding.committed"><code class="name">var <span class="ident">committed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Binding.proposed"><code class="name">var <span class="ident">proposed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse"><code class="flex name class">
+<span>class <span class="ident">CheckGovernanceResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CheckGovernanceResponse(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    check_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this governance check record. Use in report_plan_outcome to link outcomes to the check that authorized them.&#39;
+        ),
+    ]
+    status: Annotated[
+        Status,
+        Field(
+            description=&#34;Governance decision. &#39;approved&#39;: proceed as planned. &#39;denied&#39;: do not proceed. &#39;conditions&#39;: approved if the caller accepts the listed conditions, then re-calls check_governance with the adjusted parameters. &#39;escalated&#39;: halted pending human review.&#34;
+        ),
+    ]
+    binding: Annotated[
+        Binding,
+        Field(
+            description=&#39;Echoed from request. Lets the caller confirm the governance agent understood the commitment level.&#39;
+        ),
+    ]
+    plan_id: Annotated[str, Field(description=&#39;Echoed from request.&#39;)]
+    buyer_campaign_ref: Annotated[str, Field(description=&#39;Echoed from request.&#39;)]
+    explanation: Annotated[
+        str, Field(description=&#39;Human-readable explanation of the governance decision.&#39;)
+    ]
+    mode: Annotated[
+        governance_mode.GovernanceMode | None,
+        Field(
+            description=&#34;The governance mode under which this check was evaluated. Present so audit trails can distinguish &#39;denied in advisory mode (action proceeded)&#39; from &#39;denied in enforce mode (action blocked)&#39;.&#34;
+        ),
+    ] = None
+    findings: Annotated[
+        list[Finding] | None,
+        Field(
+            description=&#34;Specific issues found during the governance check. Present when status is &#39;denied&#39;, &#39;conditions&#39;, or &#39;escalated&#39;. MAY also be present on &#39;approved&#39; for advisory findings (e.g., budget approaching limit).&#34;
+        ),
+    ] = None
+    conditions: Annotated[
+        list[Condition] | None,
+        Field(
+            description=&#34;Present when status is &#39;conditions&#39;. Specific adjustments the caller must make. After applying conditions, the caller MUST re-call check_governance with the adjusted parameters before proceeding.&#34;
+        ),
+    ] = None
+    escalation: Annotated[
+        Escalation | None,
+        Field(
+            description=&#34;Present when status is &#39;escalated&#39;. The action is halted pending human review.&#34;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#34;When this approval expires. Present when status is &#39;approved&#39; or &#39;conditions&#39;. The caller must act before this time or re-call check_governance. A lapsed approval is no approval.&#34;
+        ),
+    ] = None
+    next_check: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When the seller should next call check_governance with delivery metrics. Present when the governance agent expects ongoing delivery reporting.&#39;
+        ),
+    ] = None
+    categories_evaluated: Annotated[
+        list[str] | None, Field(description=&#39;Governance categories evaluated during this check.&#39;)
+    ] = None
+    policies_evaluated: Annotated[
+        list[str] | None, Field(description=&#39;Registry policy IDs evaluated during this check.&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.binding"><code class="name">var <span class="ident">binding</span> : <a title="adcp.types.generated_poc.governance.check_governance_response.Binding" href="#adcp.types.generated_poc.governance.check_governance_response.Binding">Binding</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.categories_evaluated"><code class="name">var <span class="ident">categories_evaluated</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.check_id"><code class="name">var <span class="ident">check_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.conditions"><code class="name">var <span class="ident">conditions</span> : list[<a title="adcp.types.generated_poc.governance.check_governance_response.Condition" href="#adcp.types.generated_poc.governance.check_governance_response.Condition">Condition</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.escalation"><code class="name">var <span class="ident">escalation</span> : <a title="adcp.types.generated_poc.governance.check_governance_response.Escalation" href="#adcp.types.generated_poc.governance.check_governance_response.Escalation">Escalation</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.explanation"><code class="name">var <span class="ident">explanation</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.findings"><code class="name">var <span class="ident">findings</span> : list[<a title="adcp.types.generated_poc.governance.check_governance_response.Finding" href="#adcp.types.generated_poc.governance.check_governance_response.Finding">Finding</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.mode"><code class="name">var <span class="ident">mode</span> : <a title="adcp.types.generated_poc.enums.governance_mode.GovernanceMode" href="../enums/governance_mode.html#adcp.types.generated_poc.enums.governance_mode.GovernanceMode">GovernanceMode</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.next_check"><code class="name">var <span class="ident">next_check</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.plan_id"><code class="name">var <span class="ident">plan_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.policies_evaluated"><code class="name">var <span class="ident">policies_evaluated</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.check_governance_response.Status" href="#adcp.types.generated_poc.governance.check_governance_response.Status">Status</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Condition"><code class="flex name class">
+<span>class <span class="ident">Condition</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Condition(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    field: Annotated[
+        str,
+        Field(
+            description=&#39;Dot-path to the field that needs adjustment (in payload for proposed, in planned_delivery for committed).&#39;
+        ),
+    ]
+    required_value: Annotated[
+        Any | None,
+        Field(
+            description=&#39;The value the field must have for approval. When present, the condition is machine-actionable. When absent, the condition is advisory.&#39;
+        ),
+    ] = None
+    reason: Annotated[str, Field(description=&#39;Why this condition is required.&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Condition.field"><code class="name">var <span class="ident">field</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Condition.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Condition.reason"><code class="name">var <span class="ident">reason</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Condition.required_value"><code class="name">var <span class="ident">required_value</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Escalation"><code class="flex name class">
+<span>class <span class="ident">Escalation</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Escalation(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    reason: Annotated[
+        str, Field(description=&#39;Human-readable explanation of why the action was escalated.&#39;)
+    ]
+    severity: Annotated[
+        escalation_severity.EscalationSeverity, Field(description=&#39;Escalation severity level.&#39;)
+    ]
+    requires_human: Annotated[
+        bool, Field(description=&#39;Whether human approval is required before proceeding.&#39;)
+    ]
+    approval_tier: Annotated[
+        str | None,
+        Field(
+            description=&#34;Organizational role or tier required to resolve this escalation. The value is organization-defined; the governance agent infers the tier from the escalation context. Common values include &#39;manager&#39;, &#39;director&#39;, &#39;legal&#39;, &#39;cfo&#39;. Enables programmatic routing of escalations to the right person.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Escalation.approval_tier"><code class="name">var <span class="ident">approval_tier</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Escalation.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Escalation.reason"><code class="name">var <span class="ident">reason</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Escalation.requires_human"><code class="name">var <span class="ident">requires_human</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Escalation.severity"><code class="name">var <span class="ident">severity</span> : <a title="adcp.types.generated_poc.enums.escalation_severity.EscalationSeverity" href="../enums/escalation_severity.html#adcp.types.generated_poc.enums.escalation_severity.EscalationSeverity">EscalationSeverity</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding"><code class="flex name class">
+<span>class <span class="ident">Finding</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Finding(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    category_id: Annotated[
+        str,
+        Field(
+            description=&#34;Validation category that flagged the issue (e.g., &#39;budget_compliance&#39;, &#39;regulatory_compliance&#39;, &#39;brand_safety&#39;).&#34;
+        ),
+    ]
+    policy_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Registry policy ID that triggered this finding. Present when the finding originates from a specific registry policy. Enables programmatic routing of compliance failures.&#39;
+        ),
+    ] = None
+    severity: escalation_severity.EscalationSeverity
+    explanation: Annotated[str, Field(description=&#39;Human-readable description of the issue.&#39;)]
+    details: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Structured details for programmatic consumption.&#39;)
+    ] = None
+    confidence: Annotated[
+        float | None,
+        Field(
+            description=&#34;Confidence score (0-1) in this finding. Distinguishes &#39;this definitely violates the policy&#39; (0.95) from &#39;this might violate depending on how audience segments resolve&#39; (0.6). When absent, the finding is presented without a confidence qualifier.&#34;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    uncertainty_reason: Annotated[
+        str | None,
+        Field(
+            description=&#34;Explanation of why confidence is below 1.0 (e.g., &#39;Targeting includes regions that partially overlap jurisdiction boundaries&#39;). Present when confidence is below a governance-agent-defined threshold.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.category_id"><code class="name">var <span class="ident">category_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.confidence"><code class="name">var <span class="ident">confidence</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.details"><code class="name">var <span class="ident">details</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.explanation"><code class="name">var <span class="ident">explanation</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.policy_id"><code class="name">var <span class="ident">policy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.severity"><code class="name">var <span class="ident">severity</span> : <a title="adcp.types.generated_poc.enums.escalation_severity.EscalationSeverity" href="../enums/escalation_severity.html#adcp.types.generated_poc.enums.escalation_severity.EscalationSeverity">EscalationSeverity</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.uncertainty_reason"><code class="name">var <span class="ident">uncertainty_reason</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Status"><code class="flex name class">
+<span>class <span class="ident">Status</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status(Enum):
+    approved = &#39;approved&#39;
+    denied = &#39;denied&#39;
+    conditions = &#39;conditions&#39;
+    escalated = &#39;escalated&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Status.approved"><code class="name">var <span class="ident">approved</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Status.conditions"><code class="name">var <span class="ident">conditions</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Status.denied"><code class="name">var <span class="ident">denied</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Status.escalated"><code class="name">var <span class="ident">escalated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.governance" href="index.html">adcp.types.generated_poc.governance</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.check_governance_response.Binding" href="#adcp.types.generated_poc.governance.check_governance_response.Binding">Binding</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Binding.committed" href="#adcp.types.generated_poc.governance.check_governance_response.Binding.committed">committed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Binding.proposed" href="#adcp.types.generated_poc.governance.check_governance_response.Binding.proposed">proposed</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse">CheckGovernanceResponse</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.binding" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.binding">binding</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.buyer_campaign_ref" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.categories_evaluated" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.categories_evaluated">categories_evaluated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.check_id" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.check_id">check_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.conditions" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.conditions">conditions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.escalation" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.escalation">escalation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.expires_at" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.explanation" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.findings" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.findings">findings</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.mode" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.mode">mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.model_config" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.next_check" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.next_check">next_check</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.plan_id" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.plan_id">plan_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.policies_evaluated" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.policies_evaluated">policies_evaluated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.status" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.check_governance_response.Condition" href="#adcp.types.generated_poc.governance.check_governance_response.Condition">Condition</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Condition.field" href="#adcp.types.generated_poc.governance.check_governance_response.Condition.field">field</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Condition.model_config" href="#adcp.types.generated_poc.governance.check_governance_response.Condition.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Condition.reason" href="#adcp.types.generated_poc.governance.check_governance_response.Condition.reason">reason</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Condition.required_value" href="#adcp.types.generated_poc.governance.check_governance_response.Condition.required_value">required_value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.check_governance_response.Escalation" href="#adcp.types.generated_poc.governance.check_governance_response.Escalation">Escalation</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Escalation.approval_tier" href="#adcp.types.generated_poc.governance.check_governance_response.Escalation.approval_tier">approval_tier</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Escalation.model_config" href="#adcp.types.generated_poc.governance.check_governance_response.Escalation.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Escalation.reason" href="#adcp.types.generated_poc.governance.check_governance_response.Escalation.reason">reason</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Escalation.requires_human" href="#adcp.types.generated_poc.governance.check_governance_response.Escalation.requires_human">requires_human</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Escalation.severity" href="#adcp.types.generated_poc.governance.check_governance_response.Escalation.severity">severity</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding" href="#adcp.types.generated_poc.governance.check_governance_response.Finding">Finding</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.category_id" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.category_id">category_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.confidence" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.confidence">confidence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.details" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.details">details</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.explanation" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.model_config" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.policy_id" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.policy_id">policy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.severity" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.severity">severity</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.uncertainty_reason" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.uncertainty_reason">uncertainty_reason</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.check_governance_response.Status" href="#adcp.types.generated_poc.governance.check_governance_response.Status">Status</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Status.approved" href="#adcp.types.generated_poc.governance.check_governance_response.Status.approved">approved</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Status.conditions" href="#adcp.types.generated_poc.governance.check_governance_response.Status.conditions">conditions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Status.denied" href="#adcp.types.generated_poc.governance.check_governance_response.Status.denied">denied</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Status.escalated" href="#adcp.types.generated_poc.governance.check_governance_response.Status.escalated">escalated</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

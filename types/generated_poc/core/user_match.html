@@ -116,21 +116,9 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    click_id: Annotated[
-        str | None,
-        Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;),
+    uids: Annotated[
+        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
     ] = None
-    click_id_type: Annotated[
-        str | None,
-        Field(description=&#39;Type of click identifier (e.g. fbclid, gclid, ttclid, msclkid, ScCid)&#39;),
-    ] = None
-    client_ip: Annotated[
-        str | None, Field(description=&#39;Client IP address for probabilistic matching&#39;)
-    ] = None
-    client_user_agent: Annotated[
-        str | None, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     hashed_email: Annotated[
         str | None,
         Field(
@@ -145,9 +133,21 @@ validated to form a valid model.</p>
             pattern=&#39;^[a-f0-9]{64}$&#39;,
         ),
     ] = None
-    uids: Annotated[
-        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
-    ] = None</code></pre>
+    click_id: Annotated[
+        str | None,
+        Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;),
+    ] = None
+    click_id_type: Annotated[
+        str | None,
+        Field(description=&#39;Type of click identifier (e.g. fbclid, gclid, ttclid, msclkid, ScCid)&#39;),
+    ] = None
+    client_ip: Annotated[
+        str | None, Field(description=&#39;Client IP address for probabilistic matching&#39;)
+    ] = None
+    client_user_agent: Annotated[
+        str | None, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

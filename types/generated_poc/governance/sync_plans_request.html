@@ -1,0 +1,954 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.governance.sync_plans_request API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.governance.sync_plans_request</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget"><code class="flex name class">
+<span>class <span class="ident">Budget</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Budget(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    total: Annotated[float, Field(description=&#39;Total authorized budget.&#39;)]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code.&#39;)]
+    authority_level: Annotated[
+        budget_authority_level.BudgetAuthorityLevel,
+        Field(description=&#39;Budget authority level for the orchestrator agent.&#39;),
+    ]
+    per_seller_max_pct: Annotated[
+        float | None,
+        Field(description=&#39;Maximum percentage of budget that can go to a single seller.&#39;),
+    ] = None
+    reallocation_threshold: Annotated[
+        float | None,
+        Field(
+            description=&#39;Amount above which reallocations require escalation (for agent_limited).&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget.authority_level"><code class="name">var <span class="ident">authority_level</span> : <a title="adcp.types.generated_poc.enums.budget_authority_level.BudgetAuthorityLevel" href="../enums/budget_authority_level.html#adcp.types.generated_poc.enums.budget_authority_level.BudgetAuthorityLevel">BudgetAuthorityLevel</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget.per_seller_max_pct"><code class="name">var <span class="ident">per_seller_max_pct</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget.reallocation_threshold"><code class="name">var <span class="ident">reallocation_threshold</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget.total"><code class="name">var <span class="ident">total</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit"><code class="flex name class">
+<span>class <span class="ident">BudgetLimit</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BudgetLimit(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    amount: float
+    currency: str</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Channels"><code class="flex name class">
+<span>class <span class="ident">Channels</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Channels(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    required: Annotated[
+        list[channels_1.MediaChannel] | None,
+        Field(description=&#39;Channels that must be included in the media mix.&#39;),
+    ] = None
+    allowed: Annotated[
+        list[channels_1.MediaChannel] | None,
+        Field(description=&#39;Channels the orchestrator may use.&#39;),
+    ] = None
+    mix_targets: Annotated[
+        dict[str, MixTargets] | None,
+        Field(description=&#39;Target allocation ranges per channel, keyed by channel ID.&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Channels.allowed"><code class="name">var <span class="ident">allowed</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Channels.mix_targets"><code class="name">var <span class="ident">mix_targets</span> : dict[str, <a title="adcp.types.generated_poc.governance.sync_plans_request.MixTargets" href="#adcp.types.generated_poc.governance.sync_plans_request.MixTargets">MixTargets</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Channels.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Channels.required"><code class="name">var <span class="ident">required</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Delegation"><code class="flex name class">
+<span>class <span class="ident">Delegation</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Delegation(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    agent_url: Annotated[AnyUrl, Field(description=&#39;URL of the delegated agent.&#39;)]
+    authority: Annotated[
+        delegation_authority.DelegationAuthority,
+        Field(description=&#39;Authority level granted to this agent.&#39;),
+    ]
+    budget_limit: Annotated[
+        BudgetLimit | None,
+        Field(
+            description=&#34;Maximum budget this agent can commit. When omitted, the agent can commit up to the plan&#39;s total budget.&#34;
+        ),
+    ] = None
+    markets: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;ISO 3166-1/3166-2 codes this agent is authorized for. When omitted, the agent can operate in all plan markets.&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When this delegation expires. After expiration, the governance agent denies actions from this agent.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Delegation.agent_url"><code class="name">var <span class="ident">agent_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Delegation.authority"><code class="name">var <span class="ident">authority</span> : <a title="adcp.types.generated_poc.enums.delegation_authority.DelegationAuthority" href="../enums/delegation_authority.html#adcp.types.generated_poc.enums.delegation_authority.DelegationAuthority">DelegationAuthority</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Delegation.budget_limit"><code class="name">var <span class="ident">budget_limit</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Delegation.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Delegation.markets"><code class="name">var <span class="ident">markets</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Delegation.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Flight"><code class="flex name class">
+<span>class <span class="ident">Flight</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Flight(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    start: Annotated[AwareDatetime, Field(description=&#39;Flight start (ISO 8601).&#39;)]
+    end: Annotated[AwareDatetime, Field(description=&#39;Flight end (ISO 8601).&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Flight.end"><code class="name">var <span class="ident">end</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Flight.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Flight.start"><code class="name">var <span class="ident">start</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.MixTargets"><code class="flex name class">
+<span>class <span class="ident">MixTargets</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MixTargets(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    min_pct: float | None = None
+    max_pct: float | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.MixTargets.max_pct"><code class="name">var <span class="ident">max_pct</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.MixTargets.min_pct"><code class="name">var <span class="ident">min_pct</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.MixTargets.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan"><code class="flex name class">
+<span>class <span class="ident">Plan</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Plan(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    plan_id: Annotated[str, Field(description=&#39;Unique identifier for this plan.&#39;)]
+    brand: Annotated[
+        brand_ref.BrandReference,
+        Field(
+            description=&#34;Brand or organization being governed. For campaign plans, the governance agent resolves the brand&#39;s compliance configuration. For portfolio plans, this is the holding company or parent organization.&#34;
+        ),
+    ]
+    objectives: Annotated[
+        str,
+        Field(
+            description=&#39;Natural language campaign objectives. Used for strategic alignment validation.&#39;
+        ),
+    ]
+    budget: Annotated[Budget, Field(description=&#39;Budget authorization parameters.&#39;)]
+    channels: Annotated[
+        Channels | None,
+        Field(description=&#39;Channel constraints. If omitted, all channels are allowed.&#39;),
+    ] = None
+    flight: Annotated[
+        Flight,
+        Field(
+            description=&#39;Authorized flight dates. Media buys with dates outside this window are rejected.&#39;
+        ),
+    ]
+    countries: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;ISO 3166-1 alpha-2 country codes for authorized markets (e.g., [&#39;US&#39;, &#39;GB&#39;]). The governance agent rejects media buys targeting outside these countries and resolves applicable policies by matching against policy jurisdictions.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    regions: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;ISO 3166-2 subdivision codes for authorized sub-national markets (e.g., [&#39;US-MA&#39;, &#39;US-CA&#39;]). When present, the governance agent restricts buys to these specific regions rather than the full country. Use for campaigns limited to specific states or provinces (e.g., cannabis in legal states). Policy resolution matches against both the subdivision and its parent country.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    policy_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Registry policy IDs to enforce for this plan. The governance agent resolves full policy definitions from the registry and evaluates actions against them. Intersected with the plan&#39;s countries/regions to activate only geographically relevant policies.&#34;
+        ),
+    ] = None
+    custom_policies: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Natural language policy statements specific to this campaign (e.g., &#39;No advertising adjacent to competitor content&#39;). Applied regardless of geography.&#34;
+        ),
+    ] = None
+    approved_sellers: Annotated[
+        list[AnyUrl] | None,
+        Field(description=&#39;List of approved seller agent URLs. null means any seller.&#39;),
+    ] = None
+    delegations: Annotated[
+        list[Delegation] | None,
+        Field(
+            description=&#34;Agents authorized to execute against this plan. Each delegation scopes an agent&#39;s authority by budget, markets, and expiration. The governance agent validates that the requesting agent matches a delegation before approving actions.&#34;
+        ),
+    ] = None
+    portfolio: Annotated[
+        Portfolio | None,
+        Field(
+            description=&#39;Portfolio-level governance constraints. When present, this plan acts as a portfolio plan that governs member plans. Portfolio plans define cross-brand constraints that no individual brand plan can override.&#39;
+        ),
+    ] = None
+    mode: Annotated[
+        governance_mode.GovernanceMode | None,
+        Field(
+            description=&#34;Governance enforcement mode for this plan. &#39;enforce&#39;: denied actions are blocked. &#39;advisory&#39;: denied actions proceed with findings logged. &#39;audit&#39;: all actions proceed, findings logged. Defaults to &#39;enforce&#39; if omitted.&#34;
+        ),
+    ] = governance_mode.GovernanceMode.enforce
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.approved_sellers"><code class="name">var <span class="ident">approved_sellers</span> : list[pydantic.networks.AnyUrl] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.budget"><code class="name">var <span class="ident">budget</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.Budget" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget">Budget</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.channels"><code class="name">var <span class="ident">channels</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.Channels" href="#adcp.types.generated_poc.governance.sync_plans_request.Channels">Channels</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.countries"><code class="name">var <span class="ident">countries</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.custom_policies"><code class="name">var <span class="ident">custom_policies</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.delegations"><code class="name">var <span class="ident">delegations</span> : list[<a title="adcp.types.generated_poc.governance.sync_plans_request.Delegation" href="#adcp.types.generated_poc.governance.sync_plans_request.Delegation">Delegation</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.flight"><code class="name">var <span class="ident">flight</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.Flight" href="#adcp.types.generated_poc.governance.sync_plans_request.Flight">Flight</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.mode"><code class="name">var <span class="ident">mode</span> : <a title="adcp.types.generated_poc.enums.governance_mode.GovernanceMode" href="../enums/governance_mode.html#adcp.types.generated_poc.enums.governance_mode.GovernanceMode">GovernanceMode</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.objectives"><code class="name">var <span class="ident">objectives</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.plan_id"><code class="name">var <span class="ident">plan_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.policy_ids"><code class="name">var <span class="ident">policy_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.portfolio"><code class="name">var <span class="ident">portfolio</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.Portfolio" href="#adcp.types.generated_poc.governance.sync_plans_request.Portfolio">Portfolio</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.regions"><code class="name">var <span class="ident">regions</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio"><code class="flex name class">
+<span>class <span class="ident">Portfolio</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Portfolio(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    member_plan_ids: Annotated[
+        list[str],
+        Field(
+            description=&#39;Plan IDs governed by this portfolio plan. The governance agent validates member plan actions against portfolio constraints.&#39;
+        ),
+    ]
+    total_budget_cap: Annotated[
+        TotalBudgetCap | None,
+        Field(description=&#39;Maximum aggregate budget across all member plans.&#39;),
+    ] = None
+    shared_policy_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Registry policy IDs enforced across all member plans, regardless of individual brand configuration.&#39;
+        ),
+    ] = None
+    shared_exclusions: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Natural language exclusion rules applied across all member plans (e.g., &#39;No advertising on properties owned by competitor holding companies&#39;).&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.member_plan_ids"><code class="name">var <span class="ident">member_plan_ids</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.shared_exclusions"><code class="name">var <span class="ident">shared_exclusions</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.shared_policy_ids"><code class="name">var <span class="ident">shared_policy_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.total_budget_cap"><code class="name">var <span class="ident">total_budget_cap</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest"><code class="flex name class">
+<span>class <span class="ident">SyncPlansRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncPlansRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    plans: Annotated[list[Plan], Field(description=&#39;One or more campaign plans to sync.&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.plans"><code class="name">var <span class="ident">plans</span> : list[<a title="adcp.types.generated_poc.governance.sync_plans_request.Plan" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan">Plan</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap"><code class="flex name class">
+<span>class <span class="ident">TotalBudgetCap</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TotalBudgetCap(BudgetLimit):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.governance" href="index.html">adcp.types.generated_poc.governance</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget">Budget</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.authority_level" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.authority_level">authority_level</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.currency" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.per_seller_max_pct" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.per_seller_max_pct">per_seller_max_pct</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.reallocation_threshold" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.reallocation_threshold">reallocation_threshold</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.total" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.total">total</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Channels" href="#adcp.types.generated_poc.governance.sync_plans_request.Channels">Channels</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Channels.allowed" href="#adcp.types.generated_poc.governance.sync_plans_request.Channels.allowed">allowed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Channels.mix_targets" href="#adcp.types.generated_poc.governance.sync_plans_request.Channels.mix_targets">mix_targets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Channels.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.Channels.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Channels.required" href="#adcp.types.generated_poc.governance.sync_plans_request.Channels.required">required</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Delegation" href="#adcp.types.generated_poc.governance.sync_plans_request.Delegation">Delegation</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Delegation.agent_url" href="#adcp.types.generated_poc.governance.sync_plans_request.Delegation.agent_url">agent_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Delegation.authority" href="#adcp.types.generated_poc.governance.sync_plans_request.Delegation.authority">authority</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Delegation.budget_limit" href="#adcp.types.generated_poc.governance.sync_plans_request.Delegation.budget_limit">budget_limit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Delegation.expires_at" href="#adcp.types.generated_poc.governance.sync_plans_request.Delegation.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Delegation.markets" href="#adcp.types.generated_poc.governance.sync_plans_request.Delegation.markets">markets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Delegation.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.Delegation.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Flight" href="#adcp.types.generated_poc.governance.sync_plans_request.Flight">Flight</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Flight.end" href="#adcp.types.generated_poc.governance.sync_plans_request.Flight.end">end</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Flight.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.Flight.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Flight.start" href="#adcp.types.generated_poc.governance.sync_plans_request.Flight.start">start</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.MixTargets" href="#adcp.types.generated_poc.governance.sync_plans_request.MixTargets">MixTargets</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.MixTargets.max_pct" href="#adcp.types.generated_poc.governance.sync_plans_request.MixTargets.max_pct">max_pct</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.MixTargets.min_pct" href="#adcp.types.generated_poc.governance.sync_plans_request.MixTargets.min_pct">min_pct</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.MixTargets.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.MixTargets.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan">Plan</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.approved_sellers" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.approved_sellers">approved_sellers</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.brand" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.budget" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.budget">budget</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.channels" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.channels">channels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.countries" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.countries">countries</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.custom_policies" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.custom_policies">custom_policies</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.delegations" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.delegations">delegations</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.ext" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.flight" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.flight">flight</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.mode" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.mode">mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.objectives" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.objectives">objectives</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.plan_id" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.plan_id">plan_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.policy_ids" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.policy_ids">policy_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.portfolio" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.portfolio">portfolio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Plan.regions" href="#adcp.types.generated_poc.governance.sync_plans_request.Plan.regions">regions</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Portfolio" href="#adcp.types.generated_poc.governance.sync_plans_request.Portfolio">Portfolio</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.member_plan_ids" href="#adcp.types.generated_poc.governance.sync_plans_request.Portfolio.member_plan_ids">member_plan_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.Portfolio.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.shared_exclusions" href="#adcp.types.generated_poc.governance.sync_plans_request.Portfolio.shared_exclusions">shared_exclusions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.shared_policy_ids" href="#adcp.types.generated_poc.governance.sync_plans_request.Portfolio.shared_policy_ids">shared_policy_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.total_budget_cap" href="#adcp.types.generated_poc.governance.sync_plans_request.Portfolio.total_budget_cap">total_budget_cap</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest">SyncPlansRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.plans" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.plans">plans</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config">model_config</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

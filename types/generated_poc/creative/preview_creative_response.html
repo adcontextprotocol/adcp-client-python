@@ -56,13 +56,13 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Input(AdCPBaseModel):
-    context_description: Annotated[
-        str | None, Field(description=&#39;Context description applied to this variant&#39;)
-    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]
     macros: Annotated[
         dict[str, str] | None, Field(description=&#39;Macro values applied to this variant&#39;)
     ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]</code></pre>
+    context_description: Annotated[
+        str | None, Field(description=&#39;Context description applied to this variant&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -109,8 +109,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input4"><code class="flex name class">
-<span>class <span class="ident">Input4</span></span>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input6"><code class="flex name class">
+<span>class <span class="ident">Input6</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -118,10 +118,10 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Input4(AdCPBaseModel):
-    context_description: str | None = None
+<pre><code class="python">class Input6(AdCPBaseModel):
+    name: str
     macros: dict[str, str] | None = None
-    name: str</code></pre>
+    context_description: str | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -140,19 +140,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input4.context_description"><code class="name">var <span class="ident">context_description</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input6.context_description"><code class="name">var <span class="ident">context_description</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input4.macros"><code class="name">var <span class="ident">macros</span> : dict[str, str] | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input6.macros"><code class="name">var <span class="ident">macros</span> : dict[str, str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input4.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Input6.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -178,18 +178,18 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Preview(AdCPBaseModel):
-    input: Annotated[
-        Input,
-        Field(
-            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
-        ),
-    ]
     preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview variant&#39;)]
     renders: Annotated[
         list[preview_render.PreviewRender],
         Field(
             description=&#39;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.&#39;,
             min_length=1,
+        ),
+    ]
+    input: Annotated[
+        Input,
+        Field(
+            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
         ),
     ]</code></pre>
 </details>
@@ -238,8 +238,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1"><code class="flex name class">
-<span>class <span class="ident">Preview1</span></span>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview5"><code class="flex name class">
+<span>class <span class="ident">Preview5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -247,10 +247,10 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Preview1(AdCPBaseModel):
-    input: Input4
+<pre><code class="python">class Preview5(AdCPBaseModel):
     preview_id: str
-    renders: Annotated[list[preview_render.PreviewRender], Field(min_length=1)]</code></pre>
+    renders: Annotated[list[preview_render.PreviewRender], Field(min_length=1)]
+    input: Input6</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -269,23 +269,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview2" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview2">Preview2</a></li>
+<li><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview6" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview6">Preview6</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.input"><code class="name">var <span class="ident">input</span> : <a title="adcp.types.generated_poc.creative.preview_creative_response.Input4" href="#adcp.types.generated_poc.creative.preview_creative_response.Input4">Input4</a></code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview5.input"><code class="name">var <span class="ident">input</span> : <a title="adcp.types.generated_poc.creative.preview_creative_response.Input6" href="#adcp.types.generated_poc.creative.preview_creative_response.Input6">Input6</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.preview_id"><code class="name">var <span class="ident">preview_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview5.preview_id"><code class="name">var <span class="ident">preview_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview5.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -301,8 +301,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview2"><code class="flex name class">
-<span>class <span class="ident">Preview2</span></span>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview6"><code class="flex name class">
+<span>class <span class="ident">Preview6</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -310,7 +310,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Preview2(Preview1):
+<pre><code class="python">class Preview6(Preview5):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -325,30 +325,30 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1">Preview1</a></li>
+<li><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview5">Preview5</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1">Preview1</a></b></code>:
+<li><code><b><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview5">Preview5</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview3"><code class="flex name class">
-<span>class <span class="ident">Preview3</span></span>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview7"><code class="flex name class">
+<span>class <span class="ident">Preview7</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -356,7 +356,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Preview3(AdCPBaseModel):
+<pre><code class="python">class Preview7(AdCPBaseModel):
     preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview&#39;)]
     renders: Annotated[
         list[preview_render.PreviewRender],
@@ -380,15 +380,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview7.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview3.preview_id"><code class="name">var <span class="ident">preview_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview7.preview_id"><code class="name">var <span class="ident">preview_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview3.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Preview7.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -417,17 +417,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    expires_at: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
+    response_type: Annotated[
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
     ]
-    ext: ext_1.ExtensionObject | None = None
-    interactive_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
-        ),
-    ] = None
     previews: Annotated[
         list[Preview],
         Field(
@@ -435,10 +428,17 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    response_type: Annotated[
-        Literal[&#39;single&#39;],
-        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
-    ]</code></pre>
+    interactive_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -510,8 +510,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
     response_type: Annotated[
         Literal[&#39;batch&#39;],
         Field(description=&#39;Discriminator indicating this is a batch preview response&#39;),
@@ -522,7 +520,9 @@ validated to form a valid model.</p>
             description=&#39;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#39;,
             min_length=1,
         ),
-    ]</code></pre>
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -586,32 +586,32 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
+    response_type: Annotated[
+        Literal[&#39;variant&#39;],
+        Field(description=&#39;Discriminator indicating this is a variant preview response&#39;),
+    ]
+    variant_id: Annotated[str, Field(description=&#39;Platform-assigned variant identifier&#39;)]
     creative_id: Annotated[
         str | None, Field(description=&#39;Creative identifier this variant belongs to&#39;)
     ] = None
-    expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
+    previews: Annotated[
+        list[Preview7],
+        Field(
+            description=&#39;Array of rendered pieces for this variant. Most formats render as a single piece.&#39;,
+            min_length=1,
+        ),
+    ]
     manifest: Annotated[
         creative_manifest.CreativeManifest | None,
         Field(
             description=&#39;The rendered creative manifest for this variant — the actual output that was served, not the input assets&#39;
         ),
     ] = None
-    previews: Annotated[
-        list[Preview3],
-        Field(
-            description=&#39;Array of rendered pieces for this variant. Most formats render as a single piece.&#39;,
-            min_length=1,
-        ),
-    ]
-    response_type: Annotated[
-        Literal[&#39;variant&#39;],
-        Field(description=&#39;Discriminator indicating this is a variant preview response&#39;),
-    ]
-    variant_id: Annotated[str, Field(description=&#39;Platform-assigned variant identifier&#39;)]</code></pre>
+    expires_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -654,7 +654,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse3.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview3" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview3">Preview3</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.PreviewCreativeResponse3.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview7" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview7">Preview7</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -688,12 +688,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Response(AdCPBaseModel):
-    expires_at: Annotated[AwareDatetime, Field(description=&#39;When the preview URLs expire&#39;)]
-    interactive_url: AnyUrl | None = None
     previews: Annotated[
-        list[Preview1],
+        list[Preview5],
         Field(description=&#39;Array of preview variants for this creative&#39;, min_length=1),
-    ]</code></pre>
+    ]
+    interactive_url: AnyUrl | None = None
+    expires_at: Annotated[AwareDatetime, Field(description=&#39;When the preview URLs expire&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -724,7 +724,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Response.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1">Preview1</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Response.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview5">Preview5</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -750,12 +750,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Response1(AdCPBaseModel):
-    expires_at: Annotated[AwareDatetime, Field(description=&#39;When the preview URLs expire&#39;)]
-    interactive_url: AnyUrl | None = None
     previews: Annotated[
-        list[Preview2],
+        list[Preview6],
         Field(description=&#39;Array of preview variants for this creative&#39;, min_length=1),
-    ]</code></pre>
+    ]
+    interactive_url: AnyUrl | None = None
+    expires_at: Annotated[AwareDatetime, Field(description=&#39;When the preview URLs expire&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -786,7 +786,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.preview_creative_response.Response1.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview2" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview2">Preview2</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.preview_creative_response.Response1.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.creative.preview_creative_response.Preview6" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview6">Preview6</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -812,17 +812,17 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Results(AdCPBaseModel):
+    success: Annotated[Literal[True], Field(description=&#39;Indicates this preview request succeeded&#39;)]
     creative_id: Annotated[
         str,
         Field(
             description=&#39;ID of the creative this result corresponds to. Enables correlation when processing batch results.&#39;
         ),
     ]
+    response: Annotated[Response, Field(description=&#39;Preview data for successful requests&#39;)]
     errors: Annotated[
         list[error.Error] | None, Field(description=&#39;Errors for failed requests&#39;, min_length=1)
-    ] = None
-    response: Annotated[Response, Field(description=&#39;Preview data for successful requests&#39;)]
-    success: Annotated[Literal[True], Field(description=&#39;Indicates this preview request succeeded&#39;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -883,19 +883,19 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Results1(AdCPBaseModel):
+    success: Annotated[Literal[False], Field(description=&#39;Indicates this preview request failed&#39;)]
     creative_id: Annotated[
         str,
         Field(
             description=&#39;ID of the creative this result corresponds to. Enables correlation when processing batch results.&#39;
         ),
     ]
-    errors: Annotated[
-        list[error.Error], Field(description=&#39;Errors for failed requests&#39;, min_length=1)
-    ]
     response: Annotated[
         Response1 | None, Field(description=&#39;Preview data for successful requests&#39;)
     ] = None
-    success: Annotated[Literal[False], Field(description=&#39;Indicates this preview request failed&#39;)]</code></pre>
+    errors: Annotated[
+        list[error.Error], Field(description=&#39;Errors for failed requests&#39;, min_length=1)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -971,12 +971,12 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input4" href="#adcp.types.generated_poc.creative.preview_creative_response.Input4">Input4</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input6" href="#adcp.types.generated_poc.creative.preview_creative_response.Input6">Input6</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input4.context_description" href="#adcp.types.generated_poc.creative.preview_creative_response.Input4.context_description">context_description</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input4.macros" href="#adcp.types.generated_poc.creative.preview_creative_response.Input4.macros">macros</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input4.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Input4.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input4.name" href="#adcp.types.generated_poc.creative.preview_creative_response.Input4.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input6.context_description" href="#adcp.types.generated_poc.creative.preview_creative_response.Input6.context_description">context_description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input6.macros" href="#adcp.types.generated_poc.creative.preview_creative_response.Input6.macros">macros</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input6.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Input6.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Input6.name" href="#adcp.types.generated_poc.creative.preview_creative_response.Input6.name">name</a></code></li>
 </ul>
 </li>
 <li>
@@ -989,26 +989,26 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1">Preview1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview5">Preview5</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.input" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1.input">input</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.preview_id" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1.preview_id">preview_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview1.renders">renders</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5.input" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview5.input">input</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5.preview_id" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview5.preview_id">preview_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview5.renders" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview5.renders">renders</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview2" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview2">Preview2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview6" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview6">Preview6</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview2.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview6.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview6.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview3" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview3">Preview3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview7" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview7">Preview7</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview3.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview3.preview_id" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview3.preview_id">preview_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview3.renders" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview3.renders">renders</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview7.model_config" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview7.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview7.preview_id" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview7.preview_id">preview_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.preview_creative_response.Preview7.renders" href="#adcp.types.generated_poc.creative.preview_creative_response.Preview7.renders">renders</a></code></li>
 </ul>
 </li>
 <li>

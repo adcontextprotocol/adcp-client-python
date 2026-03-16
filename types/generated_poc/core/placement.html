@@ -59,6 +59,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    placement_id: Annotated[
+        str, Field(description=&#39;Unique identifier for the placement within the product&#39;)
+    ]
+    name: Annotated[
+        str,
+        Field(
+            description=&#34;Human-readable name for the placement (e.g., &#39;Homepage Banner&#39;, &#39;Article Sidebar&#39;)&#34;
+        ),
+    ]
     description: Annotated[
         str | None, Field(description=&#39;Detailed description of where and how the placement appears&#39;)
     ] = None
@@ -68,16 +77,7 @@ el.replaceWith(d);
             description=&#39;Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).&#39;,
             min_length=1,
         ),
-    ] = None
-    name: Annotated[
-        str,
-        Field(
-            description=&#34;Human-readable name for the placement (e.g., &#39;Homepage Banner&#39;, &#39;Article Sidebar&#39;)&#34;
-        ),
-    ]
-    placement_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the placement within the product&#39;)
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

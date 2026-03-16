@@ -65,29 +65,29 @@ el.replaceWith(d);
             description=&#34;The asset group this constraint applies to. Values are format-defined vocabulary — each format chooses its own group IDs (e.g., &#39;headlines&#39;, &#39;images&#39;, &#39;videos&#39;). Buyers discover them via list_creative_formats.&#34;
         ),
     ]
+    asset_type: Annotated[
+        asset_content_type.AssetContentType,
+        Field(description=&#39;The expected content type for this group.&#39;),
+    ]
+    required: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this asset group must be present in each offering. Defaults to true.&#39;
+        ),
+    ] = True
+    min_count: Annotated[
+        int | None, Field(description=&#39;Minimum number of items required in this group.&#39;, ge=1)
+    ] = None
+    max_count: Annotated[
+        int | None, Field(description=&#39;Maximum number of items allowed in this group.&#39;, ge=1)
+    ] = None
     asset_requirements: Annotated[
         asset_requirements_1.AssetRequirements | None,
         Field(
             description=&#39;Technical requirements for each item in this group (e.g., max_length for text, min_width/aspect_ratio for images). Applies uniformly to all items in the group.&#39;
         ),
     ] = None
-    asset_type: Annotated[
-        asset_content_type.AssetContentType,
-        Field(description=&#39;The expected content type for this group.&#39;),
-    ]
-    ext: ext_1.ExtensionObject | None = None
-    max_count: Annotated[
-        int | None, Field(description=&#39;Maximum number of items allowed in this group.&#39;, ge=1)
-    ] = None
-    min_count: Annotated[
-        int | None, Field(description=&#39;Minimum number of items required in this group.&#39;, ge=1)
-    ] = None
-    required: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether this asset group must be present in each offering. Defaults to true.&#39;
-        ),
-    ] = True</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

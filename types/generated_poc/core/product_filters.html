@@ -59,14 +59,14 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    min: Annotated[float, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)]
+    max: Annotated[float | None, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)] = None
     currency: Annotated[
         str,
         Field(
             description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
         ),
-    ]
-    max: Annotated[float | None, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)] = None
-    min: Annotated[float, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -126,14 +126,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    min: Annotated[float | None, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)] = None
+    max: Annotated[float, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)]
     currency: Annotated[
         str,
         Field(
             description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
         ),
-    ]
-    max: Annotated[float, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)]
-    min: Annotated[float | None, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)] = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -244,11 +244,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    code: Annotated[
-        str, Field(description=&#34;Metro code within the system (e.g., &#39;501&#39; for NYC DMA)&#34;)
-    ]
     system: Annotated[
         metro_system.MetroAreaSystem, Field(description=&#39;Metro classification system&#39;)
+    ]
+    code: Annotated[
+        str, Field(description=&#34;Metro code within the system (e.g., &#39;501&#39; for NYC DMA)&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -305,16 +305,49 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    delivery_type: delivery_type_1.DeliveryType | None = None
+    exclusivity: Annotated[
+        exclusivity_1.Exclusivity | None,
+        Field(
+            description=&#34;Filter by exclusivity level. Returns products matching the specified exclusivity (e.g., &#39;exclusive&#39; returns only sole-sponsorship products).&#34;
+        ),
+    ] = None
+    is_fixed_price: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Filter by pricing availability: true = products offering fixed pricing (at least one option with fixed_price), false = products offering auction pricing (at least one option without fixed_price). Products with both fixed and auction options match both true and false.&#39;
+        ),
+    ] = None
+    format_types: Annotated[
+        list[format_category.FormatCategory] | None,
+        Field(description=&#39;Filter by format types&#39;, min_length=1),
+    ] = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(description=&#39;Filter by specific format IDs&#39;, min_length=1),
+    ] = None
+    standard_formats_only: Annotated[
+        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
+    ] = None
+    min_exposures: Annotated[
+        int | None,
+        Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
+    ] = None
+    start_date: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+        ),
+    ] = None
+    end_date: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+        ),
+    ] = None
     budget_range: Annotated[
         BudgetRange | BudgetRange1 | None,
         Field(description=&#39;Budget range to filter appropriate products&#39;),
-    ] = None
-    channels: Annotated[
-        list[channels_1.MediaChannel] | None,
-        Field(
-            description=&#34;Filter by advertising channels (e.g., [&#39;display&#39;, &#39;ctv&#39;, &#39;dooh&#39;])&#34;,
-            min_length=1,
-        ),
     ] = None
     countries: Annotated[
         list[Country] | None,
@@ -323,25 +356,11 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    delivery_type: delivery_type_1.DeliveryType | None = None
-    end_date: Annotated[
-        date_aliased | None,
+    regions: Annotated[
+        list[Region] | None,
         Field(
-            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
-        ),
-    ] = None
-    format_ids: Annotated[
-        list[format_id.FormatId] | None,
-        Field(description=&#39;Filter by specific format IDs&#39;, min_length=1),
-    ] = None
-    format_types: Annotated[
-        list[format_category.FormatCategory] | None,
-        Field(description=&#39;Filter by format types&#39;, min_length=1),
-    ] = None
-    is_fixed_price: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Filter by pricing availability: true = products offering fixed pricing (at least one option with fixed_price), false = products offering auction pricing (at least one option without fixed_price). Products with both fixed and auction options match both true and false.&#39;
+            description=&#34;Filter by region coverage using ISO 3166-2 codes (e.g., [&#39;US-NY&#39;, &#39;US-CA&#39;, &#39;GB-SCT&#39;]). Use for locally-bound inventory (regional OOH, local TV) where products have region-specific coverage.&#34;,
+            min_length=1,
         ),
     ] = None
     metros: Annotated[
@@ -351,14 +370,10 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    min_exposures: Annotated[
-        int | None,
-        Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
-    ] = None
-    regions: Annotated[
-        list[Region] | None,
+    channels: Annotated[
+        list[channels_1.MediaChannel] | None,
         Field(
-            description=&#34;Filter by region coverage using ISO 3166-2 codes (e.g., [&#39;US-NY&#39;, &#39;US-CA&#39;, &#39;GB-SCT&#39;]). Use for locally-bound inventory (regional OOH, local TV) where products have region-specific coverage.&#34;,
+            description=&#34;Filter by advertising channels (e.g., [&#39;display&#39;, &#39;ctv&#39;, &#39;dooh&#39;])&#34;,
             min_length=1,
         ),
     ] = None
@@ -386,15 +401,6 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Filter to products supporting specific signals from data provider catalogs. Products must have the requested signals in their data_provider_signals and signal_targeting_allowed must be true (or all signals requested).&#39;,
             min_length=1,
-        ),
-    ] = None
-    standard_formats_only: Annotated[
-        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
-    ] = None
-    start_date: Annotated[
-        date_aliased | None,
-        Field(
-            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -432,6 +438,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.end_date"><code class="name">var <span class="ident">end_date</span> : datetime.date | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.exclusivity"><code class="name">var <span class="ident">exclusivity</span> : <a title="adcp.types.generated_poc.enums.exclusivity.Exclusivity" href="../enums/exclusivity.html#adcp.types.generated_poc.enums.exclusivity.Exclusivity">Exclusivity</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -671,6 +681,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.countries" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.countries">countries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.delivery_type" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.end_date" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.exclusivity" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.exclusivity">exclusivity</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.format_ids" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.format_types" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.format_types">format_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.is_fixed_price" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.is_fixed_price">is_fixed_price</a></code></li>

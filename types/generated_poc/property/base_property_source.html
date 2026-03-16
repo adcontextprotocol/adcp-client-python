@@ -125,16 +125,16 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    selection_type: Annotated[
+        Literal[&#39;publisher_tags&#39;],
+        Field(description=&#39;Discriminator indicating selection by property tags within a publisher&#39;),
+    ]
     publisher_domain: Annotated[
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;raptive.com&#39;)&#34;,
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
-    ]
-    selection_type: Annotated[
-        Literal[&#39;publisher_tags&#39;],
-        Field(description=&#39;Discriminator indicating selection by property tags within a publisher&#39;),
     ]
     tags: Annotated[
         list[property_tag.PropertyTag],
@@ -202,9 +202,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    property_ids: Annotated[
-        list[property_id.PropertyId],
-        Field(description=&#34;Specific property IDs from the publisher&#39;s adagents.json&#34;, min_length=1),
+    selection_type: Annotated[
+        Literal[&#39;publisher_ids&#39;],
+        Field(
+            description=&#39;Discriminator indicating selection by specific property IDs within a publisher&#39;
+        ),
     ]
     publisher_domain: Annotated[
         str,
@@ -213,11 +215,9 @@ validated to form a valid model.</p>
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ]
-    selection_type: Annotated[
-        Literal[&#39;publisher_ids&#39;],
-        Field(
-            description=&#39;Discriminator indicating selection by specific property IDs within a publisher&#39;
-        ),
+    property_ids: Annotated[
+        list[property_id.PropertyId],
+        Field(description=&#34;Specific property IDs from the publisher&#39;s adagents.json&#34;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -278,13 +278,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    identifiers: Annotated[
-        list[identifier.Identifier],
-        Field(description=&#39;Direct property identifiers (domains, app IDs, etc.)&#39;, min_length=1),
-    ]
     selection_type: Annotated[
         Literal[&#39;identifiers&#39;],
         Field(description=&#39;Discriminator indicating selection by direct identifiers&#39;),
+    ]
+    identifiers: Annotated[
+        list[identifier.Identifier],
+        Field(description=&#39;Direct property identifiers (domains, app IDs, etc.)&#39;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

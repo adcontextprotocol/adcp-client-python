@@ -65,27 +65,11 @@ el.replaceWith(d);
             description=&#39;Account for routing and scoping. Limits results to creatives within this account.&#39;
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    creative_ids: Annotated[
+    media_buy_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter to specific creatives by ID. If omitted, returns delivery for all creatives matching the other filters.&#39;,
+            description=&#39;Filter to specific media buys by publisher ID. If omitted, returns creative delivery across all matching media buys.&#39;,
             min_length=1,
-        ),
-    ] = None
-    end_date: Annotated[
-        str | None,
-        Field(
-            description=&#34;End date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
-            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    max_variants: Annotated[
-        int | None,
-        Field(
-            description=&#39;Maximum number of variants to return per creative. When omitted, the agent returns all variants. Use this to limit response size for generative creatives that may produce large numbers of variants.&#39;,
-            ge=1,
         ),
     ] = None
     media_buy_buyer_refs: Annotated[
@@ -95,17 +79,11 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    media_buy_ids: Annotated[
+    creative_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter to specific media buys by publisher ID. If omitted, returns creative delivery across all matching media buys.&#39;,
+            description=&#39;Filter to specific creatives by ID. If omitted, returns delivery for all creatives matching the other filters.&#39;,
             min_length=1,
-        ),
-    ] = None
-    pagination: Annotated[
-        pagination_request.PaginationRequest | None,
-        Field(
-            description=&#39;Pagination parameters for the creatives array in the response. Uses cursor-based pagination consistent with other list operations.&#39;
         ),
     ] = None
     start_date: Annotated[
@@ -114,7 +92,29 @@ el.replaceWith(d);
             description=&#34;Start date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
             pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
         ),
-    ] = None</code></pre>
+    ] = None
+    end_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;End date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None
+    max_variants: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of variants to return per creative. When omitted, the agent returns all variants. Use this to limit response size for generative creatives that may produce large numbers of variants.&#39;,
+            ge=1,
+        ),
+    ] = None
+    pagination: Annotated[
+        pagination_request.PaginationRequest | None,
+        Field(
+            description=&#39;Pagination parameters for the creatives array in the response. Uses cursor-based pagination consistent with other list operations.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

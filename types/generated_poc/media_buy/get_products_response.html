@@ -59,24 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    catalog_applied: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether the seller filtered results based on the provided catalog. True if the seller matched catalog items against its inventory. Absent or false if no catalog was provided or the seller does not support catalog matching.&#39;
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(description=&#39;Task-specific errors and warnings (e.g., product filtering issues)&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    pagination: pagination_response.PaginationResponse | None = None
     products: Annotated[list[product_1.Product], Field(description=&#39;Array of matching products&#39;)]
-    property_list_applied: Annotated[
-        bool | None,
+    shows: Annotated[
+        list[show.Show] | None,
         Field(
-            description=&#39;[AdCP 3.0] Indicates whether property_list filtering was applied. True if the agent filtered products based on the provided property_list. Absent or false if property_list was not provided or not supported by this agent.&#39;
+            description=&#34;Shows referenced by products in this response. Only includes shows referenced by the returned products. Under pagination, each page includes all show objects needed for that page&#39;s products.&#34;
         ),
     ] = None
     proposals: Annotated[
@@ -85,16 +72,42 @@ el.replaceWith(d);
             description=&#39;Optional array of proposed media plans with budget allocations across products. Publishers include proposals when they can provide strategic guidance based on the brief. Proposals are actionable - buyers can refine them via follow-up get_products calls within the same session, or execute them directly via create_media_buy.&#39;
         ),
     ] = None
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(description=&#39;Task-specific errors and warnings (e.g., product filtering issues)&#39;),
+    ] = None
+    property_list_applied: Annotated[
+        bool | None,
+        Field(
+            description=&#39;[AdCP 3.0] Indicates whether property_list filtering was applied. True if the agent filtered products based on the provided property_list. Absent or false if property_list was not provided or not supported by this agent.&#39;
+        ),
+    ] = None
+    catalog_applied: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether the seller filtered results based on the provided catalog. True if the seller matched catalog items against its inventory. Absent or false if no catalog was provided or the seller does not support catalog matching.&#39;
+        ),
+    ] = None
     refinement_applied: Annotated[
         list[RefinementAppliedItem] | None,
         Field(
             description=&#34;Seller&#39;s response to each change request in the refine array, matched by position. Each entry acknowledges whether the corresponding ask was applied, partially applied, or unable to be fulfilled. MUST contain the same number of entries in the same order as the request&#39;s refine array. Only present when the request used buying_mode: &#39;refine&#39;.&#34;
         ),
     ] = None
+    incomplete: Annotated[
+        list[IncompleteItem] | None,
+        Field(
+            description=&#34;Declares what the seller could not finish within the buyer&#39;s time_budget or due to internal limits. Each entry identifies a scope that is missing or partial. Absent when the response is fully complete.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    pagination: pagination_response.PaginationResponse | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -129,6 +142,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.incomplete"><code class="name">var <span class="ident">incomplete</span> : list[<a title="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem" href="#adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem">IncompleteItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -157,6 +174,84 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.shows"><code class="name">var <span class="ident">shows</span> : list[<a title="adcp.types.generated_poc.core.show.Show" href="../core/show.html#adcp.types.generated_poc.core.show.Show">Show</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem"><code class="flex name class">
+<span>class <span class="ident">IncompleteItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IncompleteItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    scope: Annotated[
+        Scope2,
+        Field(
+            description=&#34;&#39;products&#39;: not all inventory sources were searched. &#39;pricing&#39;: products returned but pricing is absent or unconfirmed. &#39;forecast&#39;: products returned but forecast data is absent. &#39;proposals&#39;: proposals were not generated or are incomplete.&#34;
+        ),
+    ]
+    description: Annotated[
+        str, Field(description=&#39;Human-readable explanation of what is missing and why.&#39;)
+    ]
+    estimated_wait: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;How much additional time would resolve this scope. Allows the buyer to decide whether to retry with a larger time_budget.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.estimated_wait"><code class="name">var <span class="ident">estimated_wait</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="../core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.scope"><code class="name">var <span class="ident">scope</span> : <a title="adcp.types.generated_poc.media_buy.get_products_response.Scope2" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope2">Scope2</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -182,22 +277,16 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Echoes the id from the corresponding refine entry (for product and proposal scopes).&#39;
-        ),
-    ] = None
-    notes: Annotated[
-        str | None,
-        Field(
-            description=&#34;Seller explanation of what was done, what couldn&#39;t be done, or why. Recommended when status is &#39;partial&#39; or &#39;unable&#39;.&#34;
-        ),
-    ] = None
     scope: Annotated[
         Scope | None,
         Field(
             description=&#39;Echoes the scope from the corresponding refine entry. Allows orchestrators to cross-validate alignment.&#39;
+        ),
+    ] = None
+    id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Echoes the id from the corresponding refine entry (for product and proposal scopes).&#39;
         ),
     ] = None
     status: Annotated[
@@ -205,7 +294,13 @@ validated to form a valid model.</p>
         Field(
             description=&#34;&#39;applied&#39;: the ask was fulfilled. &#39;partial&#39;: the ask was partially fulfilled — see notes for details. &#39;unable&#39;: the seller could not fulfill the ask — see notes for why.&#34;
         ),
-    ]</code></pre>
+    ]
+    notes: Annotated[
+        str | None,
+        Field(
+            description=&#34;Seller explanation of what was done, what couldn&#39;t be done, or why. Recommended when status is &#39;partial&#39; or &#39;unable&#39;.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -325,6 +420,80 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.Scope2"><code class="flex name class">
+<span>class <span class="ident">Scope2</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Scope2(Enum):
+    products = &#39;products&#39;
+    pricing = &#39;pricing&#39;
+    forecast = &#39;forecast&#39;
+    proposals = &#39;proposals&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.Scope2.forecast"><code class="name">var <span class="ident">forecast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.Scope2.pricing"><code class="name">var <span class="ident">pricing</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.Scope2.products"><code class="name">var <span class="ident">products</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_response.Scope2.proposals"><code class="name">var <span class="ident">proposals</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_products_response.Status"><code class="flex name class">
 <span>class <span class="ident">Status</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -416,6 +585,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.context" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.errors" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.ext" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.incomplete" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.incomplete">incomplete</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.model_config" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.pagination" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.pagination">pagination</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.products">products</a></code></li>
@@ -423,6 +593,16 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.proposals">proposals</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.refinement_applied" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.refinement_applied">refinement_applied</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.sandbox" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.shows" href="#adcp.types.generated_poc.media_buy.get_products_response.GetProductsResponse.shows">shows</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem" href="#adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem">IncompleteItem</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.description" href="#adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.estimated_wait" href="#adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.estimated_wait">estimated_wait</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.model_config" href="#adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.scope" href="#adcp.types.generated_poc.media_buy.get_products_response.IncompleteItem.scope">scope</a></code></li>
 </ul>
 </li>
 <li>
@@ -441,6 +621,15 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.Scope.product" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope.product">product</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.Scope.proposal" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope.proposal">proposal</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.Scope.request" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope.request">request</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_response.Scope2" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope2">Scope2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.Scope2.forecast" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope2.forecast">forecast</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.Scope2.pricing" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope2.pricing">pricing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.Scope2.products" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope2.products">products</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_response.Scope2.proposals" href="#adcp.types.generated_poc.media_buy.get_products_response.Scope2.proposals">proposals</a></code></li>
 </ul>
 </li>
 <li>

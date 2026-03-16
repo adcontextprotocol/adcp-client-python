@@ -59,12 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    allow_raw_html: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether raw HTML blocks are allowed in the markdown. False recommended for security.&#39;
-        ),
-    ] = False
     content: Annotated[
         str,
         Field(
@@ -79,7 +73,13 @@ el.replaceWith(d);
         Field(
             description=&#39;Markdown flavor used. CommonMark for strict compatibility, GFM for tables/task lists/strikethrough.&#39;
         ),
-    ] = markdown_flavor_1.MarkdownFlavor.commonmark</code></pre>
+    ] = markdown_flavor_1.MarkdownFlavor.commonmark
+    allow_raw_html: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether raw HTML blocks are allowed in the markdown. False recommended for security.&#39;
+        ),
+    ] = False</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

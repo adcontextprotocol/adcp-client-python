@@ -59,6 +59,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    feature_id: Annotated[
+        str, Field(description=&#39;Feature to evaluate (discovered via get_adcp_capabilities)&#39;)
+    ]
+    min_value: Annotated[
+        float | None,
+        Field(description=&#39;Minimum numeric value required (for quantitative features)&#39;),
+    ] = None
+    max_value: Annotated[
+        float | None, Field(description=&#39;Maximum numeric value allowed (for quantitative features)&#39;)
+    ] = None
     allowed_values: Annotated[
         list[Any] | None,
         Field(
@@ -66,22 +76,12 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    feature_id: Annotated[
-        str, Field(description=&#39;Feature to evaluate (discovered via get_adcp_capabilities)&#39;)
-    ]
     if_not_covered: Annotated[
         IfNotCovered | None,
         Field(
             description=&#34;How to handle properties where this feature is not covered. &#39;exclude&#39; (default): property is removed from the list. &#39;include&#39;: property passes this requirement (fail-open).&#34;
         ),
-    ] = IfNotCovered.exclude
-    max_value: Annotated[
-        float | None, Field(description=&#39;Maximum numeric value allowed (for quantitative features)&#39;)
-    ] = None
-    min_value: Annotated[
-        float | None,
-        Field(description=&#39;Minimum numeric value required (for quantitative features)&#39;),
-    ] = None</code></pre>
+    ] = IfNotCovered.exclude</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

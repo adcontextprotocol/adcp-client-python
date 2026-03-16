@@ -59,38 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    currency: Annotated[
-        str,
-        Field(
-            description=&#39;ISO 4217 currency code for monetary values in this forecast (spend, budget)&#39;
-        ),
-    ]
-    demographic: Annotated[
-        str | None,
-        Field(
-            description=&#39;Target demographic code within the specified demographic_system. For Nielsen: P18-49, M25-54, W35+. For BARB: ABC1 Adults, 16-34. For AGF: E 14-49.&#39;,
-            examples=[&#39;P18-49&#39;, &#39;A25-54&#39;, &#39;W35+&#39;, &#39;M18-34&#39;],
-        ),
-    ] = None
-    demographic_system: Annotated[
-        demographic_system_1.DemographicSystem | None,
-        Field(
-            description=&#39;Measurement system for the demographic field. Ensures buyer and seller agree on demographic notation.&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    forecast_range_unit: Annotated[
-        forecast_range_unit_1.ForecastRangeUnit | None,
-        Field(
-            description=&#34;How to interpret the points array. &#39;spend&#39; (default when omitted): points at ascending budget levels. &#39;reach_freq&#39;: points at ascending reach/frequency targets. &#39;weekly&#39;/&#39;daily&#39;: metrics are per-period values. &#39;clicks&#39;/&#39;conversions&#39;: points at ascending outcome targets.&#34;
-        ),
-    ] = None
-    generated_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this forecast was computed&#39;)
-    ] = None
-    method: Annotated[
-        forecast_method.ForecastMethod, Field(description=&#39;Method used to produce this forecast&#39;)
-    ]
     points: Annotated[
         list[forecast_point.ForecastPoint],
         Field(
@@ -98,18 +66,50 @@ el.replaceWith(d);
             min_length=1,
         ),
     ]
+    forecast_range_unit: Annotated[
+        forecast_range_unit_1.ForecastRangeUnit | None,
+        Field(
+            description=&#34;How to interpret the points array. &#39;spend&#39; (default when omitted): points at ascending budget levels. &#39;reach_freq&#39;: points at ascending reach/frequency targets. &#39;weekly&#39;/&#39;daily&#39;: metrics are per-period values. &#39;clicks&#39;/&#39;conversions&#39;: points at ascending outcome targets.&#34;
+        ),
+    ] = None
+    method: Annotated[
+        forecast_method.ForecastMethod, Field(description=&#39;Method used to produce this forecast&#39;)
+    ]
+    currency: Annotated[
+        str,
+        Field(
+            description=&#39;ISO 4217 currency code for monetary values in this forecast (spend, budget)&#39;
+        ),
+    ]
+    demographic_system: Annotated[
+        demographic_system_1.DemographicSystem | None,
+        Field(
+            description=&#39;Measurement system for the demographic field. Ensures buyer and seller agree on demographic notation.&#39;
+        ),
+    ] = None
+    demographic: Annotated[
+        str | None,
+        Field(
+            description=&#39;Target demographic code within the specified demographic_system. For Nielsen: P18-49, M25-54, W35+. For BARB: ABC1 Adults, 16-34. For AGF: E 14-49.&#39;,
+            examples=[&#39;P18-49&#39;, &#39;A25-54&#39;, &#39;W35+&#39;, &#39;M18-34&#39;],
+        ),
+    ] = None
     reach_unit: Annotated[
         reach_unit_1.ReachUnit | None,
         Field(
             description=&#39;Unit of measurement for reach and audience_size metrics in this forecast. Required for cross-channel forecast comparison.&#39;
         ),
     ] = None
+    generated_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this forecast was computed&#39;)
+    ] = None
     valid_until: Annotated[
         AwareDatetime | None,
         Field(
             description=&#39;When this forecast expires. After this time, the forecast should be refreshed. Forecast expiry does not affect proposal executability.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

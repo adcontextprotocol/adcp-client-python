@@ -59,21 +59,21 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    url: Annotated[
+        AnyUrl, Field(description=&#39;URL to the reference asset (image, video, or document)&#39;)
+    ]
+    role: Annotated[
+        Role,
+        Field(
+            description=&#39;How the creative agent should use this asset. style_reference: match the visual style; product_shot: include this product; mood_board: overall look and feel; example_creative: example of a similar execution; logo: logo to use; strategy_doc: strategy or planning document for context; storyboard: sequential visual direction for video or multi-scene creative&#39;
+        ),
+    ]
     description: Annotated[
         str | None,
         Field(
             description=&#39;Human-readable description of the asset and how it should inform creative generation&#39;
         ),
-    ] = None
-    role: Annotated[
-        Role,
-        Field(
-            description=&#39;How the creative agent should use this asset. style_reference: match the visual style; product_shot: include this product; mood_board: overall look and feel; example_creative: example of a similar execution; logo: logo to use; strategy_doc: strategy or planning document for context&#39;
-        ),
-    ]
-    url: Annotated[
-        AnyUrl, Field(description=&#39;URL to the reference asset (image, video, or document)&#39;)
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -135,7 +135,8 @@ validated to form a valid model.</p>
     mood_board = &#39;mood_board&#39;
     example_creative = &#39;example_creative&#39;
     logo = &#39;logo&#39;
-    strategy_doc = &#39;strategy_doc&#39;</code></pre>
+    strategy_doc = &#39;strategy_doc&#39;
+    storyboard = &#39;storyboard&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -194,6 +195,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.reference_asset.Role.storyboard"><code class="name">var <span class="ident">storyboard</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.reference_asset.Role.strategy_doc"><code class="name">var <span class="ident">strategy_doc</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -235,6 +240,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.logo" href="#adcp.types.generated_poc.core.reference_asset.Role.logo">logo</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.mood_board" href="#adcp.types.generated_poc.core.reference_asset.Role.mood_board">mood_board</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.product_shot" href="#adcp.types.generated_poc.core.reference_asset.Role.product_shot">product_shot</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.storyboard" href="#adcp.types.generated_poc.core.reference_asset.Role.storyboard">storyboard</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.strategy_doc" href="#adcp.types.generated_poc.core.reference_asset.Role.strategy_doc">strategy_doc</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reference_asset.Role.style_reference" href="#adcp.types.generated_poc.core.reference_asset.Role.style_reference">style_reference</a></code></li>
 </ul>

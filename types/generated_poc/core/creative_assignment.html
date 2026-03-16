@@ -60,19 +60,19 @@ el.replaceWith(d);
         extra=&#39;allow&#39;,
     )
     creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
-    placement_ids: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Optional array of placement IDs where this creative should run. When omitted, the creative runs on all placements in the package. References placement_id values from the product&#39;s placements array.&#34;,
-            min_length=1,
-        ),
-    ] = None
     weight: Annotated[
         float | None,
         Field(
             description=&#39;Relative delivery weight for this creative (0–100). When multiple creatives are assigned to the same package, weights determine impression distribution proportionally — a creative with weight 2 gets twice the delivery of weight 1. When omitted, the creative receives equal rotation with other unweighted creatives. A weight of 0 means the creative is assigned but paused (receives no delivery).&#39;,
             ge=0.0,
             le=100.0,
+        ),
+    ] = None
+    placement_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Optional array of placement IDs where this creative should run. When omitted, the creative runs on all placements in the package. References placement_id values from the product&#39;s placements array.&#34;,
+            min_length=1,
         ),
     ] = None</code></pre>
 </details>

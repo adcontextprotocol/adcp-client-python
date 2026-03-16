@@ -122,11 +122,16 @@ validated to form a valid model.</p>
             description=&#34;The buyer&#39;s campaign reference. Used to correlate signal discovery with subsequent report_usage calls.&#34;
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    countries: Annotated[
-        list[Country] | None,
+    signal_spec: Annotated[
+        str | None,
         Field(
-            description=&#39;Countries where signals will be used (ISO 3166-1 alpha-2 codes). When omitted, no geographic filter is applied.&#39;,
+            description=&#39;Natural language description of the desired signals. When used alone, enables semantic discovery. When combined with signal_ids, provides context for the agent but signal_ids matches are returned first.&#39;
+        ),
+    ] = None
+    signal_ids: Annotated[
+        list[signal_id.SignalId] | None,
+        Field(
+            description=&#34;Specific signals to look up by data provider and ID. Returns exact matches from the data provider&#39;s catalog. When combined with signal_spec, these signals anchor the starting set and signal_spec guides adjustments.&#34;,
             min_length=1,
         ),
     ] = None
@@ -137,25 +142,20 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
+    countries: Annotated[
+        list[Country] | None,
+        Field(
+            description=&#39;Countries where signals will be used (ISO 3166-1 alpha-2 codes). When omitted, no geographic filter is applied.&#39;,
+            min_length=1,
+        ),
+    ] = None
     filters: signal_filters.SignalFilters | None = None
     max_results: Annotated[
         int | None, Field(description=&#39;Maximum number of results to return&#39;, ge=1)
     ] = None
     pagination: pagination_request.PaginationRequest | None = None
-    signal_ids: Annotated[
-        list[signal_id.SignalId] | None,
-        Field(
-            description=&#34;Specific signals to look up by data provider and ID. Returns exact matches from the data provider&#39;s catalog. When combined with signal_spec, these signals anchor the starting set and signal_spec guides adjustments.&#34;,
-            min_length=1,
-        ),
-    ] = None
-    signal_spec: Annotated[
-        str | None,
-        Field(
-            description=&#39;Natural language description of the desired signals. When used alone, enables semantic discovery. When combined with signal_ids, provides context for the agent but signal_ids matches are returned first.&#39;
-        ),
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

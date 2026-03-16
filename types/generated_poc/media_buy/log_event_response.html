@@ -59,12 +59,19 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
+    events_received: Annotated[int, Field(description=&#39;Number of events received&#39;, ge=0)]
     events_processed: Annotated[
         int, Field(description=&#39;Number of events successfully queued for processing&#39;, ge=0)
     ]
-    events_received: Annotated[int, Field(description=&#39;Number of events received&#39;, ge=0)]
-    ext: ext_1.ExtensionObject | None = None
+    partial_failures: Annotated[
+        list[PartialFailure] | None, Field(description=&#39;Events that failed validation&#39;)
+    ] = None
+    warnings: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Non-fatal issues (low match quality, missing recommended fields, deprecation notices)&#39;
+        ),
+    ] = None
     match_quality: Annotated[
         float | None,
         Field(
@@ -73,19 +80,12 @@ el.replaceWith(d);
             le=1.0,
         ),
     ] = None
-    partial_failures: Annotated[
-        list[PartialFailure] | None, Field(description=&#39;Events that failed validation&#39;)
-    ] = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
     ] = None
-    warnings: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Non-fatal issues (low match quality, missing recommended fields, deprecation notices)&#39;
-        ),
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -165,8 +165,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -227,8 +227,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    code: Annotated[str, Field(description=&#39;Error code&#39;)]
     event_id: Annotated[str, Field(description=&#39;ID of the failed event&#39;)]
+    code: Annotated[str, Field(description=&#39;Error code&#39;)]
     message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

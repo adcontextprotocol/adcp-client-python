@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.media_buy.sync_creatives_async_response_working API documentation</title>
+<title>adcp.types.generated_poc.core.show_distribution API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.sync_creatives_async_response_working</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.show_distribution</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking"><code class="flex name class">
-<span>class <span class="ident">SyncCreativesWorking</span></span>
+<dt id="adcp.types.generated_poc.core.show_distribution.Identifier"><code class="flex name class">
+<span>class <span class="ident">Identifier</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,28 +55,15 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SyncCreativesWorking(AdCPBaseModel):
+<pre><code class="python">class Identifier(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#39;forbid&#39;,
     )
-    context: context_1.ContextObject | None = None
-    creatives_processed: Annotated[
-        int | None, Field(description=&#39;Number of creatives processed so far&#39;, ge=0)
-    ] = None
-    creatives_total: Annotated[
-        int | None, Field(description=&#39;Total number of creatives to process&#39;, ge=0)
-    ] = None
-    current_step: Annotated[
-        str | None, Field(description=&#39;Current step or phase of the operation&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    percentage: Annotated[
-        float | None, Field(description=&#39;Completion percentage (0-100)&#39;, ge=0.0, le=100.0)
-    ] = None
-    step_number: Annotated[int | None, Field(description=&#39;Current step number&#39;, ge=1)] = None
-    total_steps: Annotated[
-        int | None, Field(description=&#39;Total number of steps in the operation&#39;, ge=1)
-    ] = None</code></pre>
+    type: Annotated[
+        distribution_identifier_type.DistributionIdentifierType,
+        Field(description=&#39;Type of distribution identifier&#39;),
+    ]
+    value: Annotated[str, Field(description=&#39;The identifier value&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -95,39 +82,82 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.show_distribution.Identifier.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.creatives_processed"><code class="name">var <span class="ident">creatives_processed</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.show_distribution.Identifier.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.enums.distribution_identifier_type.DistributionIdentifierType" href="../enums/distribution_identifier_type.html#adcp.types.generated_poc.enums.distribution_identifier_type.DistributionIdentifierType">DistributionIdentifierType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.creatives_total"><code class="name">var <span class="ident">creatives_total</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.show_distribution.Identifier.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.current_step"><code class="name">var <span class="ident">current_step</span> : str | None</code></dt>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.show_distribution.ShowDistribution"><code class="flex name class">
+<span>class <span class="ident">ShowDistribution</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ShowDistribution(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    publisher_domain: Annotated[
+        str,
+        Field(
+            description=&#34;Domain of the publisher platform where the show is distributed (e.g., &#39;youtube.com&#39;, &#39;spotify.com&#39;)&#34;
+        ),
+    ]
+    identifiers: Annotated[
+        list[Identifier],
+        Field(
+            description=&#39;Platform-specific identifiers for the show on this publisher&#39;, min_length=1
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.show_distribution.ShowDistribution.identifiers"><code class="name">var <span class="ident">identifiers</span> : list[<a title="adcp.types.generated_poc.core.show_distribution.Identifier" href="#adcp.types.generated_poc.core.show_distribution.Identifier">Identifier</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.show_distribution.ShowDistribution.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.percentage"><code class="name">var <span class="ident">percentage</span> : float | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.step_number"><code class="name">var <span class="ident">step_number</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.total_steps"><code class="name">var <span class="ident">total_steps</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.show_distribution.ShowDistribution.publisher_domain"><code class="name">var <span class="ident">publisher_domain</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -153,23 +183,25 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking">SyncCreativesWorking</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.context" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.creatives_processed" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.creatives_processed">creatives_processed</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.creatives_total" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.creatives_total">creatives_total</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.current_step" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.current_step">current_step</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.ext" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.percentage" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.percentage">percentage</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.step_number" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.step_number">step_number</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.total_steps" href="#adcp.types.generated_poc.media_buy.sync_creatives_async_response_working.SyncCreativesWorking.total_steps">total_steps</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.core.show_distribution.Identifier" href="#adcp.types.generated_poc.core.show_distribution.Identifier">Identifier</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.show_distribution.Identifier.model_config" href="#adcp.types.generated_poc.core.show_distribution.Identifier.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.show_distribution.Identifier.type" href="#adcp.types.generated_poc.core.show_distribution.Identifier.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.show_distribution.Identifier.value" href="#adcp.types.generated_poc.core.show_distribution.Identifier.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.show_distribution.ShowDistribution" href="#adcp.types.generated_poc.core.show_distribution.ShowDistribution">ShowDistribution</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.show_distribution.ShowDistribution.identifiers" href="#adcp.types.generated_poc.core.show_distribution.ShowDistribution.identifiers">identifiers</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.show_distribution.ShowDistribution.model_config" href="#adcp.types.generated_poc.core.show_distribution.ShowDistribution.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.show_distribution.ShowDistribution.publisher_domain" href="#adcp.types.generated_poc.core.show_distribution.ShowDistribution.publisher_domain">publisher_domain</a></code></li>
 </ul>
 </li>
 </ul>

@@ -138,48 +138,31 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    audience_id: Annotated[
+        str, Field(description=&#34;Audience ID from the request (buyer&#39;s identifier)&#34;)
+    ]
+    name: Annotated[str | None, Field(description=&#39;Name of the audience&#39;)] = None
+    seller_id: Annotated[
+        str | None,
+        Field(description=&#39;Seller-assigned identifier for this audience in their ad platform&#39;),
+    ] = None
     action: Annotated[
         Action,
         Field(
             description=&#34;Action taken for this audience. &#39;status&#39; is present when action is created, updated, or unchanged. &#39;status&#39; is absent when action is deleted or failed.&#34;
         ),
     ]
-    audience_id: Annotated[
-        str, Field(description=&#34;Audience ID from the request (buyer&#39;s identifier)&#34;)
-    ]
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(description=&#34;Errors for this audience (only present when action=&#39;failed&#39;)&#34;),
-    ] = None
-    last_synced_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 timestamp of when the most recent sync operation was accepted by the platform. Useful for agents reasoning about audience freshness. Omitted if the seller does not track this.&#39;
-        ),
-    ] = None
-    matched_count: Annotated[
-        int | None,
-        Field(
-            description=&#34;Total members matched to platform users across all syncs (cumulative, not just this call). Populated when status is &#39;ready&#39;.&#34;,
-            ge=0,
-        ),
-    ] = None
-    minimum_size: Annotated[
-        int | None,
-        Field(
-            description=&#34;Minimum matched audience size required for targeting on this platform. Populated when status is &#39;too_small&#39;. Helps agents know how many more members are needed.&#34;,
-            ge=1,
-        ),
-    ] = None
-    name: Annotated[str | None, Field(description=&#39;Name of the audience&#39;)] = None
-    seller_id: Annotated[
-        str | None,
-        Field(description=&#39;Seller-assigned identifier for this audience in their ad platform&#39;),
-    ] = None
     status: Annotated[
         Status | None,
         Field(
             description=&#34;Matching status. Present when action is created, updated, or unchanged; absent when action is deleted or failed. &#39;processing&#39;: platform is still matching members against its user base. &#39;ready&#39;: audience is available for targeting, matched_count is populated. &#39;too_small&#39;: matched audience is below the platform&#39;s minimum size — add more members and re-sync.&#34;
+        ),
+    ] = None
+    uploaded_count: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of members submitted in this sync operation (delta, not cumulative). In discovery-only calls (no audiences array), this is 0.&#39;,
+            ge=0,
         ),
     ] = None
     total_uploaded_count: Annotated[
@@ -189,12 +172,29 @@ attributes &ndash; see the documentation for details.</p></div>
             ge=0,
         ),
     ] = None
-    uploaded_count: Annotated[
+    matched_count: Annotated[
         int | None,
         Field(
-            description=&#39;Number of members submitted in this sync operation (delta, not cumulative). In discovery-only calls (no audiences array), this is 0.&#39;,
+            description=&#34;Total members matched to platform users across all syncs (cumulative, not just this call). Populated when status is &#39;ready&#39;.&#34;,
             ge=0,
         ),
+    ] = None
+    last_synced_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp of when the most recent sync operation was accepted by the platform. Useful for agents reasoning about audience freshness. Omitted if the seller does not track this.&#39;
+        ),
+    ] = None
+    minimum_size: Annotated[
+        int | None,
+        Field(
+            description=&#34;Minimum matched audience size required for targeting on this platform. Populated when status is &#39;too_small&#39;. Helps agents know how many more members are needed.&#34;,
+            ge=1,
+        ),
+    ] = None
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(description=&#34;Errors for this audience (only present when action=&#39;failed&#39;)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -359,12 +359,12 @@ attributes &ndash; see the documentation for details.</p></div>
     audiences: Annotated[
         list[Audience], Field(description=&#39;Results for each audience on the account&#39;)
     ]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -428,11 +428,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(description=&#39;Operation-level errors that prevented processing&#39;, min_length=1),
     ]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -59,32 +59,38 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    media_buy_id: Annotated[
+        str, Field(description=&#34;Publisher&#39;s unique identifier for the created media buy&#34;)
+    ]
+    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
+    buyer_campaign_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s campaign reference label, echoed from the request&#34;)
+    ] = None
     account: Annotated[
         account_1.Account | None,
         Field(
             description=&#39;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#39;
         ),
     ] = None
-    buyer_campaign_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s campaign reference label, echoed from the request&#34;)
-    ] = None
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)]
-    context: context_1.ContextObject | None = None
     creative_deadline: Annotated[
         AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[
-        str, Field(description=&#34;Publisher&#39;s unique identifier for the created media buy&#34;)
-    ]
     packages: Annotated[
         list[package.Package],
         Field(description=&#39;Array of created packages with complete state information&#39;),
     ]
+    planned_delivery: Annotated[
+        planned_delivery_1.PlannedDelivery | None,
+        Field(
+            description=&#34;The seller&#39;s interpreted delivery parameters. Describes what the seller will actually run -- geo, channels, flight dates, frequency caps, and budget. Present when the account has governance_agents or when the seller chooses to provide delivery transparency.&#34;
+        ),
+    ] = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -139,6 +145,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.planned_delivery"><code class="name">var <span class="ident">planned_delivery</span> : <a title="adcp.types.generated_poc.core.planned_delivery.PlannedDelivery" href="../core/planned_delivery.html#adcp.types.generated_poc.core.planned_delivery.PlannedDelivery">PlannedDelivery</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -168,11 +178,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
     ]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -247,6 +257,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.media_buy_id" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.model_config" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.packages" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.packages">packages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.planned_delivery" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.planned_delivery">planned_delivery</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>

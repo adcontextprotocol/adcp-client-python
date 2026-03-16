@@ -59,15 +59,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    principal: Annotated[
+        str | None, Field(description=&#39;Filter to lists owned by this principal&#39;)
+    ] = None
     name_contains: Annotated[
         str | None, Field(description=&#39;Filter to lists whose name contains this string&#39;)
     ] = None
     pagination: pagination_request.PaginationRequest | None = None
-    principal: Annotated[
-        str | None, Field(description=&#39;Filter to lists owned by this principal&#39;)
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

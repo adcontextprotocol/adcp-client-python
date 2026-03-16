@@ -59,6 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    creative_manifest: Annotated[
+        creative_manifest_1.CreativeManifest,
+        Field(description=&#39;The creative manifest to evaluate. Contains format_id and assets.&#39;),
+    ]
+    feature_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Optional filter to specific features. If omitted, returns all available features.&#39;,
+            min_length=1,
+        ),
+    ] = None
     account: Annotated[
         account_ref.AccountReference | None,
         Field(
@@ -66,18 +77,7 @@ el.replaceWith(d);
         ),
     ] = None
     context: context_1.ContextObject | None = None
-    creative_manifest: Annotated[
-        creative_manifest_1.CreativeManifest,
-        Field(description=&#39;The creative manifest to evaluate. Contains format_id and assets.&#39;),
-    ]
-    ext: ext_1.ExtensionObject | None = None
-    feature_ids: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Optional filter to specific features. If omitted, returns all available features.&#39;,
-            min_length=1,
-        ),
-    ] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

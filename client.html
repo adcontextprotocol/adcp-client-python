@@ -48,7 +48,7 @@ el.replaceWith(d);
 <dl>
 <dt id="adcp.client.ADCPClient"><code class="flex name class">
 <span>class <span class="ident">ADCPClient</span></span>
-<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None)</span>
+<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -64,6 +64,7 @@ el.replaceWith(d);
         webhook_url_template: str | None = None,
         webhook_secret: str | None = None,
         on_activity: Callable[[Activity], None] | None = None,
+        webhook_timestamp_tolerance: int = 300,
     ):
         &#34;&#34;&#34;
         Initialize ADCP client for a single agent.
@@ -74,11 +75,15 @@ el.replaceWith(d);
                 {task_type}, {operation_id}
             webhook_secret: Secret for webhook signature verification
             on_activity: Callback for activity events
+            webhook_timestamp_tolerance: Maximum age (in seconds) for webhook
+                timestamps. Webhooks with timestamps older than this or more than
+                this far in the future are rejected. Defaults to 300 (5 minutes).
         &#34;&#34;&#34;
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
         self.on_activity = on_activity
+        self.webhook_timestamp_tolerance = webhook_timestamp_tolerance
 
         # Initialize protocol adapter
         self.adapter: ProtocolAdapter
@@ -849,6 +854,88 @@ el.replaceWith(d);
 
         return self.adapter._parse_response(raw_result, SyncAccountsResponse)
 
+    async def get_account_financials(
+        self,
+        request: GetAccountFinancialsRequest,
+    ) -&gt; TaskResult[GetAccountFinancialsResponse]:
+        &#34;&#34;&#34;
+        Get Account Financials.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing GetAccountFinancialsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_account_financials&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_account_financials(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_account_financials&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetAccountFinancialsResponse)
+
+    async def report_usage(
+        self,
+        request: ReportUsageRequest,
+    ) -&gt; TaskResult[ReportUsageResponse]:
+        &#34;&#34;&#34;
+        Report Usage.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing ReportUsageResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;report_usage&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.report_usage(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;report_usage&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ReportUsageResponse)
+
     async def log_event(
         self,
         request: LogEventRequest,
@@ -930,6 +1017,88 @@ el.replaceWith(d);
         )
 
         return self.adapter._parse_response(raw_result, SyncEventSourcesResponse)
+
+    async def sync_audiences(
+        self,
+        request: SyncAudiencesRequest,
+    ) -&gt; TaskResult[SyncAudiencesResponse]:
+        &#34;&#34;&#34;
+        Sync Audiences.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing SyncAudiencesResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_audiences&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.sync_audiences(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_audiences&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SyncAudiencesResponse)
+
+    async def sync_catalogs(
+        self,
+        request: SyncCatalogsRequest,
+    ) -&gt; TaskResult[SyncCatalogsResponse]:
+        &#34;&#34;&#34;
+        Sync Catalogs.
+
+        Args:
+            request: Request parameters
+
+        Returns:
+            TaskResult containing SyncCatalogsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_catalogs&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.sync_catalogs(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_catalogs&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SyncCatalogsResponse)
 
     async def get_creative_delivery(
         self,
@@ -1504,8 +1673,173 @@ el.replaceWith(d);
         return self.adapter._parse_response(raw_result, SiTerminateSessionResponse)
 
     # ========================================================================
-    # V3 Governance (Property Lists) Methods
+    # V3 Governance Methods
     # ========================================================================
+
+    async def get_creative_features(
+        self,
+        request: GetCreativeFeaturesRequest,
+    ) -&gt; TaskResult[GetCreativeFeaturesResponse]:
+        &#34;&#34;&#34;Evaluate governance features for a creative manifest.&#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_creative_features&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_creative_features(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_creative_features&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetCreativeFeaturesResponse)
+
+    async def sync_plans(
+        self,
+        request: SyncPlansRequest,
+    ) -&gt; TaskResult[SyncPlansResponse]:
+        &#34;&#34;&#34;Sync campaign governance plans to the governance agent.&#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_plans&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.sync_plans(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_plans&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SyncPlansResponse)
+
+    async def check_governance(
+        self,
+        request: CheckGovernanceRequest,
+    ) -&gt; TaskResult[CheckGovernanceResponse]:
+        &#34;&#34;&#34;Check a proposed or committed action against campaign governance.&#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;check_governance&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.check_governance(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;check_governance&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CheckGovernanceResponse)
+
+    async def report_plan_outcome(
+        self,
+        request: ReportPlanOutcomeRequest,
+    ) -&gt; TaskResult[ReportPlanOutcomeResponse]:
+        &#34;&#34;&#34;Report the outcome of a governed action to the governance agent.&#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;report_plan_outcome&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.report_plan_outcome(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;report_plan_outcome&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ReportPlanOutcomeResponse)
+
+    async def get_plan_audit_logs(
+        self,
+        request: GetPlanAuditLogsRequest,
+    ) -&gt; TaskResult[GetPlanAuditLogsResponse]:
+        &#34;&#34;&#34;Retrieve governance state and audit logs for one or more plans.&#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_plan_audit_logs&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_plan_audit_logs(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_plan_audit_logs&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetPlanAuditLogsResponse)
 
     async def create_property_list(
         self,
@@ -1795,7 +2129,19 @@ el.replaceWith(d);
             True if signature is valid, False otherwise
         &#34;&#34;&#34;
         if not self.webhook_secret:
+            logger.warning(
+                &#34;Webhook signature verification skipped: no webhook_secret configured&#34;
+            )
             return True
+
+        # Reject stale or future timestamps to prevent replay attacks
+        try:
+            ts = int(timestamp)
+        except (ValueError, TypeError):
+            return False
+        now = int(time.time())
+        if abs(now - ts) &gt; self.webhook_timestamp_tolerance:
+            return False
 
         # Strip &#34;sha256=&#34; prefix if present
         if signature.startswith(&#34;sha256=&#34;):
@@ -1868,10 +2214,14 @@ el.replaceWith(d);
             &#34;get_signals&#34;: GetSignalsResponse,
             &#34;activate_signal&#34;: ActivateSignalResponse,
             &#34;provide_performance_feedback&#34;: ProvidePerformanceFeedbackResponse,
+            &#34;report_usage&#34;: ReportUsageResponse,
+            &#34;get_account_financials&#34;: GetAccountFinancialsResponse,
             &#34;list_accounts&#34;: ListAccountsResponse,
             &#34;sync_accounts&#34;: SyncAccountsResponse,
             &#34;log_event&#34;: LogEventResponse,
             &#34;sync_event_sources&#34;: SyncEventSourcesResponse,
+            &#34;sync_audiences&#34;: SyncAudiencesResponse,
+            &#34;sync_catalogs&#34;: SyncCatalogsResponse,
             &#34;get_creative_delivery&#34;: GetCreativeDeliveryResponse,
             # V3 Protocol Discovery
             &#34;get_adcp_capabilities&#34;: GetAdcpCapabilitiesResponse,
@@ -1888,7 +2238,12 @@ el.replaceWith(d);
             &#34;si_initiate_session&#34;: SiInitiateSessionResponse,
             &#34;si_send_message&#34;: SiSendMessageResponse,
             &#34;si_terminate_session&#34;: SiTerminateSessionResponse,
-            # V3 Governance (Property Lists)
+            # V3 Governance
+            &#34;get_creative_features&#34;: GetCreativeFeaturesResponse,
+            &#34;sync_plans&#34;: SyncPlansResponse,
+            &#34;check_governance&#34;: CheckGovernanceResponse,
+            &#34;report_plan_outcome&#34;: ReportPlanOutcomeResponse,
+            &#34;get_plan_audit_logs&#34;: GetPlanAuditLogsResponse,
             &#34;create_property_list&#34;: CreatePropertyListResponse,
             &#34;get_property_list&#34;: GetPropertyListResponse,
             &#34;list_property_lists&#34;: ListPropertyListsResponse,
@@ -1980,16 +2335,17 @@ el.replaceWith(d);
         &#34;&#34;&#34;
         from adcp.types.generated_poc.core.mcp_webhook_payload import McpWebhookPayload
 
-        # Verify signature before processing (requires both signature and timestamp)
-        if (
-            signature
-            and timestamp
-            and not self._verify_webhook_signature(payload, signature, timestamp, raw_body)
-        ):
-            logger.warning(
-                f&#34;Webhook signature verification failed for agent {self.agent_config.id}&#34;
-            )
-            raise ADCPWebhookSignatureError(&#34;Invalid webhook signature&#34;)
+        # When a webhook_secret is configured, require signed webhooks
+        if self.webhook_secret:
+            if not signature or not timestamp:
+                raise ADCPWebhookSignatureError(
+                    &#34;Webhook signature and timestamp headers are required&#34;
+                )
+            if not self._verify_webhook_signature(payload, signature, timestamp, raw_body):
+                logger.warning(
+                    f&#34;Webhook signature verification failed for agent {self.agent_config.id}&#34;
+                )
+                raise ADCPWebhookSignatureError(&#34;Invalid webhook signature&#34;)
 
         # Validate and parse MCP webhook payload
         webhook = McpWebhookPayload.model_validate(payload)
@@ -2278,6 +2634,10 @@ el.replaceWith(d);
 <dd>Secret for webhook signature verification</dd>
 <dt><strong><code>on_activity</code></strong></dt>
 <dd>Callback for activity events</dd>
+<dt><strong><code>webhook_timestamp_tolerance</code></strong></dt>
+<dd>Maximum age (in seconds) for webhook
+timestamps. Webhooks with timestamps older than this or more than
+this far in the future are rejected. Defaults to 300 (5 minutes).</dd>
 </dl></div>
 <h3>Methods</h3>
 <dl>
@@ -2340,7 +2700,7 @@ el.replaceWith(d);
 <p>TaskResult containing ActivateSignalResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.build_creative"><code class="name flex">
-<span>async def <span class="ident">build_creative</span></span>(<span>self, request: BuildCreativeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[BuildCreativeResponse1, BuildCreativeResponse2]]</span>
+<span>async def <span class="ident">build_creative</span></span>(<span>self, request: BuildCreativeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[BuildCreativeResponse1, BuildCreativeResponse2, BuildCreativeResponse3]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2506,6 +2866,49 @@ determine suitability for ad placement.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing CalibrateContentResponse with verdict</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.check_governance"><code class="name flex">
+<span>async def <span class="ident">check_governance</span></span>(<span>self, request: CheckGovernanceRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CheckGovernanceResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def check_governance(
+    self,
+    request: CheckGovernanceRequest,
+) -&gt; TaskResult[CheckGovernanceResponse]:
+    &#34;&#34;&#34;Check a proposed or committed action against campaign governance.&#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;check_governance&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.check_governance(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;check_governance&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, CheckGovernanceResponse)</code></pre>
+</details>
+<div class="desc"><p>Check a proposed or committed action against campaign governance.</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.close"><code class="name flex">
 <span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
@@ -2817,6 +3220,64 @@ will be terminated.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing DeletePropertyListResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.get_account_financials"><code class="name flex">
+<span>async def <span class="ident">get_account_financials</span></span>(<span>self, request: GetAccountFinancialsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[GetAccountFinancialsResponse1, GetAccountFinancialsResponse2]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_account_financials(
+    self,
+    request: GetAccountFinancialsRequest,
+) -&gt; TaskResult[GetAccountFinancialsResponse]:
+    &#34;&#34;&#34;
+    Get Account Financials.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing GetAccountFinancialsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_account_financials&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_account_financials(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_account_financials&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetAccountFinancialsResponse)</code></pre>
+</details>
+<div class="desc"><p>Get Account Financials.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetAccountFinancialsResponse</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.get_adcp_capabilities"><code class="name flex">
 <span>async def <span class="ident">get_adcp_capabilities</span></span>(<span>self, request: GetAdcpCapabilitiesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetAdcpCapabilitiesResponse]</span>
 </code></dt>
@@ -3005,6 +3466,49 @@ domain-specific capabilities (media_buy, signals, sponsored_intelligence).</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing GetCreativeDeliveryResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_creative_features"><code class="name flex">
+<span>async def <span class="ident">get_creative_features</span></span>(<span>self, request: GetCreativeFeaturesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[GetCreativeFeaturesResponse1, GetCreativeFeaturesResponse2]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_creative_features(
+    self,
+    request: GetCreativeFeaturesRequest,
+) -&gt; TaskResult[GetCreativeFeaturesResponse]:
+    &#34;&#34;&#34;Evaluate governance features for a creative manifest.&#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_creative_features&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_creative_features(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_creative_features&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetCreativeFeaturesResponse)</code></pre>
+</details>
+<div class="desc"><p>Evaluate governance features for a creative manifest.</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_info"><code class="name flex">
 <span>async def <span class="ident">get_info</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
@@ -3216,6 +3720,49 @@ domain-specific capabilities (media_buy, signals, sponsored_intelligence).</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing GetMediaBuysResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_plan_audit_logs"><code class="name flex">
+<span>async def <span class="ident">get_plan_audit_logs</span></span>(<span>self, request: GetPlanAuditLogsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetPlanAuditLogsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_plan_audit_logs(
+    self,
+    request: GetPlanAuditLogsRequest,
+) -&gt; TaskResult[GetPlanAuditLogsResponse]:
+    &#34;&#34;&#34;Retrieve governance state and audit logs for one or more plans.&#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_plan_audit_logs&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_plan_audit_logs(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_plan_audit_logs&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetPlanAuditLogsResponse)</code></pre>
+</details>
+<div class="desc"><p>Retrieve governance state and audit logs for one or more plans.</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_products"><code class="name flex">
 <span>async def <span class="ident">get_products</span></span>(<span>self,<br>request: GetProductsRequest,<br>fetch_previews: bool = False,<br>preview_output_format: str = 'url',<br>creative_agent_client: <a title="adcp.client.ADCPClient" href="#adcp.client.ADCPClient">ADCPClient</a> | None = None) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetProductsResponse]</span>
@@ -4179,6 +4726,107 @@ by principal or pagination parameters.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ProvidePerformanceFeedbackResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.report_plan_outcome"><code class="name flex">
+<span>async def <span class="ident">report_plan_outcome</span></span>(<span>self, request: ReportPlanOutcomeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ReportPlanOutcomeResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def report_plan_outcome(
+    self,
+    request: ReportPlanOutcomeRequest,
+) -&gt; TaskResult[ReportPlanOutcomeResponse]:
+    &#34;&#34;&#34;Report the outcome of a governed action to the governance agent.&#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;report_plan_outcome&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.report_plan_outcome(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;report_plan_outcome&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ReportPlanOutcomeResponse)</code></pre>
+</details>
+<div class="desc"><p>Report the outcome of a governed action to the governance agent.</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.report_usage"><code class="name flex">
+<span>async def <span class="ident">report_usage</span></span>(<span>self, request: ReportUsageRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ReportUsageResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def report_usage(
+    self,
+    request: ReportUsageRequest,
+) -&gt; TaskResult[ReportUsageResponse]:
+    &#34;&#34;&#34;
+    Report Usage.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing ReportUsageResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;report_usage&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.report_usage(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;report_usage&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ReportUsageResponse)</code></pre>
+</details>
+<div class="desc"><p>Report Usage.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ReportUsageResponse</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.si_get_offering"><code class="name flex">
 <span>async def <span class="ident">si_get_offering</span></span>(<span>self, request: SiGetOfferingRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SiGetOfferingResponse]</span>
 </code></dt>
@@ -4483,6 +5131,122 @@ sponsored intelligence session.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing SyncAccountsResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.sync_audiences"><code class="name flex">
+<span>async def <span class="ident">sync_audiences</span></span>(<span>self, request: SyncAudiencesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncAudiencesResponse1, SyncAudiencesResponse2]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_audiences(
+    self,
+    request: SyncAudiencesRequest,
+) -&gt; TaskResult[SyncAudiencesResponse]:
+    &#34;&#34;&#34;
+    Sync Audiences.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing SyncAudiencesResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_audiences&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.sync_audiences(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_audiences&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SyncAudiencesResponse)</code></pre>
+</details>
+<div class="desc"><p>Sync Audiences.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing SyncAudiencesResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.sync_catalogs"><code class="name flex">
+<span>async def <span class="ident">sync_catalogs</span></span>(<span>self, request: SyncCatalogsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncCatalogsResponse1, SyncCatalogsResponse2]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_catalogs(
+    self,
+    request: SyncCatalogsRequest,
+) -&gt; TaskResult[SyncCatalogsResponse]:
+    &#34;&#34;&#34;
+    Sync Catalogs.
+
+    Args:
+        request: Request parameters
+
+    Returns:
+        TaskResult containing SyncCatalogsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_catalogs&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.sync_catalogs(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_catalogs&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SyncCatalogsResponse)</code></pre>
+</details>
+<div class="desc"><p>Sync Catalogs.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing SyncCatalogsResponse</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.sync_creatives"><code class="name flex">
 <span>async def <span class="ident">sync_creatives</span></span>(<span>self, request: SyncCreativesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncCreativesResponse1, SyncCreativesResponse2]]</span>
 </code></dt>
@@ -4598,6 +5362,49 @@ sponsored intelligence session.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing SyncEventSourcesResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.sync_plans"><code class="name flex">
+<span>async def <span class="ident">sync_plans</span></span>(<span>self, request: SyncPlansRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SyncPlansResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_plans(
+    self,
+    request: SyncPlansRequest,
+) -&gt; TaskResult[SyncPlansResponse]:
+    &#34;&#34;&#34;Sync campaign governance plans to the governance agent.&#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_plans&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.sync_plans(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_plans&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SyncPlansResponse)</code></pre>
+</details>
+<div class="desc"><p>Sync campaign governance plans to the governance agent.</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.update_content_standards"><code class="name flex">
 <span>async def <span class="ident">update_content_standards</span></span>(<span>self, request: UpdateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[UpdateContentStandardsResponse1, UpdateContentStandardsResponse2]]</span>
@@ -5122,18 +5929,22 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.activate_signal" href="#adcp.client.ADCPClient.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.build_creative" href="#adcp.client.ADCPClient.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.calibrate_content" href="#adcp.client.ADCPClient.calibrate_content">calibrate_content</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.check_governance" href="#adcp.client.ADCPClient.check_governance">check_governance</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.close" href="#adcp.client.ADCPClient.close">close</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_content_standards" href="#adcp.client.ADCPClient.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_media_buy" href="#adcp.client.ADCPClient.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_property_list" href="#adcp.client.ADCPClient.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.delete_property_list" href="#adcp.client.ADCPClient.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_account_financials" href="#adcp.client.ADCPClient.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_adcp_capabilities" href="#adcp.client.ADCPClient.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_content_standards" href="#adcp.client.ADCPClient.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_creative_delivery" href="#adcp.client.ADCPClient.get_creative_delivery">get_creative_delivery</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_creative_features" href="#adcp.client.ADCPClient.get_creative_features">get_creative_features</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_info" href="#adcp.client.ADCPClient.get_info">get_info</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_media_buy_artifacts" href="#adcp.client.ADCPClient.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_media_buy_delivery" href="#adcp.client.ADCPClient.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_media_buys" href="#adcp.client.ADCPClient.get_media_buys">get_media_buys</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_plan_audit_logs" href="#adcp.client.ADCPClient.get_plan_audit_logs">get_plan_audit_logs</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_products" href="#adcp.client.ADCPClient.get_products">get_products</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_property_list" href="#adcp.client.ADCPClient.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_signals" href="#adcp.client.ADCPClient.get_signals">get_signals</a></code></li>
@@ -5148,13 +5959,18 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.log_event" href="#adcp.client.ADCPClient.log_event">log_event</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.preview_creative" href="#adcp.client.ADCPClient.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.provide_performance_feedback" href="#adcp.client.ADCPClient.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.report_plan_outcome" href="#adcp.client.ADCPClient.report_plan_outcome">report_plan_outcome</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.report_usage" href="#adcp.client.ADCPClient.report_usage">report_usage</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.si_get_offering" href="#adcp.client.ADCPClient.si_get_offering">si_get_offering</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.si_initiate_session" href="#adcp.client.ADCPClient.si_initiate_session">si_initiate_session</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.si_send_message" href="#adcp.client.ADCPClient.si_send_message">si_send_message</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.si_terminate_session" href="#adcp.client.ADCPClient.si_terminate_session">si_terminate_session</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_accounts" href="#adcp.client.ADCPClient.sync_accounts">sync_accounts</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.sync_audiences" href="#adcp.client.ADCPClient.sync_audiences">sync_audiences</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.sync_catalogs" href="#adcp.client.ADCPClient.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_creatives" href="#adcp.client.ADCPClient.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_event_sources" href="#adcp.client.ADCPClient.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.sync_plans" href="#adcp.client.ADCPClient.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_content_standards" href="#adcp.client.ADCPClient.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_media_buy" href="#adcp.client.ADCPClient.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_property_list" href="#adcp.client.ADCPClient.update_property_list">update_property_list</a></code></li>

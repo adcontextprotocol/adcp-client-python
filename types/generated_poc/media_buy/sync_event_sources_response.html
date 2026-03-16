@@ -138,25 +138,7 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    action: Annotated[Action, Field(description=&#39;Action taken for this event source&#39;)]
-    action_source: Annotated[
-        action_source_1.ActionSource | None,
-        Field(description=&#39;Type of event source (website pixel, app SDK, in-store, etc.)&#39;),
-    ] = None
-    errors: Annotated[
-        list[str] | None,
-        Field(description=&#34;Errors for this event source (only present when action=&#39;failed&#39;)&#34;),
-    ] = None
     event_source_id: Annotated[str, Field(description=&#39;Event source ID from the request&#39;)]
-    event_types: Annotated[
-        list[event_type.EventType] | None, Field(description=&#39;Event types this source handles&#39;)
-    ] = None
-    managed_by: Annotated[
-        ManagedBy | None,
-        Field(
-            description=&#34;Who manages this event source. &#39;buyer&#39; = configured via this sync. &#39;seller&#39; = always-on, managed by the seller (e.g. Amazon sales attribution for Amazon advertisers).&#34;
-        ),
-    ] = None
     name: Annotated[str | None, Field(description=&#39;Name of the event source&#39;)] = None
     seller_id: Annotated[
         str | None,
@@ -164,11 +146,29 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Seller-assigned identifier for this event source (the ID in the seller&#39;s ad platform)&#34;
         ),
     ] = None
+    event_types: Annotated[
+        list[event_type.EventType] | None, Field(description=&#39;Event types this source handles&#39;)
+    ] = None
+    action_source: Annotated[
+        action_source_1.ActionSource | None,
+        Field(description=&#39;Type of event source (website pixel, app SDK, in-store, etc.)&#39;),
+    ] = None
+    managed_by: Annotated[
+        ManagedBy | None,
+        Field(
+            description=&#34;Who manages this event source. &#39;buyer&#39; = configured via this sync. &#39;seller&#39; = always-on, managed by the seller (e.g. Amazon sales attribution for Amazon advertisers).&#34;
+        ),
+    ] = None
     setup: Annotated[
         Setup | None,
         Field(
             description=&#39;Implementation details for activating this event source (e.g. JavaScript tag, pixel URL)&#39;
         ),
+    ] = None
+    action: Annotated[Action, Field(description=&#39;Action taken for this event source&#39;)]
+    errors: Annotated[
+        list[str] | None,
+        Field(description=&#34;Errors for this event source (only present when action=&#39;failed&#39;)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -317,9 +317,6 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    instructions: Annotated[
-        str | None, Field(description=&#39;Human/agent-readable setup instructions&#39;)
-    ] = None
     snippet: Annotated[
         str | None,
         Field(description=&#39;Code snippet to place on the site (JavaScript, HTML pixel, etc.)&#39;),
@@ -329,6 +326,9 @@ attributes &ndash; see the documentation for details.</p></div>
         Field(
             description=&#34;Type of implementation. &#39;server_only&#39; means no client-side tag is needed.&#34;
         ),
+    ] = None
+    instructions: Annotated[
+        str | None, Field(description=&#39;Human/agent-readable setup instructions&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -463,18 +463,18 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     event_sources: Annotated[
         list[EventSource],
         Field(
             description=&#39;Results for each event source, including both synced and seller-managed sources on the account&#39;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -538,11 +538,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(description=&#39;Operation-level errors that prevented processing&#39;, min_length=1),
     ]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -56,10 +56,6 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CatalogMatch(AdCPBaseModel):
-    matched_count: Annotated[
-        int | None,
-        Field(description=&#34;Number of catalog items that matched this product&#39;s inventory.&#34;, ge=0),
-    ] = None
     matched_gtins: Annotated[
         list[MatchedGtin] | None,
         Field(
@@ -71,6 +67,10 @@ el.replaceWith(d);
         Field(
             description=&#34;Item IDs from the buyer&#39;s catalog that matched this product&#39;s inventory. The ID type depends on the catalog type and content_id_type (e.g., SKUs for product catalogs, job_ids for job catalogs, offering_ids for offering catalogs).&#34;
         ),
+    ] = None
+    matched_count: Annotated[
+        int | None,
+        Field(description=&#34;Number of catalog items that matched this product&#39;s inventory.&#34;, ge=0),
     ] = None
     submitted_count: Annotated[
         int, Field(description=&#34;Total catalog items evaluated from the buyer&#39;s catalog.&#34;, ge=0)
@@ -145,17 +145,17 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    supported_targets: Annotated[
+        list[SupportedTarget1] | None,
+        Field(
+            description=&#39;Target kinds available for event goals on this product. Values match target.kind on the optimization goal. cost_per: target cost per conversion event. per_ad_spend: target return on ad spend (requires value_field on event sources). maximize_value: maximize total conversion value without a specific ratio target (requires value_field). Only these target kinds are accepted — goals with unlisted target kinds will be rejected. A goal without a target implicitly maximizes conversion count within budget — no declaration needed for that mode. When omitted, buyers can still set target-less event goals.&#39;,
+            min_length=1,
+        ),
+    ] = None
     platform_managed: Annotated[
         bool | None,
         Field(
             description=&#34;Whether the seller provides its own always-on measurement (e.g. Amazon sales attribution for Amazon advertisers). When true, sync_event_sources response will include seller-managed event sources with managed_by=&#39;seller&#39;.&#34;
-        ),
-    ] = None
-    supported_targets: Annotated[
-        list[SupportedTarget] | None,
-        Field(
-            description=&#39;Target kinds available for event goals on this product. Values match target.kind on the optimization goal. cost_per: target cost per conversion event. per_ad_spend: target return on ad spend (requires value_field on event sources). maximize_value: maximize total conversion value without a specific ratio target (requires value_field). Only these target kinds are accepted — goals with unlisted target kinds will be rejected. A goal without a target implicitly maximizes conversion count within budget — no declaration needed for that mode. When omitted, buyers can still set target-less event goals.&#39;,
-            min_length=1,
         ),
     ] = None</code></pre>
 </details>
@@ -188,7 +188,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.ConversionTracking.supported_targets"><code class="name">var <span class="ident">supported_targets</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedTarget" href="#adcp.types.generated_poc.core.product.SupportedTarget">SupportedTarget</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product.ConversionTracking.supported_targets"><code class="name">var <span class="ident">supported_targets</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedTarget1" href="#adcp.types.generated_poc.core.product.SupportedTarget1">SupportedTarget1</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -214,18 +214,18 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class DeliveryMeasurement(AdCPBaseModel):
-    notes: Annotated[
-        str | None,
-        Field(
-            description=&#34;Additional details about measurement methodology in plain language (e.g., &#39;MRC-accredited viewability. 50% in-view for 1s display / 2s video&#39;, &#39;Panel-based demographic measurement updated monthly&#39;)&#34;
-        ),
-    ] = None
     provider: Annotated[
         str,
         Field(
             description=&#34;Measurement provider(s) used for this product (e.g., &#39;Google Ad Manager with IAS viewability&#39;, &#39;Nielsen DAR&#39;, &#39;Geopath for DOOH impressions&#39;)&#34;
         ),
-    ]</code></pre>
+    ]
+    notes: Annotated[
+        str | None,
+        Field(
+            description=&#34;Additional details about measurement methodology in plain language (e.g., &#39;MRC-accredited viewability. 50% in-view for 1s display / 2s video&#39;, &#39;Panel-based demographic measurement updated monthly&#39;)&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -346,16 +346,16 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    supported_targets: Annotated[
-        list[SupportedTarget1] | None,
-        Field(
-            description=&#39;Target kinds available for metric goals on this product. Values match target.kind on the optimization goal. Only these target kinds are accepted — goals with unlisted target kinds will be rejected. When omitted, buyers can set target-less metric goals (maximize volume within budget) but cannot set specific targets.&#39;
-        ),
-    ] = None
     supported_view_durations: Annotated[
         list[SupportedViewDuration] | None,
         Field(
             description=&#34;Video view duration thresholds (in seconds) this product supports for completed_views goals. Only relevant when supported_metrics includes &#39;completed_views&#39;. When absent, the seller uses their platform default. Buyers must set view_duration_seconds to a value in this list — sellers reject unsupported values.&#34;
+        ),
+    ] = None
+    supported_targets: Annotated[
+        list[SupportedTarget] | None,
+        Field(
+            description=&#39;Target kinds available for metric goals on this product. Values match target.kind on the optimization goal. Only these target kinds are accepted — goals with unlisted target kinds will be rejected. When omitted, buyers can set target-less metric goals (maximize volume within budget) but cannot set specific targets.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -388,7 +388,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.MetricOptimization.supported_targets"><code class="name">var <span class="ident">supported_targets</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedTarget1" href="#adcp.types.generated_poc.core.product.SupportedTarget1">SupportedTarget1</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product.MetricOptimization.supported_targets"><code class="name">var <span class="ident">supported_targets</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedTarget" href="#adcp.types.generated_poc.core.product.SupportedTarget">SupportedTarget</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -421,62 +421,22 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    brief_relevance: Annotated[
-        str | None,
+    product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
+    name: Annotated[str, Field(description=&#39;Human-readable product name&#39;)]
+    description: Annotated[
+        str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
+    ]
+    publisher_properties: Annotated[
+        list[publisher_property_selector.PublisherPropertySelector],
         Field(
-            description=&#39;Explanation of why this product matches the brief (only included when brief is provided)&#39;
-        ),
-    ] = None
-    catalog_match: Annotated[
-        CatalogMatch | None,
-        Field(
-            description=&#39;When the buyer provides a catalog on get_products, indicates which catalog items are eligible for this product. Only present for products where catalog matching is relevant (e.g., sponsored product listings, job boards, hotel ads).&#39;
-        ),
-    ] = None
-    catalog_types: Annotated[
-        list[catalog_type.CatalogType] | None,
-        Field(
-            description=&#39;Catalog types this product supports for catalog-driven campaigns. A sponsored product listing declares [&#34;product&#34;], a job board declares [&#34;job&#34;, &#34;offering&#34;]. Buyers match synced catalogs to products via this field.&#39;,
+            description=&#34;Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher&#39;s adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.&#34;,
             min_length=1,
         ),
-    ] = None
+    ]
     channels: Annotated[
         list[channels_1.MediaChannel] | None,
         Field(
             description=&#34;Advertising channels this product is sold as. Products inherit from their properties&#39; supported_channels but may narrow the scope. For example, a product covering YouTube properties might be sold as [&#39;ctv&#39;] even though those properties support [&#39;olv&#39;, &#39;social&#39;, &#39;ctv&#39;].&#34;
-        ),
-    ] = None
-    conversion_tracking: Annotated[
-        ConversionTracking | None,
-        Field(
-            description=&#34;Conversion event tracking for this product. Presence indicates the product supports optimization_goals with kind: &#39;event&#39;. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.&#34;
-        ),
-    ] = None
-    creative_policy: creative_policy_1.CreativePolicy | None = None
-    data_provider_signals: Annotated[
-        list[data_provider_signal_selector.DataProviderSignalSelector] | None,
-        Field(
-            description=&#34;Data provider signals available for this product. Buyers fetch signal definitions from each data provider&#39;s adagents.json and can verify agent authorization.&#34;
-        ),
-    ] = None
-    delivery_measurement: Annotated[
-        DeliveryMeasurement,
-        Field(
-            description=&#39;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. REQUIRED for all products.&#39;
-        ),
-    ]
-    delivery_type: delivery_type_1.DeliveryType
-    description: Annotated[
-        str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
-    ]
-    expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;Expiration timestamp for custom products&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    forecast: Annotated[
-        delivery_forecast.DeliveryForecast | None,
-        Field(
-            description=&#39;Forecasted delivery metrics for this product. Gives buyers an estimate of expected performance before requesting a proposal.&#39;
         ),
     ] = None
     format_ids: Annotated[
@@ -485,12 +445,63 @@ validated to form a valid model.</p>
             description=&#39;Array of supported creative format IDs - structured format_id objects with agent_url and id&#39;
         ),
     ]
-    is_custom: Annotated[bool | None, Field(description=&#39;Whether this is a custom product&#39;)] = None
-    max_optimization_goals: Annotated[
-        int | None,
+    placements: Annotated[
+        list[placement.Placement] | None,
         Field(
-            description=&#39;Maximum number of optimization_goals this product accepts on a package. When absent, no limit is declared. Most social platforms accept only 1 goal — buyers sending arrays longer than this value should expect the seller to use only the highest-priority (lowest priority number) goal.&#39;,
-            ge=1,
+            description=&#39;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    delivery_type: delivery_type_1.DeliveryType
+    exclusivity: Annotated[
+        exclusivity_1.Exclusivity | None,
+        Field(
+            description=&#34;Whether this product offers exclusive access to its inventory. Defaults to &#39;none&#39; when absent. Most relevant for guaranteed products tied to specific shows or placements.&#34;
+        ),
+    ] = None
+    pricing_options: Annotated[
+        list[pricing_option.PricingOption],
+        Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
+    ]
+    forecast: Annotated[
+        delivery_forecast.DeliveryForecast | None,
+        Field(
+            description=&#39;Forecasted delivery metrics for this product. Gives buyers an estimate of expected performance before requesting a proposal.&#39;
+        ),
+    ] = None
+    outcome_measurement: outcome_measurement_1.OutcomeMeasurement | None = None
+    delivery_measurement: Annotated[
+        DeliveryMeasurement | None,
+        Field(
+            description=&#39;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. When absent, buyers should apply their own measurement defaults.&#39;
+        ),
+    ] = None
+    reporting_capabilities: reporting_capabilities_1.ReportingCapabilities | None = None
+    creative_policy: creative_policy_1.CreativePolicy | None = None
+    is_custom: Annotated[bool | None, Field(description=&#39;Whether this is a custom product&#39;)] = None
+    property_targeting_allowed: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether buyers can filter this product to a subset of its publisher_properties. When false (default), the product is &#39;all or nothing&#39; - buyers must accept all properties or the product is excluded from property_list filtering results.&#34;
+        ),
+    ] = False
+    data_provider_signals: Annotated[
+        list[data_provider_signal_selector.DataProviderSignalSelector] | None,
+        Field(
+            description=&#34;Data provider signals available for this product. Buyers fetch signal definitions from each data provider&#39;s adagents.json and can verify agent authorization.&#34;
+        ),
+    ] = None
+    signal_targeting_allowed: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether buyers can filter this product to a subset of its data_provider_signals. When false (default), the product includes all listed signals as a bundle. When true, buyers can target specific signals.&#39;
+        ),
+    ] = False
+    catalog_types: Annotated[
+        list[catalog_type.CatalogType] | None,
+        Field(
+            description=&#39;Catalog types this product supports for catalog-driven campaigns. A sponsored product listing declares [&#34;product&#34;], a job board declares [&#34;job&#34;, &#34;offering&#34;]. Buyers match synced catalogs to products via this field.&#39;,
+            min_length=1,
         ),
     ] = None
     metric_optimization: Annotated[
@@ -499,19 +510,34 @@ validated to form a valid model.</p>
             description=&#34;Metric optimization capabilities for this product. Presence indicates the product supports optimization_goals with kind: &#39;metric&#39;. No event source or conversion tracking setup required — the seller tracks these metrics natively.&#34;
         ),
     ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable product name&#39;)]
-    outcome_measurement: outcome_measurement_1.OutcomeMeasurement | None = None
-    placements: Annotated[
-        list[placement.Placement] | None,
+    max_optimization_goals: Annotated[
+        int | None,
         Field(
-            description=&#39;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#39;,
-            min_length=1,
+            description=&#39;Maximum number of optimization_goals this product accepts on a package. When absent, no limit is declared. Most social platforms accept only 1 goal — buyers sending arrays longer than this value should expect the seller to use only the highest-priority (lowest priority number) goal.&#39;,
+            ge=1,
         ),
     ] = None
-    pricing_options: Annotated[
-        list[pricing_option.PricingOption],
-        Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
-    ]
+    conversion_tracking: Annotated[
+        ConversionTracking | None,
+        Field(
+            description=&#34;Conversion event tracking for this product. Presence indicates the product supports optimization_goals with kind: &#39;event&#39;. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.&#34;
+        ),
+    ] = None
+    catalog_match: Annotated[
+        CatalogMatch | None,
+        Field(
+            description=&#39;When the buyer provides a catalog on get_products, indicates which catalog items are eligible for this product. Only present for products where catalog matching is relevant (e.g., sponsored product listings, job boards, hotel ads).&#39;
+        ),
+    ] = None
+    brief_relevance: Annotated[
+        str | None,
+        Field(
+            description=&#39;Explanation of why this product matches the brief (only included when brief is provided)&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;Expiration timestamp for custom products&#39;)
+    ] = None
     product_card: Annotated[
         ProductCard | None,
         Field(
@@ -524,27 +550,25 @@ validated to form a valid model.</p>
             description=&#39;Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.&#39;
         ),
     ] = None
-    product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
-    property_targeting_allowed: Annotated[
-        bool | None,
+    show_ids: Annotated[
+        list[str] | None,
         Field(
-            description=&#34;Whether buyers can filter this product to a subset of its publisher_properties. When false (default), the product is &#39;all or nothing&#39; - buyers must accept all properties or the product is excluded from property_list filtering results.&#34;
+            description=&#34;References to shows in the response&#39;s top-level shows array. When present, the product covers inventory associated with these shows. A product can span multiple shows (e.g., a podcast network bundle).&#34;
         ),
-    ] = False
-    publisher_properties: Annotated[
-        list[publisher_property_selector.PublisherPropertySelector],
+    ] = None
+    episodes: Annotated[
+        list[episode.Episode] | None,
         Field(
-            description=&#34;Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher&#39;s adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.&#34;,
-            min_length=1,
+            description=&#39;Specific episodes included in this product. Each episode references its parent show via show_id when the product spans multiple shows. When absent with show_ids present, the product covers the shows broadly (run-of-show).&#39;
         ),
-    ]
-    reporting_capabilities: reporting_capabilities_1.ReportingCapabilities | None = None
-    signal_targeting_allowed: Annotated[
-        bool | None,
+    ] = None
+    enforced_policies: Annotated[
+        list[str] | None,
         Field(
-            description=&#39;Whether buyers can filter this product to a subset of its data_provider_signals. When false (default), the product includes all listed signals as a bundle. When true, buyers can target specific signals.&#39;
+            description=&#39;Registry policy IDs the seller enforces for this product. Enforcement level comes from the policy registry. Buyers can filter products by required policies.&#39;
         ),
-    ] = False</code></pre>
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -591,7 +615,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.Product.delivery_measurement"><code class="name">var <span class="ident">delivery_measurement</span> : <a title="adcp.types.generated_poc.core.product.DeliveryMeasurement" href="#adcp.types.generated_poc.core.product.DeliveryMeasurement">DeliveryMeasurement</a></code></dt>
+<dt id="adcp.types.generated_poc.core.product.Product.delivery_measurement"><code class="name">var <span class="ident">delivery_measurement</span> : <a title="adcp.types.generated_poc.core.product.DeliveryMeasurement" href="#adcp.types.generated_poc.core.product.DeliveryMeasurement">DeliveryMeasurement</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -600,6 +624,18 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product.Product.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.enforced_policies"><code class="name">var <span class="ident">enforced_policies</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.episodes"><code class="name">var <span class="ident">episodes</span> : list[<a title="adcp.types.generated_poc.core.episode.Episode" href="episode.html#adcp.types.generated_poc.core.episode.Episode">Episode</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.exclusivity"><code class="name">var <span class="ident">exclusivity</span> : <a title="adcp.types.generated_poc.enums.exclusivity.Exclusivity" href="../enums/exclusivity.html#adcp.types.generated_poc.enums.exclusivity.Exclusivity">Exclusivity</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -672,6 +708,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product.Product.reporting_capabilities"><code class="name">var <span class="ident">reporting_capabilities</span> : <a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities" href="reporting_capabilities.html#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities">ReportingCapabilities</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Product.show_ids"><code class="name">var <span class="ident">show_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -943,8 +983,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SupportedTarget(Enum):
     cost_per = &#39;cost_per&#39;
-    per_ad_spend = &#39;per_ad_spend&#39;
-    maximize_value = &#39;maximize_value&#39;</code></pre>
+    threshold_rate = &#39;threshold_rate&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -991,11 +1030,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedTarget.maximize_value"><code class="name">var <span class="ident">maximize_value</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedTarget.per_ad_spend"><code class="name">var <span class="ident">per_ad_spend</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget.threshold_rate"><code class="name">var <span class="ident">threshold_rate</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1012,7 +1047,8 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SupportedTarget1(Enum):
     cost_per = &#39;cost_per&#39;
-    threshold_rate = &#39;threshold_rate&#39;</code></pre>
+    per_ad_spend = &#39;per_ad_spend&#39;
+    maximize_value = &#39;maximize_value&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1059,7 +1095,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedTarget1.threshold_rate"><code class="name">var <span class="ident">threshold_rate</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget1.maximize_value"><code class="name">var <span class="ident">maximize_value</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget1.per_ad_spend"><code class="name">var <span class="ident">per_ad_spend</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1188,6 +1228,9 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.delivery_measurement" href="#adcp.types.generated_poc.core.product.Product.delivery_measurement">delivery_measurement</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.delivery_type" href="#adcp.types.generated_poc.core.product.Product.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.description" href="#adcp.types.generated_poc.core.product.Product.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.enforced_policies" href="#adcp.types.generated_poc.core.product.Product.enforced_policies">enforced_policies</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.episodes" href="#adcp.types.generated_poc.core.product.Product.episodes">episodes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.exclusivity" href="#adcp.types.generated_poc.core.product.Product.exclusivity">exclusivity</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.expires_at" href="#adcp.types.generated_poc.core.product.Product.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.ext" href="#adcp.types.generated_poc.core.product.Product.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.forecast" href="#adcp.types.generated_poc.core.product.Product.forecast">forecast</a></code></li>
@@ -1206,6 +1249,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.property_targeting_allowed" href="#adcp.types.generated_poc.core.product.Product.property_targeting_allowed">property_targeting_allowed</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.publisher_properties" href="#adcp.types.generated_poc.core.product.Product.publisher_properties">publisher_properties</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.reporting_capabilities" href="#adcp.types.generated_poc.core.product.Product.reporting_capabilities">reporting_capabilities</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Product.show_ids" href="#adcp.types.generated_poc.core.product.Product.show_ids">show_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Product.signal_targeting_allowed" href="#adcp.types.generated_poc.core.product.Product.signal_targeting_allowed">signal_targeting_allowed</a></code></li>
 </ul>
 </li>
@@ -1245,15 +1289,15 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.product.SupportedTarget" href="#adcp.types.generated_poc.core.product.SupportedTarget">SupportedTarget</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget.cost_per" href="#adcp.types.generated_poc.core.product.SupportedTarget.cost_per">cost_per</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget.maximize_value" href="#adcp.types.generated_poc.core.product.SupportedTarget.maximize_value">maximize_value</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget.per_ad_spend" href="#adcp.types.generated_poc.core.product.SupportedTarget.per_ad_spend">per_ad_spend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget.threshold_rate" href="#adcp.types.generated_poc.core.product.SupportedTarget.threshold_rate">threshold_rate</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1" href="#adcp.types.generated_poc.core.product.SupportedTarget1">SupportedTarget1</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.cost_per" href="#adcp.types.generated_poc.core.product.SupportedTarget1.cost_per">cost_per</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.threshold_rate" href="#adcp.types.generated_poc.core.product.SupportedTarget1.threshold_rate">threshold_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.maximize_value" href="#adcp.types.generated_poc.core.product.SupportedTarget1.maximize_value">maximize_value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.per_ad_spend" href="#adcp.types.generated_poc.core.product.SupportedTarget1.per_ad_spend">per_ad_spend</a></code></li>
 </ul>
 </li>
 <li>

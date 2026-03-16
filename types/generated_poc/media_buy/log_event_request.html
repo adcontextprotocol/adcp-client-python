@@ -59,20 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     event_source_id: Annotated[
         str, Field(description=&#39;Event source configured on the account via sync_event_sources&#39;)
     ]
-    events: Annotated[
-        list[event.Event], Field(description=&#39;Events to log&#39;, max_length=10000, min_length=1)
-    ]
-    ext: ext_1.ExtensionObject | None = None
     test_event_code: Annotated[
         str | None,
         Field(
             description=&#34;Test event code for validation without affecting production data. Events with this code appear in the platform&#39;s test events UI.&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    events: Annotated[
+        list[event.Event], Field(description=&#39;Events to log&#39;, max_length=10000, min_length=1)
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>adcp.registry API documentation</title>
-<meta name="description" content="Client for the AdCP registry API (brand, property, and member lookups).">
+<meta name="description" content="Client for the AdCP registry API (brand, property, member, and policy lookups).">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -36,7 +36,7 @@ el.replaceWith(d);
 <h1 class="title">Module <code>adcp.registry</code></h1>
 </header>
 <section id="section-intro">
-<p>Client for the AdCP registry API (brand, property, and member lookups).</p>
+<p>Client for the AdCP registry API (brand, property, member, and policy lookups).</p>
 </section>
 <section>
 </section>
@@ -367,7 +367,10 @@ el.replaceWith(d);
 
         Raises:
             RegistryError: On HTTP or parsing errors.
+            ValueError: If slug contains path-traversal characters.
         &#34;&#34;&#34;
+        if not slug or not re.fullmatch(r&#34;[a-zA-Z0-9_-]+&#34;, slug):
+            raise ValueError(f&#34;Invalid member slug: {slug!r}&#34;)
         client = await self._get_client()
         try:
             response = await client.get(
@@ -393,7 +396,358 @@ el.replaceWith(d);
         except httpx.HTTPError as e:
             raise RegistryError(f&#34;Member lookup failed: {e}&#34;) from e
         except (ValidationError, ValueError) as e:
-            raise RegistryError(f&#34;Member lookup failed: invalid response: {e}&#34;) from e</code></pre>
+            raise RegistryError(f&#34;Member lookup failed: invalid response: {e}&#34;) from e
+
+    # ========================================================================
+    # Policy Registry Operations
+    # ========================================================================
+
+    async def list_policies(
+        self,
+        search: str | None = None,
+        category: str | None = None,
+        enforcement: str | None = None,
+        jurisdiction: str | None = None,
+        vertical: str | None = None,
+        domain: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -&gt; list[PolicySummary]:
+        &#34;&#34;&#34;List governance policies with optional filtering.
+
+        Args:
+            search: Full-text search on policy name and description.
+            category: Filter by category (&#34;regulation&#34; or &#34;standard&#34;).
+            enforcement: Filter by enforcement level (&#34;must&#34;, &#34;should&#34;, &#34;may&#34;).
+            jurisdiction: Filter by jurisdiction with region alias matching.
+            vertical: Filter by industry vertical.
+            domain: Filter by governance domain (&#34;campaign&#34;, &#34;creative&#34;, etc.).
+            limit: Results per page (default 20, max 1000).
+            offset: Pagination offset.
+
+        Returns:
+            List of PolicySummary objects.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        params: dict[str, str | int] = {&#34;limit&#34;: limit, &#34;offset&#34;: offset}
+        if search is not None:
+            params[&#34;search&#34;] = search
+        if category is not None:
+            params[&#34;category&#34;] = category
+        if enforcement is not None:
+            params[&#34;enforcement&#34;] = enforcement
+        if jurisdiction is not None:
+            params[&#34;jurisdiction&#34;] = jurisdiction
+        if vertical is not None:
+            params[&#34;vertical&#34;] = vertical
+        if domain is not None:
+            params[&#34;domain&#34;] = domain
+
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/policies/registry&#34;,
+                params=params,
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Policy list failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            return [PolicySummary.model_validate(p) for p in data.get(&#34;policies&#34;, [])]
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f&#34;Policy list timed out after {self._timeout}s&#34;) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Policy list failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Policy list failed: invalid response: {e}&#34;) from e
+
+    async def resolve_policy(
+        self,
+        policy_id: str,
+        version: str | None = None,
+    ) -&gt; Policy | None:
+        &#34;&#34;&#34;Resolve a single policy by ID.
+
+        Args:
+            policy_id: Policy identifier (e.g., &#34;gdpr_consent&#34;).
+            version: Optional version pin; returns None if current version differs.
+
+        Returns:
+            Policy if found, None if not in the registry.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        params: dict[str, str] = {&#34;policy_id&#34;: policy_id}
+        if version is not None:
+            params[&#34;version&#34;] = version
+
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/policies/resolve&#34;,
+                params=params,
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Policy resolve failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            if data is None:
+                return None
+            return Policy.model_validate(data)
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(f&#34;Policy resolve timed out after {self._timeout}s&#34;) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Policy resolve failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(f&#34;Policy resolve failed: invalid response: {e}&#34;) from e
+
+    async def resolve_policies(
+        self,
+        policy_ids: list[str],
+    ) -&gt; dict[str, Policy | None]:
+        &#34;&#34;&#34;Bulk resolve policies by ID.
+
+        Automatically chunks requests exceeding 100 policy IDs.
+
+        Args:
+            policy_ids: List of policy identifiers to resolve.
+
+        Returns:
+            Dict mapping each policy_id to its Policy, or None if not found.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        if not policy_ids:
+            return {}
+
+        chunks = [
+            policy_ids[i : i + MAX_BULK_POLICIES]
+            for i in range(0, len(policy_ids), MAX_BULK_POLICIES)
+        ]
+
+        chunk_results = await asyncio.gather(
+            *[self._resolve_policies_chunk(chunk) for chunk in chunks]
+        )
+
+        merged: dict[str, Policy | None] = {}
+        for result in chunk_results:
+            merged.update(result)
+        return merged
+
+    async def _resolve_policies_chunk(
+        self, policy_ids: list[str]
+    ) -&gt; dict[str, Policy | None]:
+        &#34;&#34;&#34;Resolve a single chunk of policy IDs (max 100).&#34;&#34;&#34;
+        client = await self._get_client()
+        try:
+            response = await client.post(
+                f&#34;{self._base_url}/api/policies/resolve/bulk&#34;,
+                json={&#34;policy_ids&#34;: policy_ids},
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Bulk policy resolve failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            results_raw = data.get(&#34;results&#34;, {})
+            results: dict[str, Policy | None] = {pid: None for pid in policy_ids}
+            for pid, policy_data in results_raw.items():
+                if policy_data is not None:
+                    results[pid] = Policy.model_validate(policy_data)
+            return results
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(
+                f&#34;Bulk policy resolve timed out after {self._timeout}s&#34;
+            ) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Bulk policy resolve failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(
+                f&#34;Bulk policy resolve failed: invalid response: {e}&#34;
+            ) from e
+
+    async def policy_history(
+        self,
+        policy_id: str,
+        limit: int = 20,
+        offset: int = 0,
+    ) -&gt; PolicyHistory | None:
+        &#34;&#34;&#34;Retrieve edit history for a policy.
+
+        Args:
+            policy_id: Policy identifier.
+            limit: Maximum revisions to return (default 20, max 100).
+            offset: Pagination offset.
+
+        Returns:
+            PolicyHistory if found, None if the policy doesn&#39;t exist.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        try:
+            response = await client.get(
+                f&#34;{self._base_url}/api/policies/history&#34;,
+                params={&#34;policy_id&#34;: policy_id, &#34;limit&#34;: limit, &#34;offset&#34;: offset},
+                headers={&#34;User-Agent&#34;: self._user_agent},
+                timeout=self._timeout,
+            )
+            if response.status_code == 404:
+                return None
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Policy history failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            data = response.json()
+            if data is None:
+                return None
+            return PolicyHistory.model_validate(data)
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(
+                f&#34;Policy history timed out after {self._timeout}s&#34;
+            ) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Policy history failed: {e}&#34;) from e
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(
+                f&#34;Policy history failed: invalid response: {e}&#34;
+            ) from e
+
+    async def save_policy(
+        self,
+        policy_id: str,
+        version: str,
+        name: str,
+        category: str,
+        enforcement: str,
+        policy: str,
+        *,
+        auth_token: str,
+        description: str | None = None,
+        jurisdictions: list[str] | None = None,
+        region_aliases: dict[str, list[str]] | None = None,
+        verticals: list[str] | None = None,
+        channels: list[str] | None = None,
+        effective_date: str | None = None,
+        sunset_date: str | None = None,
+        governance_domains: list[str] | None = None,
+        source_url: str | None = None,
+        source_name: str | None = None,
+        guidance: str | None = None,
+        exemplars: dict[str, Any] | None = None,
+        ext: dict[str, Any] | None = None,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Create or update a community-contributed policy.
+
+        Requires authentication. Cannot edit registry-sourced or pending policies.
+
+        Args:
+            policy_id: Policy identifier (lowercase alphanumeric with underscores).
+            version: Semantic version string.
+            name: Human-readable policy name.
+            category: &#34;regulation&#34; or &#34;standard&#34;.
+            enforcement: &#34;must&#34;, &#34;should&#34;, or &#34;may&#34;.
+            policy: Natural language policy text.
+            auth_token: API key for authentication.
+            description: Policy description.
+            jurisdictions: ISO jurisdiction codes.
+            region_aliases: Region alias mappings (e.g., {&#34;EU&#34;: [&#34;DE&#34;, &#34;FR&#34;]}).
+            verticals: Industry verticals.
+            channels: Media channels.
+            effective_date: ISO 8601 date when enforcement begins.
+            sunset_date: ISO 8601 date when enforcement ends.
+            governance_domains: Applicable domains (&#34;campaign&#34;, &#34;creative&#34;, etc.).
+            source_url: URL of the source regulation/standard.
+            source_name: Name of the source.
+            guidance: Implementation guidance text.
+            exemplars: Pass/fail calibration scenarios.
+            ext: Extension data.
+
+        Returns:
+            Dict with success, message, policy_id, and revision_number.
+
+        Raises:
+            RegistryError: On HTTP or parsing errors (400, 401, 409, 429).
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        body: dict[str, Any] = {
+            &#34;policy_id&#34;: policy_id,
+            &#34;version&#34;: version,
+            &#34;name&#34;: name,
+            &#34;category&#34;: category,
+            &#34;enforcement&#34;: enforcement,
+            &#34;policy&#34;: policy,
+        }
+        for key, value in [
+            (&#34;description&#34;, description),
+            (&#34;jurisdictions&#34;, jurisdictions),
+            (&#34;region_aliases&#34;, region_aliases),
+            (&#34;verticals&#34;, verticals),
+            (&#34;channels&#34;, channels),
+            (&#34;effective_date&#34;, effective_date),
+            (&#34;sunset_date&#34;, sunset_date),
+            (&#34;governance_domains&#34;, governance_domains),
+            (&#34;source_url&#34;, source_url),
+            (&#34;source_name&#34;, source_name),
+            (&#34;guidance&#34;, guidance),
+            (&#34;exemplars&#34;, exemplars),
+            (&#34;ext&#34;, ext),
+        ]:
+            if value is not None:
+                body[key] = value
+
+        try:
+            response = await client.post(
+                f&#34;{self._base_url}/api/policies/save&#34;,
+                json=body,
+                headers={
+                    &#34;User-Agent&#34;: self._user_agent,
+                    &#34;Authorization&#34;: f&#34;Bearer {auth_token}&#34;,
+                },
+                timeout=self._timeout,
+            )
+            if response.status_code != 200:
+                raise RegistryError(
+                    f&#34;Policy save failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            result: dict[str, Any] = response.json()
+            return result
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(
+                f&#34;Policy save timed out after {self._timeout}s&#34;
+            ) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;Policy save failed: {e}&#34;) from e</code></pre>
 </details>
 <div class="desc"><p>Client for the AdCP registry API.</p>
 <p>Provides brand, property, and member lookups against the central AdCP registry.</p>
@@ -446,7 +800,10 @@ If provided, caller is responsible for client lifecycle.</dd>
 
     Raises:
         RegistryError: On HTTP or parsing errors.
+        ValueError: If slug contains path-traversal characters.
     &#34;&#34;&#34;
+    if not slug or not re.fullmatch(r&#34;[a-zA-Z0-9_-]+&#34;, slug):
+        raise ValueError(f&#34;Invalid member slug: {slug!r}&#34;)
     client = await self._get_client()
     try:
         response = await client.get(
@@ -486,6 +843,8 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dl>
 <dt><code>RegistryError</code></dt>
 <dd>On HTTP or parsing errors.</dd>
+<dt><code>ValueError</code></dt>
+<dd>If slug contains path-traversal characters.</dd>
 </dl></div>
 </dd>
 <dt id="adcp.registry.RegistryClient.list_members"><code class="name flex">
@@ -543,6 +902,109 @@ If provided, caller is responsible for client lifecycle.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>List of Member objects.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>RegistryError</code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.list_policies"><code class="name flex">
+<span>async def <span class="ident">list_policies</span></span>(<span>self,<br>search: str | None = None,<br>category: str | None = None,<br>enforcement: str | None = None,<br>jurisdiction: str | None = None,<br>vertical: str | None = None,<br>domain: str | None = None,<br>limit: int = 20,<br>offset: int = 0) ‑> list[<a title="adcp.types.core.PolicySummary" href="types/core.html#adcp.types.core.PolicySummary">PolicySummary</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_policies(
+    self,
+    search: str | None = None,
+    category: str | None = None,
+    enforcement: str | None = None,
+    jurisdiction: str | None = None,
+    vertical: str | None = None,
+    domain: str | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -&gt; list[PolicySummary]:
+    &#34;&#34;&#34;List governance policies with optional filtering.
+
+    Args:
+        search: Full-text search on policy name and description.
+        category: Filter by category (&#34;regulation&#34; or &#34;standard&#34;).
+        enforcement: Filter by enforcement level (&#34;must&#34;, &#34;should&#34;, &#34;may&#34;).
+        jurisdiction: Filter by jurisdiction with region alias matching.
+        vertical: Filter by industry vertical.
+        domain: Filter by governance domain (&#34;campaign&#34;, &#34;creative&#34;, etc.).
+        limit: Results per page (default 20, max 1000).
+        offset: Pagination offset.
+
+    Returns:
+        List of PolicySummary objects.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    client = await self._get_client()
+    params: dict[str, str | int] = {&#34;limit&#34;: limit, &#34;offset&#34;: offset}
+    if search is not None:
+        params[&#34;search&#34;] = search
+    if category is not None:
+        params[&#34;category&#34;] = category
+    if enforcement is not None:
+        params[&#34;enforcement&#34;] = enforcement
+    if jurisdiction is not None:
+        params[&#34;jurisdiction&#34;] = jurisdiction
+    if vertical is not None:
+        params[&#34;vertical&#34;] = vertical
+    if domain is not None:
+        params[&#34;domain&#34;] = domain
+
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/policies/registry&#34;,
+            params=params,
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Policy list failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        return [PolicySummary.model_validate(p) for p in data.get(&#34;policies&#34;, [])]
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(f&#34;Policy list timed out after {self._timeout}s&#34;) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Policy list failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(f&#34;Policy list failed: invalid response: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>List governance policies with optional filtering.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>search</code></strong></dt>
+<dd>Full-text search on policy name and description.</dd>
+<dt><strong><code>category</code></strong></dt>
+<dd>Filter by category ("regulation" or "standard").</dd>
+<dt><strong><code>enforcement</code></strong></dt>
+<dd>Filter by enforcement level ("must", "should", "may").</dd>
+<dt><strong><code>jurisdiction</code></strong></dt>
+<dd>Filter by jurisdiction with region alias matching.</dd>
+<dt><strong><code>vertical</code></strong></dt>
+<dd>Filter by industry vertical.</dd>
+<dt><strong><code>domain</code></strong></dt>
+<dd>Filter by governance domain ("campaign", "creative", etc.).</dd>
+<dt><strong><code>limit</code></strong></dt>
+<dd>Results per page (default 20, max 1000).</dd>
+<dt><strong><code>offset</code></strong></dt>
+<dd>Pagination offset.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of PolicySummary objects.</p>
 <h2 id="raises">Raises</h2>
 <dl>
 <dt><code>RegistryError</code></dt>
@@ -789,6 +1251,383 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dd>On HTTP or parsing errors.</dd>
 </dl></div>
 </dd>
+<dt id="adcp.registry.RegistryClient.policy_history"><code class="name flex">
+<span>async def <span class="ident">policy_history</span></span>(<span>self, policy_id: str, limit: int = 20, offset: int = 0) ‑> <a title="adcp.types.core.PolicyHistory" href="types/core.html#adcp.types.core.PolicyHistory">PolicyHistory</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def policy_history(
+    self,
+    policy_id: str,
+    limit: int = 20,
+    offset: int = 0,
+) -&gt; PolicyHistory | None:
+    &#34;&#34;&#34;Retrieve edit history for a policy.
+
+    Args:
+        policy_id: Policy identifier.
+        limit: Maximum revisions to return (default 20, max 100).
+        offset: Pagination offset.
+
+    Returns:
+        PolicyHistory if found, None if the policy doesn&#39;t exist.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    client = await self._get_client()
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/policies/history&#34;,
+            params={&#34;policy_id&#34;: policy_id, &#34;limit&#34;: limit, &#34;offset&#34;: offset},
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Policy history failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        if data is None:
+            return None
+        return PolicyHistory.model_validate(data)
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(
+            f&#34;Policy history timed out after {self._timeout}s&#34;
+        ) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Policy history failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(
+            f&#34;Policy history failed: invalid response: {e}&#34;
+        ) from e</code></pre>
+</details>
+<div class="desc"><p>Retrieve edit history for a policy.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>policy_id</code></strong></dt>
+<dd>Policy identifier.</dd>
+<dt><strong><code>limit</code></strong></dt>
+<dd>Maximum revisions to return (default 20, max 100).</dd>
+<dt><strong><code>offset</code></strong></dt>
+<dd>Pagination offset.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>PolicyHistory if found, None if the policy doesn't exist.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>RegistryError</code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.resolve_policies"><code class="name flex">
+<span>async def <span class="ident">resolve_policies</span></span>(<span>self, policy_ids: list[str]) ‑> dict[str, <a title="adcp.types.core.Policy" href="types/core.html#adcp.types.core.Policy">Policy</a> | None]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def resolve_policies(
+    self,
+    policy_ids: list[str],
+) -&gt; dict[str, Policy | None]:
+    &#34;&#34;&#34;Bulk resolve policies by ID.
+
+    Automatically chunks requests exceeding 100 policy IDs.
+
+    Args:
+        policy_ids: List of policy identifiers to resolve.
+
+    Returns:
+        Dict mapping each policy_id to its Policy, or None if not found.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    if not policy_ids:
+        return {}
+
+    chunks = [
+        policy_ids[i : i + MAX_BULK_POLICIES]
+        for i in range(0, len(policy_ids), MAX_BULK_POLICIES)
+    ]
+
+    chunk_results = await asyncio.gather(
+        *[self._resolve_policies_chunk(chunk) for chunk in chunks]
+    )
+
+    merged: dict[str, Policy | None] = {}
+    for result in chunk_results:
+        merged.update(result)
+    return merged</code></pre>
+</details>
+<div class="desc"><p>Bulk resolve policies by ID.</p>
+<p>Automatically chunks requests exceeding 100 policy IDs.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>policy_ids</code></strong></dt>
+<dd>List of policy identifiers to resolve.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dict mapping each policy_id to its Policy, or None if not found.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>RegistryError</code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.resolve_policy"><code class="name flex">
+<span>async def <span class="ident">resolve_policy</span></span>(<span>self, policy_id: str, version: str | None = None) ‑> <a title="adcp.types.core.Policy" href="types/core.html#adcp.types.core.Policy">Policy</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def resolve_policy(
+    self,
+    policy_id: str,
+    version: str | None = None,
+) -&gt; Policy | None:
+    &#34;&#34;&#34;Resolve a single policy by ID.
+
+    Args:
+        policy_id: Policy identifier (e.g., &#34;gdpr_consent&#34;).
+        version: Optional version pin; returns None if current version differs.
+
+    Returns:
+        Policy if found, None if not in the registry.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors.
+    &#34;&#34;&#34;
+    client = await self._get_client()
+    params: dict[str, str] = {&#34;policy_id&#34;: policy_id}
+    if version is not None:
+        params[&#34;version&#34;] = version
+
+    try:
+        response = await client.get(
+            f&#34;{self._base_url}/api/policies/resolve&#34;,
+            params=params,
+            headers={&#34;User-Agent&#34;: self._user_agent},
+            timeout=self._timeout,
+        )
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Policy resolve failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        data = response.json()
+        if data is None:
+            return None
+        return Policy.model_validate(data)
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(f&#34;Policy resolve timed out after {self._timeout}s&#34;) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Policy resolve failed: {e}&#34;) from e
+    except (ValidationError, ValueError) as e:
+        raise RegistryError(f&#34;Policy resolve failed: invalid response: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>Resolve a single policy by ID.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>policy_id</code></strong></dt>
+<dd>Policy identifier (e.g., "gdpr_consent").</dd>
+<dt><strong><code>version</code></strong></dt>
+<dd>Optional version pin; returns None if current version differs.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Policy if found, None if not in the registry.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>RegistryError</code></dt>
+<dd>On HTTP or parsing errors.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.save_policy"><code class="name flex">
+<span>async def <span class="ident">save_policy</span></span>(<span>self,<br>policy_id: str,<br>version: str,<br>name: str,<br>category: str,<br>enforcement: str,<br>policy: str,<br>*,<br>auth_token: str,<br>description: str | None = None,<br>jurisdictions: list[str] | None = None,<br>region_aliases: dict[str, list[str]] | None = None,<br>verticals: list[str] | None = None,<br>channels: list[str] | None = None,<br>effective_date: str | None = None,<br>sunset_date: str | None = None,<br>governance_domains: list[str] | None = None,<br>source_url: str | None = None,<br>source_name: str | None = None,<br>guidance: str | None = None,<br>exemplars: dict[str, Any] | None = None,<br>ext: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def save_policy(
+    self,
+    policy_id: str,
+    version: str,
+    name: str,
+    category: str,
+    enforcement: str,
+    policy: str,
+    *,
+    auth_token: str,
+    description: str | None = None,
+    jurisdictions: list[str] | None = None,
+    region_aliases: dict[str, list[str]] | None = None,
+    verticals: list[str] | None = None,
+    channels: list[str] | None = None,
+    effective_date: str | None = None,
+    sunset_date: str | None = None,
+    governance_domains: list[str] | None = None,
+    source_url: str | None = None,
+    source_name: str | None = None,
+    guidance: str | None = None,
+    exemplars: dict[str, Any] | None = None,
+    ext: dict[str, Any] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Create or update a community-contributed policy.
+
+    Requires authentication. Cannot edit registry-sourced or pending policies.
+
+    Args:
+        policy_id: Policy identifier (lowercase alphanumeric with underscores).
+        version: Semantic version string.
+        name: Human-readable policy name.
+        category: &#34;regulation&#34; or &#34;standard&#34;.
+        enforcement: &#34;must&#34;, &#34;should&#34;, or &#34;may&#34;.
+        policy: Natural language policy text.
+        auth_token: API key for authentication.
+        description: Policy description.
+        jurisdictions: ISO jurisdiction codes.
+        region_aliases: Region alias mappings (e.g., {&#34;EU&#34;: [&#34;DE&#34;, &#34;FR&#34;]}).
+        verticals: Industry verticals.
+        channels: Media channels.
+        effective_date: ISO 8601 date when enforcement begins.
+        sunset_date: ISO 8601 date when enforcement ends.
+        governance_domains: Applicable domains (&#34;campaign&#34;, &#34;creative&#34;, etc.).
+        source_url: URL of the source regulation/standard.
+        source_name: Name of the source.
+        guidance: Implementation guidance text.
+        exemplars: Pass/fail calibration scenarios.
+        ext: Extension data.
+
+    Returns:
+        Dict with success, message, policy_id, and revision_number.
+
+    Raises:
+        RegistryError: On HTTP or parsing errors (400, 401, 409, 429).
+    &#34;&#34;&#34;
+    client = await self._get_client()
+    body: dict[str, Any] = {
+        &#34;policy_id&#34;: policy_id,
+        &#34;version&#34;: version,
+        &#34;name&#34;: name,
+        &#34;category&#34;: category,
+        &#34;enforcement&#34;: enforcement,
+        &#34;policy&#34;: policy,
+    }
+    for key, value in [
+        (&#34;description&#34;, description),
+        (&#34;jurisdictions&#34;, jurisdictions),
+        (&#34;region_aliases&#34;, region_aliases),
+        (&#34;verticals&#34;, verticals),
+        (&#34;channels&#34;, channels),
+        (&#34;effective_date&#34;, effective_date),
+        (&#34;sunset_date&#34;, sunset_date),
+        (&#34;governance_domains&#34;, governance_domains),
+        (&#34;source_url&#34;, source_url),
+        (&#34;source_name&#34;, source_name),
+        (&#34;guidance&#34;, guidance),
+        (&#34;exemplars&#34;, exemplars),
+        (&#34;ext&#34;, ext),
+    ]:
+        if value is not None:
+            body[key] = value
+
+    try:
+        response = await client.post(
+            f&#34;{self._base_url}/api/policies/save&#34;,
+            json=body,
+            headers={
+                &#34;User-Agent&#34;: self._user_agent,
+                &#34;Authorization&#34;: f&#34;Bearer {auth_token}&#34;,
+            },
+            timeout=self._timeout,
+        )
+        if response.status_code != 200:
+            raise RegistryError(
+                f&#34;Policy save failed: HTTP {response.status_code}&#34;,
+                status_code=response.status_code,
+            )
+        result: dict[str, Any] = response.json()
+        return result
+    except RegistryError:
+        raise
+    except httpx.TimeoutException as e:
+        raise RegistryError(
+            f&#34;Policy save timed out after {self._timeout}s&#34;
+        ) from e
+    except httpx.HTTPError as e:
+        raise RegistryError(f&#34;Policy save failed: {e}&#34;) from e</code></pre>
+</details>
+<div class="desc"><p>Create or update a community-contributed policy.</p>
+<p>Requires authentication. Cannot edit registry-sourced or pending policies.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>policy_id</code></strong></dt>
+<dd>Policy identifier (lowercase alphanumeric with underscores).</dd>
+<dt><strong><code>version</code></strong></dt>
+<dd>Semantic version string.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>Human-readable policy name.</dd>
+<dt><strong><code>category</code></strong></dt>
+<dd>"regulation" or "standard".</dd>
+<dt><strong><code>enforcement</code></strong></dt>
+<dd>"must", "should", or "may".</dd>
+<dt><strong><code>policy</code></strong></dt>
+<dd>Natural language policy text.</dd>
+<dt><strong><code>auth_token</code></strong></dt>
+<dd>API key for authentication.</dd>
+<dt><strong><code>description</code></strong></dt>
+<dd>Policy description.</dd>
+<dt><strong><code>jurisdictions</code></strong></dt>
+<dd>ISO jurisdiction codes.</dd>
+<dt><strong><code>region_aliases</code></strong></dt>
+<dd>Region alias mappings (e.g., {"EU": ["DE", "FR"]}).</dd>
+<dt><strong><code>verticals</code></strong></dt>
+<dd>Industry verticals.</dd>
+<dt><strong><code>channels</code></strong></dt>
+<dd>Media channels.</dd>
+<dt><strong><code>effective_date</code></strong></dt>
+<dd>ISO 8601 date when enforcement begins.</dd>
+<dt><strong><code>sunset_date</code></strong></dt>
+<dd>ISO 8601 date when enforcement ends.</dd>
+<dt><strong><code>governance_domains</code></strong></dt>
+<dd>Applicable domains ("campaign", "creative", etc.).</dd>
+<dt><strong><code>source_url</code></strong></dt>
+<dd>URL of the source regulation/standard.</dd>
+<dt><strong><code>source_name</code></strong></dt>
+<dd>Name of the source.</dd>
+<dt><strong><code>guidance</code></strong></dt>
+<dd>Implementation guidance text.</dd>
+<dt><strong><code>exemplars</code></strong></dt>
+<dd>Pass/fail calibration scenarios.</dd>
+<dt><strong><code>ext</code></strong></dt>
+<dd>Extension data.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dict with success, message, policy_id, and revision_number.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>RegistryError</code></dt>
+<dd>On HTTP or parsing errors (400, 401, 409, 429).</dd>
+</dl></div>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -812,10 +1651,15 @@ If provided, caller is responsible for client lifecycle.</dd>
 <li><code><a title="adcp.registry.RegistryClient.close" href="#adcp.registry.RegistryClient.close">close</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.get_member" href="#adcp.registry.RegistryClient.get_member">get_member</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.list_members" href="#adcp.registry.RegistryClient.list_members">list_members</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.list_policies" href="#adcp.registry.RegistryClient.list_policies">list_policies</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_brand" href="#adcp.registry.RegistryClient.lookup_brand">lookup_brand</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_brands" href="#adcp.registry.RegistryClient.lookup_brands">lookup_brands</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_properties" href="#adcp.registry.RegistryClient.lookup_properties">lookup_properties</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_property" href="#adcp.registry.RegistryClient.lookup_property">lookup_property</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.policy_history" href="#adcp.registry.RegistryClient.policy_history">policy_history</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.resolve_policies" href="#adcp.registry.RegistryClient.resolve_policies">resolve_policies</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.resolve_policy" href="#adcp.registry.RegistryClient.resolve_policy">resolve_policy</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.save_policy" href="#adcp.registry.RegistryClient.save_policy">save_policy</a></code></li>
 </ul>
 </li>
 </ul>

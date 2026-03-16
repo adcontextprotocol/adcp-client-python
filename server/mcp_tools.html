@@ -160,6 +160,49 @@ async def call_tool(name: str, arguments: dict):
 <h2 id="returns">Returns</h2>
 <p>Async callable that invokes the handler method</p></div>
 </dd>
+<dt id="adcp.server.mcp_tools.get_tools_for_handler"><code class="name flex">
+<span>def <span class="ident">get_tools_for_handler</span></span>(<span>handler: ADCPHandler | type[ADCPHandler]) ‑> list[dict[str, typing.Any]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_tools_for_handler(handler: ADCPHandler | type[ADCPHandler]) -&gt; list[dict[str, Any]]:
+    &#34;&#34;&#34;Return tool definitions filtered by handler type.
+
+    Walks the MRO to find the matching handler base class, so subclasses
+    (e.g. MyGovernanceAgent(GovernanceHandler)) get the correct tool set.
+    ADCPHandler gets all tools. Unknown handlers get only protocol discovery
+    (minimum privilege).
+
+    Args:
+        handler: The handler instance or class
+
+    Returns:
+        Filtered list of tool definitions
+    &#34;&#34;&#34;
+    cls = handler if isinstance(handler, type) else type(handler)
+    for base in cls.__mro__:
+        if base.__name__ in _HANDLER_TOOLS:
+            allowed = _HANDLER_TOOLS[base.__name__] | _PROTOCOL_TOOLS
+            return [tool for tool in ADCP_TOOL_DEFINITIONS if tool[&#34;name&#34;] in allowed]
+
+    return [tool for tool in ADCP_TOOL_DEFINITIONS if tool[&#34;name&#34;] in _PROTOCOL_TOOLS]</code></pre>
+</details>
+<div class="desc"><p>Return tool definitions filtered by handler type.</p>
+<p>Walks the MRO to find the matching handler base class, so subclasses
+(e.g. MyGovernanceAgent(GovernanceHandler)) get the correct tool set.
+ADCPHandler gets all tools. Unknown handlers get only protocol discovery
+(minimum privilege).</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>handler</code></strong></dt>
+<dd>The handler instance or class</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Filtered list of tool definitions</p></div>
+</dd>
 </dl>
 </section>
 <section>
@@ -187,17 +230,18 @@ async def call_tool(name: str, arguments: dict):
             handler: ADCP handler instance
         &#34;&#34;&#34;
         self.handler = handler
+        self._filtered_definitions = get_tools_for_handler(handler)
         self._tools: dict[str, Callable[[dict[str, Any]], Any]] = {}
 
-        # Create tool callers for all methods
-        for tool_def in ADCP_TOOL_DEFINITIONS:
+        # Create tool callers only for filtered tools
+        for tool_def in self._filtered_definitions:
             name = tool_def[&#34;name&#34;]
             self._tools[name] = create_tool_caller(handler, name)
 
     @property
     def tool_definitions(self) -&gt; list[dict[str, Any]]:
-        &#34;&#34;&#34;Get MCP tool definitions.&#34;&#34;&#34;
-        return ADCP_TOOL_DEFINITIONS.copy()
+        &#34;&#34;&#34;Get MCP tool definitions filtered by handler type.&#34;&#34;&#34;
+        return list(self._filtered_definitions)
 
     async def call_tool(self, name: str, params: dict[str, Any]) -&gt; Any:
         &#34;&#34;&#34;Call a tool by name.
@@ -238,10 +282,10 @@ async def call_tool(name: str, arguments: dict):
 </summary>
 <pre><code class="python">@property
 def tool_definitions(self) -&gt; list[dict[str, Any]]:
-    &#34;&#34;&#34;Get MCP tool definitions.&#34;&#34;&#34;
-    return ADCP_TOOL_DEFINITIONS.copy()</code></pre>
+    &#34;&#34;&#34;Get MCP tool definitions filtered by handler type.&#34;&#34;&#34;
+    return list(self._filtered_definitions)</code></pre>
 </details>
-<div class="desc"><p>Get MCP tool definitions.</p></div>
+<div class="desc"><p>Get MCP tool definitions filtered by handler type.</p></div>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -320,6 +364,7 @@ def tool_definitions(self) -&gt; list[dict[str, Any]]:
 <ul class="">
 <li><code><a title="adcp.server.mcp_tools.create_mcp_tools" href="#adcp.server.mcp_tools.create_mcp_tools">create_mcp_tools</a></code></li>
 <li><code><a title="adcp.server.mcp_tools.create_tool_caller" href="#adcp.server.mcp_tools.create_tool_caller">create_tool_caller</a></code></li>
+<li><code><a title="adcp.server.mcp_tools.get_tools_for_handler" href="#adcp.server.mcp_tools.get_tools_for_handler">get_tools_for_handler</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

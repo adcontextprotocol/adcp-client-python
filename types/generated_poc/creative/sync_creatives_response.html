@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.media_buy.sync_creatives_response API documentation</title>
+<title>adcp.types.generated_poc.creative.sync_creatives_response API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.media_buy.sync_creatives_response</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.creative.sync_creatives_response</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,7 +46,7 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative"><code class="flex name class">
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative"><code class="flex name class">
 <span>class <span class="ident">Creative</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
@@ -59,12 +59,39 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
     account: Annotated[
         account_1.Account | None, Field(description=&#39;Account that owns this creative&#39;)
     ] = None
     action: Annotated[
         creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
     ]
+    platform_id: Annotated[
+        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
+    ] = None
+    changes: Annotated[
+        list[str] | None,
+        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
+    ] = None
+    errors: Annotated[
+        list[str] | None,
+        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
+    ] = None
+    warnings: Annotated[
+        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
+    ] = None
+    preview_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
+        ),
+    ] = None
     assigned_to: Annotated[
         list[str] | None,
         Field(
@@ -76,33 +103,6 @@ el.replaceWith(d);
         Field(
             description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
         ),
-    ] = None
-    changes: Annotated[
-        list[str] | None,
-        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
-    ] = None
-    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
-    errors: Annotated[
-        list[str] | None,
-        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
-    ] = None
-    expires_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
-        ),
-    ] = None
-    platform_id: Annotated[
-        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
-    ] = None
-    preview_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
-        ),
-    ] = None
-    warnings: Annotated[
-        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -122,51 +122,51 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account.Account" href="../core/account.html#adcp.types.generated_poc.core.account.Account">Account</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account.Account" href="../core/account.html#adcp.types.generated_poc.core.account.Account">Account</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.enums.creative_action.CreativeAction" href="../enums/creative_action.html#adcp.types.generated_poc.enums.creative_action.CreativeAction">CreativeAction</a></code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.enums.creative_action.CreativeAction" href="../enums/creative_action.html#adcp.types.generated_poc.enums.creative_action.CreativeAction">CreativeAction</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.assigned_to"><code class="name">var <span class="ident">assigned_to</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.assigned_to"><code class="name">var <span class="ident">assigned_to</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.assignment_errors"><code class="name">var <span class="ident">assignment_errors</span> : dict[str, str] | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.assignment_errors"><code class="name">var <span class="ident">assignment_errors</span> : dict[str, str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.changes"><code class="name">var <span class="ident">changes</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.changes"><code class="name">var <span class="ident">changes</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.creative_id"><code class="name">var <span class="ident">creative_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.creative_id"><code class="name">var <span class="ident">creative_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.errors"><code class="name">var <span class="ident">errors</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.errors"><code class="name">var <span class="ident">errors</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.platform_id"><code class="name">var <span class="ident">platform_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.platform_id"><code class="name">var <span class="ident">platform_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.preview_url"><code class="name">var <span class="ident">preview_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.preview_url"><code class="name">var <span class="ident">preview_url</span> : pydantic.networks.AnyUrl | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.warnings"><code class="name">var <span class="ident">warnings</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.Creative.warnings"><code class="name">var <span class="ident">warnings</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -182,7 +182,7 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1"><code class="flex name class">
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1"><code class="flex name class">
 <span>class <span class="ident">SyncCreativesResponse1</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
@@ -195,96 +195,20 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
+    dry_run: Annotated[
+        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+    ] = None
     creatives: Annotated[
         list[Creative],
         Field(
             description=&#34;Results for each creative processed. Items with action=&#39;failed&#39; indicate per-item validation/processing failures, not operation-level failures.&#34;
         ),
     ]
-    dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.creatives"><code class="name">var <span class="ident">creatives</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative">Creative</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.dry_run"><code class="name">var <span class="ident">dry_run</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2"><code class="flex name class">
-<span>class <span class="ident">SyncCreativesResponse2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
+    ] = None
     context: context_1.ContextObject | None = None
-    errors: Annotated[
-        list[error.Error],
-        Field(
-            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
-            min_length=1,
-        ),
-    ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -304,19 +228,95 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.creatives"><code class="name">var <span class="ident">creatives</span> : list[<a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative">Creative</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.dry_run"><code class="name">var <span class="ident">dry_run</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2"><code class="flex name class">
+<span>class <span class="ident">SyncCreativesResponse2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    errors: Annotated[
+        list[error.Error],
+        Field(
+            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            min_length=1,
+        ),
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -342,46 +342,46 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.media_buy" href="index.html">adcp.types.generated_poc.media_buy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative" href="index.html">adcp.types.generated_poc.creative</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative">Creative</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative">Creative</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.account" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.account">account</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.action" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.action">action</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.assigned_to" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.assigned_to">assigned_to</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.assignment_errors" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.assignment_errors">assignment_errors</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.changes" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.changes">changes</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.creative_id" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.creative_id">creative_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.errors" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.errors">errors</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.expires_at" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.expires_at">expires_at</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.platform_id" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.platform_id">platform_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.preview_url" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.preview_url">preview_url</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.warnings" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.Creative.warnings">warnings</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.account" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.action" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.action">action</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.assigned_to" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.assigned_to">assigned_to</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.assignment_errors" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.assignment_errors">assignment_errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.changes" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.changes">changes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.creative_id" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.errors" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.expires_at" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.model_config" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.platform_id" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.platform_id">platform_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.preview_url" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.preview_url">preview_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.Creative.warnings" href="#adcp.types.generated_poc.creative.sync_creatives_response.Creative.warnings">warnings</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1">SyncCreativesResponse1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1">SyncCreativesResponse1</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.context" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.creatives" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.creatives">creatives</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.dry_run" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.dry_run">dry_run</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.ext" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse1.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.context" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.creatives" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.creatives">creatives</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.dry_run" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.dry_run">dry_run</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.ext" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.model_config" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.sandbox" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2">SyncCreativesResponse2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2">SyncCreativesResponse2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.context" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.errors" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.errors">errors</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.ext" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.model_config" href="#adcp.types.generated_poc.media_buy.sync_creatives_response.SyncCreativesResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.context" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.errors" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.ext" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.model_config" href="#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

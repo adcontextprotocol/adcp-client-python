@@ -533,6 +533,381 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.core.Policy"><code class="flex name class">
+<span>class <span class="ident">Policy</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Policy(PolicySummary):
+    &#34;&#34;&#34;Full governance policy including policy text and calibration exemplars.&#34;&#34;&#34;
+
+    policy: str
+    guidance: str | None = None
+    exemplars: PolicyExemplars | None = None
+    ext: dict[str, Any] | None = None</code></pre>
+</details>
+<div class="desc"><p>Full governance policy including policy text and calibration exemplars.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.core.PolicySummary" href="#adcp.types.core.PolicySummary">PolicySummary</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.Policy.exemplars"><code class="name">var <span class="ident">exemplars</span> : <a title="adcp.types.core.PolicyExemplars" href="#adcp.types.core.PolicyExemplars">PolicyExemplars</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Policy.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Policy.guidance"><code class="name">var <span class="ident">guidance</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Policy.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.Policy.policy"><code class="name">var <span class="ident">policy</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.PolicyExemplar"><code class="flex name class">
+<span>class <span class="ident">PolicyExemplar</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PolicyExemplar(BaseModel):
+    &#34;&#34;&#34;A pass/fail scenario used to calibrate governance agent interpretation.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    scenario: str
+    explanation: str</code></pre>
+</details>
+<div class="desc"><p>A pass/fail scenario used to calibrate governance agent interpretation.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.PolicyExemplar.explanation"><code class="name">var <span class="ident">explanation</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyExemplar.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyExemplar.scenario"><code class="name">var <span class="ident">scenario</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.PolicyExemplars"><code class="flex name class">
+<span>class <span class="ident">PolicyExemplars</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PolicyExemplars(BaseModel):
+    &#34;&#34;&#34;Collection of pass/fail exemplars for a policy.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    pass_: list[PolicyExemplar] = Field(default_factory=list, alias=&#34;pass&#34;)
+    fail: list[PolicyExemplar] = Field(default_factory=list)</code></pre>
+</details>
+<div class="desc"><p>Collection of pass/fail exemplars for a policy.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.PolicyExemplars.fail"><code class="name">var <span class="ident">fail</span> : list[<a title="adcp.types.core.PolicyExemplar" href="#adcp.types.core.PolicyExemplar">PolicyExemplar</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyExemplars.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyExemplars.pass_"><code class="name">var <span class="ident">pass_</span> : list[<a title="adcp.types.core.PolicyExemplar" href="#adcp.types.core.PolicyExemplar">PolicyExemplar</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.PolicyHistory"><code class="flex name class">
+<span>class <span class="ident">PolicyHistory</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PolicyHistory(BaseModel):
+    &#34;&#34;&#34;Edit history for a policy.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    policy_id: str
+    total: int
+    revisions: list[PolicyRevision] = Field(default_factory=list)</code></pre>
+</details>
+<div class="desc"><p>Edit history for a policy.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.PolicyHistory.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyHistory.policy_id"><code class="name">var <span class="ident">policy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyHistory.revisions"><code class="name">var <span class="ident">revisions</span> : list[<a title="adcp.types.core.PolicyRevision" href="#adcp.types.core.PolicyRevision">PolicyRevision</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyHistory.total"><code class="name">var <span class="ident">total</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.PolicyRevision"><code class="flex name class">
+<span>class <span class="ident">PolicyRevision</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PolicyRevision(BaseModel):
+    &#34;&#34;&#34;A single revision in a policy&#39;s edit history.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;)
+
+    revision_number: int
+    editor_name: str
+    edit_summary: str
+    is_rollback: bool
+    rolled_back_to: int | None = None
+    created_at: str</code></pre>
+</details>
+<div class="desc"><p>A single revision in a policy's edit history.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.PolicyRevision.created_at"><code class="name">var <span class="ident">created_at</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyRevision.edit_summary"><code class="name">var <span class="ident">edit_summary</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyRevision.editor_name"><code class="name">var <span class="ident">editor_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyRevision.is_rollback"><code class="name">var <span class="ident">is_rollback</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyRevision.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyRevision.revision_number"><code class="name">var <span class="ident">revision_number</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicyRevision.rolled_back_to"><code class="name">var <span class="ident">rolled_back_to</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.core.PolicySummary"><code class="flex name class">
+<span>class <span class="ident">PolicySummary</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PolicySummary(BaseModel):
+    &#34;&#34;&#34;Summary of a governance policy from the registry.&#34;&#34;&#34;
+
+    model_config = ConfigDict(extra=&#34;allow&#34;, populate_by_name=True)
+
+    policy_id: str
+    version: str
+    name: str
+    description: str | None = None
+    category: str
+    enforcement: str
+    jurisdictions: list[str] = Field(default_factory=list)
+    region_aliases: dict[str, list[str]] = Field(default_factory=dict)
+    verticals: list[str] = Field(default_factory=list)
+    channels: list[str] | None = None
+    governance_domains: list[str] = Field(default_factory=list)
+    effective_date: str | None = None
+    sunset_date: str | None = None
+    source_url: str | None = None
+    source_name: str | None = None
+    source_type: str | None = None
+    review_status: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None</code></pre>
+</details>
+<div class="desc"><p>Summary of a governance policy from the registry.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.core.Policy" href="#adcp.types.core.Policy">Policy</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.core.PolicySummary.category"><code class="name">var <span class="ident">category</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.channels"><code class="name">var <span class="ident">channels</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.created_at"><code class="name">var <span class="ident">created_at</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.effective_date"><code class="name">var <span class="ident">effective_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.enforcement"><code class="name">var <span class="ident">enforcement</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.governance_domains"><code class="name">var <span class="ident">governance_domains</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.jurisdictions"><code class="name">var <span class="ident">jurisdictions</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.policy_id"><code class="name">var <span class="ident">policy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.region_aliases"><code class="name">var <span class="ident">region_aliases</span> : dict[str, list[str]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.review_status"><code class="name">var <span class="ident">review_status</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.source_name"><code class="name">var <span class="ident">source_name</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.source_type"><code class="name">var <span class="ident">source_type</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.source_url"><code class="name">var <span class="ident">source_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.sunset_date"><code class="name">var <span class="ident">sunset_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.updated_at"><code class="name">var <span class="ident">updated_at</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.version"><code class="name">var <span class="ident">version</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.core.PolicySummary.verticals"><code class="name">var <span class="ident">verticals</span> : list[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.core.Protocol"><code class="flex name class">
 <span>class <span class="ident">Protocol</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -805,12 +1180,14 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li>adcp.types.core.TaskResult[AdcpAsyncResponseData]</li>
 <li>adcp.types.core.TaskResult[Any]</li>
+<li>adcp.types.core.TaskResult[CheckGovernanceResponse]</li>
 <li>adcp.types.core.TaskResult[CreatePropertyListResponse]</li>
 <li>adcp.types.core.TaskResult[DeletePropertyListResponse]</li>
 <li>adcp.types.core.TaskResult[GetAdcpCapabilitiesResponse]</li>
 <li>adcp.types.core.TaskResult[GetCreativeDeliveryResponse]</li>
 <li>adcp.types.core.TaskResult[GetMediaBuyDeliveryResponse]</li>
 <li>adcp.types.core.TaskResult[GetMediaBuysResponse]</li>
+<li>adcp.types.core.TaskResult[GetPlanAuditLogsResponse]</li>
 <li>adcp.types.core.TaskResult[GetProductsResponse]</li>
 <li>adcp.types.core.TaskResult[GetPropertyListResponse]</li>
 <li>adcp.types.core.TaskResult[GetSignalsResponse]</li>
@@ -818,22 +1195,29 @@ validated to form a valid model.</p>
 <li>adcp.types.core.TaskResult[ListCreativeFormatsResponse]</li>
 <li>adcp.types.core.TaskResult[ListCreativesResponse]</li>
 <li>adcp.types.core.TaskResult[ListPropertyListsResponse]</li>
+<li>adcp.types.core.TaskResult[ReportPlanOutcomeResponse]</li>
+<li>adcp.types.core.TaskResult[ReportUsageResponse]</li>
 <li>adcp.types.core.TaskResult[SiGetOfferingResponse]</li>
 <li>adcp.types.core.TaskResult[SiInitiateSessionResponse]</li>
 <li>adcp.types.core.TaskResult[SiSendMessageResponse]</li>
 <li>adcp.types.core.TaskResult[SiTerminateSessionResponse]</li>
+<li>adcp.types.core.TaskResult[SyncPlansResponse]</li>
 <li>adcp.types.core.TaskResult[Union[ActivateSignalResponse1, ActivateSignalResponse2]]</li>
-<li>adcp.types.core.TaskResult[Union[BuildCreativeResponse1, BuildCreativeResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[BuildCreativeResponse1, BuildCreativeResponse2, BuildCreativeResponse3]]</li>
 <li>adcp.types.core.TaskResult[Union[CalibrateContentResponse1, CalibrateContentResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[CreateContentStandardsResponse1, CreateContentStandardsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[CreateMediaBuyResponse1, CreateMediaBuyResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[GetAccountFinancialsResponse1, GetAccountFinancialsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[GetContentStandardsResponse1, GetContentStandardsResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[GetCreativeFeaturesResponse1, GetCreativeFeaturesResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[GetMediaBuyArtifactsResponse1, GetMediaBuyArtifactsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[ListContentStandardsResponse1, ListContentStandardsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[LogEventResponse1, LogEventResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[PreviewCreativeResponse1, PreviewCreativeResponse2, PreviewCreativeResponse3]]</li>
 <li>adcp.types.core.TaskResult[Union[ProvidePerformanceFeedbackResponse1, ProvidePerformanceFeedbackResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[SyncAccountsResponse1, SyncAccountsResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[SyncAudiencesResponse1, SyncAudiencesResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[SyncCatalogsResponse1, SyncCatalogsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[SyncCreativesResponse1, SyncCreativesResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[SyncEventSourcesResponse1, SyncEventSourcesResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[UpdateContentStandardsResponse1, UpdateContentStandardsResponse2]]</li>
@@ -1095,6 +1479,78 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.core.NeedsInputInfo.field" href="#adcp.types.core.NeedsInputInfo.field">field</a></code></li>
 <li><code><a title="adcp.types.core.NeedsInputInfo.message" href="#adcp.types.core.NeedsInputInfo.message">message</a></code></li>
 <li><code><a title="adcp.types.core.NeedsInputInfo.model_config" href="#adcp.types.core.NeedsInputInfo.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.Policy" href="#adcp.types.core.Policy">Policy</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.Policy.exemplars" href="#adcp.types.core.Policy.exemplars">exemplars</a></code></li>
+<li><code><a title="adcp.types.core.Policy.ext" href="#adcp.types.core.Policy.ext">ext</a></code></li>
+<li><code><a title="adcp.types.core.Policy.guidance" href="#adcp.types.core.Policy.guidance">guidance</a></code></li>
+<li><code><a title="adcp.types.core.Policy.model_config" href="#adcp.types.core.Policy.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.Policy.policy" href="#adcp.types.core.Policy.policy">policy</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.PolicyExemplar" href="#adcp.types.core.PolicyExemplar">PolicyExemplar</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.PolicyExemplar.explanation" href="#adcp.types.core.PolicyExemplar.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.core.PolicyExemplar.model_config" href="#adcp.types.core.PolicyExemplar.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.PolicyExemplar.scenario" href="#adcp.types.core.PolicyExemplar.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.PolicyExemplars" href="#adcp.types.core.PolicyExemplars">PolicyExemplars</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.PolicyExemplars.fail" href="#adcp.types.core.PolicyExemplars.fail">fail</a></code></li>
+<li><code><a title="adcp.types.core.PolicyExemplars.model_config" href="#adcp.types.core.PolicyExemplars.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.PolicyExemplars.pass_" href="#adcp.types.core.PolicyExemplars.pass_">pass_</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.PolicyHistory" href="#adcp.types.core.PolicyHistory">PolicyHistory</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.core.PolicyHistory.model_config" href="#adcp.types.core.PolicyHistory.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.PolicyHistory.policy_id" href="#adcp.types.core.PolicyHistory.policy_id">policy_id</a></code></li>
+<li><code><a title="adcp.types.core.PolicyHistory.revisions" href="#adcp.types.core.PolicyHistory.revisions">revisions</a></code></li>
+<li><code><a title="adcp.types.core.PolicyHistory.total" href="#adcp.types.core.PolicyHistory.total">total</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.PolicyRevision" href="#adcp.types.core.PolicyRevision">PolicyRevision</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.core.PolicyRevision.created_at" href="#adcp.types.core.PolicyRevision.created_at">created_at</a></code></li>
+<li><code><a title="adcp.types.core.PolicyRevision.edit_summary" href="#adcp.types.core.PolicyRevision.edit_summary">edit_summary</a></code></li>
+<li><code><a title="adcp.types.core.PolicyRevision.editor_name" href="#adcp.types.core.PolicyRevision.editor_name">editor_name</a></code></li>
+<li><code><a title="adcp.types.core.PolicyRevision.is_rollback" href="#adcp.types.core.PolicyRevision.is_rollback">is_rollback</a></code></li>
+<li><code><a title="adcp.types.core.PolicyRevision.model_config" href="#adcp.types.core.PolicyRevision.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.PolicyRevision.revision_number" href="#adcp.types.core.PolicyRevision.revision_number">revision_number</a></code></li>
+<li><code><a title="adcp.types.core.PolicyRevision.rolled_back_to" href="#adcp.types.core.PolicyRevision.rolled_back_to">rolled_back_to</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.core.PolicySummary" href="#adcp.types.core.PolicySummary">PolicySummary</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.core.PolicySummary.category" href="#adcp.types.core.PolicySummary.category">category</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.channels" href="#adcp.types.core.PolicySummary.channels">channels</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.created_at" href="#adcp.types.core.PolicySummary.created_at">created_at</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.description" href="#adcp.types.core.PolicySummary.description">description</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.effective_date" href="#adcp.types.core.PolicySummary.effective_date">effective_date</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.enforcement" href="#adcp.types.core.PolicySummary.enforcement">enforcement</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.governance_domains" href="#adcp.types.core.PolicySummary.governance_domains">governance_domains</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.jurisdictions" href="#adcp.types.core.PolicySummary.jurisdictions">jurisdictions</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.model_config" href="#adcp.types.core.PolicySummary.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.name" href="#adcp.types.core.PolicySummary.name">name</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.policy_id" href="#adcp.types.core.PolicySummary.policy_id">policy_id</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.region_aliases" href="#adcp.types.core.PolicySummary.region_aliases">region_aliases</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.review_status" href="#adcp.types.core.PolicySummary.review_status">review_status</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.source_name" href="#adcp.types.core.PolicySummary.source_name">source_name</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.source_type" href="#adcp.types.core.PolicySummary.source_type">source_type</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.source_url" href="#adcp.types.core.PolicySummary.source_url">source_url</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.sunset_date" href="#adcp.types.core.PolicySummary.sunset_date">sunset_date</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.updated_at" href="#adcp.types.core.PolicySummary.updated_at">updated_at</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.version" href="#adcp.types.core.PolicySummary.version">version</a></code></li>
+<li><code><a title="adcp.types.core.PolicySummary.verticals" href="#adcp.types.core.PolicySummary.verticals">verticals</a></code></li>
 </ul>
 </li>
 <li>

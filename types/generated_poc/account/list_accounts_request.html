@@ -59,19 +59,19 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    status: Annotated[
+        Status | None,
+        Field(description=&#39;Filter accounts by status. Omit to return accounts in all statuses.&#39;),
+    ] = None
     pagination: pagination_request.PaginationRequest | None = None
     sandbox: Annotated[
         bool | None,
         Field(
-            description=&#39;Filter by sandbox status. true returns only sandbox accounts, false returns only production accounts. Omit to return all accounts.&#39;
+            description=&#39;Filter by sandbox status. true returns only sandbox accounts, false returns only production accounts. Omit to return all accounts. Primarily used with explicit accounts (require_operator_auth: true) where sandbox accounts are pre-existing test accounts on the platform.&#39;
         ),
     ] = None
-    status: Annotated[
-        Status | None,
-        Field(description=&#39;Filter accounts by status. Omit to return accounts in all statuses.&#39;),
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

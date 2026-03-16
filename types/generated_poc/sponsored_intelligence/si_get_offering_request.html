@@ -59,22 +59,22 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    offering_id: Annotated[
+        str, Field(description=&#39;Offering identifier from the catalog to get details for&#39;)
+    ]
     context: Annotated[
         str | None,
         Field(
             description=&#34;Optional natural language context about user intent for personalized results (e.g., &#39;mens size 14 near Cincinnati&#39;). Must be anonymous - no PII.&#34;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
     include_products: Annotated[
         bool | None, Field(description=&#39;Whether to include matching products in the response&#39;)
     ] = False
-    offering_id: Annotated[
-        str, Field(description=&#39;Offering identifier from the catalog to get details for&#39;)
-    ]
     product_limit: Annotated[
         int | None, Field(description=&#39;Maximum number of matching products to return&#39;, ge=1, le=50)
-    ] = 5</code></pre>
+    ] = 5
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

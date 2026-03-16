@@ -59,16 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    allowed_external_domains: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;List of domains the JavaScript may reference for external resources. Only applicable when external_resources_allowed is true.&#39;
-        ),
-    ] = None
-    external_resources_allowed: Annotated[
-        bool | None,
-        Field(description=&#39;Whether the JavaScript can load external resources dynamically&#39;),
-    ] = None
     max_file_size_kb: Annotated[
         int | None,
         Field(description=&#39;Maximum file size in kilobytes for the JavaScript asset&#39;, ge=1),
@@ -81,6 +71,16 @@ el.replaceWith(d);
     ] = None
     strict_mode_required: Annotated[
         bool | None, Field(description=&#39;Whether the JavaScript must use strict mode&#39;)
+    ] = None
+    external_resources_allowed: Annotated[
+        bool | None,
+        Field(description=&#39;Whether the JavaScript can load external resources dynamically&#39;),
+    ] = None
+    allowed_external_domains: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;List of domains the JavaScript may reference for external resources. Only applicable when external_resources_allowed is true.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -481,6 +481,14 @@ el.replaceWith(d);
         &#34;&#34;&#34;Sync event sources.&#34;&#34;&#34;
         return await self._call_a2a_tool(&#34;sync_event_sources&#34;, params)
 
+    async def sync_audiences(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync audiences.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;sync_audiences&#34;, params)
+
+    async def sync_catalogs(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync catalogs.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;sync_catalogs&#34;, params)
+
     async def preview_creative(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Generate preview URLs for a creative manifest.&#34;&#34;&#34;
         return await self._call_a2a_tool(&#34;preview_creative&#34;, params)
@@ -508,6 +516,14 @@ el.replaceWith(d);
     async def sync_accounts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Sync accounts.&#34;&#34;&#34;
         return await self._call_a2a_tool(&#34;sync_accounts&#34;, params)
+
+    async def get_account_financials(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get account financials.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_account_financials&#34;, params)
+
+    async def report_usage(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Report account usage.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;report_usage&#34;, params)
 
     async def list_tools(self) -&gt; list[str]:
         &#34;&#34;&#34;
@@ -673,6 +689,30 @@ el.replaceWith(d);
     async def get_media_buy_artifacts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Get artifacts associated with a media buy.&#34;&#34;&#34;
         return await self._call_a2a_tool(&#34;get_media_buy_artifacts&#34;, params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Governance
+    # ========================================================================
+
+    async def get_creative_features(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Evaluate governance features for a creative.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_creative_features&#34;, params)
+
+    async def sync_plans(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync campaign governance plans.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;sync_plans&#34;, params)
+
+    async def check_governance(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Check an action against campaign governance.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;check_governance&#34;, params)
+
+    async def report_plan_outcome(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Report the outcome of a governed action.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;report_plan_outcome&#34;, params)
+
+    async def get_plan_audit_logs(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Retrieve governance audit logs for plans.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_plan_audit_logs&#34;, params)
 
     # ========================================================================
     # V3 Protocol Methods - Sponsored Intelligence
@@ -919,16 +959,20 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.activate_signal" href="base.html#adcp.protocols.base.ProtocolAdapter.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.build_creative" href="base.html#adcp.protocols.base.ProtocolAdapter.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.calibrate_content" href="base.html#adcp.protocols.base.ProtocolAdapter.calibrate_content">calibrate_content</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.check_governance" href="base.html#adcp.protocols.base.ProtocolAdapter.check_governance">check_governance</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.delete_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_account_financials" href="base.html#adcp.protocols.base.ProtocolAdapter.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities" href="base.html#adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_creative_delivery">get_creative_delivery</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_features" href="base.html#adcp.protocols.base.ProtocolAdapter.get_creative_features">get_creative_features</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_media_buys" href="base.html#adcp.protocols.base.ProtocolAdapter.get_media_buys">get_media_buys</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_plan_audit_logs" href="base.html#adcp.protocols.base.ProtocolAdapter.get_plan_audit_logs">get_plan_audit_logs</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.get_property_list">get_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="base.html#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
@@ -939,13 +983,18 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_property_lists" href="base.html#adcp.protocols.base.ProtocolAdapter.list_property_lists">list_property_lists</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.log_event" href="base.html#adcp.protocols.base.ProtocolAdapter.log_event">log_event</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.provide_performance_feedback" href="base.html#adcp.protocols.base.ProtocolAdapter.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.report_plan_outcome" href="base.html#adcp.protocols.base.ProtocolAdapter.report_plan_outcome">report_plan_outcome</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.report_usage" href="base.html#adcp.protocols.base.ProtocolAdapter.report_usage">report_usage</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.si_get_offering" href="base.html#adcp.protocols.base.ProtocolAdapter.si_get_offering">si_get_offering</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.si_initiate_session" href="base.html#adcp.protocols.base.ProtocolAdapter.si_initiate_session">si_initiate_session</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.si_send_message" href="base.html#adcp.protocols.base.ProtocolAdapter.si_send_message">si_send_message</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.si_terminate_session" href="base.html#adcp.protocols.base.ProtocolAdapter.si_terminate_session">si_terminate_session</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_accounts" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_accounts">sync_accounts</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_audiences" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_audiences">sync_audiences</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_catalogs" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_creatives" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_event_sources" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_plans" href="base.html#adcp.protocols.base.ProtocolAdapter.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.update_property_list">update_property_list</a></code></li>

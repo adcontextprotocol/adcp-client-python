@@ -59,8 +59,8 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    approval_status: creative_approval_status.CreativeApprovalStatus
     creative_id: Annotated[str, Field(description=&#39;Creative identifier&#39;)]
+    approval_status: creative_approval_status.CreativeApprovalStatus
     rejection_reason: Annotated[
         str | None,
         Field(
@@ -210,18 +210,16 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(description=&#39;Task-specific errors (e.g., media buy not found)&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     media_buys: Annotated[
         list[MediaBuy],
         Field(
             description=&#39;Array of media buys with status, creative approval state, and optional delivery snapshots&#39;
         ),
     ]
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(description=&#39;Task-specific errors (e.g., media buy not found)&#39;),
+    ] = None
     pagination: Annotated[
         pagination_response.PaginationResponse | None,
         Field(description=&#39;Pagination metadata for the media_buys array.&#39;),
@@ -229,7 +227,9 @@ attributes &ndash; see the documentation for details.</p></div>
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -301,8 +301,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account: Annotated[
-        account_1.Account | None, Field(description=&#39;Account billed for this media buy&#39;)
+    media_buy_id: Annotated[
+        str, Field(description=&#34;Publisher&#39;s unique identifier for the media buy&#34;)
+    ]
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
     ] = None
     buyer_campaign_ref: Annotated[
         str | None,
@@ -310,13 +313,10 @@ validated to form a valid model.</p>
             description=&#39;Buyer campaign reference label sourced from create_media_buy.buyer_campaign_ref. Groups related operations under a single campaign; may be absent when not provided at creation time.&#39;
         ),
     ] = None
-    buyer_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this media buy&#34;)
+    account: Annotated[
+        account_1.Account | None, Field(description=&#39;Account billed for this media buy&#39;)
     ] = None
-    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
-    creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
-    ] = None
+    status: media_buy_status.MediaBuyStatus
     currency: Annotated[
         str,
         Field(
@@ -324,20 +324,11 @@ validated to form a valid model.</p>
             pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
-    end_time: Annotated[
-        AwareDatetime | None,
+    total_budget: Annotated[
+        float,
         Field(
-            description=&#39;ISO 8601 flight end time for this media buy (latest package end_time). Avoids requiring buyers to compute max(packages[].end_time).&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[
-        str, Field(description=&#34;Publisher&#39;s unique identifier for the media buy&#34;)
-    ]
-    packages: Annotated[
-        list[Package],
-        Field(
-            description=&#39;Packages within this media buy, augmented with creative approval status and optional delivery snapshots&#39;
+            description=&#39;Total budget amount across all packages, denominated in media_buy.currency&#39;,
+            ge=0.0,
         ),
     ]
     start_time: Annotated[
@@ -346,15 +337,24 @@ validated to form a valid model.</p>
             description=&#39;ISO 8601 flight start time for this media buy (earliest package start_time). Avoids requiring buyers to compute min(packages[].start_time).&#39;
         ),
     ] = None
-    status: media_buy_status.MediaBuyStatus
-    total_budget: Annotated[
-        float,
+    end_time: Annotated[
+        AwareDatetime | None,
         Field(
-            description=&#39;Total budget amount across all packages, denominated in media_buy.currency&#39;,
-            ge=0.0,
+            description=&#39;ISO 8601 flight end time for this media buy (latest package end_time). Avoids requiring buyers to compute max(packages[].end_time).&#39;
+        ),
+    ] = None
+    creative_deadline: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+    ] = None
+    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
+    updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None
+    packages: Annotated[
+        list[Package],
+        Field(
+            description=&#39;Packages within this media buy, augmented with creative approval status and optional delivery snapshots&#39;
         ),
     ]
-    updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -458,27 +458,18 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    bid_price: Annotated[
-        float | None,
-        Field(
-            description=&#39;Current bid price for auction-based packages. Denominated in package.currency when present, otherwise media_buy.currency. Relevant for automated price optimization loops.&#39;,
-            ge=0.0,
-        ),
+    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s package identifier&#34;)]
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
+    ] = None
+    product_id: Annotated[
+        str | None, Field(description=&#39;Product identifier this package is purchased from&#39;)
     ] = None
     budget: Annotated[
         float | None,
         Field(
             description=&#39;Package budget amount, denominated in package.currency when present, otherwise media_buy.currency&#39;,
             ge=0.0,
-        ),
-    ] = None
-    buyer_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s reference identifier for this package&#34;)
-    ] = None
-    creative_approvals: Annotated[
-        list[CreativeApproval] | None,
-        Field(
-            description=&#39;Approval status for each creative assigned to this package. Absent when no creatives have been assigned.&#39;
         ),
     ] = None
     currency: Annotated[
@@ -488,31 +479,39 @@ validated to form a valid model.</p>
             pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ] = None
-    end_time: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 flight end time for this package&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    format_ids_pending: Annotated[
-        list[format_id.FormatId] | None,
+    bid_price: Annotated[
+        float | None,
         Field(
-            description=&#39;Format IDs from the original create_media_buy format_ids_to_provide that have not yet been uploaded via sync_creatives. When empty or absent, all required formats have been provided.&#39;
+            description=&#39;Current bid price for auction-based packages. Denominated in package.currency when present, otherwise media_buy.currency. Relevant for automated price optimization loops.&#39;,
+            ge=0.0,
         ),
     ] = None
     impressions: Annotated[
         float | None,
         Field(description=&#39;Goal impression count for impression-based packages&#39;, ge=0.0),
     ] = None
-    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s package identifier&#34;)]
+    start_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 flight start time for this package. Use to determine whether the package is within its scheduled flight before interpreting delivery status.&#39;
+        ),
+    ] = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 flight end time for this package&#39;)
+    ] = None
     paused: Annotated[
         bool | None, Field(description=&#39;Whether this package is currently paused by the buyer&#39;)
     ] = None
-    product_id: Annotated[
-        str | None, Field(description=&#39;Product identifier this package is purchased from&#39;)
-    ] = None
-    snapshot: Annotated[
-        Snapshot | None,
+    creative_approvals: Annotated[
+        list[CreativeApproval] | None,
         Field(
-            description=&#39;Near-real-time delivery snapshot for this package. Only present when include_snapshot was true in the request. Represents the latest available entity-level stats from the platform — not billing-grade data.&#39;
+            description=&#39;Approval status for each creative assigned to this package. Absent when no creatives have been assigned.&#39;
+        ),
+    ] = None
+    format_ids_pending: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#39;Format IDs from the original create_media_buy format_ids_to_provide that have not yet been uploaded via sync_creatives. When empty or absent, all required formats have been provided.&#39;
         ),
     ] = None
     snapshot_unavailable_reason: Annotated[
@@ -521,12 +520,13 @@ validated to form a valid model.</p>
             description=&#39;Machine-readable reason the snapshot is omitted. Present only when include_snapshot was true and snapshot is unavailable for this package.&#39;
         ),
     ] = None
-    start_time: Annotated[
-        AwareDatetime | None,
+    snapshot: Annotated[
+        Snapshot | None,
         Field(
-            description=&#39;ISO 8601 flight start time for this package. Use to determine whether the package is within its scheduled flight before interpreting delivery status.&#39;
+            description=&#39;Near-real-time delivery snapshot for this package. Only present when include_snapshot was true in the request. Represents the latest available entity-level stats from the platform — not billing-grade data.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -638,14 +638,38 @@ validated to form a valid model.</p>
         AwareDatetime,
         Field(description=&#39;ISO 8601 timestamp when this snapshot was captured by the platform&#39;),
     ]
-    clicks: Annotated[
-        float | None, Field(description=&#39;Total clicks since package start (when available)&#39;, ge=0.0)
-    ] = None
+    staleness_seconds: Annotated[
+        int,
+        Field(
+            description=&#39;Maximum age of this data in seconds. For example, 900 means the data may be up to 15 minutes old. Use this to interpret zero delivery: a value of 900 means zero impressions is likely real; a value of 14400 means reporting may still be catching up.&#39;,
+            ge=0,
+        ),
+    ]
+    impressions: Annotated[
+        float, Field(description=&#39;Total impressions delivered since package start&#39;, ge=0.0)
+    ]
+    spend: Annotated[
+        float,
+        Field(
+            description=&#39;Total spend since package start, denominated in snapshot.currency when present, otherwise package.currency or media_buy.currency&#39;,
+            ge=0.0,
+        ),
+    ]
     currency: Annotated[
         str | None,
         Field(
             description=&#39;ISO 4217 currency code for spend in this snapshot. Optional when unchanged from package.currency or media_buy.currency.&#39;,
             pattern=&#39;^[A-Z]{3}$&#39;,
+        ),
+    ] = None
+    clicks: Annotated[
+        float | None, Field(description=&#39;Total clicks since package start (when available)&#39;, ge=0.0)
+    ] = None
+    pacing_index: Annotated[
+        float | None,
+        Field(
+            description=&#39;Current delivery pace relative to expected (1.0 = on track, &lt;1.0 = behind, &gt;1.0 = ahead). Absent when pacing cannot be determined.&#39;,
+            ge=0.0,
         ),
     ] = None
     delivery_status: Annotated[
@@ -657,31 +681,7 @@ validated to form a valid model.</p>
     ext: Annotated[
         ext_1.ExtensionObject | None,
         Field(description=&#39;Optional extension object for seller-specific snapshot fields.&#39;),
-    ] = None
-    impressions: Annotated[
-        float, Field(description=&#39;Total impressions delivered since package start&#39;, ge=0.0)
-    ]
-    pacing_index: Annotated[
-        float | None,
-        Field(
-            description=&#39;Current delivery pace relative to expected (1.0 = on track, &lt;1.0 = behind, &gt;1.0 = ahead). Absent when pacing cannot be determined.&#39;,
-            ge=0.0,
-        ),
-    ] = None
-    spend: Annotated[
-        float,
-        Field(
-            description=&#39;Total spend since package start, denominated in snapshot.currency when present, otherwise package.currency or media_buy.currency&#39;,
-            ge=0.0,
-        ),
-    ]
-    staleness_seconds: Annotated[
-        int,
-        Field(
-            description=&#39;Maximum age of this data in seconds. For example, 900 means the data may be up to 15 minutes old. Use this to interpret zero delivery: a value of 900 means zero impressions is likely real; a value of 14400 means reporting may still be catching up.&#39;,
-            ge=0,
-        ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

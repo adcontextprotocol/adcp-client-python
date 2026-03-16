@@ -63,12 +63,12 @@ el.replaceWith(d);
         list[account.Account],
         Field(description=&#39;Array of accounts accessible to the authenticated agent&#39;),
     ]
-    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    pagination: pagination_response.PaginationResponse | None = None</code></pre>
+    pagination: pagination_response.PaginationResponse | None = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

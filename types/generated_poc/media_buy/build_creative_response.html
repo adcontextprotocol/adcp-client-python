@@ -59,16 +59,34 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
         Field(description=&#39;The generated or transformed creative manifest&#39;),
     ]
-    ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when generated asset URLs in the manifest expire. Set to the earliest expiration across all generated assets. Re-build the creative after this time to get fresh URLs.&#39;
+        ),
+    ] = None
+    preview: Annotated[
+        Preview | None,
+        Field(
+            description=&#39;Preview renders included when the request set include_preview to true and the agent supports it. Contains the same content fields as a preview_creative single response (previews, interactive_url, expires_at) minus the response_type discriminator, so clients can reuse the same preview rendering logic.&#39;
+        ),
+    ] = None
+    preview_error: Annotated[
+        error.Error | None,
+        Field(
+            description=&#34;When include_preview was true in the request but preview generation failed. Uses the standard error structure with code, message, and recovery classification. Distinguishes &#39;agent does not support inline preview&#39; (preview and preview_error both absent) from &#39;preview generation failed&#39; (preview absent, preview_error present). Omitted when preview succeeded or was not requested.&#34;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -95,11 +113,23 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview"><code class="name">var <span class="ident">preview</span> : <a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview">Preview</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview_error"><code class="name">var <span class="ident">preview_error</span> : <a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -132,13 +162,36 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    errors: Annotated[
-        list[error.Error],
+    creative_manifests: Annotated[
+        list[creative_manifest_1.CreativeManifest],
         Field(
-            description=&#39;Array of errors explaining why creative generation failed&#39;, min_length=1
+            description=&#39;Array of generated creative manifests, one per requested format. Each manifest contains its own format_id identifying which format it was generated for.&#39;,
+            min_length=1,
         ),
     ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when the earliest generated asset URL expires across all manifests. Re-build after this time to get fresh URLs.&#39;
+        ),
+    ] = None
+    preview: Annotated[
+        Preview2 | None,
+        Field(
+            description=&#39;Preview renders included when the request set include_preview to true and the agent supports it. Contains one default preview per requested format. preview_inputs is ignored for multi-format requests.&#39;
+        ),
+    ] = None
+    preview_error: Annotated[
+        error.Error | None,
+        Field(
+            description=&#39;When include_preview was true in the request but preview generation failed. Uses the standard error structure with code, message, and recovery classification. Omitted when preview succeeded or was not requested.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -162,7 +215,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.creative_manifests"><code class="name">var <span class="ident">creative_manifests</span> : list[<a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest" href="../core/creative_manifest.html#adcp.types.generated_poc.core.creative_manifest.CreativeManifest">CreativeManifest</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -171,6 +228,517 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview"><code class="name">var <span class="ident">preview</span> : <a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview2" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview2">Preview2</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview_error"><code class="name">var <span class="ident">preview_error</span> : <a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3"><code class="flex name class">
+<span>class <span class="ident">BuildCreativeResponse3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BuildCreativeResponse3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    errors: Annotated[
+        list[error.Error],
+        Field(
+            description=&#39;Array of errors explaining why creative generation failed&#39;, min_length=1
+        ),
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input"><code class="flex name class">
+<span>class <span class="ident">Input</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Input(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]
+    macros: Annotated[
+        dict[str, str] | None, Field(description=&#39;Macro values applied to this variant&#39;)
+    ] = None
+    context_description: Annotated[
+        str | None, Field(description=&#39;Context description applied to this variant&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input.context_description"><code class="name">var <span class="ident">context_description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input.macros"><code class="name">var <span class="ident">macros</span> : dict[str, str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input1"><code class="flex name class">
+<span>class <span class="ident">Input1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Input1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    name: Annotated[str, Field(description=&#39;Human-readable name for this preview&#39;)]
+    macros: Annotated[
+        dict[str, str] | None, Field(description=&#39;Macro values applied to this preview&#39;)
+    ] = None
+    context_description: Annotated[
+        str | None, Field(description=&#39;Context description applied to this preview&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input1.context_description"><code class="name">var <span class="ident">context_description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input1.macros"><code class="name">var <span class="ident">macros</span> : dict[str, str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Input1.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview"><code class="flex name class">
+<span>class <span class="ident">Preview</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Preview(AdCPBaseModel):
+    previews: Annotated[
+        list[Preview1],
+        Field(
+            description=&#39;Array of preview variants. Each preview corresponds to an input set from preview_inputs, or a single default preview if no inputs were provided.&#39;,
+            min_length=1,
+        ),
+    ]
+    interactive_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them.&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime,
+        Field(
+            description=&#34;ISO 8601 timestamp when preview URLs expire. May differ from the manifest&#39;s expires_at.&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview.interactive_url"><code class="name">var <span class="ident">interactive_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview1" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview1">Preview1</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview1"><code class="flex name class">
+<span>class <span class="ident">Preview1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Preview1(AdCPBaseModel):
+    preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview variant&#39;)]
+    renders: Annotated[
+        list[preview_render.PreviewRender],
+        Field(
+            description=&#39;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats render as multiple pieces.&#39;,
+            min_length=1,
+        ),
+    ]
+    input: Annotated[
+        Input,
+        Field(
+            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview1.input"><code class="name">var <span class="ident">input</span> : <a title="adcp.types.generated_poc.media_buy.build_creative_response.Input" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input">Input</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview1.preview_id"><code class="name">var <span class="ident">preview_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview1.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="../creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview2"><code class="flex name class">
+<span>class <span class="ident">Preview2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Preview2(AdCPBaseModel):
+    previews: Annotated[
+        list[Preview3],
+        Field(
+            description=&#39;Array of preview entries, one per requested format. Array order matches creative_manifests. Each entry includes a format_id for explicit correlation.&#39;,
+            min_length=1,
+        ),
+    ]
+    interactive_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Optional URL to an interactive testing page that shows all format previews with controls to switch between them.&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime,
+        Field(
+            description=&#34;ISO 8601 timestamp when preview URLs expire. May differ from the manifest&#39;s expires_at.&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview2.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview2.interactive_url"><code class="name">var <span class="ident">interactive_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview2.previews"><code class="name">var <span class="ident">previews</span> : list[<a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview3" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview3">Preview3</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview3"><code class="flex name class">
+<span>class <span class="ident">Preview3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Preview3(AdCPBaseModel):
+    preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview&#39;)]
+    format_id: Annotated[
+        format_id_1.FormatId,
+        Field(
+            description=&#39;The format this preview was generated for. Matches one of the requested target_format_ids.&#39;
+        ),
+    ]
+    renders: Annotated[
+        list[preview_render.PreviewRender],
+        Field(
+            description=&#34;Array of rendered pieces for this format&#39;s preview. Most formats render as a single piece. Companion ad formats render as multiple pieces.&#34;,
+            min_length=1,
+        ),
+    ]
+    input: Annotated[
+        Input1,
+        Field(
+            description=&#39;The input parameters that generated this preview. For multi-format responses, this is always a default input.&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.format_id"><code class="name">var <span class="ident">format_id</span> : <a title="adcp.types.generated_poc.core.format_id.FormatId" href="../core/format_id.html#adcp.types.generated_poc.core.format_id.FormatId">FormatId</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.input"><code class="name">var <span class="ident">input</span> : <a title="adcp.types.generated_poc.media_buy.build_creative_response.Input1" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input1">Input1</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.preview_id"><code class="name">var <span class="ident">preview_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.renders"><code class="name">var <span class="ident">renders</span> : list[<a title="adcp.types.generated_poc.creative.preview_render.PreviewRender" href="../creative/preview_render.html#adcp.types.generated_poc.creative.preview_render.PreviewRender">PreviewRender</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -203,21 +771,92 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1">BuildCreativeResponse1</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.context" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.creative_manifest" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.creative_manifest">creative_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.expires_at" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.ext" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview">preview</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview_error" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview_error">preview_error</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2">BuildCreativeResponse2</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.context" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.errors" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.creative_manifests" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.creative_manifests">creative_manifests</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.expires_at" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.ext" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview">preview</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview_error" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview_error">preview_error</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.sandbox" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.sandbox">sandbox</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3">BuildCreativeResponse3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.context" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.errors" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.ext" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse3.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input">Input</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input.context_description" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input.context_description">context_description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input.macros" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input.macros">macros</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input.name" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input.name">name</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input1" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input1">Input1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input1.context_description" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input1.context_description">context_description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input1.macros" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input1.macros">macros</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input1.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Input1.name" href="#adcp.types.generated_poc.media_buy.build_creative_response.Input1.name">name</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview">Preview</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview.expires_at" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview.interactive_url" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview.interactive_url">interactive_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview.previews" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview.previews">previews</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview1" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview1">Preview1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview1.input" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview1.input">input</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview1.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview1.preview_id" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview1.preview_id">preview_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview1.renders" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview1.renders">renders</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview2" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview2">Preview2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview2.expires_at" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview2.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview2.interactive_url" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview2.interactive_url">interactive_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview2.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview2.previews" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview2.previews">previews</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview3" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview3">Preview3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.format_id" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview3.format_id">format_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.input" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview3.input">input</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.preview_id" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview3.preview_id">preview_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.Preview3.renders" href="#adcp.types.generated_poc.media_buy.build_creative_response.Preview3.renders">renders</a></code></li>
 </ul>
 </li>
 </ul>

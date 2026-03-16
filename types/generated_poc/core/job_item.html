@@ -222,36 +222,38 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    apply_url: Annotated[AnyUrl | None, Field(description=&#39;Direct application URL.&#39;)] = None
-    assets: Annotated[
-        list[offering_asset_group.OfferingAssetGroup] | None,
-        Field(
-            description=&#34;Typed creative asset pools for this job. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (company/role hero), &#39;images_vertical&#39; (9:16 for Stories), &#39;logo&#39; (company logo). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
-            min_length=1,
-        ),
-    ] = None
+    job_id: Annotated[str, Field(description=&#39;Unique identifier for this job posting.&#39;)]
+    title: Annotated[
+        str, Field(description=&#34;Job title (e.g., &#39;Senior Software Engineer&#39;, &#39;Marketing Manager&#39;).&#34;)
+    ]
     company_name: Annotated[str, Field(description=&#39;Hiring company or organization name.&#39;)]
-    date_posted: Annotated[
-        date_aliased | None, Field(description=&#39;Date the job was posted (ISO 8601 date).&#39;)
-    ] = None
     description: Annotated[
         str,
         Field(description=&#39;Full job description including responsibilities and qualifications.&#39;),
     ]
+    location: Annotated[
+        str | None,
+        Field(
+            description=&#34;Job location as a display string (e.g., &#39;Amsterdam, NL&#39;, &#39;Remote&#39;, &#39;New York, NY&#39;). Use &#39;Remote&#39; for fully remote positions.&#34;
+        ),
+    ] = None
     employment_type: Annotated[EmploymentType | None, Field(description=&#39;Type of employment.&#39;)] = (
         None
     )
     experience_level: Annotated[
         ExperienceLevel | None, Field(description=&#39;Required experience level.&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    industries: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Industry classifications (e.g., &#39;technology&#39;, &#39;healthcare&#39;, &#39;retail&#39;).&#34;,
-            min_length=1,
-        ),
+    salary: Annotated[
+        Salary | None,
+        Field(description=&#39;Salary range. Specify min and/or max with currency and period.&#39;),
     ] = None
+    date_posted: Annotated[
+        date_aliased | None, Field(description=&#39;Date the job was posted (ISO 8601 date).&#39;)
+    ] = None
+    valid_through: Annotated[
+        date_aliased | None, Field(description=&#39;Application deadline (ISO 8601 date).&#39;)
+    ] = None
+    apply_url: Annotated[AnyUrl | None, Field(description=&#39;Direct application URL.&#39;)] = None
     job_functions: Annotated[
         list[str] | None,
         Field(
@@ -259,16 +261,12 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    job_id: Annotated[str, Field(description=&#39;Unique identifier for this job posting.&#39;)]
-    location: Annotated[
-        str | None,
+    industries: Annotated[
+        list[str] | None,
         Field(
-            description=&#34;Job location as a display string (e.g., &#39;Amsterdam, NL&#39;, &#39;Remote&#39;, &#39;New York, NY&#39;). Use &#39;Remote&#39; for fully remote positions.&#34;
+            description=&#34;Industry classifications (e.g., &#39;technology&#39;, &#39;healthcare&#39;, &#39;retail&#39;).&#34;,
+            min_length=1,
         ),
-    ] = None
-    salary: Annotated[
-        Salary | None,
-        Field(description=&#39;Salary range. Specify min and/or max with currency and period.&#39;),
     ] = None
     tags: Annotated[
         list[str] | None,
@@ -277,12 +275,14 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    title: Annotated[
-        str, Field(description=&#34;Job title (e.g., &#39;Senior Software Engineer&#39;, &#39;Marketing Manager&#39;).&#34;)
-    ]
-    valid_through: Annotated[
-        date_aliased | None, Field(description=&#39;Application deadline (ISO 8601 date).&#39;)
-    ] = None</code></pre>
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this job. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (company/role hero), &#39;images_vertical&#39; (9:16 for Stories), &#39;logo&#39; (company logo). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -463,9 +463,9 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code.&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
-    max: Annotated[float | None, Field(description=&#39;Maximum salary.&#39;, ge=0.0)] = None
     min: Annotated[float | None, Field(description=&#39;Minimum salary.&#39;, ge=0.0)] = None
+    max: Annotated[float | None, Field(description=&#39;Maximum salary.&#39;, ge=0.0)] = None
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code.&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
     period: Annotated[Period, Field(description=&#39;Pay period.&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

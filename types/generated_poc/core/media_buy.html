@@ -59,8 +59,14 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account: Annotated[
-        account_1.Account | None, Field(description=&#39;Account billed for this media buy&#39;)
+    media_buy_id: Annotated[
+        str, Field(description=&#34;Publisher&#39;s unique identifier for the media buy&#34;)
+    ]
+    buyer_ref: Annotated[
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s reference identifier for this media buy. Sellers SHOULD deduplicate requests with the same buyer_ref and account, returning the existing media buy rather than creating a duplicate.&#34;
+        ),
     ] = None
     buyer_campaign_ref: Annotated[
         str | None,
@@ -68,32 +74,26 @@ el.replaceWith(d);
             description=&#34;Buyer&#39;s campaign reference label. Groups related operations under a single campaign for CRM and ad server correlation.&#34;
         ),
     ] = None
-    buyer_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer&#39;s reference identifier for this media buy. Sellers SHOULD deduplicate requests with the same buyer_ref and account, returning the existing media buy rather than creating a duplicate.&#34;
-        ),
+    account: Annotated[
+        account_1.Account | None, Field(description=&#39;Account billed for this media buy&#39;)
     ] = None
-    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
-    creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[
-        str, Field(description=&#34;Publisher&#39;s unique identifier for the media buy&#34;)
-    ]
-    packages: Annotated[
-        list[package.Package], Field(description=&#39;Array of packages within this media buy&#39;)
-    ]
+    status: media_buy_status.MediaBuyStatus
     rejection_reason: Annotated[
         str | None,
         Field(
             description=&#34;Reason provided by the seller when status is &#39;rejected&#39;. Present only when status is &#39;rejected&#39;.&#34;
         ),
     ] = None
-    status: media_buy_status.MediaBuyStatus
     total_budget: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
-    updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None</code></pre>
+    packages: Annotated[
+        list[package.Package], Field(description=&#39;Array of packages within this media buy&#39;)
+    ]
+    creative_deadline: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+    ] = None
+    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
+    updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

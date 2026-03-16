@@ -59,6 +59,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    proposal_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this proposal. Used to execute it via create_media_buy.&#39;
+        ),
+    ]
+    name: Annotated[str, Field(description=&#39;Human-readable name for this media plan proposal&#39;)]
+    description: Annotated[
+        str | None, Field(description=&#39;Explanation of the proposal strategy and what it achieves&#39;)
+    ] = None
     allocations: Annotated[
         list[product_allocation.ProductAllocation],
         Field(
@@ -66,36 +76,26 @@ el.replaceWith(d);
             min_length=1,
         ),
     ]
-    brief_alignment: Annotated[
-        str | None,
-        Field(description=&#39;Explanation of how this proposal aligns with the campaign brief&#39;),
-    ] = None
-    description: Annotated[
-        str | None, Field(description=&#39;Explanation of the proposal strategy and what it achieves&#39;)
-    ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
             description=&#39;When this proposal expires and can no longer be executed. After expiration, referenced products or pricing may no longer be available.&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
+    total_budget_guidance: Annotated[
+        TotalBudgetGuidance | None, Field(description=&#39;Optional budget guidance for this proposal&#39;)
+    ] = None
+    brief_alignment: Annotated[
+        str | None,
+        Field(description=&#39;Explanation of how this proposal aligns with the campaign brief&#39;),
+    ] = None
     forecast: Annotated[
         delivery_forecast.DeliveryForecast | None,
         Field(
             description=&#39;Aggregate forecasted delivery metrics for the entire proposal. When both proposal-level and allocation-level forecasts are present, the proposal-level forecast is authoritative for total delivery estimation.&#39;
         ),
     ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable name for this media plan proposal&#39;)]
-    proposal_id: Annotated[
-        str,
-        Field(
-            description=&#39;Unique identifier for this proposal. Used to execute it via create_media_buy.&#39;
-        ),
-    ]
-    total_budget_guidance: Annotated[
-        TotalBudgetGuidance | None, Field(description=&#39;Optional budget guidance for this proposal&#39;)
-    ] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -179,14 +179,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    currency: Annotated[str | None, Field(description=&#39;ISO 4217 currency code&#39;)] = None
-    max: Annotated[
-        float | None, Field(description=&#39;Maximum budget before diminishing returns&#39;, ge=0.0)
-    ] = None
     min: Annotated[float | None, Field(description=&#39;Minimum recommended budget&#39;, ge=0.0)] = None
     recommended: Annotated[
         float | None, Field(description=&#39;Recommended budget for optimal performance&#39;, ge=0.0)
-    ] = None</code></pre>
+    ] = None
+    max: Annotated[
+        float | None, Field(description=&#39;Maximum budget before diminishing returns&#39;, ge=0.0)
+    ] = None
+    currency: Annotated[str | None, Field(description=&#39;ISO 4217 currency code&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

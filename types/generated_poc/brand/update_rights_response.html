@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.sub_asset API documentation</title>
+<title>adcp.types.generated_poc.brand.update_rights_response API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.sub_asset</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.brand.update_rights_response</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,71 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset"><code class="flex name class">
-<span>class <span class="ident">SubAsset</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class SubAsset(RootModel[SubAsset1 | SubAsset2]):
-    root: Annotated[
-        SubAsset1 | SubAsset2,
-        Field(
-            description=&#39;Sub-asset for multi-asset creative formats, including carousel images and native ad template variables&#39;,
-            title=&#39;Sub-Asset&#39;,
-        ),
-    ]
-
-    def __getattr__(self, name: str) -&gt; Any:
-        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
-            raise AttributeError(name)
-        return getattr(self.root, name)</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[SubAsset1, SubAsset2]]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.sub_asset.SubAsset1" href="#adcp.types.generated_poc.core.sub_asset.SubAsset1">SubAsset1</a> | <a title="adcp.types.generated_poc.core.sub_asset.SubAsset2" href="#adcp.types.generated_poc.core.sub_asset.SubAsset2">SubAsset2</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset1"><code class="flex name class">
-<span>class <span class="ident">SubAsset1</span></span>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1"><code class="flex name class">
+<span>class <span class="ident">UpdateRightsResponse1</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -118,24 +55,39 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SubAsset1(AdCPBaseModel):
+<pre><code class="python">class UpdateRightsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    asset_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
-    ]
-    asset_kind: Annotated[
-        Literal[&#39;media&#39;],
-        Field(description=&#39;Discriminator indicating this is a media asset with content_uri&#39;),
-    ]
-    asset_type: Annotated[
-        str,
+    rights_id: Annotated[str, Field(description=&#39;Rights grant identifier&#39;)]
+    terms: Annotated[
+        rights_terms.RightsTerms,
         Field(
-            description=&#39;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#39;
+            description=&#39;Updated contractual terms (same shape as acquire_rights acquired response)&#39;
         ),
     ]
-    content_uri: Annotated[AnyUrl, Field(description=&#39;URL for media assets (images, videos, etc.)&#39;)]</code></pre>
+    generation_credentials: Annotated[
+        list[generation_credential.GenerationCredential] | None,
+        Field(
+            description=&#39;Re-issued credentials reflecting updated terms (new expiration dates, adjusted caps)&#39;
+        ),
+    ] = None
+    rights_constraint: Annotated[
+        rights_constraint_1.RightsConstraint | None,
+        Field(description=&#39;Updated rights constraint for re-embedding in creative manifests&#39;),
+    ] = None
+    paused: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether the grant is currently paused. Included when the update changes pause state.&#39;
+        ),
+    ] = None
+    implementation_date: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When changes take effect (null if pending approval from rights holder)&#39;),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -154,23 +106,39 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_id"><code class="name">var <span class="ident">asset_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_kind"><code class="name">var <span class="ident">asset_kind</span> : Literal['media']</code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_type"><code class="name">var <span class="ident">asset_type</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.generation_credentials"><code class="name">var <span class="ident">generation_credentials</span> : list[<a title="adcp.types.generated_poc.core.generation_credential.GenerationCredential" href="../core/generation_credential.html#adcp.types.generated_poc.core.generation_credential.GenerationCredential">GenerationCredential</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset1.content_uri"><code class="name">var <span class="ident">content_uri</span> : pydantic.networks.AnyUrl</code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.implementation_date"><code class="name">var <span class="ident">implementation_date</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.rights_constraint"><code class="name">var <span class="ident">rights_constraint</span> : <a title="adcp.types.generated_poc.core.rights_constraint.RightsConstraint" href="../core/rights_constraint.html#adcp.types.generated_poc.core.rights_constraint.RightsConstraint">RightsConstraint</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.rights_id"><code class="name">var <span class="ident">rights_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.terms"><code class="name">var <span class="ident">terms</span> : <a title="adcp.types.generated_poc.brand.rights_terms.RightsTerms" href="rights_terms.html#adcp.types.generated_poc.brand.rights_terms.RightsTerms">RightsTerms</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -186,8 +154,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset2"><code class="flex name class">
-<span>class <span class="ident">SubAsset2</span></span>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2"><code class="flex name class">
+<span>class <span class="ident">UpdateRightsResponse2</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -195,29 +163,13 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SubAsset2(AdCPBaseModel):
+<pre><code class="python">class UpdateRightsResponse2(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    asset_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
-    ]
-    asset_kind: Annotated[
-        Literal[&#39;text&#39;],
-        Field(description=&#39;Discriminator indicating this is a text asset with content&#39;),
-    ]
-    asset_type: Annotated[
-        str,
-        Field(
-            description=&#39;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#39;
-        ),
-    ]
-    content: Annotated[
-        str | list[str],
-        Field(
-            description=&#39;Text content for text-based assets like headlines, body text, CTA text, etc.&#39;
-        ),
-    ]</code></pre>
+    errors: Annotated[list[error.Error], Field(min_length=1)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -236,23 +188,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_id"><code class="name">var <span class="ident">asset_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_kind"><code class="name">var <span class="ident">asset_kind</span> : Literal['text']</code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_type"><code class="name">var <span class="ident">asset_type</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset2.content"><code class="name">var <span class="ident">content</span> : str | list[str]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.sub_asset.SubAsset2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -278,36 +226,32 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand" href="index.html">adcp.types.generated_poc.brand</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset" href="#adcp.types.generated_poc.core.sub_asset.SubAsset">SubAsset</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1">UpdateRightsResponse1</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset.model_config" href="#adcp.types.generated_poc.core.sub_asset.SubAsset.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset.root" href="#adcp.types.generated_poc.core.sub_asset.SubAsset.root">root</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.context" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.ext" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.generation_credentials" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.generation_credentials">generation_credentials</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.implementation_date" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.implementation_date">implementation_date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.model_config" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.paused" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.paused">paused</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.rights_constraint" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.rights_constraint">rights_constraint</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.rights_id" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.rights_id">rights_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.terms" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse1.terms">terms</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset1" href="#adcp.types.generated_poc.core.sub_asset.SubAsset1">SubAsset1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2">UpdateRightsResponse2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_id" href="#adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_id">asset_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_kind" href="#adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_kind">asset_kind</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_type" href="#adcp.types.generated_poc.core.sub_asset.SubAsset1.asset_type">asset_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset1.content_uri" href="#adcp.types.generated_poc.core.sub_asset.SubAsset1.content_uri">content_uri</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset1.model_config" href="#adcp.types.generated_poc.core.sub_asset.SubAsset1.model_config">model_config</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset2" href="#adcp.types.generated_poc.core.sub_asset.SubAsset2">SubAsset2</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_id" href="#adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_id">asset_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_kind" href="#adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_kind">asset_kind</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_type" href="#adcp.types.generated_poc.core.sub_asset.SubAsset2.asset_type">asset_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset2.content" href="#adcp.types.generated_poc.core.sub_asset.SubAsset2.content">content</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.sub_asset.SubAsset2.model_config" href="#adcp.types.generated_poc.core.sub_asset.SubAsset2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.context" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.errors" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.ext" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.model_config" href="#adcp.types.generated_poc.brand.update_rights_response.UpdateRightsResponse2.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

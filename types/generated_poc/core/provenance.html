@@ -65,16 +65,16 @@ el.replaceWith(d);
             description=&#34;Name of the AI tool or model (e.g., &#39;DALL-E 3&#39;, &#39;Stable Diffusion XL&#39;, &#39;Gemini&#39;)&#34;
         ),
     ]
-    provider: Annotated[
-        str | None,
-        Field(
-            description=&#34;Organization that provides the AI tool (e.g., &#39;OpenAI&#39;, &#39;Stability AI&#39;, &#39;Google&#39;)&#34;
-        ),
-    ] = None
     version: Annotated[
         str | None,
         Field(
             description=&#34;Version identifier for the AI tool or model (e.g., &#39;25.1&#39;, &#39;0125&#39;, &#39;2.1&#39;). For generative models, use the model version rather than the API version.&#34;
+        ),
+    ] = None
+    provider: Annotated[
+        str | None,
+        Field(
+            description=&#34;Organization that provides the AI tool (e.g., &#39;OpenAI&#39;, &#39;Stability AI&#39;, &#39;Google&#39;)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -250,16 +250,16 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    jurisdictions: Annotated[
-        list[Jurisdiction] | None,
-        Field(description=&#39;Jurisdictions where disclosure obligations apply&#39;, min_length=1),
-    ] = None
     required: Annotated[
         bool,
         Field(
             description=&#39;Whether AI disclosure is required for this content based on applicable regulations&#39;
         ),
-    ]</code></pre>
+    ]
+    jurisdictions: Annotated[
+        list[Jurisdiction] | None,
+        Field(description=&#39;Jurisdictions where disclosure obligations apply&#39;, min_length=1),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -397,12 +397,6 @@ attributes &ndash; see the documentation for details.</p></div>
     country: Annotated[
         str, Field(description=&#34;ISO 3166-1 alpha-2 country code (e.g., &#39;US&#39;, &#39;DE&#39;, &#39;CN&#39;)&#34;)
     ]
-    label_text: Annotated[
-        str | None,
-        Field(
-            description=&#39;Required disclosure label text for this jurisdiction, in the local language&#39;
-        ),
-    ] = None
     region: Annotated[
         str | None,
         Field(description=&#34;Sub-national region code (e.g., &#39;CA&#39; for California, &#39;BY&#39; for Bavaria)&#34;),
@@ -412,7 +406,19 @@ attributes &ndash; see the documentation for details.</p></div>
         Field(
             description=&#34;Regulation identifier (e.g., &#39;eu_ai_act_article_50&#39;, &#39;ca_sb_942&#39;, &#39;cn_deep_synthesis&#39;)&#34;
         ),
-    ]</code></pre>
+    ]
+    label_text: Annotated[
+        str | None,
+        Field(
+            description=&#39;Required disclosure label text for this jurisdiction, in the local language&#39;
+        ),
+    ] = None
+    render_guidance: Annotated[
+        RenderGuidance | None,
+        Field(
+            description=&#34;How the disclosure should be rendered for this jurisdiction. Expresses the declaring party&#39;s intent for persistence and position based on regulatory requirements. Publishers control actual rendering but governance agents can audit whether guidance was followed.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -451,6 +457,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.provenance.Jurisdiction.render_guidance"><code class="name">var <span class="ident">render_guidance</span> : <a title="adcp.types.generated_poc.core.provenance.RenderGuidance" href="#adcp.types.generated_poc.core.provenance.RenderGuidance">RenderGuidance</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -476,21 +486,21 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    digital_source_type: Annotated[
+        digital_source_type_1.DigitalSourceType | None,
+        Field(
+            description=&#39;IPTC-aligned classification of AI involvement in producing this content&#39;
+        ),
+    ] = None
     ai_tool: Annotated[
         AiTool | None,
         Field(
             description=&#39;AI system used to generate or modify this content. Aligns with IPTC 2025.1 AI metadata fields and C2PA claim_generator.&#39;
         ),
     ] = None
-    c2pa: Annotated[
-        C2pa | None,
-        Field(
-            description=&#39;C2PA Content Credentials reference. Links to the cryptographic provenance manifest for this content. Because file-level C2PA bindings break during ad-tech transcoding, this URL reference preserves the chain of provenance through the supply chain.&#39;
-        ),
-    ] = None
-    created_time: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;When this content was created or generated (ISO 8601)&#39;),
+    human_oversight: Annotated[
+        HumanOversight | None,
+        Field(description=&#39;Level of human involvement in the AI-assisted creation process&#39;),
     ] = None
     declared_by: Annotated[
         DeclaredBy | None,
@@ -498,10 +508,20 @@ validated to form a valid model.</p>
             description=&#39;Party declaring this provenance. Identifies who attached the provenance claim, enabling receiving parties to assess trust.&#39;
         ),
     ] = None
-    digital_source_type: Annotated[
-        digital_source_type_1.DigitalSourceType | None,
+    declared_at: Annotated[
+        AwareDatetime | None,
         Field(
-            description=&#39;IPTC-aligned classification of AI involvement in producing this content&#39;
+            description=&#39;When this provenance claim was made (ISO 8601). Distinct from created_time, which records when the content itself was produced. A provenance claim may be attached well after content creation, for example when retroactively declaring AI involvement for regulatory compliance.&#39;
+        ),
+    ] = None
+    created_time: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When this content was created or generated (ISO 8601)&#39;),
+    ] = None
+    c2pa: Annotated[
+        C2pa | None,
+        Field(
+            description=&#39;C2PA Content Credentials reference. Links to the cryptographic provenance manifest for this content. Because file-level C2PA bindings break during ad-tech transcoding, this URL reference preserves the chain of provenance through the supply chain.&#39;
         ),
     ] = None
     disclosure: Annotated[
@@ -510,18 +530,14 @@ validated to form a valid model.</p>
             description=&#39;Regulatory disclosure requirements for this content. Indicates whether AI disclosure is required and under which jurisdictions.&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    human_oversight: Annotated[
-        HumanOversight | None,
-        Field(description=&#39;Level of human involvement in the AI-assisted creation process&#39;),
-    ] = None
     verification: Annotated[
         list[VerificationItem] | None,
         Field(
             description=&#39;Third-party verification or detection results for this content. Multiple services may independently evaluate the same content. Provenance is a claim — verification results attached by the declaring party are supplementary. The enforcing party (e.g., seller/publisher) should run its own verification via get_creative_features or calibrate_content.&#39;,
             min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -552,6 +568,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.provenance.Provenance.declared_at"><code class="name">var <span class="ident">declared_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.provenance.Provenance.declared_by"><code class="name">var <span class="ident">declared_by</span> : <a title="adcp.types.generated_poc.core.provenance.DeclaredBy" href="#adcp.types.generated_poc.core.provenance.DeclaredBy">DeclaredBy</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -577,6 +597,90 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.provenance.Provenance.verification"><code class="name">var <span class="ident">verification</span> : list[<a title="adcp.types.generated_poc.core.provenance.VerificationItem" href="#adcp.types.generated_poc.core.provenance.VerificationItem">VerificationItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.RenderGuidance"><code class="flex name class">
+<span>class <span class="ident">RenderGuidance</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RenderGuidance(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    persistence: Annotated[
+        disclosure_persistence.DisclosurePersistence | None,
+        Field(
+            description=&#39;How long the disclosure must persist during content playback or display&#39;
+        ),
+    ] = None
+    min_duration_ms: Annotated[
+        int | None,
+        Field(
+            description=&#34;Minimum display duration in milliseconds for initial persistence. Recommended when persistence is initial — without it, the duration is at the publisher&#39;s discretion. At serve time the publisher reads this from provenance since the brief is not available.&#34;,
+            ge=1,
+        ),
+    ] = None
+    positions: Annotated[
+        list[disclosure_position.DisclosurePosition] | None,
+        Field(
+            description=&#39;Preferred disclosure positions in priority order. The first position a format supports should be used.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.provenance.RenderGuidance.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.RenderGuidance.min_duration_ms"><code class="name">var <span class="ident">min_duration_ms</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.RenderGuidance.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.RenderGuidance.persistence"><code class="name">var <span class="ident">persistence</span> : <a title="adcp.types.generated_poc.enums.disclosure_persistence.DisclosurePersistence" href="../enums/disclosure_persistence.html#adcp.types.generated_poc.enums.disclosure_persistence.DisclosurePersistence">DisclosurePersistence</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.provenance.RenderGuidance.positions"><code class="name">var <span class="ident">positions</span> : list[<a title="adcp.types.generated_poc.enums.disclosure_position.DisclosurePosition" href="../enums/disclosure_position.html#adcp.types.generated_poc.enums.disclosure_position.DisclosurePosition">DisclosurePosition</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -758,16 +862,6 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    confidence: Annotated[
-        float | None,
-        Field(
-            description=&#39;Confidence score of the verification result (0.0 to 1.0)&#39;, ge=0.0, le=1.0
-        ),
-    ] = None
-    details_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to the full verification report&#39;)
-    ] = None
-    result: Annotated[Result, Field(description=&#39;Verification outcome&#39;)]
     verified_by: Annotated[
         str,
         Field(
@@ -776,6 +870,16 @@ attributes &ndash; see the documentation for details.</p></div>
     ]
     verified_time: Annotated[
         AwareDatetime | None, Field(description=&#39;When the verification was performed (ISO 8601)&#39;)
+    ] = None
+    result: Annotated[Result, Field(description=&#39;Verification outcome&#39;)]
+    confidence: Annotated[
+        float | None,
+        Field(
+            description=&#39;Confidence score of the verification result (0.0 to 1.0)&#39;, ge=0.0, le=1.0
+        ),
+    ] = None
+    details_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to the full verification report&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -890,12 +994,13 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction" href="#adcp.types.generated_poc.core.provenance.Jurisdiction">Jurisdiction</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.country" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.country">country</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.label_text" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.label_text">label_text</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.model_config" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.region" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.region">region</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.regulation" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.regulation">regulation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Jurisdiction.render_guidance" href="#adcp.types.generated_poc.core.provenance.Jurisdiction.render_guidance">render_guidance</a></code></li>
 </ul>
 </li>
 <li>
@@ -904,6 +1009,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.ai_tool" href="#adcp.types.generated_poc.core.provenance.Provenance.ai_tool">ai_tool</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.c2pa" href="#adcp.types.generated_poc.core.provenance.Provenance.c2pa">c2pa</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.created_time" href="#adcp.types.generated_poc.core.provenance.Provenance.created_time">created_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.declared_at" href="#adcp.types.generated_poc.core.provenance.Provenance.declared_at">declared_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.declared_by" href="#adcp.types.generated_poc.core.provenance.Provenance.declared_by">declared_by</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.digital_source_type" href="#adcp.types.generated_poc.core.provenance.Provenance.digital_source_type">digital_source_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.disclosure" href="#adcp.types.generated_poc.core.provenance.Provenance.disclosure">disclosure</a></code></li>
@@ -911,6 +1017,16 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.human_oversight" href="#adcp.types.generated_poc.core.provenance.Provenance.human_oversight">human_oversight</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.model_config" href="#adcp.types.generated_poc.core.provenance.Provenance.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.provenance.Provenance.verification" href="#adcp.types.generated_poc.core.provenance.Provenance.verification">verification</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.provenance.RenderGuidance" href="#adcp.types.generated_poc.core.provenance.RenderGuidance">RenderGuidance</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.provenance.RenderGuidance.ext" href="#adcp.types.generated_poc.core.provenance.RenderGuidance.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.RenderGuidance.min_duration_ms" href="#adcp.types.generated_poc.core.provenance.RenderGuidance.min_duration_ms">min_duration_ms</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.RenderGuidance.model_config" href="#adcp.types.generated_poc.core.provenance.RenderGuidance.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.RenderGuidance.persistence" href="#adcp.types.generated_poc.core.provenance.RenderGuidance.persistence">persistence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.provenance.RenderGuidance.positions" href="#adcp.types.generated_poc.core.provenance.RenderGuidance.positions">positions</a></code></li>
 </ul>
 </li>
 <li>

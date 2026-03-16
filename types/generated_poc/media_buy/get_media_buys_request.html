@@ -65,18 +65,6 @@ el.replaceWith(d);
             description=&#39;Account to retrieve media buys for. When omitted, returns data across all accessible accounts.&#39;
         ),
     ] = None
-    buyer_refs: Annotated[
-        list[str] | None,
-        Field(description=&#39;Array of buyer reference IDs to retrieve&#39;, min_length=1),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
-    include_snapshot: Annotated[
-        bool | None,
-        Field(
-            description=&#39;When true, include a near-real-time delivery snapshot for each package. Snapshots reflect the latest available entity-level stats from the platform (e.g., updated every ~15 minutes on GAM, ~1 hour on batch-only platforms). The staleness_seconds field on each snapshot indicates data freshness. If a snapshot cannot be returned, package.snapshot_unavailable_reason explains why. Defaults to false.&#39;
-        ),
-    ] = False
     media_buy_ids: Annotated[
         list[str] | None,
         Field(
@@ -84,18 +72,30 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    pagination: Annotated[
-        pagination_request.PaginationRequest | None,
-        Field(
-            description=&#39;Cursor-based pagination controls. Strongly recommended when querying broad scopes (for example, all active media buys in an account).&#39;
-        ),
+    buyer_refs: Annotated[
+        list[str] | None,
+        Field(description=&#39;Array of buyer reference IDs to retrieve&#39;, min_length=1),
     ] = None
     status_filter: Annotated[
         media_buy_status.MediaBuyStatus | StatusFilter | None,
         Field(
             description=&#39;Filter by status. Can be a single status or array of statuses. Defaults to [&#34;active&#34;] only when media_buy_ids and buyer_refs are both omitted. When media_buy_ids or buyer_refs are provided, no implicit status filter is applied.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    include_snapshot: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, include a near-real-time delivery snapshot for each package. Snapshots reflect the latest available entity-level stats from the platform (e.g., updated every ~15 minutes on GAM, ~1 hour on batch-only platforms). The staleness_seconds field on each snapshot indicates data freshness. If a snapshot cannot be returned, package.snapshot_unavailable_reason explains why. Defaults to false.&#39;
+        ),
+    ] = False
+    pagination: Annotated[
+        pagination_request.PaginationRequest | None,
+        Field(
+            description=&#39;Cursor-based pagination controls. Strongly recommended when querying broad scopes (for example, all active media buys in an account).&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -126,12 +126,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    custom_event_name: Annotated[
-        str | None,
-        Field(
-            description=&#34;Required when event_type is &#39;custom&#39;. Platform-specific name for the custom event.&#34;
-        ),
-    ] = None
     event_source_id: Annotated[
         str,
         Field(
@@ -145,18 +139,24 @@ validated to form a valid model.</p>
             description=&#39;Event type to include from this source (e.g., purchase, lead, app_install, refund)&#39;
         ),
     ]
-    value_factor: Annotated[
-        float | None,
+    custom_event_name: Annotated[
+        str | None,
         Field(
-            description=&#34;Multiplier the seller must apply to value_field before aggregation. Use -1 for refund events (negate the value), 0.01 for values in cents, -0.01 for refunds in cents. A value of 0 zeroes out this source&#39;s value contribution (the source still counts for event dedup). Defaults to 1. This is not passed as a parameter to underlying platform APIs — the seller applies it when computing aggregated value metrics.&#34;
+            description=&#34;Required when event_type is &#39;custom&#39;. Platform-specific name for the custom event.&#34;
         ),
-    ] = 1
+    ] = None
     value_field: Annotated[
         str | None,
         Field(
             description=&#34;Which field in the event&#39;s custom_data carries the monetary value. The seller must use this field for value extraction and aggregation when computing ROAS and conversion value metrics. Required on at least one entry when target.kind is &#39;per_ad_spend&#39; or &#39;maximize_value&#39;. Common values: &#39;value&#39;, &#39;order_total&#39;, &#39;profit_margin&#39;. This is not passed as a parameter to underlying platform APIs — the seller maps it to their platform&#39;s value ingestion mechanism.&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    value_factor: Annotated[
+        float | None,
+        Field(
+            description=&#34;Multiplier the seller must apply to value_field before aggregation. Use -1 for refund events (negate the value), 0.01 for values in cents, -0.01 for refunds in cents. A value of 0 zeroes out this source&#39;s value contribution (the source still counts for event dedup). Defaults to 1. This is not passed as a parameter to underlying platform APIs — the seller applies it when computing aggregated value metrics.&#34;
+        ),
+    ] = 1</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -403,23 +403,10 @@ validated to form a valid model.</p>
             description=&#34;Seller-native metric to optimize for. Delivery metrics: clicks (link clicks, swipe-throughs, CTA taps that navigate away), views (viewable impressions), completed_views (video/audio completions — see view_duration_seconds), reach (unique audience reach — see reach_unit and target_frequency). Duration/score metrics: viewed_seconds (time in view per impression), attention_seconds (attention time per impression), attention_score (vendor-specific attention score). Audience action metrics: engagements (any direct interaction with the ad unit beyond viewing — social reactions/comments/shares, story/unit opens, interactive overlay taps, companion banner interactions on audio and CTV), follows (new followers, page likes, artist/podcast/channel subscribes), saves (saves, bookmarks, playlist adds, pins — signals of intent to return), profile_visits (visits to the brand&#39;s in-platform page — profile, artist page, channel, or storefront. Does not include external website clicks, which are covered by &#39;clicks&#39;).&#34;
         ),
     ]
-    priority: Annotated[
-        int | None,
-        Field(
-            description=&#39;Relative priority among all optimization goals on this package. 1 = highest priority (primary goal); higher numbers are lower priority (secondary signals). When omitted, sellers may use array position as priority.&#39;,
-            ge=1,
-        ),
-    ] = None
     reach_unit: Annotated[
         reach_unit_1.ReachUnit | None,
         Field(
             description=&#34;Unit for reach measurement. Required when metric is &#39;reach&#39;. Must be a value declared in the product&#39;s metric_optimization.supported_reach_units.&#34;
-        ),
-    ] = None
-    target: Annotated[
-        Target | Target1 | None,
-        Field(
-            description=&#39;Target for this metric. When omitted, the seller optimizes for maximum metric volume within budget.&#39;
         ),
     ] = None
     target_frequency: Annotated[
@@ -433,6 +420,19 @@ validated to form a valid model.</p>
         Field(
             description=&#34;Minimum video view duration in seconds that qualifies as a completed_view for this goal. Only applicable when metric is &#39;completed_views&#39;. When omitted, the seller uses their platform default (typically 2–15 seconds). Common values: 2 (Snap/LinkedIn default), 6 (TikTok), 15 (Snap 15-second views, Meta ThruPlay). Sellers declare which durations they support in metric_optimization.supported_view_durations. Sellers must reject goals with unsupported values — silent rounding would create measurement discrepancies.&#34;,
             gt=0.0,
+        ),
+    ] = None
+    target: Annotated[
+        Target | Target1 | None,
+        Field(
+            description=&#39;Target for this metric. When omitted, the seller optimizes for maximum metric volume within budget.&#39;
+        ),
+    ] = None
+    priority: Annotated[
+        int | None,
+        Field(
+            description=&#39;Relative priority among all optimization goals on this package. 1 = highest priority (primary goal); higher numbers are lower priority (secondary signals). When omitted, sellers may use array position as priority.&#39;,
+            ge=1,
         ),
     ] = None</code></pre>
 </details>
@@ -510,12 +510,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    attribution_window: Annotated[
-        AttributionWindow | None,
-        Field(
-            description=&#34;Attribution window for this optimization goal. Values must match an option declared in the seller&#39;s conversion_tracking.attribution_windows capability. Sellers must reject windows not in their declared capabilities. When omitted, the seller uses their default window.&#34;
-        ),
-    ] = None
+    kind: Literal[&#39;event&#39;]
     event_sources: Annotated[
         list[EventSource],
         Field(
@@ -523,18 +518,23 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    kind: Literal[&#39;event&#39;]
+    target: Annotated[
+        Target2 | Target3 | Target4 | None,
+        Field(
+            description=&#39;Target cost or return for this event goal. When omitted, the seller optimizes for maximum conversions within budget.&#39;
+        ),
+    ] = None
+    attribution_window: Annotated[
+        AttributionWindow | None,
+        Field(
+            description=&#34;Attribution window for this optimization goal. Values must match an option declared in the seller&#39;s conversion_tracking.attribution_windows capability. Sellers must reject windows not in their declared capabilities. When omitted, the seller uses their default window.&#34;
+        ),
+    ] = None
     priority: Annotated[
         int | None,
         Field(
             description=&#39;Relative priority among all optimization goals on this package. 1 = highest priority (primary goal); higher numbers are lower priority (secondary signals). When omitted, sellers may use array position as priority.&#39;,
             ge=1,
-        ),
-    ] = None
-    target: Annotated[
-        Target2 | Target3 | Target4 | None,
-        Field(
-            description=&#39;Target cost or return for this event goal. When omitted, the seller optimizes for maximum conversions within budget.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -895,13 +895,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    max: Annotated[
-        int | None,
-        Field(
-            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
-            ge=1,
-        ),
-    ] = None
     min: Annotated[
         int,
         Field(
@@ -909,6 +902,13 @@ validated to form a valid model.</p>
             ge=1,
         ),
     ]
+    max: Annotated[
+        int | None,
+        Field(
+            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
+            ge=1,
+        ),
+    ] = None
     window: Annotated[
         duration.Duration,
         Field(
@@ -974,13 +974,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    max: Annotated[
-        int,
-        Field(
-            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
-            ge=1,
-        ),
-    ]
     min: Annotated[
         int | None,
         Field(
@@ -988,6 +981,13 @@ validated to form a valid model.</p>
             ge=1,
         ),
     ] = None
+    max: Annotated[
+        int,
+        Field(
+            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
+            ge=1,
+        ),
+    ]
     window: Annotated[
         duration.Duration,
         Field(

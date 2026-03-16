@@ -56,8 +56,8 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Range(AdCPBaseModel):
-    max: Annotated[float, Field(description=&#39;Maximum value&#39;)]
     min: Annotated[float, Field(description=&#39;Minimum value&#39;)]
+    max: Annotated[float, Field(description=&#39;Maximum value&#39;)]
     unit: Annotated[
         str | None, Field(description=&#34;Unit of measurement (e.g., &#39;score&#39;, &#39;dollars&#39;, &#39;years&#39;)&#34;)
     ] = None</code></pre>
@@ -120,20 +120,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    allowed_values: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;For categorical signals, the valid values users can be assigned&#39;,
-            min_length=1,
-        ),
-    ] = None
-    description: Annotated[
-        str | None,
-        Field(
-            description=&#34;Detailed description of what this signal represents and how it&#39;s derived&#34;,
-            max_length=2000,
-        ),
-    ] = None
     id: Annotated[
         str,
         Field(
@@ -144,17 +130,31 @@ validated to form a valid model.</p>
     name: Annotated[
         str, Field(description=&#39;Human-readable signal name&#39;, max_length=255, min_length=1)
     ]
-    range: Annotated[
-        Range | None, Field(description=&#39;For numeric signals, the valid value range&#39;)
-    ] = None
-    tags: Annotated[
-        list[Tag] | None,
-        Field(description=&#39;Tags for grouping and filtering signals within the catalog&#39;),
+    description: Annotated[
+        str | None,
+        Field(
+            description=&#34;Detailed description of what this signal represents and how it&#39;s derived&#34;,
+            max_length=2000,
+        ),
     ] = None
     value_type: Annotated[
         signal_value_type.SignalValueType,
         Field(description=&#34;The data type of this signal&#39;s values&#34;),
-    ]</code></pre>
+    ]
+    tags: Annotated[
+        list[Tag] | None,
+        Field(description=&#39;Tags for grouping and filtering signals within the catalog&#39;),
+    ] = None
+    allowed_values: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;For categorical signals, the valid values users can be assigned&#39;,
+            min_length=1,
+        ),
+    ] = None
+    range: Annotated[
+        Range | None, Field(description=&#39;For numeric signals, the valid value range&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

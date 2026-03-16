@@ -62,19 +62,9 @@ el.replaceWith(d);
     context: Annotated[
         str, Field(description=&#39;Conversation handoff from the host describing what the user needs&#39;)
     ]
-    ext: ext_1.ExtensionObject | None = None
     identity: si_identity.SiIdentity
     media_buy_id: Annotated[
         str | None, Field(description=&#39;AdCP media buy ID if session was triggered by advertising&#39;)
-    ] = None
-    offering_id: Annotated[
-        str | None, Field(description=&#39;Brand-specific offering identifier to apply&#39;)
-    ] = None
-    offering_token: Annotated[
-        str | None,
-        Field(
-            description=&#34;Token from si_get_offering response for session continuity. Brand uses this to recall what products were shown to the user, enabling natural references like &#39;the second one&#39; or &#39;that blue shoe&#39;.&#34;
-        ),
     ] = None
     placement: Annotated[
         str | None,
@@ -82,10 +72,20 @@ el.replaceWith(d);
             description=&#34;Where this session was triggered (e.g., &#39;chatgpt_search&#39;, &#39;claude_chat&#39;)&#34;
         ),
     ] = None
+    offering_id: Annotated[
+        str | None, Field(description=&#39;Brand-specific offering identifier to apply&#39;)
+    ] = None
     supported_capabilities: Annotated[
         si_capabilities.SiCapabilities | None,
         Field(description=&#39;What capabilities the host supports&#39;),
-    ] = None</code></pre>
+    ] = None
+    offering_token: Annotated[
+        str | None,
+        Field(
+            description=&#34;Token from si_get_offering response for session continuity. Brand uses this to recall what products were shown to the user, enabling natural references like &#39;the second one&#39; or &#39;that blue shoe&#39;.&#34;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

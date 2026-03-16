@@ -59,12 +59,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    bid_price: Annotated[
-        float | None,
+    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]
+    buyer_ref: Annotated[
+        str | None,
         Field(
-            description=&#34;Bid price for auction-based pricing. This is the exact bid/price to honor unless the selected pricing option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
-            ge=0.0,
+            description=&#34;Buyer&#39;s reference identifier for this package. Sellers SHOULD deduplicate requests with the same buyer_ref within a media buy, returning the existing package rather than creating a duplicate.&#34;
         ),
+    ] = None
+    product_id: Annotated[
+        str | None, Field(description=&#39;ID of the product this package is based on&#39;)
     ] = None
     budget: Annotated[
         float | None,
@@ -73,11 +76,22 @@ el.replaceWith(d);
             ge=0.0,
         ),
     ] = None
-    buyer_ref: Annotated[
+    pacing: pacing_1.Pacing | None = None
+    pricing_option_id: Annotated[
         str | None,
         Field(
-            description=&#34;Buyer&#39;s reference identifier for this package. Sellers SHOULD deduplicate requests with the same buyer_ref within a media buy, returning the existing package rather than creating a duplicate.&#34;
+            description=&#34;ID of the selected pricing option from the product&#39;s pricing_options array&#34;
         ),
+    ] = None
+    bid_price: Annotated[
+        float | None,
+        Field(
+            description=&#34;Bid price for auction-based pricing. This is the exact bid/price to honor unless the selected pricing option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
+            ge=0.0,
+        ),
+    ] = None
+    impressions: Annotated[
+        float | None, Field(description=&#39;Impression goal for this package&#39;, ge=0.0)
     ] = None
     catalogs: Annotated[
         list[catalog.Catalog] | None,
@@ -85,23 +99,20 @@ el.replaceWith(d);
             description=&#39;Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level — sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Echoed from the create_media_buy request.&#39;
         ),
     ] = None
-    creative_assignments: Annotated[
-        list[creative_assignment.CreativeAssignment] | None,
-        Field(description=&#39;Creative assets assigned to this package&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
             description=&#39;Format IDs active for this package. Echoed from the create_media_buy request; omitted means all formats for the product are active.&#39;
         ),
     ] = None
+    targeting_overlay: targeting.TargetingOverlay | None = None
+    creative_assignments: Annotated[
+        list[creative_assignment.CreativeAssignment] | None,
+        Field(description=&#39;Creative assets assigned to this package&#39;),
+    ] = None
     format_ids_to_provide: Annotated[
         list[format_id.FormatId] | None,
         Field(description=&#39;Format IDs that creative assets will be provided for this package&#39;),
-    ] = None
-    impressions: Annotated[
-        float | None, Field(description=&#39;Impression goal for this package&#39;, ge=0.0)
     ] = None
     optimization_goals: Annotated[
         list[optimization_goal.OptimizationGoal] | None,
@@ -110,24 +121,25 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    pacing: pacing_1.Pacing | None = None
-    package_id: Annotated[str, Field(description=&#34;Publisher&#39;s unique identifier for the package&#34;)]
+    start_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#34;Flight start date/time for this package in ISO 8601 format. When omitted, the package inherits the media buy&#39;s start_time. Sellers SHOULD always include the resolved value in responses, even when inherited.&#34;
+        ),
+    ] = None
+    end_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#34;Flight end date/time for this package in ISO 8601 format. When omitted, the package inherits the media buy&#39;s end_time. Sellers SHOULD always include the resolved value in responses, even when inherited.&#34;
+        ),
+    ] = None
     paused: Annotated[
         bool | None,
         Field(
             description=&#39;Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.&#39;
         ),
     ] = False
-    pricing_option_id: Annotated[
-        str | None,
-        Field(
-            description=&#34;ID of the selected pricing option from the product&#39;s pricing_options array&#34;
-        ),
-    ] = None
-    product_id: Annotated[
-        str | None, Field(description=&#39;ID of the product this package is based on&#39;)
-    ] = None
-    targeting_overlay: targeting.TargetingOverlay | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -163,6 +175,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.package.Package.creative_assignments"><code class="name">var <span class="ident">creative_assignments</span> : list[<a title="adcp.types.generated_poc.core.creative_assignment.CreativeAssignment" href="creative_assignment.html#adcp.types.generated_poc.core.creative_assignment.CreativeAssignment">CreativeAssignment</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.package.Package.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -210,6 +226,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.package.Package.start_time"><code class="name">var <span class="ident">start_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.package.Package.targeting_overlay"><code class="name">var <span class="ident">targeting_overlay</span> : <a title="adcp.types.generated_poc.core.targeting.TargetingOverlay" href="targeting.html#adcp.types.generated_poc.core.targeting.TargetingOverlay">TargetingOverlay</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -249,6 +269,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.buyer_ref" href="#adcp.types.generated_poc.core.package.Package.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.catalogs" href="#adcp.types.generated_poc.core.package.Package.catalogs">catalogs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.creative_assignments" href="#adcp.types.generated_poc.core.package.Package.creative_assignments">creative_assignments</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.package.Package.end_time" href="#adcp.types.generated_poc.core.package.Package.end_time">end_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.ext" href="#adcp.types.generated_poc.core.package.Package.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.format_ids" href="#adcp.types.generated_poc.core.package.Package.format_ids">format_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.format_ids_to_provide" href="#adcp.types.generated_poc.core.package.Package.format_ids_to_provide">format_ids_to_provide</a></code></li>
@@ -260,6 +281,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.paused" href="#adcp.types.generated_poc.core.package.Package.paused">paused</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.pricing_option_id" href="#adcp.types.generated_poc.core.package.Package.pricing_option_id">pricing_option_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.product_id" href="#adcp.types.generated_poc.core.package.Package.product_id">product_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.package.Package.start_time" href="#adcp.types.generated_poc.core.package.Package.start_time">start_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.package.Package.targeting_overlay" href="#adcp.types.generated_poc.core.package.Package.targeting_overlay">targeting_overlay</a></code></li>
 </ul>
 </li>

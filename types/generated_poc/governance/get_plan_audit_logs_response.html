@@ -1,0 +1,1609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.governance.get_plan_audit_logs_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.governance.get_plan_audit_logs_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding"><code class="flex name class">
+<span>class <span class="ident">Binding</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Binding(Enum):
+    proposed = &#39;proposed&#39;
+    committed = &#39;committed&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding.committed"><code class="name">var <span class="ident">committed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding.proposed"><code class="name">var <span class="ident">proposed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget"><code class="flex name class">
+<span>class <span class="ident">Budget</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Budget(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    authorized: Annotated[
+        float | None, Field(description=&#39;Total authorized budget from the plan.&#39;)
+    ] = None
+    committed: Annotated[
+        float | None, Field(description=&#39;Total budget committed from confirmed outcomes.&#39;)
+    ] = None
+    remaining: Annotated[float | None, Field(description=&#39;Authorized minus committed.&#39;)] = None
+    utilization_pct: Annotated[
+        float | None, Field(description=&#39;Committed as a percentage of authorized.&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.authorized"><code class="name">var <span class="ident">authorized</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.committed"><code class="name">var <span class="ident">committed</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.remaining"><code class="name">var <span class="ident">remaining</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.utilization_pct"><code class="name">var <span class="ident">utilization_pct</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign"><code class="flex name class">
+<span>class <span class="ident">Campaign</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Campaign(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    buyer_campaign_ref: Annotated[str, Field(description=&#39;Campaign identifier.&#39;)]
+    status: Annotated[Status, Field(description=&#39;Campaign status.&#39;)]
+    committed: Annotated[float, Field(description=&#39;Budget committed in this campaign.&#39;)]
+    active_media_buys: Annotated[
+        list[str] | None, Field(description=&#39;Media buy IDs currently active.&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.active_media_buys"><code class="name">var <span class="ident">active_media_buys</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.committed"><code class="name">var <span class="ident">committed</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status">Status</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation"><code class="flex name class">
+<span>class <span class="ident">ChannelAllocation</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ChannelAllocation(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    committed: Annotated[float | None, Field(description=&#39;Budget committed to this channel.&#39;)] = (
+        None
+    )
+    pct: Annotated[
+        float | None, Field(description=&#34;Channel&#39;s share of the authorized total budget.&#34;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.committed"><code class="name">var <span class="ident">committed</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.pct"><code class="name">var <span class="ident">pct</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics"><code class="flex name class">
+<span>class <span class="ident">DriftMetrics</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DriftMetrics(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    escalation_rate: Annotated[
+        float | None,
+        Field(description=&#39;Fraction of checks that resulted in escalation.&#39;, ge=0.0, le=1.0),
+    ] = None
+    escalation_rate_trend: Annotated[
+        EscalationRateTrend | None,
+        Field(description=&#34;Direction of escalation rate over the plan&#39;s lifetime.&#34;),
+    ] = None
+    auto_approval_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fraction of checks approved without human intervention.&#39;, ge=0.0, le=1.0
+        ),
+    ] = None
+    human_override_rate: Annotated[
+        float | None,
+        Field(
+            description=&#34;Fraction of escalations where the human overrode the governance agent&#39;s recommendation.&#34;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    mean_confidence: Annotated[
+        float | None,
+        Field(
+            description=&#39;Average confidence score across all findings. Present when findings include confidence scores.&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    thresholds: Annotated[
+        Thresholds | None,
+        Field(
+            description=&#39;Organization-defined thresholds for drift metrics. When a metric crosses its threshold, the governance agent SHOULD include a finding on the next check. Set by the organization in governance agent configuration, echoed here for visibility.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.auto_approval_rate"><code class="name">var <span class="ident">auto_approval_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.escalation_rate"><code class="name">var <span class="ident">escalation_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.escalation_rate_trend"><code class="name">var <span class="ident">escalation_rate_trend</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend">EscalationRateTrend</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.human_override_rate"><code class="name">var <span class="ident">human_override_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.mean_confidence"><code class="name">var <span class="ident">mean_confidence</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.thresholds"><code class="name">var <span class="ident">thresholds</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds">Thresholds</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry"><code class="flex name class">
+<span>class <span class="ident">Entry</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Entry(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    id: Annotated[str, Field(description=&#39;Entry identifier.&#39;)]
+    type: Annotated[Type, Field(description=&#39;Entry type.&#39;)]
+    timestamp: Annotated[AwareDatetime, Field(description=&#39;ISO 8601 timestamp.&#39;)]
+    plan_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Plan this entry belongs to. Present when querying multiple plans or a portfolio.&#39;
+        ),
+    ] = None
+    caller: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;URL of the agent that made the request. Resolved from the credentials used on the governance callback.&#39;
+        ),
+    ] = None
+    tool: Annotated[str | None, Field(description=&#39;The AdCP tool (present for check entries).&#39;)] = (
+        None
+    )
+    status: Annotated[
+        Status8 | None, Field(description=&#39;Governance check status (present for check entries).&#39;)
+    ] = None
+    binding: Annotated[
+        Binding | None,
+        Field(
+            description=&#39;Whether the check was proposed or committed (present for check entries).&#39;
+        ),
+    ] = None
+    explanation: Annotated[
+        str | None,
+        Field(
+            description=&#39;Human-readable explanation of the governance decision (present for check entries).&#39;
+        ),
+    ] = None
+    policies_evaluated: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Registry policy IDs evaluated during this check (present for check entries).&#39;
+        ),
+    ] = None
+    categories_evaluated: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Governance categories evaluated (e.g., &#39;budget_authority&#39;, &#39;regulatory_compliance&#39;). Present for check entries.&#34;
+        ),
+    ] = None
+    findings: Annotated[
+        list[Finding] | None,
+        Field(
+            description=&#39;Findings from this check or outcome. Same structure as check_governance response findings.&#39;
+        ),
+    ] = None
+    outcome: Annotated[
+        outcome_type.OutcomeType | None,
+        Field(description=&#39;Outcome type (present for outcome entries).&#39;),
+    ] = None
+    committed_budget: Annotated[
+        float | None, Field(description=&#39;Budget committed (present for completed outcome entries).&#39;)
+    ] = None
+    media_buy_id: Annotated[
+        str | None, Field(description=&#39;Media buy ID (present for delivery outcome entries).&#39;)
+    ] = None
+    outcome_status: Annotated[
+        str | None, Field(description=&#39;Outcome status (present for outcome entries).&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.binding"><code class="name">var <span class="ident">binding</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding">Binding</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.caller"><code class="name">var <span class="ident">caller</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.categories_evaluated"><code class="name">var <span class="ident">categories_evaluated</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.committed_budget"><code class="name">var <span class="ident">committed_budget</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.explanation"><code class="name">var <span class="ident">explanation</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.findings"><code class="name">var <span class="ident">findings</span> : list[<a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding">Finding</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome"><code class="name">var <span class="ident">outcome</span> : <a title="adcp.types.generated_poc.enums.outcome_type.OutcomeType" href="../enums/outcome_type.html#adcp.types.generated_poc.enums.outcome_type.OutcomeType">OutcomeType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome_status"><code class="name">var <span class="ident">outcome_status</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.plan_id"><code class="name">var <span class="ident">plan_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.policies_evaluated"><code class="name">var <span class="ident">policies_evaluated</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8">Status8</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.timestamp"><code class="name">var <span class="ident">timestamp</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.tool"><code class="name">var <span class="ident">tool</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation"><code class="flex name class">
+<span>class <span class="ident">Escalation</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Escalation(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    check_id: Annotated[str, Field(description=&#39;The escalated governance check.&#39;)]
+    reason: Annotated[str, Field(description=&#39;Why it was escalated.&#39;)]
+    resolution: Annotated[
+        str | None,
+        Field(description=&#34;How it was resolved (e.g., &#39;approved_by_human&#39;, &#39;rejected_by_human&#39;).&#34;),
+    ] = None
+    resolved_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 resolution timestamp.&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.check_id"><code class="name">var <span class="ident">check_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.reason"><code class="name">var <span class="ident">reason</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.resolution"><code class="name">var <span class="ident">resolution</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.resolved_at"><code class="name">var <span class="ident">resolved_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend"><code class="flex name class">
+<span>class <span class="ident">EscalationRateTrend</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class EscalationRateTrend(Enum):
+    increasing = &#39;increasing&#39;
+    stable = &#39;stable&#39;
+    declining = &#39;declining&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.declining"><code class="name">var <span class="ident">declining</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.increasing"><code class="name">var <span class="ident">increasing</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.stable"><code class="name">var <span class="ident">stable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding"><code class="flex name class">
+<span>class <span class="ident">Finding</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Finding(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    category_id: str
+    policy_id: str | None = None
+    severity: escalation_severity.EscalationSeverity
+    explanation: str
+    confidence: Annotated[float | None, Field(ge=0.0, le=1.0)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.category_id"><code class="name">var <span class="ident">category_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.confidence"><code class="name">var <span class="ident">confidence</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.explanation"><code class="name">var <span class="ident">explanation</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.policy_id"><code class="name">var <span class="ident">policy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.severity"><code class="name">var <span class="ident">severity</span> : <a title="adcp.types.generated_poc.enums.escalation_severity.EscalationSeverity" href="../enums/escalation_severity.html#adcp.types.generated_poc.enums.escalation_severity.EscalationSeverity">EscalationSeverity</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse"><code class="flex name class">
+<span>class <span class="ident">GetPlanAuditLogsResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetPlanAuditLogsResponse(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    plans: Annotated[list[Plan], Field(description=&#39;Audit data for each requested plan.&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.plans"><code class="name">var <span class="ident">plans</span> : list[<a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan">Plan</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan"><code class="flex name class">
+<span>class <span class="ident">Plan</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Plan(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    plan_id: Annotated[str, Field(description=&#39;Plan identifier.&#39;)]
+    plan_version: Annotated[int, Field(description=&#39;Current plan version.&#39;)]
+    status: Annotated[Status, Field(description=&#39;Plan lifecycle status.&#39;)]
+    budget: Annotated[Budget, Field(description=&#39;Budget state.&#39;)]
+    channel_allocation: Annotated[
+        dict[str, ChannelAllocation] | None,
+        Field(description=&#39;Current channel mix. Keyed by channel ID.&#39;),
+    ] = None
+    campaigns: Annotated[list[Campaign], Field(description=&#39;Per-campaign breakdown.&#39;)]
+    summary: Annotated[Summary, Field(description=&#39;Aggregate validation and outcome statistics.&#39;)]
+    entries: Annotated[
+        list[Entry] | None,
+        Field(description=&#39;Ordered audit trail. Only present when include_entries is true.&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.budget"><code class="name">var <span class="ident">budget</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget">Budget</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.campaigns"><code class="name">var <span class="ident">campaigns</span> : list[<a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign">Campaign</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.channel_allocation"><code class="name">var <span class="ident">channel_allocation</span> : dict[str, <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation">ChannelAllocation</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.entries"><code class="name">var <span class="ident">entries</span> : list[<a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry">Entry</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_id"><code class="name">var <span class="ident">plan_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_version"><code class="name">var <span class="ident">plan_version</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status">Status</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.summary"><code class="name">var <span class="ident">summary</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary">Summary</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status"><code class="flex name class">
+<span>class <span class="ident">Status</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status(Enum):
+    active = &#39;active&#39;
+    suspended = &#39;suspended&#39;
+    completed = &#39;completed&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.active"><code class="name">var <span class="ident">active</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.completed"><code class="name">var <span class="ident">completed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.suspended"><code class="name">var <span class="ident">suspended</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8"><code class="flex name class">
+<span>class <span class="ident">Status8</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status8(Enum):
+    approved = &#39;approved&#39;
+    denied = &#39;denied&#39;
+    conditions = &#39;conditions&#39;
+    escalated = &#39;escalated&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.approved"><code class="name">var <span class="ident">approved</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.conditions"><code class="name">var <span class="ident">conditions</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.denied"><code class="name">var <span class="ident">denied</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.escalated"><code class="name">var <span class="ident">escalated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses"><code class="flex name class">
+<span>class <span class="ident">Statuses</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Statuses(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    approved: int | None = None
+    denied: int | None = None
+    conditions: int | None = None
+    escalated: int | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.approved"><code class="name">var <span class="ident">approved</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.conditions"><code class="name">var <span class="ident">conditions</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.denied"><code class="name">var <span class="ident">denied</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.escalated"><code class="name">var <span class="ident">escalated</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary"><code class="flex name class">
+<span>class <span class="ident">Summary</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Summary(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    checks_performed: Annotated[
+        int | None, Field(description=&#39;Total governance checks performed.&#39;)
+    ] = None
+    outcomes_reported: Annotated[int | None, Field(description=&#39;Total outcomes reported.&#39;)] = None
+    statuses: Annotated[
+        Statuses | None, Field(description=&#39;Count of each governance check status.&#39;)
+    ] = None
+    findings_count: Annotated[
+        int | None, Field(description=&#39;Total findings across all checks and outcomes.&#39;)
+    ] = None
+    escalations: Annotated[
+        list[Escalation] | None, Field(description=&#39;All escalations and their resolutions.&#39;)
+    ] = None
+    drift_metrics: Annotated[
+        DriftMetrics | None,
+        Field(
+            description=&#39;Aggregate governance metrics for detecting oversight drift. A declining escalation rate may indicate well-calibrated governance or eroding human oversight -- surfacing the trend lets the organization make that judgment.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.checks_performed"><code class="name">var <span class="ident">checks_performed</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.drift_metrics"><code class="name">var <span class="ident">drift_metrics</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics">DriftMetrics</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.escalations"><code class="name">var <span class="ident">escalations</span> : list[<a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation">Escalation</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.findings_count"><code class="name">var <span class="ident">findings_count</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.outcomes_reported"><code class="name">var <span class="ident">outcomes_reported</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.statuses"><code class="name">var <span class="ident">statuses</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses">Statuses</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds"><code class="flex name class">
+<span>class <span class="ident">Thresholds</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Thresholds(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    escalation_rate_max: Annotated[
+        float | None,
+        Field(
+            description=&#39;Maximum acceptable escalation rate. A rate above this suggests policy miscalibration.&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    escalation_rate_min: Annotated[
+        float | None,
+        Field(
+            description=&#39;Minimum acceptable escalation rate. A rate below this may indicate eroding oversight.&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    auto_approval_rate_max: Annotated[
+        float | None, Field(description=&#39;Maximum acceptable auto-approval rate.&#39;, ge=0.0, le=1.0)
+    ] = None
+    human_override_rate_max: Annotated[
+        float | None,
+        Field(
+            description=&#34;Maximum acceptable human override rate. A high rate suggests the governance agent&#39;s recommendations are poorly calibrated.&#34;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.auto_approval_rate_max"><code class="name">var <span class="ident">auto_approval_rate_max</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.escalation_rate_max"><code class="name">var <span class="ident">escalation_rate_max</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.escalation_rate_min"><code class="name">var <span class="ident">escalation_rate_min</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.human_override_rate_max"><code class="name">var <span class="ident">human_override_rate_max</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type"><code class="flex name class">
+<span>class <span class="ident">Type</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type(Enum):
+    check = &#39;check&#39;
+    outcome = &#39;outcome&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type.check"><code class="name">var <span class="ident">check</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type.outcome"><code class="name">var <span class="ident">outcome</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.governance" href="index.html">adcp.types.generated_poc.governance</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding">Binding</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding.committed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding.committed">committed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding.proposed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Binding.proposed">proposed</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget">Budget</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.authorized" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.authorized">authorized</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.committed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.committed">committed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.remaining" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.remaining">remaining</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.utilization_pct" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Budget.utilization_pct">utilization_pct</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign">Campaign</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.active_media_buys" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.active_media_buys">active_media_buys</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.buyer_campaign_ref" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.committed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.committed">committed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Campaign.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation">ChannelAllocation</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.committed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.committed">committed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.pct" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.ChannelAllocation.pct">pct</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics">DriftMetrics</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.auto_approval_rate" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.auto_approval_rate">auto_approval_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.escalation_rate" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.escalation_rate">escalation_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.escalation_rate_trend" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.escalation_rate_trend">escalation_rate_trend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.human_override_rate" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.human_override_rate">human_override_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.mean_confidence" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.mean_confidence">mean_confidence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.thresholds" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.DriftMetrics.thresholds">thresholds</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry">Entry</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.binding" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.binding">binding</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.caller" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.caller">caller</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.categories_evaluated" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.categories_evaluated">categories_evaluated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.committed_budget" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.committed_budget">committed_budget</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.explanation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.findings" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.findings">findings</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.id">id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.media_buy_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome">outcome</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome_status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome_status">outcome_status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.plan_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.plan_id">plan_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.policies_evaluated" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.policies_evaluated">policies_evaluated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.status">status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.timestamp" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.timestamp">timestamp</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.tool" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.tool">tool</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.type" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation">Escalation</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.check_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.check_id">check_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.reason" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.reason">reason</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.resolution" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.resolution">resolution</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.resolved_at" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Escalation.resolved_at">resolved_at</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend">EscalationRateTrend</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.declining" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.declining">declining</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.increasing" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.increasing">increasing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.stable" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.EscalationRateTrend.stable">stable</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding">Finding</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.category_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.category_id">category_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.confidence" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.confidence">confidence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.explanation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.policy_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.policy_id">policy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.severity" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Finding.severity">severity</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse">GetPlanAuditLogsResponse</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.plans" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.plans">plans</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan">Plan</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.budget" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.budget">budget</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.campaigns" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.campaigns">campaigns</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.channel_allocation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.channel_allocation">channel_allocation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.entries" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.entries">entries</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_id">plan_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_version" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_version">plan_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.status">status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.summary" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.summary">summary</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status">Status</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.active" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.active">active</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.completed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.completed">completed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.suspended" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.suspended">suspended</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8">Status8</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.approved" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.approved">approved</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.conditions" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.conditions">conditions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.denied" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.denied">denied</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.escalated" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status8.escalated">escalated</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses">Statuses</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.approved" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.approved">approved</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.conditions" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.conditions">conditions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.denied" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.denied">denied</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.escalated" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.escalated">escalated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Statuses.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary">Summary</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.checks_performed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.checks_performed">checks_performed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.drift_metrics" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.drift_metrics">drift_metrics</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.escalations" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.escalations">escalations</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.findings_count" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.findings_count">findings_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.outcomes_reported" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.outcomes_reported">outcomes_reported</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.statuses" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Summary.statuses">statuses</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds">Thresholds</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.auto_approval_rate_max" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.auto_approval_rate_max">auto_approval_rate_max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.escalation_rate_max" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.escalation_rate_max">escalation_rate_max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.escalation_rate_min" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.escalation_rate_min">escalation_rate_min</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.human_override_rate_max" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.human_override_rate_max">human_override_rate_max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Thresholds.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type">Type</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type.check" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type.check">check</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type.outcome" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Type.outcome">outcome</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

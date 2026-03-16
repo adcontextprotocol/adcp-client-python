@@ -59,20 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    asset_group_id: Annotated[
-        str,
-        Field(
-            description=&#34;The asset_group_id on the catalog item&#39;s assets array to pull from (e.g., &#39;images_landscape&#39;, &#39;images_vertical&#39;, &#39;logo&#39;).&#34;
-        ),
-    ]
+    kind: Literal[&#39;asset_pool&#39;]
     asset_id: Annotated[
         str,
         Field(
             description=&#34;The asset_id from the format&#39;s assets array. Identifies which individual template slot this binding applies to.&#34;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None
-    kind: Literal[&#39;asset_pool&#39;]</code></pre>
+    asset_group_id: Annotated[
+        str,
+        Field(
+            description=&#34;The asset_group_id on the catalog item&#39;s assets array to pull from (e.g., &#39;images_landscape&#39;, &#39;images_vertical&#39;, &#39;logo&#39;).&#34;
+        ),
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -139,53 +139,53 @@ validated to form a valid model.</p>
             description=&#34;Maps a format template slot to a catalog item field or typed asset pool. The &#39;kind&#39; field identifies the binding variant. All bindings are optional — agents can still infer mappings without them.&#34;,
             examples=[
                 {
-                    &#39;data&#39;: {&#39;asset_id&#39;: &#39;headline&#39;, &#39;catalog_field&#39;: &#39;name&#39;, &#39;kind&#39;: &#39;scalar&#39;},
                     &#39;description&#39;: &#39;Scalar binding — hotel name to headline slot&#39;,
+                    &#39;data&#39;: {&#39;kind&#39;: &#39;scalar&#39;, &#39;asset_id&#39;: &#39;headline&#39;, &#39;catalog_field&#39;: &#39;name&#39;},
                 },
                 {
+                    &#39;description&#39;: &#39;Scalar binding — nested field (nightly rate)&#39;,
                     &#39;data&#39;: {
+                        &#39;kind&#39;: &#39;scalar&#39;,
                         &#39;asset_id&#39;: &#39;price_badge&#39;,
                         &#39;catalog_field&#39;: &#39;price.amount&#39;,
-                        &#39;kind&#39;: &#39;scalar&#39;,
                     },
-                    &#39;description&#39;: &#39;Scalar binding — nested field (nightly rate)&#39;,
                 },
                 {
-                    &#39;data&#39;: {
-                        &#39;asset_group_id&#39;: &#39;images_landscape&#39;,
-                        &#39;asset_id&#39;: &#39;hero_image&#39;,
-                        &#39;kind&#39;: &#39;asset_pool&#39;,
-                    },
                     &#39;description&#39;: &#39;Asset pool binding — hero image from landscape pool&#39;,
-                },
-                {
                     &#39;data&#39;: {
-                        &#39;asset_group_id&#39;: &#39;images_vertical&#39;,
-                        &#39;asset_id&#39;: &#39;snap_background&#39;,
                         &#39;kind&#39;: &#39;asset_pool&#39;,
+                        &#39;asset_id&#39;: &#39;hero_image&#39;,
+                        &#39;asset_group_id&#39;: &#39;images_landscape&#39;,
                     },
-                    &#39;description&#39;: &#39;Asset pool binding — Snap vertical background from vertical pool&#39;,
                 },
                 {
+                    &#39;description&#39;: &#39;Asset pool binding — Snap vertical background from vertical pool&#39;,
                     &#39;data&#39;: {
-                        &#39;catalog_item&#39;: True,
-                        &#39;format_group_id&#39;: &#39;slide&#39;,
+                        &#39;kind&#39;: &#39;asset_pool&#39;,
+                        &#39;asset_id&#39;: &#39;snap_background&#39;,
+                        &#39;asset_group_id&#39;: &#39;images_vertical&#39;,
+                    },
+                },
+                {
+                    &#39;description&#39;: &#39;Catalog group binding — carousel where each slide is one hotel&#39;,
+                    &#39;data&#39;: {
                         &#39;kind&#39;: &#39;catalog_group&#39;,
+                        &#39;format_group_id&#39;: &#39;slide&#39;,
+                        &#39;catalog_item&#39;: True,
                         &#39;per_item_bindings&#39;: [
-                            {&#39;asset_id&#39;: &#39;title&#39;, &#39;catalog_field&#39;: &#39;name&#39;, &#39;kind&#39;: &#39;scalar&#39;},
+                            {&#39;kind&#39;: &#39;scalar&#39;, &#39;asset_id&#39;: &#39;title&#39;, &#39;catalog_field&#39;: &#39;name&#39;},
                             {
+                                &#39;kind&#39;: &#39;scalar&#39;,
                                 &#39;asset_id&#39;: &#39;price&#39;,
                                 &#39;catalog_field&#39;: &#39;price.amount&#39;,
-                                &#39;kind&#39;: &#39;scalar&#39;,
                             },
                             {
-                                &#39;asset_group_id&#39;: &#39;images_landscape&#39;,
-                                &#39;asset_id&#39;: &#39;image&#39;,
                                 &#39;kind&#39;: &#39;asset_pool&#39;,
+                                &#39;asset_id&#39;: &#39;image&#39;,
+                                &#39;asset_group_id&#39;: &#39;images_landscape&#39;,
                             },
                         ],
                     },
-                    &#39;description&#39;: &#39;Catalog group binding — carousel where each slide is one hotel&#39;,
                 },
             ],
             title=&#39;Catalog Field Binding&#39;,
@@ -250,25 +250,25 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    kind: Literal[&#39;catalog_group&#39;]
+    format_group_id: Annotated[
+        str,
+        Field(description=&#34;The asset_group_id of a repeatable_group in the format&#39;s assets array.&#34;),
+    ]
     catalog_item: Annotated[
         Literal[True],
         Field(
             description=&#34;Each repetition of the format&#39;s repeatable_group maps to one item from the catalog.&#34;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None
-    format_group_id: Annotated[
-        str,
-        Field(description=&#34;The asset_group_id of a repeatable_group in the format&#39;s assets array.&#34;),
-    ]
-    kind: Literal[&#39;catalog_group&#39;]
     per_item_bindings: Annotated[
         list[ScalarBinding | AssetPoolBinding] | None,
         Field(
             description=&#39;Scalar and asset pool bindings that apply within each repetition of the group. Nested catalog_group bindings are not permitted.&#39;,
             min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -336,6 +336,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    kind: Literal[&#39;scalar&#39;]
     asset_id: Annotated[
         str,
         Field(
@@ -348,8 +349,7 @@ validated to form a valid model.</p>
             description=&#34;Dot-notation path to the field on the catalog item (e.g., &#39;name&#39;, &#39;price.amount&#39;, &#39;location.city&#39;).&#34;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None
-    kind: Literal[&#39;scalar&#39;]</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -56,12 +56,12 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CalibrationExemplars(AdCPBaseModel):
-    fail: Annotated[
-        list[Fail | artifact.Artifact] | None, Field(description=&#39;Content that fails the standards&#39;)
-    ] = None
     pass_: Annotated[
         list[Pass | artifact.Artifact] | None,
         Field(alias=&#39;pass&#39;, description=&#39;Content that passes the standards&#39;),
+    ] = None
+    fail: Annotated[
+        list[Fail | artifact.Artifact] | None, Field(description=&#39;Content that fails the standards&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -115,16 +115,16 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Fail(AdCPBaseModel):
-    language: Annotated[
-        str | None, Field(description=&#39;BCP 47 language tag for content at this URL&#39;)
-    ] = None
     type: Annotated[Literal[&#39;url&#39;], Field(description=&#39;Indicates this is a URL reference&#39;)]
     value: Annotated[
         AnyUrl,
         Field(
             description=&#34;Full URL to a specific page (e.g., &#39;https://news.example.com/controversial-article&#39;)&#34;
         ),
-    ]</code></pre>
+    ]
+    language: Annotated[
+        str | None, Field(description=&#39;BCP 47 language tag for content at this URL&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -181,16 +181,16 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Pass(AdCPBaseModel):
-    language: Annotated[
-        str | None, Field(description=&#39;BCP 47 language tag for content at this URL&#39;)
-    ] = None
     type: Annotated[Literal[&#39;url&#39;], Field(description=&#39;Indicates this is a URL reference&#39;)]
     value: Annotated[
         AnyUrl,
         Field(
             description=&#34;Full URL to a specific page (e.g., &#39;https://espn.com/nba/story/_/id/12345/lakers-win&#39;)&#34;
         ),
-    ]</code></pre>
+    ]
+    language: Annotated[
+        str | None, Field(description=&#39;BCP 47 language tag for content at this URL&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -247,13 +247,6 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Scope(AdCPBaseModel):
-    channels_any: Annotated[
-        list[channels.MediaChannel] | None,
-        Field(
-            description=&#39;Advertising channels. Standards apply to ANY of the listed channels (OR logic).&#39;,
-            min_length=1,
-        ),
-    ] = None
     countries_all: Annotated[
         list[str] | None,
         Field(
@@ -261,8 +254,12 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    description: Annotated[
-        str | None, Field(description=&#39;Human-readable description of this scope&#39;)
+    channels_any: Annotated[
+        list[channels.MediaChannel] | None,
+        Field(
+            description=&#39;Advertising channels. Standards apply to ANY of the listed channels (OR logic).&#39;,
+            min_length=1,
+        ),
     ] = None
     languages_any: Annotated[
         list[str] | None,
@@ -270,6 +267,9 @@ validated to form a valid model.</p>
             description=&#34;BCP 47 language tags (e.g., &#39;en&#39;, &#39;de&#39;, &#39;fr&#39;). Standards apply to content in ANY of these languages (OR logic). Content in unlisted languages is not covered by these standards.&#34;,
             min_length=1,
         ),
+    ] = None
+    description: Annotated[
+        str | None, Field(description=&#39;Human-readable description of this scope&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -334,6 +334,23 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    standards_id: Annotated[str, Field(description=&#39;ID of the standards configuration to update&#39;)]
+    scope: Annotated[
+        Scope | None,
+        Field(description=&#39;Updated scope for where this standards configuration applies&#39;),
+    ] = None
+    registry_policy_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Registry policy IDs to use as the evaluation basis. When provided, the agent resolves policies from the registry and uses their policy text and exemplars as the evaluation criteria.&#39;
+        ),
+    ] = None
+    policy: Annotated[
+        str | None,
+        Field(
+            description=&#39;Updated natural language policy describing acceptable and unacceptable content contexts.&#39;
+        ),
+    ] = None
     calibration_exemplars: Annotated[
         CalibrationExemplars | None,
         Field(
@@ -341,18 +358,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
-    policy: Annotated[
-        str | None,
-        Field(
-            description=&#39;Updated natural language policy describing acceptable and unacceptable content contexts.&#39;
-        ),
-    ] = None
-    scope: Annotated[
-        Scope | None,
-        Field(description=&#39;Updated scope for where this standards configuration applies&#39;),
-    ] = None
-    standards_id: Annotated[str, Field(description=&#39;ID of the standards configuration to update&#39;)]</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -388,6 +394,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.policy"><code class="name">var <span class="ident">policy</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.registry_policy_ids"><code class="name">var <span class="ident">registry_policy_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -470,6 +480,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.ext" href="#adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.model_config" href="#adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.policy" href="#adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.policy">policy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.registry_policy_ids" href="#adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.registry_policy_ids">registry_policy_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.scope" href="#adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.scope">scope</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.standards_id" href="#adcp.types.generated_poc.content_standards.update_content_standards_request.UpdateContentStandardsRequest.standards_id">standards_id</a></code></li>
 </ul>

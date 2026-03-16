@@ -123,25 +123,15 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account: Annotated[
-        account_ref.AccountReference | None,
-        Field(
-            description=&#39;Account for this activation. Associates with a commercial relationship established via sync_accounts.&#39;
-        ),
-    ] = None
     action: Annotated[
         Action | None,
         Field(
             description=&#34;Whether to activate or deactivate the signal. Deactivating removes the segment from downstream platforms, required when campaigns end to comply with data governance policies (GDPR, CCPA). Defaults to &#39;activate&#39; when omitted.&#34;
         ),
     ] = Action.activate
-    buyer_campaign_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;The buyer&#39;s campaign reference for this activation. Enables the signals agent to correlate activations with subsequent report_usage calls.&#34;
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
+    signal_agent_segment_id: Annotated[
+        str, Field(description=&#39;The universal identifier for the signal to activate&#39;)
+    ]
     destinations: Annotated[
         list[destination.Destination],
         Field(
@@ -149,16 +139,26 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None
     pricing_option_id: Annotated[
         str | None,
         Field(
             description=&#34;The pricing option selected from the signal&#39;s pricing_options in the get_signals response. Required when the signal has pricing options. Records the buyer&#39;s pricing commitment at activation time; pass this same value in report_usage for billing verification.&#34;
         ),
     ] = None
-    signal_agent_segment_id: Annotated[
-        str, Field(description=&#39;The universal identifier for the signal to activate&#39;)
-    ]</code></pre>
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account for this activation. Associates with a commercial relationship established via sync_accounts.&#39;
+        ),
+    ] = None
+    buyer_campaign_ref: Annotated[
+        str | None,
+        Field(
+            description=&#34;The buyer&#39;s campaign reference for this activation. Enables the signals agent to correlate activations with subsequent report_usage calls.&#34;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

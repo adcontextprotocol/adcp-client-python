@@ -125,18 +125,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Metrics(AdCPBaseModel):
     audience_size: forecast_range.ForecastRange | None = None
+    reach: forecast_range.ForecastRange | None = None
+    frequency: forecast_range.ForecastRange | None = None
+    impressions: forecast_range.ForecastRange | None = None
     clicks: forecast_range.ForecastRange | None = None
+    spend: forecast_range.ForecastRange | None = None
+    views: forecast_range.ForecastRange | None = None
     completed_views: forecast_range.ForecastRange | None = None
+    grps: forecast_range.ForecastRange | None = None
     engagements: forecast_range.ForecastRange | None = None
     follows: forecast_range.ForecastRange | None = None
-    frequency: forecast_range.ForecastRange | None = None
-    grps: forecast_range.ForecastRange | None = None
-    impressions: forecast_range.ForecastRange | None = None
-    profile_visits: forecast_range.ForecastRange | None = None
-    reach: forecast_range.ForecastRange | None = None
     saves: forecast_range.ForecastRange | None = None
-    spend: forecast_range.ForecastRange | None = None
-    views: forecast_range.ForecastRange | None = None</code></pre>
+    profile_visits: forecast_range.ForecastRange | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

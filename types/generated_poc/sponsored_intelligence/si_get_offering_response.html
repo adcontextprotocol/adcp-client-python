@@ -59,17 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    product_id: Annotated[str, Field(description=&#39;Product identifier&#39;)]
+    name: Annotated[str, Field(description=&#39;Product name&#39;)]
+    price: Annotated[str | None, Field(description=&#34;Display price (e.g., &#39;$129&#39;, &#39;$89.99&#39;)&#34;)] = None
+    original_price: Annotated[str | None, Field(description=&#39;Original price if on sale&#39;)] = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Product image&#39;)] = None
     availability_summary: Annotated[
         str | None,
         Field(
             description=&#34;Brief availability info (e.g., &#39;In stock&#39;, &#39;Size 14 available&#39;, &#39;3 left&#39;)&#34;
         ),
     ] = None
-    image_url: Annotated[AnyUrl | None, Field(description=&#39;Product image&#39;)] = None
-    name: Annotated[str, Field(description=&#39;Product name&#39;)]
-    original_price: Annotated[str | None, Field(description=&#39;Original price if on sale&#39;)] = None
-    price: Annotated[str | None, Field(description=&#34;Display price (e.g., &#39;$129&#39;, &#39;$89.99&#39;)&#34;)] = None
-    product_id: Annotated[str, Field(description=&#39;Product identifier&#39;)]
     url: Annotated[AnyUrl | None, Field(description=&#39;Product detail page URL&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -146,18 +146,18 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    offering_id: Annotated[str | None, Field(description=&#39;Offering identifier&#39;)] = None
+    title: Annotated[str | None, Field(description=&#39;Offering title&#39;)] = None
+    summary: Annotated[str | None, Field(description=&#39;Brief summary of the offering&#39;)] = None
+    tagline: Annotated[str | None, Field(description=&#39;Short promotional tagline&#39;)] = None
     expires_at: Annotated[AwareDatetime | None, Field(description=&#39;When this offering expires&#39;)] = (
         None
     )
-    image_url: Annotated[AnyUrl | None, Field(description=&#39;Hero image for the offering&#39;)] = None
-    landing_url: Annotated[AnyUrl | None, Field(description=&#39;Landing page URL&#39;)] = None
-    offering_id: Annotated[str | None, Field(description=&#39;Offering identifier&#39;)] = None
     price_hint: Annotated[
         str | None, Field(description=&#34;Price indication (e.g., &#39;from $199&#39;, &#39;50% off&#39;)&#34;)
     ] = None
-    summary: Annotated[str | None, Field(description=&#39;Brief summary of the offering&#39;)] = None
-    tagline: Annotated[str | None, Field(description=&#39;Short promotional tagline&#39;)] = None
-    title: Annotated[str | None, Field(description=&#39;Offering title&#39;)] = None</code></pre>
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Hero image for the offering&#39;)] = None
+    landing_url: Annotated[AnyUrl | None, Field(description=&#39;Landing page URL&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -237,36 +237,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    alternative_offering_ids: Annotated[
-        list[str] | None,
-        Field(description=&#39;Alternative offerings to consider if this one is unavailable&#39;),
-    ] = None
     available: Annotated[bool, Field(description=&#39;Whether the offering is currently available&#39;)]
-    checked_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this offering information was retrieved&#39;)
-    ] = None
-    errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Errors during offering lookup&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    matching_products: Annotated[
-        list[MatchingProduct] | None,
-        Field(
-            description=&#39;Products matching the request context. Only included if include_products was true.&#39;
-        ),
-    ] = None
-    offering: Annotated[Offering | None, Field(description=&#39;Offering details&#39;)] = None
     offering_token: Annotated[
         str | None,
         Field(
             description=&#34;Token to pass to si_initiate_session for session continuity. Brand stores the full query context server-side (products shown, order, context) so they can resolve references like &#39;the second one&#39; when the session starts.&#34;
-        ),
-    ] = None
-    total_matching: Annotated[
-        int | None,
-        Field(
-            description=&#39;Total number of products matching the context (may be more than returned in matching_products)&#39;,
-            ge=0,
         ),
     ] = None
     ttl_seconds: Annotated[
@@ -276,12 +251,37 @@ validated to form a valid model.</p>
             ge=0,
         ),
     ] = None
+    checked_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this offering information was retrieved&#39;)
+    ] = None
+    offering: Annotated[Offering | None, Field(description=&#39;Offering details&#39;)] = None
+    matching_products: Annotated[
+        list[MatchingProduct] | None,
+        Field(
+            description=&#39;Products matching the request context. Only included if include_products was true.&#39;
+        ),
+    ] = None
+    total_matching: Annotated[
+        int | None,
+        Field(
+            description=&#39;Total number of products matching the context (may be more than returned in matching_products)&#39;,
+            ge=0,
+        ),
+    ] = None
     unavailable_reason: Annotated[
         str | None,
         Field(
             description=&#34;If not available, why (e.g., &#39;expired&#39;, &#39;sold_out&#39;, &#39;region_restricted&#39;)&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    alternative_offering_ids: Annotated[
+        list[str] | None,
+        Field(description=&#39;Alternative offerings to consider if this one is unavailable&#39;),
+    ] = None
+    errors: Annotated[
+        list[error.Error] | None, Field(description=&#39;Errors during offering lookup&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

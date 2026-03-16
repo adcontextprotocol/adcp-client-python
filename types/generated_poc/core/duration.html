@@ -63,7 +63,10 @@ el.replaceWith(d);
         int, Field(description=&#34;Number of time units. Must be 1 when unit is &#39;campaign&#39;.&#34;, ge=1)
     ]
     unit: Annotated[
-        Unit, Field(description=&#34;Time unit. &#39;campaign&#39; spans the full campaign flight.&#34;)
+        Unit,
+        Field(
+            description=&#34;Time unit. &#39;seconds&#39; for sub-minute precision. &#39;campaign&#39; spans the full campaign flight.&#34;
+        ),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -117,6 +120,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Unit(Enum):
+    seconds = &#39;seconds&#39;
     minutes = &#39;minutes&#39;
     hours = &#39;hours&#39;
     days = &#39;days&#39;
@@ -179,6 +183,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.duration.Unit.seconds"><code class="name">var <span class="ident">seconds</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -211,6 +219,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.duration.Unit.days" href="#adcp.types.generated_poc.core.duration.Unit.days">days</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.duration.Unit.hours" href="#adcp.types.generated_poc.core.duration.Unit.hours">hours</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.duration.Unit.minutes" href="#adcp.types.generated_poc.core.duration.Unit.minutes">minutes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.duration.Unit.seconds" href="#adcp.types.generated_poc.core.duration.Unit.seconds">seconds</a></code></li>
 </ul>
 </li>
 </ul>

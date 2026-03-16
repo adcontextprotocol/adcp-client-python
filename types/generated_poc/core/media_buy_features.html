@@ -56,16 +56,14 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class MediaBuyFeatures(AdCPBaseModel):
-    audience_targeting: Annotated[
+    inline_creative_management: Annotated[
         bool | None,
-        Field(
-            description=&#39;Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management&#39;
-        ),
+        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
     ] = None
-    catalog_management: Annotated[
+    property_list_filtering: Annotated[
         bool | None,
         Field(
-            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
+            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
         ),
     ] = None
     content_standards: Annotated[
@@ -80,20 +78,16 @@ el.replaceWith(d);
             description=&#39;Supports sync_event_sources and log_event tasks for conversion event tracking&#39;
         ),
     ] = None
-    inline_creative_management: Annotated[
-        bool | None,
-        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
-    ] = None
-    property_list_filtering: Annotated[
+    audience_targeting: Annotated[
         bool | None,
         Field(
-            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
+            description=&#39;Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management&#39;
         ),
     ] = None
-    sandbox: Annotated[
+    catalog_management: Annotated[
         bool | None,
         Field(
-            description=&#39;Supports sandbox mode for operations without real platform calls or spend&#39;
+            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -142,10 +136,6 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
@@ -183,7 +173,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.inline_creative_management">inline_creative_management</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.property_list_filtering">property_list_filtering</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox" href="#adcp.types.generated_poc.core.media_buy_features.MediaBuyFeatures.sandbox">sandbox</a></code></li>
 </ul>
 </li>
 </ul>

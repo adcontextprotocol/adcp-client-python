@@ -59,6 +59,9 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    product_id: Annotated[
+        str, Field(description=&#39;ID of the product (must reference a product in the products array)&#39;)
+    ]
     allocation_percentage: Annotated[
         float,
         Field(
@@ -67,25 +70,10 @@ el.replaceWith(d);
             le=100.0,
         ),
     ]
-    daypart_targets: Annotated[
-        list[daypart_target.DaypartTarget] | None,
-        Field(
-            description=&#39;Recommended time windows for this allocation in spot-plan proposals.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    forecast: Annotated[
-        delivery_forecast.DeliveryForecast | None,
-        Field(description=&#39;Forecasted delivery metrics for this allocation&#39;),
-    ] = None
     pricing_option_id: Annotated[
         str | None,
         Field(description=&#34;Recommended pricing option ID from the product&#39;s pricing_options array&#34;),
     ] = None
-    product_id: Annotated[
-        str, Field(description=&#39;ID of the product (must reference a product in the products array)&#39;)
-    ]
     rationale: Annotated[
         str | None,
         Field(description=&#39;Explanation of why this product and allocation are recommended&#39;),
@@ -99,7 +87,31 @@ el.replaceWith(d);
         Field(
             description=&#34;Categorical tags for this allocation (e.g., &#39;desktop&#39;, &#39;german&#39;, &#39;mobile&#39;) - useful for grouping/filtering allocations by dimension&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    start_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;Recommended flight start date/time for this allocation in ISO 8601 format. Allows publishers to propose per-flight scheduling within a proposal. When omitted, the allocation applies to the full campaign date range.&#39;
+        ),
+    ] = None
+    end_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;Recommended flight end date/time for this allocation in ISO 8601 format. Allows publishers to propose per-flight scheduling within a proposal. When omitted, the allocation applies to the full campaign date range.&#39;
+        ),
+    ] = None
+    daypart_targets: Annotated[
+        list[daypart_target.DaypartTarget] | None,
+        Field(
+            description=&#39;Recommended time windows for this allocation in spot-plan proposals.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    forecast: Annotated[
+        delivery_forecast.DeliveryForecast | None,
+        Field(description=&#39;Forecasted delivery metrics for this allocation&#39;),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -123,6 +135,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product_allocation.ProductAllocation.daypart_targets"><code class="name">var <span class="ident">daypart_targets</span> : list[<a title="adcp.types.generated_poc.core.daypart_target.DaypartTarget" href="daypart_target.html#adcp.types.generated_poc.core.daypart_target.DaypartTarget">DaypartTarget</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_allocation.ProductAllocation.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -151,6 +167,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product_allocation.ProductAllocation.sequence"><code class="name">var <span class="ident">sequence</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_allocation.ProductAllocation.start_time"><code class="name">var <span class="ident">start_time</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -190,6 +210,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.allocation_percentage" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.allocation_percentage">allocation_percentage</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.daypart_targets" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.daypart_targets">daypart_targets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.end_time" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.end_time">end_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.ext" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.forecast" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.forecast">forecast</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.model_config" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.model_config">model_config</a></code></li>
@@ -197,6 +218,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.product_id" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.product_id">product_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.rationale" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.rationale">rationale</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.sequence" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.sequence">sequence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.start_time" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.start_time">start_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_allocation.ProductAllocation.tags" href="#adcp.types.generated_poc.core.product_allocation.ProductAllocation.tags">tags</a></code></li>
 </ul>
 </li>

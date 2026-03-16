@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.governance.policy_entry API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.governance.policy_entry</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.governance.policy_entry.Exemplar"><code class="flex name class">
+<span>class <span class="ident">Exemplar</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Exemplar(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    scenario: Annotated[
+        str,
+        Field(description=&#39;A concrete scenario describing an advertising action or configuration.&#39;),
+    ]
+    explanation: Annotated[str, Field(description=&#39;Why this scenario passes or fails the policy.&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.policy_entry.Exemplar.explanation"><code class="name">var <span class="ident">explanation</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.Exemplar.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.Exemplar.scenario"><code class="name">var <span class="ident">scenario</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.Exemplars"><code class="flex name class">
+<span>class <span class="ident">Exemplars</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Exemplars(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    pass_: Annotated[
+        list[Exemplar] | None,
+        Field(alias=&#39;pass&#39;, description=&#39;Scenarios that comply with this policy.&#39;),
+    ] = None
+    fail: Annotated[
+        list[Exemplar] | None, Field(description=&#39;Scenarios that violate this policy.&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.policy_entry.Exemplars.fail"><code class="name">var <span class="ident">fail</span> : list[<a title="adcp.types.generated_poc.governance.policy_entry.Exemplar" href="#adcp.types.generated_poc.governance.policy_entry.Exemplar">Exemplar</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.Exemplars.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.Exemplars.pass_"><code class="name">var <span class="ident">pass_</span> : list[<a title="adcp.types.generated_poc.governance.policy_entry.Exemplar" href="#adcp.types.generated_poc.governance.policy_entry.Exemplar">Exemplar</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry"><code class="flex name class">
+<span>class <span class="ident">PolicyEntry</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PolicyEntry(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    policy_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this policy (e.g., &#34;uk_hfss&#34;, &#34;us_coppa&#34;, &#34;alcohol_advertising&#34;).&#39;
+        ),
+    ]
+    version: Annotated[
+        str,
+        Field(
+            description=&#39;Semver version string (e.g., &#34;1.0.0&#34;). Incremented when policy content changes.&#39;
+        ),
+    ]
+    name: Annotated[str, Field(description=&#39;Human-readable name (e.g., &#34;UK HFSS Restrictions&#34;).&#39;)]
+    description: Annotated[
+        str | None, Field(description=&#39;Brief summary of what this policy covers.&#39;)
+    ] = None
+    category: Annotated[
+        policy_category.PolicyCategory,
+        Field(
+            description=&#39;The nature of the obligation: regulation (legal requirement) or standard (best practice).&#39;
+        ),
+    ]
+    enforcement: Annotated[
+        policy_enforcement.PolicyEnforcementLevel,
+        Field(
+            description=&#39;How governance agents treat violations. Regulations are typically &#34;must&#34;; standards are typically &#34;should&#34;.&#39;
+        ),
+    ]
+    jurisdictions: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;ISO 3166-1 alpha-2 country codes where this policy applies. Empty array means the policy is not jurisdiction-specific.&#39;
+        ),
+    ] = None
+    region_aliases: Annotated[
+        dict[str, list[str]] | None,
+        Field(
+            description=&#39;Named groups of jurisdictions for convenience (e.g., {&#34;EU&#34;: [&#34;AT&#34;,&#34;BE&#34;,&#34;BG&#34;,...]}). Governance agents expand aliases when matching against a plan\&#39;s target jurisdictions.&#39;
+        ),
+    ] = None
+    verticals: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Industry verticals this policy applies to (e.g., [&#34;alcohol&#34;, &#34;beverage&#34;]). Used for automatic matching against a brand\&#39;s declared verticals.&#39;
+        ),
+    ] = None
+    channels: Annotated[
+        list[channels_1.MediaChannel] | None,
+        Field(
+            description=&#39;Advertising channels this policy applies to. If omitted or null, the policy applies to all channels.&#39;
+        ),
+    ] = None
+    governance_domains: Annotated[
+        list[governance_domain.GovernanceDomain] | None,
+        Field(
+            description=&#39;Governance sub-domains this policy applies to. Determines which types of governance agents can declare registry:{policy_id} features. For example, a policy with domains [&#34;creative&#34;, &#34;property&#34;] can be declared as a feature by both creative and property governance agents.&#39;
+        ),
+    ] = None
+    effective_date: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#39;ISO 8601 date when the regulation or standard takes effect. Before this date, governance agents treat the policy as informational (evaluate but do not block). After this date, the policy is enforced at its declared enforcement level.&#39;
+        ),
+    ] = None
+    sunset_date: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#39;ISO 8601 date when the regulation or standard is no longer enforced. After this date, governance agents stop evaluating this policy. Omit if the policy has no expiration.&#39;
+        ),
+    ] = None
+    source_url: Annotated[
+        AnyUrl | None, Field(description=&#39;Link to the source regulation, standard, or legislation.&#39;)
+    ] = None
+    source_name: Annotated[
+        str | None,
+        Field(
+            description=&#39;Name of the issuing body (e.g., &#34;UK Food Standards Agency&#34;, &#34;US Federal Trade Commission&#34;).&#39;
+        ),
+    ] = None
+    policy: Annotated[
+        str,
+        Field(
+            description=&#39;Natural language policy text describing what is required, prohibited, or recommended. Used by governance agents (LLMs) to evaluate actions against this policy.&#39;
+        ),
+    ]
+    guidance: Annotated[
+        str | None,
+        Field(
+            description=&#39;Implementation notes for governance agent developers. Not used in evaluation prompts.&#39;
+        ),
+    ] = None
+    exemplars: Annotated[
+        Exemplars | None,
+        Field(
+            description=&#39;Calibration examples for governance agents, following the Content Standards pattern.&#39;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.category"><code class="name">var <span class="ident">category</span> : <a title="adcp.types.generated_poc.enums.policy_category.PolicyCategory" href="../enums/policy_category.html#adcp.types.generated_poc.enums.policy_category.PolicyCategory">PolicyCategory</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.channels"><code class="name">var <span class="ident">channels</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.effective_date"><code class="name">var <span class="ident">effective_date</span> : datetime.date | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.enforcement"><code class="name">var <span class="ident">enforcement</span> : <a title="adcp.types.generated_poc.enums.policy_enforcement.PolicyEnforcementLevel" href="../enums/policy_enforcement.html#adcp.types.generated_poc.enums.policy_enforcement.PolicyEnforcementLevel">PolicyEnforcementLevel</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.exemplars"><code class="name">var <span class="ident">exemplars</span> : <a title="adcp.types.generated_poc.governance.policy_entry.Exemplars" href="#adcp.types.generated_poc.governance.policy_entry.Exemplars">Exemplars</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.governance_domains"><code class="name">var <span class="ident">governance_domains</span> : list[<a title="adcp.types.generated_poc.enums.governance_domain.GovernanceDomain" href="../enums/governance_domain.html#adcp.types.generated_poc.enums.governance_domain.GovernanceDomain">GovernanceDomain</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.guidance"><code class="name">var <span class="ident">guidance</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.jurisdictions"><code class="name">var <span class="ident">jurisdictions</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy"><code class="name">var <span class="ident">policy</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_id"><code class="name">var <span class="ident">policy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.region_aliases"><code class="name">var <span class="ident">region_aliases</span> : dict[str, list[str]] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_name"><code class="name">var <span class="ident">source_name</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_url"><code class="name">var <span class="ident">source_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.sunset_date"><code class="name">var <span class="ident">sunset_date</span> : datetime.date | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.version"><code class="name">var <span class="ident">version</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.verticals"><code class="name">var <span class="ident">verticals</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.governance" href="index.html">adcp.types.generated_poc.governance</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.policy_entry.Exemplar" href="#adcp.types.generated_poc.governance.policy_entry.Exemplar">Exemplar</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.Exemplar.explanation" href="#adcp.types.generated_poc.governance.policy_entry.Exemplar.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.Exemplar.model_config" href="#adcp.types.generated_poc.governance.policy_entry.Exemplar.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.Exemplar.scenario" href="#adcp.types.generated_poc.governance.policy_entry.Exemplar.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.policy_entry.Exemplars" href="#adcp.types.generated_poc.governance.policy_entry.Exemplars">Exemplars</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.Exemplars.fail" href="#adcp.types.generated_poc.governance.policy_entry.Exemplars.fail">fail</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.Exemplars.model_config" href="#adcp.types.generated_poc.governance.policy_entry.Exemplars.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.Exemplars.pass_" href="#adcp.types.generated_poc.governance.policy_entry.Exemplars.pass_">pass_</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry">PolicyEntry</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.category" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.category">category</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.channels" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.channels">channels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.description" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.effective_date" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.effective_date">effective_date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.enforcement" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.enforcement">enforcement</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.exemplars" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.exemplars">exemplars</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.ext" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.governance_domains" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.governance_domains">governance_domains</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.guidance" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.guidance">guidance</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.jurisdictions" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.jurisdictions">jurisdictions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.model_config" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.name" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy">policy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_id" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_id">policy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.region_aliases" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.region_aliases">region_aliases</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_name" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_name">source_name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_url" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_url">source_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.sunset_date" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.sunset_date">sunset_date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.version" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.version">version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.verticals" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.verticals">verticals</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
