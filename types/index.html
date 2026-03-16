@@ -14341,66 +14341,102 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 <dt id="adcp.types.FrequencyCap"><code class="flex name class">
 <span>class <span class="ident">FrequencyCap</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+<span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class FrequencyCap(RootModel[FrequencyCap1 | FrequencyCap2 | FrequencyCap3]):
-    root: Annotated[
-        FrequencyCap1 | FrequencyCap2 | FrequencyCap3,
+<pre><code class="python">class FrequencyCap(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    max_impressions: Annotated[
+        int | None,
         Field(
-            description=&#39;Frequency capping settings for package-level application. Two types of frequency control can be used independently or together: suppress enforces a cooldown between consecutive exposures; max_impressions + per + window caps total exposures per entity in a time window. When both suppress and max_impressions are set, an impression is delivered only if both constraints permit it (AND semantics). At least one of suppress, suppress_minutes, or max_impressions must be set.&#39;,
-            title=&#39;Frequency Cap&#39;,
+            description=&#34;Maximum number of impressions per entity per window. For duration windows, implementations typically use a rolling window; &#39;campaign&#39; applies a fixed cap across the full flight.&#34;,
+            ge=1,
         ),
-    ]
-
-    def __getattr__(self, name: str) -&gt; Any:
-        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
-            raise AttributeError(name)
-        return getattr(self.root, name)</code></pre>
+    ] = None
+    per: Annotated[
+        reach_unit.ReachUnit | None,
+        Field(
+            description=&#39;Entity granularity for impression counting. Required when max_impressions is set.&#39;
+        ),
+    ] = None
+    suppress: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {&#34;interval&#34;: 60, &#34;unit&#34;: &#34;minutes&#34;} for a 1-hour cooldown). Preferred over suppress_minutes.&#39;
+        ),
+    ] = None
+    suppress_minutes: Annotated[
+        float | None,
+        Field(
+            description=&#39;Deprecated — use suppress instead. Cooldown period in minutes between consecutive exposures to the same entity (e.g. 60 for a 1-hour cooldown).&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    window: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Time window for the max_impressions cap (e.g. {&#34;interval&#34;: 7, &#34;unit&#34;: &#34;days&#34;} or {&#34;interval&#34;: 1, &#34;unit&#34;: &#34;campaign&#34;} for the full flight). Required when max_impressions is set.&#39;
+        ),
+    ] = None</code></pre>
 </details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
 <p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
 validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[FrequencyCap1, FrequencyCap2, FrequencyCap3]]</li>
-<li>pydantic.root_model.RootModel</li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.FrequencyCap.max_impressions"><code class="name">var <span class="ident">max_impressions</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.FrequencyCap.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.FrequencyCap.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap1" href="generated_poc/core/frequency_cap.html#adcp.types.generated_poc.core.frequency_cap.FrequencyCap1">FrequencyCap1</a> | <a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap2" href="generated_poc/core/frequency_cap.html#adcp.types.generated_poc.core.frequency_cap.FrequencyCap2">FrequencyCap2</a> | <a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap3" href="generated_poc/core/frequency_cap.html#adcp.types.generated_poc.core.frequency_cap.FrequencyCap3">FrequencyCap3</a></code></dt>
+<dt id="adcp.types.FrequencyCap.per"><code class="name">var <span class="ident">per</span> : <a title="adcp.types.generated_poc.enums.reach_unit.ReachUnit" href="generated_poc/enums/reach_unit.html#adcp.types.generated_poc.enums.reach_unit.ReachUnit">ReachUnit</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.FrequencyCap.suppress"><code class="name">var <span class="ident">suppress</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="generated_poc/core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.FrequencyCap.suppress_minutes"><code class="name">var <span class="ident">suppress_minutes</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.FrequencyCap.window"><code class="name">var <span class="ident">window</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="generated_poc/core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.types.FrequencyCapScope"><code class="flex name class">
 <span>class <span class="ident">FrequencyCapScope</span></span>
@@ -15375,8 +15411,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1"><code class="flex name class">
-<span>class <span class="ident">GetCreativeDeliveryByMediaBuyRequest</span></span>
+<dt id="adcp.types.GetCreativeDeliveryRequest"><code class="flex name class">
+<span>class <span class="ident">GetCreativeDeliveryRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -15384,7 +15420,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetCreativeDeliveryRequest1(AdCPBaseModel):
+<pre><code class="python">class GetCreativeDeliveryRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -15425,12 +15461,12 @@ validated to form a valid model.</p>
         ),
     ] = None
     media_buy_ids: Annotated[
-        list[str],
+        list[str] | None,
         Field(
             description=&#39;Filter to specific media buys by publisher ID. If omitted, returns creative delivery across all matching media buys.&#39;,
             min_length=1,
         ),
-    ]
+    ] = None
     pagination: Annotated[
         pagination_request.PaginationRequest | None,
         Field(
@@ -15462,63 +15498,53 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str] | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str]</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest1.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2"><code class="flex name class">
+<dt id="adcp.types.GetCreativeDeliveryRequest"><code class="flex name class">
 <span>class <span class="ident">GetCreativeDeliveryByBuyerRefRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
@@ -15527,7 +15553,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetCreativeDeliveryRequest2(AdCPBaseModel):
+<pre><code class="python">class GetCreativeDeliveryRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -15561,12 +15587,12 @@ validated to form a valid model.</p>
         ),
     ] = None
     media_buy_buyer_refs: Annotated[
-        list[str],
+        list[str] | None,
         Field(
             description=&#34;Filter to specific media buys by buyer reference ID. Alternative to media_buy_ids when the buyer doesn&#39;t have the publisher&#39;s identifiers.&#34;,
             min_length=1,
         ),
-    ]
+    ] = None
     media_buy_ids: Annotated[
         list[str] | None,
         Field(
@@ -15605,63 +15631,53 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str]</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest2.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3"><code class="flex name class">
+<dt id="adcp.types.GetCreativeDeliveryRequest"><code class="flex name class">
 <span>class <span class="ident">GetCreativeDeliveryByCreativeRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
@@ -15670,7 +15686,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetCreativeDeliveryRequest3(AdCPBaseModel):
+<pre><code class="python">class GetCreativeDeliveryRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -15682,12 +15698,12 @@ validated to form a valid model.</p>
     ] = None
     context: context_1.ContextObject | None = None
     creative_ids: Annotated[
-        list[str],
+        list[str] | None,
         Field(
             description=&#39;Filter to specific creatives by ID. If omitted, returns delivery for all creatives matching the other filters.&#39;,
             min_length=1,
         ),
-    ]
+    ] = None
     end_date: Annotated[
         str | None,
         Field(
@@ -15748,47 +15764,180 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str]</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str] | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetCreativeDeliveryRequest3.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
+<dt id="adcp.types.GetCreativeDeliveryRequest.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest"><code class="flex name class">
+<span>class <span class="ident">GetCreativeDeliveryByMediaBuyRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetCreativeDeliveryRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account for routing and scoping. Limits results to creatives within this account.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    creative_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter to specific creatives by ID. If omitted, returns delivery for all creatives matching the other filters.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    end_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;End date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    max_variants: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum number of variants to return per creative. When omitted, the agent returns all variants. Use this to limit response size for generative creatives that may produce large numbers of variants.&#39;,
+            ge=1,
+        ),
+    ] = None
+    media_buy_buyer_refs: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Filter to specific media buys by buyer reference ID. Alternative to media_buy_ids when the buyer doesn&#39;t have the publisher&#39;s identifiers.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    media_buy_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter to specific media buys by publisher ID. If omitted, returns creative delivery across all matching media buys.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    pagination: Annotated[
+        pagination_request.PaginationRequest | None,
+        Field(
+            description=&#39;Pagination parameters for the creatives array in the response. Uses cursor-based pagination consistent with other list operations.&#39;
+        ),
+    ] = None
+    start_date: Annotated[
+        str | None,
+        Field(
+            description=&#34;Start date for delivery period (YYYY-MM-DD). Interpreted in the platform&#39;s reporting timezone.&#34;,
+            pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.GetCreativeDeliveryRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.creative_ids"><code class="name">var <span class="ident">creative_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.end_date"><code class="name">var <span class="ident">end_date</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.max_variants"><code class="name">var <span class="ident">max_variants</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs"><code class="name">var <span class="ident">media_buy_buyer_refs</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.media_buy_ids"><code class="name">var <span class="ident">media_buy_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetCreativeDeliveryRequest.start_date"><code class="name">var <span class="ident">start_date</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -17673,8 +17822,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1"><code class="flex name class">
-<span>class <span class="ident">GetSignalsDiscoveryRequest</span></span>
+<dt id="adcp.types.GetSignalsRequest"><code class="flex name class">
+<span>class <span class="ident">GetSignalsRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -17682,7 +17831,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetSignalsRequest1(AdCPBaseModel):
+<pre><code class="python">class GetSignalsRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -17727,11 +17876,11 @@ validated to form a valid model.</p>
         ),
     ] = None
     signal_spec: Annotated[
-        str,
+        str | None,
         Field(
             description=&#39;Natural language description of the desired signals. When used alone, enables semantic discovery. When combined with signal_ids, provides context for the agent but signal_ids matches are returned first.&#39;
         ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -17750,68 +17899,58 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.GetSignalsRequest1.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.signals.get_signals_request.Country" href="generated_poc/signals/get_signals_request.html#adcp.types.generated_poc.signals.get_signals_request.Country">Country</a>] | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.signals.get_signals_request.Country" href="generated_poc/signals/get_signals_request.html#adcp.types.generated_poc.signals.get_signals_request.Country">Country</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>] | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.signal_filters.SignalFilters" href="generated_poc/core/signal_filters.html#adcp.types.generated_poc.core.signal_filters.SignalFilters">SignalFilters</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.signal_filters.SignalFilters" href="generated_poc/core/signal_filters.html#adcp.types.generated_poc.core.signal_filters.SignalFilters">SignalFilters</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.GetSignalsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.core.signal_id.SignalId" href="generated_poc/core/signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a>] | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.core.signal_id.SignalId" href="generated_poc/core/signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest1.signal_spec"><code class="name">var <span class="ident">signal_spec</span> : str</code></dt>
+<dt id="adcp.types.GetSignalsRequest.signal_spec"><code class="name">var <span class="ident">signal_spec</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2"><code class="flex name class">
-<span>class <span class="ident">GetSignalsLookupRequest</span></span>
+<dt id="adcp.types.GetSignalsRequest"><code class="flex name class">
+<span>class <span class="ident">GetSignalsDiscoveryRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -17819,7 +17958,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetSignalsRequest2(AdCPBaseModel):
+<pre><code class="python">class GetSignalsRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -17857,12 +17996,12 @@ validated to form a valid model.</p>
     ] = None
     pagination: pagination_request.PaginationRequest | None = None
     signal_ids: Annotated[
-        list[signal_id.SignalId],
+        list[signal_id.SignalId] | None,
         Field(
             description=&#34;Specific signals to look up by data provider and ID. Returns exact matches from the data provider&#39;s catalog. When combined with signal_spec, these signals anchor the starting set and signal_spec guides adjustments.&#34;,
             min_length=1,
         ),
-    ]
+    ] = None
     signal_spec: Annotated[
         str | None,
         Field(
@@ -17887,51 +18026,178 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.GetSignalsRequest2.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.signals.get_signals_request.Country" href="generated_poc/signals/get_signals_request.html#adcp.types.generated_poc.signals.get_signals_request.Country">Country</a>] | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.signals.get_signals_request.Country" href="generated_poc/signals/get_signals_request.html#adcp.types.generated_poc.signals.get_signals_request.Country">Country</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>] | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.signal_filters.SignalFilters" href="generated_poc/core/signal_filters.html#adcp.types.generated_poc.core.signal_filters.SignalFilters">SignalFilters</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.signal_filters.SignalFilters" href="generated_poc/core/signal_filters.html#adcp.types.generated_poc.core.signal_filters.SignalFilters">SignalFilters</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.GetSignalsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.core.signal_id.SignalId" href="generated_poc/core/signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a>]</code></dt>
+<dt id="adcp.types.GetSignalsRequest.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.core.signal_id.SignalId" href="generated_poc/core/signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.GetSignalsRequest2.signal_spec"><code class="name">var <span class="ident">signal_spec</span> : str | None</code></dt>
+<dt id="adcp.types.GetSignalsRequest.signal_spec"><code class="name">var <span class="ident">signal_spec</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.GetSignalsRequest"><code class="flex name class">
+<span>class <span class="ident">GetSignalsLookupRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetSignalsRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account for this request. When provided, the signals agent returns per-account pricing options if configured.&#39;
+        ),
+    ] = None
+    buyer_campaign_ref: Annotated[
+        str | None,
+        Field(
+            description=&#34;The buyer&#39;s campaign reference. Used to correlate signal discovery with subsequent report_usage calls.&#34;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    countries: Annotated[
+        list[Country] | None,
+        Field(
+            description=&#39;Countries where signals will be used (ISO 3166-1 alpha-2 codes). When omitted, no geographic filter is applied.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    destinations: Annotated[
+        list[destination.Destination] | None,
+        Field(
+            description=&#39;Filter signals to those activatable on specific agents/platforms. When omitted, returns all signals available on the current agent. If the authenticated caller matches one of these destinations, activation keys will be included in the response.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    filters: signal_filters.SignalFilters | None = None
+    max_results: Annotated[
+        int | None, Field(description=&#39;Maximum number of results to return&#39;, ge=1)
+    ] = None
+    pagination: pagination_request.PaginationRequest | None = None
+    signal_ids: Annotated[
+        list[signal_id.SignalId] | None,
+        Field(
+            description=&#34;Specific signals to look up by data provider and ID. Returns exact matches from the data provider&#39;s catalog. When combined with signal_spec, these signals anchor the starting set and signal_spec guides adjustments.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    signal_spec: Annotated[
+        str | None,
+        Field(
+            description=&#39;Natural language description of the desired signals. When used alone, enables semantic discovery. When combined with signal_ids, provides context for the agent but signal_ids matches are returned first.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.GetSignalsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.signals.get_signals_request.Country" href="generated_poc/signals/get_signals_request.html#adcp.types.generated_poc.signals.get_signals_request.Country">Country</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="generated_poc/core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.signal_filters.SignalFilters" href="generated_poc/core/signal_filters.html#adcp.types.generated_poc.core.signal_filters.SignalFilters">SignalFilters</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.core.signal_id.SignalId" href="generated_poc/core/signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetSignalsRequest.signal_spec"><code class="name">var <span class="ident">signal_spec</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -22756,66 +23022,209 @@ errors defaults to 'strict'.</p></div>
 </dd>
 <dt id="adcp.types.PackageUpdate"><code class="flex name class">
 <span>class <span class="ident">PackageUpdate</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+<span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PackageUpdate(RootModel[PackageUpdate1 | PackageUpdate2]):
-    root: Annotated[
-        PackageUpdate1 | PackageUpdate2,
+<pre><code class="python">class PackageUpdate(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    bid_price: Annotated[
+        float | None,
         Field(
-            description=&#39;Package update configuration for update_media_buy. Identifies package by package_id or buyer_ref and specifies fields to modify. Fields not present are left unchanged. Note: product_id, format_ids, and pricing_option_id cannot be changed after creation.&#39;,
-            title=&#39;Package Update&#39;,
+            description=&#34;Updated bid price for auction-based pricing options. This is the exact bid/price to honor unless selected pricing_option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
+            ge=0.0,
         ),
-    ]
-
-    def __getattr__(self, name: str) -&gt; Any:
-        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
-            raise AttributeError(name)
-        return getattr(self.root, name)</code></pre>
+    ] = None
+    budget: Annotated[
+        float | None,
+        Field(
+            description=&#39;Updated budget allocation for this package in the currency specified by the pricing option&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference for the package to update&#34;)
+    ] = None
+    catalogs: Annotated[
+        list[catalog.Catalog] | None,
+        Field(
+            description=&#39;Replace the catalogs this package promotes. Uses replacement semantics — the provided array replaces the current list. Omit to leave catalogs unchanged.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    creative_assignments: Annotated[
+        list[creative_assignment.CreativeAssignment] | None,
+        Field(
+            description=&#39;Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.&#39;
+        ),
+    ] = None
+    creatives: Annotated[
+        list[creative_asset.CreativeAsset] | None,
+        Field(
+            description=&#39;Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.&#39;,
+            max_length=100,
+            min_length=1,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    impressions: Annotated[
+        float | None, Field(description=&#39;Updated impression goal for this package&#39;, ge=0.0)
+    ] = None
+    keyword_targets_add: Annotated[
+        list[KeywordTargetsAddItem] | None,
+        Field(
+            description=&#39;Keyword targets to add or update on this package. Upserts by (keyword, match_type) identity: if the pair already exists, its bid_price is updated; if not, a new keyword target is added. Use targeting_overlay.keyword_targets in create_media_buy to set the initial list.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    keyword_targets_remove: Annotated[
+        list[KeywordTargetsRemoveItem] | None,
+        Field(
+            description=&#39;Keyword targets to remove from this package. Removes matching (keyword, match_type) pairs. If a specified pair is not present, sellers SHOULD treat it as a no-op for that entry.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    negative_keywords_add: Annotated[
+        list[NegativeKeywordsAddItem] | None,
+        Field(
+            description=&#39;Negative keywords to add to this package. Appends to the existing negative keyword list — does not replace it. If a keyword+match_type pair already exists, sellers SHOULD treat it as a no-op for that entry. Use targeting_overlay.negative_keywords in create_media_buy to set the initial list.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    negative_keywords_remove: Annotated[
+        list[NegativeKeywordsRemoveItem] | None,
+        Field(
+            description=&#39;Negative keywords to remove from this package. Removes matching keyword+match_type pairs from the existing list. If a specified pair is not present, sellers SHOULD treat it as a no-op for that entry.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    optimization_goals: Annotated[
+        list[optimization_goal.OptimizationGoal] | None,
+        Field(
+            description=&#39;Replace all optimization goals for this package. Uses replacement semantics — omit to leave goals unchanged.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    pacing: pacing_1.Pacing | None = None
+    package_id: Annotated[str | None, Field(description=&#34;Publisher&#39;s ID of package to update&#34;)] = (
+        None
+    )
+    paused: Annotated[
+        bool | None,
+        Field(description=&#39;Pause/resume specific package (true = paused, false = active)&#39;),
+    ] = None
+    targeting_overlay: Annotated[
+        targeting.TargetingOverlay | None,
+        Field(
+            description=&#39;Targeting overlay to apply to this package. Uses replacement semantics — the full overlay replaces the previous one. Omit to leave targeting unchanged. For keyword and negative keyword updates, prefer the incremental operations (keyword_targets_add, keyword_targets_remove, negative_keywords_add, negative_keywords_remove) which avoid replacing the full overlay. Sellers SHOULD return a validation error if targeting_overlay.keyword_targets is present in the same request as keyword_targets_add or keyword_targets_remove, and likewise for negative_keywords.&#39;
+        ),
+    ] = None</code></pre>
 </details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
 <p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
 validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[PackageUpdate1, PackageUpdate2]]</li>
-<li>pydantic.root_model.RootModel</li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.PackageUpdate.bid_price"><code class="name">var <span class="ident">bid_price</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.budget"><code class="name">var <span class="ident">budget</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[<a title="adcp.types.generated_poc.core.catalog.Catalog" href="generated_poc/core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.creative_assignments"><code class="name">var <span class="ident">creative_assignments</span> : list[<a title="adcp.types.generated_poc.core.creative_assignment.CreativeAssignment" href="generated_poc/core/creative_assignment.html#adcp.types.generated_poc.core.creative_assignment.CreativeAssignment">CreativeAssignment</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.creatives"><code class="name">var <span class="ident">creatives</span> : list[<a title="adcp.types.generated_poc.core.creative_asset.CreativeAsset" href="generated_poc/core/creative_asset.html#adcp.types.generated_poc.core.creative_asset.CreativeAsset">CreativeAsset</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.impressions"><code class="name">var <span class="ident">impressions</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.keyword_targets_add"><code class="name">var <span class="ident">keyword_targets_add</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.KeywordTargetsAddItem" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.KeywordTargetsAddItem">KeywordTargetsAddItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.keyword_targets_remove"><code class="name">var <span class="ident">keyword_targets_remove</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.KeywordTargetsRemoveItem" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.KeywordTargetsRemoveItem">KeywordTargetsRemoveItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.PackageUpdate.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.PackageUpdate.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate1" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.PackageUpdate1">PackageUpdate1</a> | <a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate2" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.PackageUpdate2">PackageUpdate2</a></code></dt>
+<dt id="adcp.types.PackageUpdate.negative_keywords_add"><code class="name">var <span class="ident">negative_keywords_add</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.NegativeKeywordsAddItem" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.NegativeKeywordsAddItem">NegativeKeywordsAddItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.negative_keywords_remove"><code class="name">var <span class="ident">negative_keywords_remove</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.NegativeKeywordsRemoveItem" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.NegativeKeywordsRemoveItem">NegativeKeywordsRemoveItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.optimization_goals"><code class="name">var <span class="ident">optimization_goals</span> : list[<a title="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal" href="generated_poc/core/optimization_goal.html#adcp.types.generated_poc.core.optimization_goal.OptimizationGoal">OptimizationGoal</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.pacing"><code class="name">var <span class="ident">pacing</span> : <a title="adcp.types.generated_poc.enums.pacing.Pacing" href="generated_poc/enums/pacing.html#adcp.types.generated_poc.enums.pacing.Pacing">Pacing</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PackageUpdate.targeting_overlay"><code class="name">var <span class="ident">targeting_overlay</span> : <a title="adcp.types.generated_poc.core.targeting.TargetingOverlay" href="generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.TargetingOverlay">TargetingOverlay</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.types.Pagination"><code class="flex name class">
 <span>class <span class="ident">Pagination</span></span>
@@ -27130,8 +27539,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1"><code class="flex name class">
-<span>class <span class="ident">ProvidePerformanceFeedbackByMediaBuyRequest</span></span>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest"><code class="flex name class">
+<span>class <span class="ident">ProvidePerformanceFeedbackRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -27139,137 +27548,13 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ProvidePerformanceFeedbackRequest1(AdCPBaseModel):
+<pre><code class="python">class ProvidePerformanceFeedbackRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference for the media buy&#34;, min_length=1)
     ] = None
-    context: context_1.ContextObject | None = None
-    creative_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Specific creative asset (if feedback is creative-specific)&#39;, min_length=1
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    feedback_source: Annotated[
-        feedback_source_1.FeedbackSource | None, Field(description=&#39;Source of the performance data&#39;)
-    ] = feedback_source_1.FeedbackSource.buyer_attribution
-    measurement_period: Annotated[
-        datetime_range.DatetimeRange, Field(description=&#39;Time period for performance measurement&#39;)
-    ]
-    media_buy_id: Annotated[
-        str, Field(description=&#34;Publisher&#39;s media buy identifier&#34;, min_length=1)
-    ]
-    metric_type: Annotated[
-        metric_type_1.MetricType | None, Field(description=&#39;The business metric being measured&#39;)
-    ] = metric_type_1.MetricType.overall_performance
-    package_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Specific package within the media buy (if feedback is package-specific)&#39;,
-            min_length=1,
-        ),
-    ] = None
-    performance_index: Annotated[
-        float,
-        Field(
-            description=&#39;Normalized performance score (0.0 = no value, 1.0 = expected, &gt;1.0 = above expected)&#39;,
-            ge=0.0,
-        ),
-    ]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.enums.feedback_source.FeedbackSource" href="generated_poc/enums/feedback_source.html#adcp.types.generated_poc.enums.feedback_source.FeedbackSource">FeedbackSource</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.measurement_period"><code class="name">var <span class="ident">measurement_period</span> : <a title="adcp.types.generated_poc.core.datetime_range.DatetimeRange" href="generated_poc/core/datetime_range.html#adcp.types.generated_poc.core.datetime_range.DatetimeRange">DatetimeRange</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.enums.metric_type.MetricType" href="generated_poc/enums/metric_type.html#adcp.types.generated_poc.enums.metric_type.MetricType">MetricType</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest1.performance_index"><code class="name">var <span class="ident">performance_index</span> : float</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2"><code class="flex name class">
-<span>class <span class="ident">ProvidePerformanceFeedbackByBuyerRefRequest</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class ProvidePerformanceFeedbackRequest2(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    buyer_ref: Annotated[
-        str, Field(description=&#34;Buyer&#39;s reference for the media buy&#34;, min_length=1)
-    ]
     context: context_1.ContextObject | None = None
     creative_id: Annotated[
         str | None,
@@ -27322,47 +27607,275 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.enums.feedback_source.FeedbackSource" href="generated_poc/enums/feedback_source.html#adcp.types.generated_poc.enums.feedback_source.FeedbackSource">FeedbackSource</a> | None</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.enums.feedback_source.FeedbackSource" href="generated_poc/enums/feedback_source.html#adcp.types.generated_poc.enums.feedback_source.FeedbackSource">FeedbackSource</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.measurement_period"><code class="name">var <span class="ident">measurement_period</span> : <a title="adcp.types.generated_poc.core.datetime_range.DatetimeRange" href="generated_poc/core/datetime_range.html#adcp.types.generated_poc.core.datetime_range.DatetimeRange">DatetimeRange</a></code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.measurement_period"><code class="name">var <span class="ident">measurement_period</span> : <a title="adcp.types.generated_poc.core.datetime_range.DatetimeRange" href="generated_poc/core/datetime_range.html#adcp.types.generated_poc.core.datetime_range.DatetimeRange">DatetimeRange</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.enums.metric_type.MetricType" href="generated_poc/enums/metric_type.html#adcp.types.generated_poc.enums.metric_type.MetricType">MetricType</a> | None</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.enums.metric_type.MetricType" href="generated_poc/enums/metric_type.html#adcp.types.generated_poc.enums.metric_type.MetricType">MetricType</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.ProvidePerformanceFeedbackRequest2.performance_index"><code class="name">var <span class="ident">performance_index</span> : float</code></dt>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.performance_index"><code class="name">var <span class="ident">performance_index</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest"><code class="flex name class">
+<span>class <span class="ident">ProvidePerformanceFeedbackByBuyerRefRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProvidePerformanceFeedbackRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference for the media buy&#34;, min_length=1)
+    ] = None
+    context: context_1.ContextObject | None = None
+    creative_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Specific creative asset (if feedback is creative-specific)&#39;, min_length=1
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    feedback_source: Annotated[
+        feedback_source_1.FeedbackSource | None, Field(description=&#39;Source of the performance data&#39;)
+    ] = feedback_source_1.FeedbackSource.buyer_attribution
+    measurement_period: Annotated[
+        datetime_range.DatetimeRange, Field(description=&#39;Time period for performance measurement&#39;)
+    ]
+    media_buy_id: Annotated[
+        str | None, Field(description=&#34;Publisher&#39;s media buy identifier&#34;, min_length=1)
+    ] = None
+    metric_type: Annotated[
+        metric_type_1.MetricType | None, Field(description=&#39;The business metric being measured&#39;)
+    ] = metric_type_1.MetricType.overall_performance
+    package_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Specific package within the media buy (if feedback is package-specific)&#39;,
+            min_length=1,
+        ),
+    ] = None
+    performance_index: Annotated[
+        float,
+        Field(
+            description=&#39;Normalized performance score (0.0 = no value, 1.0 = expected, &gt;1.0 = above expected)&#39;,
+            ge=0.0,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.enums.feedback_source.FeedbackSource" href="generated_poc/enums/feedback_source.html#adcp.types.generated_poc.enums.feedback_source.FeedbackSource">FeedbackSource</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.measurement_period"><code class="name">var <span class="ident">measurement_period</span> : <a title="adcp.types.generated_poc.core.datetime_range.DatetimeRange" href="generated_poc/core/datetime_range.html#adcp.types.generated_poc.core.datetime_range.DatetimeRange">DatetimeRange</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.enums.metric_type.MetricType" href="generated_poc/enums/metric_type.html#adcp.types.generated_poc.enums.metric_type.MetricType">MetricType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.performance_index"><code class="name">var <span class="ident">performance_index</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest"><code class="flex name class">
+<span>class <span class="ident">ProvidePerformanceFeedbackByMediaBuyRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProvidePerformanceFeedbackRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference for the media buy&#34;, min_length=1)
+    ] = None
+    context: context_1.ContextObject | None = None
+    creative_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Specific creative asset (if feedback is creative-specific)&#39;, min_length=1
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    feedback_source: Annotated[
+        feedback_source_1.FeedbackSource | None, Field(description=&#39;Source of the performance data&#39;)
+    ] = feedback_source_1.FeedbackSource.buyer_attribution
+    measurement_period: Annotated[
+        datetime_range.DatetimeRange, Field(description=&#39;Time period for performance measurement&#39;)
+    ]
+    media_buy_id: Annotated[
+        str | None, Field(description=&#34;Publisher&#39;s media buy identifier&#34;, min_length=1)
+    ] = None
+    metric_type: Annotated[
+        metric_type_1.MetricType | None, Field(description=&#39;The business metric being measured&#39;)
+    ] = metric_type_1.MetricType.overall_performance
+    package_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Specific package within the media buy (if feedback is package-specific)&#39;,
+            min_length=1,
+        ),
+    ] = None
+    performance_index: Annotated[
+        float,
+        Field(
+            description=&#39;Normalized performance score (0.0 = no value, 1.0 = expected, &gt;1.0 = above expected)&#39;,
+            ge=0.0,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.feedback_source"><code class="name">var <span class="ident">feedback_source</span> : <a title="adcp.types.generated_poc.enums.feedback_source.FeedbackSource" href="generated_poc/enums/feedback_source.html#adcp.types.generated_poc.enums.feedback_source.FeedbackSource">FeedbackSource</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.measurement_period"><code class="name">var <span class="ident">measurement_period</span> : <a title="adcp.types.generated_poc.core.datetime_range.DatetimeRange" href="generated_poc/core/datetime_range.html#adcp.types.generated_poc.core.datetime_range.DatetimeRange">DatetimeRange</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.metric_type"><code class="name">var <span class="ident">metric_type</span> : <a title="adcp.types.generated_poc.enums.metric_type.MetricType" href="generated_poc/enums/metric_type.html#adcp.types.generated_poc.enums.metric_type.MetricType">MetricType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ProvidePerformanceFeedbackRequest.performance_index"><code class="name">var <span class="ident">performance_index</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -29954,8 +30467,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.SiSendMessageRequest1"><code class="flex name class">
-<span>class <span class="ident">SiSendTextMessageRequest</span></span>
+<dt id="adcp.types.SiSendMessageRequest"><code class="flex name class">
+<span>class <span class="ident">SiSendMessageRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -29963,7 +30476,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SiSendMessageRequest1(AdCPBaseModel):
+<pre><code class="python">class SiSendMessageRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -29971,76 +30484,6 @@ validated to form a valid model.</p>
         ActionResponse | None,
         Field(description=&#39;Response to a previous action_button (e.g., user clicked checkout)&#39;),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    message: Annotated[str, Field(description=&#34;User&#39;s message to the brand agent&#34;)]
-    session_id: Annotated[str, Field(description=&#39;Active session identifier&#39;)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.SiSendMessageRequest1.action_response"><code class="name">var <span class="ident">action_response</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse" href="generated_poc/sponsored_intelligence/si_send_message_request.html#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse">ActionResponse</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.SiSendMessageRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.SiSendMessageRequest1.message"><code class="name">var <span class="ident">message</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.SiSendMessageRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.SiSendMessageRequest1.session_id"><code class="name">var <span class="ident">session_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.SiSendMessageRequest2"><code class="flex name class">
-<span>class <span class="ident">SiSendActionResponseRequest</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class SiSendMessageRequest2(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    action_response: Annotated[
-        ActionResponse,
-        Field(description=&#39;Response to a previous action_button (e.g., user clicked checkout)&#39;),
-    ]
     ext: ext_1.ExtensionObject | None = None
     message: Annotated[str | None, Field(description=&#34;User&#39;s message to the brand agent&#34;)] = None
     session_id: Annotated[str, Field(description=&#39;Active session identifier&#39;)]</code></pre>
@@ -30062,23 +30505,143 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.SiSendMessageRequest2.action_response"><code class="name">var <span class="ident">action_response</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse" href="generated_poc/sponsored_intelligence/si_send_message_request.html#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse">ActionResponse</a></code></dt>
+<dt id="adcp.types.SiSendMessageRequest.action_response"><code class="name">var <span class="ident">action_response</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse" href="generated_poc/sponsored_intelligence/si_send_message_request.html#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse">ActionResponse</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.SiSendMessageRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.SiSendMessageRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.SiSendMessageRequest2.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
+<dt id="adcp.types.SiSendMessageRequest.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.SiSendMessageRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.SiSendMessageRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.SiSendMessageRequest2.session_id"><code class="name">var <span class="ident">session_id</span> : str</code></dt>
+<dt id="adcp.types.SiSendMessageRequest.session_id"><code class="name">var <span class="ident">session_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest"><code class="flex name class">
+<span>class <span class="ident">SiSendTextMessageRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SiSendMessageRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    action_response: Annotated[
+        ActionResponse | None,
+        Field(description=&#39;Response to a previous action_button (e.g., user clicked checkout)&#39;),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[str | None, Field(description=&#34;User&#39;s message to the brand agent&#34;)] = None
+    session_id: Annotated[str, Field(description=&#39;Active session identifier&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.SiSendMessageRequest.action_response"><code class="name">var <span class="ident">action_response</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse" href="generated_poc/sponsored_intelligence/si_send_message_request.html#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse">ActionResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest.session_id"><code class="name">var <span class="ident">session_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest"><code class="flex name class">
+<span>class <span class="ident">SiSendActionResponseRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SiSendMessageRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    action_response: Annotated[
+        ActionResponse | None,
+        Field(description=&#39;Response to a previous action_button (e.g., user clicked checkout)&#39;),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    message: Annotated[str | None, Field(description=&#34;User&#39;s message to the brand agent&#34;)] = None
+    session_id: Annotated[str, Field(description=&#39;Active session identifier&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.SiSendMessageRequest.action_response"><code class="name">var <span class="ident">action_response</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse" href="generated_poc/sponsored_intelligence/si_send_message_request.html#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.ActionResponse">ActionResponse</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SiSendMessageRequest.session_id"><code class="name">var <span class="ident">session_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -34739,8 +35302,8 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1"><code class="flex name class">
-<span>class <span class="ident">UpdateMediaBuyPackagesRequest</span></span>
+<dt id="adcp.types.UpdateMediaBuyRequest"><code class="flex name class">
+<span>class <span class="ident">UpdateMediaBuyRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -34748,140 +35311,13 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class UpdateMediaBuyRequest1(AdCPBaseModel):
+<pre><code class="python">class UpdateMediaBuyRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
     buyer_ref: Annotated[
         str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
     ] = None
-    context: context_1.ContextObject | None = None
-    end_time: Annotated[
-        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    idempotency_key: Annotated[
-        str | None,
-        Field(
-            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once.&#39;,
-            max_length=255,
-            min_length=8,
-        ),
-    ] = None
-    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)]
-    packages: Annotated[
-        list[package_update.PackageUpdate] | None,
-        Field(description=&#39;Package-specific updates&#39;, min_length=1),
-    ] = None
-    paused: Annotated[
-        bool | None,
-        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
-    ] = None
-    push_notification_config: Annotated[
-        push_notification_config_1.PushNotificationConfig | None,
-        Field(
-            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#39;
-        ),
-    ] = None
-    reporting_webhook: Annotated[
-        reporting_webhook_1.ReportingWebhook | None,
-        Field(
-            description=&#39;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#39;
-        ),
-    ] = None
-    start_time: start_timing.StartTiming | None = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.UpdateMediaBuyRequest1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.PackageUpdate">PackageUpdate</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.reporting_webhook"><code class="name">var <span class="ident">reporting_webhook</span> : <a title="adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook" href="generated_poc/core/reporting_webhook.html#adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook">ReportingWebhook</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest1.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2"><code class="flex name class">
-<span>class <span class="ident">UpdateMediaBuyPropertiesRequest</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class UpdateMediaBuyRequest2(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)]
     context: context_1.ContextObject | None = None
     end_time: Annotated[
         AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
@@ -34937,51 +35373,293 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.UpdateMediaBuyRequest2.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.PackageUpdate">PackageUpdate</a>] | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.PackageUpdate">PackageUpdate</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.reporting_webhook"><code class="name">var <span class="ident">reporting_webhook</span> : <a title="adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook" href="generated_poc/core/reporting_webhook.html#adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook">ReportingWebhook</a> | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.reporting_webhook"><code class="name">var <span class="ident">reporting_webhook</span> : <a title="adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook" href="generated_poc/core/reporting_webhook.html#adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook">ReportingWebhook</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.UpdateMediaBuyRequest2.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
+<dt id="adcp.types.UpdateMediaBuyRequest.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest"><code class="flex name class">
+<span>class <span class="ident">UpdateMediaBuyPackagesRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UpdateMediaBuyRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once.&#39;,
+            max_length=255,
+            min_length=8,
+        ),
+    ] = None
+    media_buy_id: Annotated[
+        str | None, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)
+    ] = None
+    packages: Annotated[
+        list[package_update.PackageUpdate] | None,
+        Field(description=&#39;Package-specific updates&#39;, min_length=1),
+    ] = None
+    paused: Annotated[
+        bool | None,
+        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
+    ] = None
+    push_notification_config: Annotated[
+        push_notification_config_1.PushNotificationConfig | None,
+        Field(
+            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#39;
+        ),
+    ] = None
+    reporting_webhook: Annotated[
+        reporting_webhook_1.ReportingWebhook | None,
+        Field(
+            description=&#39;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#39;
+        ),
+    ] = None
+    start_time: start_timing.StartTiming | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.UpdateMediaBuyRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.PackageUpdate">PackageUpdate</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.reporting_webhook"><code class="name">var <span class="ident">reporting_webhook</span> : <a title="adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook" href="generated_poc/core/reporting_webhook.html#adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook">ReportingWebhook</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest"><code class="flex name class">
+<span>class <span class="ident">UpdateMediaBuyPropertiesRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UpdateMediaBuyRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    buyer_ref: Annotated[
+        str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once.&#39;,
+            max_length=255,
+            min_length=8,
+        ),
+    ] = None
+    media_buy_id: Annotated[
+        str | None, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)
+    ] = None
+    packages: Annotated[
+        list[package_update.PackageUpdate] | None,
+        Field(description=&#39;Package-specific updates&#39;, min_length=1),
+    ] = None
+    paused: Annotated[
+        bool | None,
+        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
+    ] = None
+    push_notification_config: Annotated[
+        push_notification_config_1.PushNotificationConfig | None,
+        Field(
+            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#39;
+        ),
+    ] = None
+    reporting_webhook: Annotated[
+        reporting_webhook_1.ReportingWebhook | None,
+        Field(
+            description=&#39;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#39;
+        ),
+    ] = None
+    start_time: start_timing.StartTiming | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.UpdateMediaBuyRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.end_time"><code class="name">var <span class="ident">end_time</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.packages"><code class="name">var <span class="ident">packages</span> : list[<a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate" href="generated_poc/media_buy/package_update.html#adcp.types.generated_poc.media_buy.package_update.PackageUpdate">PackageUpdate</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.reporting_webhook"><code class="name">var <span class="ident">reporting_webhook</span> : <a title="adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook" href="generated_poc/core/reporting_webhook.html#adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook">ReportingWebhook</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateMediaBuyRequest.start_time"><code class="name">var <span class="ident">start_time</span> : <a title="adcp.types.generated_poc.core.start_timing.StartTiming" href="generated_poc/core/start_timing.html#adcp.types.generated_poc.core.start_timing.StartTiming">StartTiming</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -39358,9 +40036,13 @@ attributes &ndash; see the documentation for details.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.types.FrequencyCap" href="#adcp.types.FrequencyCap">FrequencyCap</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.FrequencyCap.max_impressions" href="#adcp.types.FrequencyCap.max_impressions">max_impressions</a></code></li>
 <li><code><a title="adcp.types.FrequencyCap.model_config" href="#adcp.types.FrequencyCap.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.FrequencyCap.root" href="#adcp.types.FrequencyCap.root">root</a></code></li>
+<li><code><a title="adcp.types.FrequencyCap.per" href="#adcp.types.FrequencyCap.per">per</a></code></li>
+<li><code><a title="adcp.types.FrequencyCap.suppress" href="#adcp.types.FrequencyCap.suppress">suppress</a></code></li>
+<li><code><a title="adcp.types.FrequencyCap.suppress_minutes" href="#adcp.types.FrequencyCap.suppress_minutes">suppress_minutes</a></code></li>
+<li><code><a title="adcp.types.FrequencyCap.window" href="#adcp.types.FrequencyCap.window">window</a></code></li>
 </ul>
 </li>
 <li>
@@ -39491,51 +40173,67 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.GetCreativeDeliveryRequest1" href="#adcp.types.GetCreativeDeliveryRequest1">GetCreativeDeliveryRequest1</a></code></h4>
+<h4><code><a title="adcp.types.GetCreativeDeliveryRequest" href="#adcp.types.GetCreativeDeliveryRequest">GetCreativeDeliveryRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.account" href="#adcp.types.GetCreativeDeliveryRequest1.account">account</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.context" href="#adcp.types.GetCreativeDeliveryRequest1.context">context</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.creative_ids" href="#adcp.types.GetCreativeDeliveryRequest1.creative_ids">creative_ids</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.end_date" href="#adcp.types.GetCreativeDeliveryRequest1.end_date">end_date</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.ext" href="#adcp.types.GetCreativeDeliveryRequest1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.max_variants" href="#adcp.types.GetCreativeDeliveryRequest1.max_variants">max_variants</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.media_buy_buyer_refs" href="#adcp.types.GetCreativeDeliveryRequest1.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.media_buy_ids" href="#adcp.types.GetCreativeDeliveryRequest1.media_buy_ids">media_buy_ids</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.model_config" href="#adcp.types.GetCreativeDeliveryRequest1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.pagination" href="#adcp.types.GetCreativeDeliveryRequest1.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest1.start_date" href="#adcp.types.GetCreativeDeliveryRequest1.start_date">start_date</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.account" href="#adcp.types.GetCreativeDeliveryRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.context" href="#adcp.types.GetCreativeDeliveryRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.creative_ids" href="#adcp.types.GetCreativeDeliveryRequest.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.end_date" href="#adcp.types.GetCreativeDeliveryRequest.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.ext" href="#adcp.types.GetCreativeDeliveryRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.max_variants" href="#adcp.types.GetCreativeDeliveryRequest.max_variants">max_variants</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs" href="#adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.media_buy_ids" href="#adcp.types.GetCreativeDeliveryRequest.media_buy_ids">media_buy_ids</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.model_config" href="#adcp.types.GetCreativeDeliveryRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.pagination" href="#adcp.types.GetCreativeDeliveryRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.start_date" href="#adcp.types.GetCreativeDeliveryRequest.start_date">start_date</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.GetCreativeDeliveryRequest2" href="#adcp.types.GetCreativeDeliveryRequest2">GetCreativeDeliveryRequest2</a></code></h4>
+<h4><code><a title="adcp.types.GetCreativeDeliveryRequest" href="#adcp.types.GetCreativeDeliveryRequest">GetCreativeDeliveryRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.account" href="#adcp.types.GetCreativeDeliveryRequest2.account">account</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.context" href="#adcp.types.GetCreativeDeliveryRequest2.context">context</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.creative_ids" href="#adcp.types.GetCreativeDeliveryRequest2.creative_ids">creative_ids</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.end_date" href="#adcp.types.GetCreativeDeliveryRequest2.end_date">end_date</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.ext" href="#adcp.types.GetCreativeDeliveryRequest2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.max_variants" href="#adcp.types.GetCreativeDeliveryRequest2.max_variants">max_variants</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.media_buy_buyer_refs" href="#adcp.types.GetCreativeDeliveryRequest2.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.media_buy_ids" href="#adcp.types.GetCreativeDeliveryRequest2.media_buy_ids">media_buy_ids</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.model_config" href="#adcp.types.GetCreativeDeliveryRequest2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.pagination" href="#adcp.types.GetCreativeDeliveryRequest2.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest2.start_date" href="#adcp.types.GetCreativeDeliveryRequest2.start_date">start_date</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.account" href="#adcp.types.GetCreativeDeliveryRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.context" href="#adcp.types.GetCreativeDeliveryRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.creative_ids" href="#adcp.types.GetCreativeDeliveryRequest.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.end_date" href="#adcp.types.GetCreativeDeliveryRequest.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.ext" href="#adcp.types.GetCreativeDeliveryRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.max_variants" href="#adcp.types.GetCreativeDeliveryRequest.max_variants">max_variants</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs" href="#adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.media_buy_ids" href="#adcp.types.GetCreativeDeliveryRequest.media_buy_ids">media_buy_ids</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.model_config" href="#adcp.types.GetCreativeDeliveryRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.pagination" href="#adcp.types.GetCreativeDeliveryRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.start_date" href="#adcp.types.GetCreativeDeliveryRequest.start_date">start_date</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.GetCreativeDeliveryRequest3" href="#adcp.types.GetCreativeDeliveryRequest3">GetCreativeDeliveryRequest3</a></code></h4>
+<h4><code><a title="adcp.types.GetCreativeDeliveryRequest" href="#adcp.types.GetCreativeDeliveryRequest">GetCreativeDeliveryRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.account" href="#adcp.types.GetCreativeDeliveryRequest3.account">account</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.context" href="#adcp.types.GetCreativeDeliveryRequest3.context">context</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.creative_ids" href="#adcp.types.GetCreativeDeliveryRequest3.creative_ids">creative_ids</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.end_date" href="#adcp.types.GetCreativeDeliveryRequest3.end_date">end_date</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.ext" href="#adcp.types.GetCreativeDeliveryRequest3.ext">ext</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.max_variants" href="#adcp.types.GetCreativeDeliveryRequest3.max_variants">max_variants</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.media_buy_buyer_refs" href="#adcp.types.GetCreativeDeliveryRequest3.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.media_buy_ids" href="#adcp.types.GetCreativeDeliveryRequest3.media_buy_ids">media_buy_ids</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.model_config" href="#adcp.types.GetCreativeDeliveryRequest3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.pagination" href="#adcp.types.GetCreativeDeliveryRequest3.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.GetCreativeDeliveryRequest3.start_date" href="#adcp.types.GetCreativeDeliveryRequest3.start_date">start_date</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.account" href="#adcp.types.GetCreativeDeliveryRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.context" href="#adcp.types.GetCreativeDeliveryRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.creative_ids" href="#adcp.types.GetCreativeDeliveryRequest.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.end_date" href="#adcp.types.GetCreativeDeliveryRequest.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.ext" href="#adcp.types.GetCreativeDeliveryRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.max_variants" href="#adcp.types.GetCreativeDeliveryRequest.max_variants">max_variants</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs" href="#adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.media_buy_ids" href="#adcp.types.GetCreativeDeliveryRequest.media_buy_ids">media_buy_ids</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.model_config" href="#adcp.types.GetCreativeDeliveryRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.pagination" href="#adcp.types.GetCreativeDeliveryRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.start_date" href="#adcp.types.GetCreativeDeliveryRequest.start_date">start_date</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.GetCreativeDeliveryRequest" href="#adcp.types.GetCreativeDeliveryRequest">GetCreativeDeliveryRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.account" href="#adcp.types.GetCreativeDeliveryRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.context" href="#adcp.types.GetCreativeDeliveryRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.creative_ids" href="#adcp.types.GetCreativeDeliveryRequest.creative_ids">creative_ids</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.end_date" href="#adcp.types.GetCreativeDeliveryRequest.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.ext" href="#adcp.types.GetCreativeDeliveryRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.max_variants" href="#adcp.types.GetCreativeDeliveryRequest.max_variants">max_variants</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs" href="#adcp.types.GetCreativeDeliveryRequest.media_buy_buyer_refs">media_buy_buyer_refs</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.media_buy_ids" href="#adcp.types.GetCreativeDeliveryRequest.media_buy_ids">media_buy_ids</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.model_config" href="#adcp.types.GetCreativeDeliveryRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.pagination" href="#adcp.types.GetCreativeDeliveryRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.GetCreativeDeliveryRequest.start_date" href="#adcp.types.GetCreativeDeliveryRequest.start_date">start_date</a></code></li>
 </ul>
 </li>
 <li>
@@ -39780,37 +40478,54 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.GetSignalsRequest1" href="#adcp.types.GetSignalsRequest1">GetSignalsRequest1</a></code></h4>
+<h4><code><a title="adcp.types.GetSignalsRequest" href="#adcp.types.GetSignalsRequest">GetSignalsRequest</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.GetSignalsRequest1.account" href="#adcp.types.GetSignalsRequest1.account">account</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.buyer_campaign_ref" href="#adcp.types.GetSignalsRequest1.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.context" href="#adcp.types.GetSignalsRequest1.context">context</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.countries" href="#adcp.types.GetSignalsRequest1.countries">countries</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.destinations" href="#adcp.types.GetSignalsRequest1.destinations">destinations</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.ext" href="#adcp.types.GetSignalsRequest1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.filters" href="#adcp.types.GetSignalsRequest1.filters">filters</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.max_results" href="#adcp.types.GetSignalsRequest1.max_results">max_results</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.model_config" href="#adcp.types.GetSignalsRequest1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.pagination" href="#adcp.types.GetSignalsRequest1.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.signal_ids" href="#adcp.types.GetSignalsRequest1.signal_ids">signal_ids</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest1.signal_spec" href="#adcp.types.GetSignalsRequest1.signal_spec">signal_spec</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.account" href="#adcp.types.GetSignalsRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.buyer_campaign_ref" href="#adcp.types.GetSignalsRequest.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.context" href="#adcp.types.GetSignalsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.countries" href="#adcp.types.GetSignalsRequest.countries">countries</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.destinations" href="#adcp.types.GetSignalsRequest.destinations">destinations</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.ext" href="#adcp.types.GetSignalsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.filters" href="#adcp.types.GetSignalsRequest.filters">filters</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.max_results" href="#adcp.types.GetSignalsRequest.max_results">max_results</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.model_config" href="#adcp.types.GetSignalsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.pagination" href="#adcp.types.GetSignalsRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.signal_ids" href="#adcp.types.GetSignalsRequest.signal_ids">signal_ids</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.signal_spec" href="#adcp.types.GetSignalsRequest.signal_spec">signal_spec</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.GetSignalsRequest2" href="#adcp.types.GetSignalsRequest2">GetSignalsRequest2</a></code></h4>
+<h4><code><a title="adcp.types.GetSignalsRequest" href="#adcp.types.GetSignalsRequest">GetSignalsRequest</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.GetSignalsRequest2.account" href="#adcp.types.GetSignalsRequest2.account">account</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.buyer_campaign_ref" href="#adcp.types.GetSignalsRequest2.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.context" href="#adcp.types.GetSignalsRequest2.context">context</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.countries" href="#adcp.types.GetSignalsRequest2.countries">countries</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.destinations" href="#adcp.types.GetSignalsRequest2.destinations">destinations</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.ext" href="#adcp.types.GetSignalsRequest2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.filters" href="#adcp.types.GetSignalsRequest2.filters">filters</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.max_results" href="#adcp.types.GetSignalsRequest2.max_results">max_results</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.model_config" href="#adcp.types.GetSignalsRequest2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.pagination" href="#adcp.types.GetSignalsRequest2.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.signal_ids" href="#adcp.types.GetSignalsRequest2.signal_ids">signal_ids</a></code></li>
-<li><code><a title="adcp.types.GetSignalsRequest2.signal_spec" href="#adcp.types.GetSignalsRequest2.signal_spec">signal_spec</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.account" href="#adcp.types.GetSignalsRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.buyer_campaign_ref" href="#adcp.types.GetSignalsRequest.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.context" href="#adcp.types.GetSignalsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.countries" href="#adcp.types.GetSignalsRequest.countries">countries</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.destinations" href="#adcp.types.GetSignalsRequest.destinations">destinations</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.ext" href="#adcp.types.GetSignalsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.filters" href="#adcp.types.GetSignalsRequest.filters">filters</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.max_results" href="#adcp.types.GetSignalsRequest.max_results">max_results</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.model_config" href="#adcp.types.GetSignalsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.pagination" href="#adcp.types.GetSignalsRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.signal_ids" href="#adcp.types.GetSignalsRequest.signal_ids">signal_ids</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.signal_spec" href="#adcp.types.GetSignalsRequest.signal_spec">signal_spec</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.GetSignalsRequest" href="#adcp.types.GetSignalsRequest">GetSignalsRequest</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.GetSignalsRequest.account" href="#adcp.types.GetSignalsRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.buyer_campaign_ref" href="#adcp.types.GetSignalsRequest.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.context" href="#adcp.types.GetSignalsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.countries" href="#adcp.types.GetSignalsRequest.countries">countries</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.destinations" href="#adcp.types.GetSignalsRequest.destinations">destinations</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.ext" href="#adcp.types.GetSignalsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.filters" href="#adcp.types.GetSignalsRequest.filters">filters</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.max_results" href="#adcp.types.GetSignalsRequest.max_results">max_results</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.model_config" href="#adcp.types.GetSignalsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.pagination" href="#adcp.types.GetSignalsRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.signal_ids" href="#adcp.types.GetSignalsRequest.signal_ids">signal_ids</a></code></li>
+<li><code><a title="adcp.types.GetSignalsRequest.signal_spec" href="#adcp.types.GetSignalsRequest.signal_spec">signal_spec</a></code></li>
 </ul>
 </li>
 <li>
@@ -40444,8 +41159,24 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.PackageUpdate" href="#adcp.types.PackageUpdate">PackageUpdate</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.PackageUpdate.bid_price" href="#adcp.types.PackageUpdate.bid_price">bid_price</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.budget" href="#adcp.types.PackageUpdate.budget">budget</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.buyer_ref" href="#adcp.types.PackageUpdate.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.catalogs" href="#adcp.types.PackageUpdate.catalogs">catalogs</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.creative_assignments" href="#adcp.types.PackageUpdate.creative_assignments">creative_assignments</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.creatives" href="#adcp.types.PackageUpdate.creatives">creatives</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.ext" href="#adcp.types.PackageUpdate.ext">ext</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.impressions" href="#adcp.types.PackageUpdate.impressions">impressions</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.keyword_targets_add" href="#adcp.types.PackageUpdate.keyword_targets_add">keyword_targets_add</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.keyword_targets_remove" href="#adcp.types.PackageUpdate.keyword_targets_remove">keyword_targets_remove</a></code></li>
 <li><code><a title="adcp.types.PackageUpdate.model_config" href="#adcp.types.PackageUpdate.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.PackageUpdate.root" href="#adcp.types.PackageUpdate.root">root</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.negative_keywords_add" href="#adcp.types.PackageUpdate.negative_keywords_add">negative_keywords_add</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.negative_keywords_remove" href="#adcp.types.PackageUpdate.negative_keywords_remove">negative_keywords_remove</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.optimization_goals" href="#adcp.types.PackageUpdate.optimization_goals">optimization_goals</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.pacing" href="#adcp.types.PackageUpdate.pacing">pacing</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.package_id" href="#adcp.types.PackageUpdate.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.paused" href="#adcp.types.PackageUpdate.paused">paused</a></code></li>
+<li><code><a title="adcp.types.PackageUpdate.targeting_overlay" href="#adcp.types.PackageUpdate.targeting_overlay">targeting_overlay</a></code></li>
 </ul>
 </li>
 <li>
@@ -41011,35 +41742,51 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1" href="#adcp.types.ProvidePerformanceFeedbackRequest1">ProvidePerformanceFeedbackRequest1</a></code></h4>
+<h4><code><a title="adcp.types.ProvidePerformanceFeedbackRequest" href="#adcp.types.ProvidePerformanceFeedbackRequest">ProvidePerformanceFeedbackRequest</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.buyer_ref" href="#adcp.types.ProvidePerformanceFeedbackRequest1.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.context" href="#adcp.types.ProvidePerformanceFeedbackRequest1.context">context</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.creative_id" href="#adcp.types.ProvidePerformanceFeedbackRequest1.creative_id">creative_id</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.ext" href="#adcp.types.ProvidePerformanceFeedbackRequest1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.feedback_source" href="#adcp.types.ProvidePerformanceFeedbackRequest1.feedback_source">feedback_source</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.measurement_period" href="#adcp.types.ProvidePerformanceFeedbackRequest1.measurement_period">measurement_period</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.media_buy_id" href="#adcp.types.ProvidePerformanceFeedbackRequest1.media_buy_id">media_buy_id</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.metric_type" href="#adcp.types.ProvidePerformanceFeedbackRequest1.metric_type">metric_type</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.model_config" href="#adcp.types.ProvidePerformanceFeedbackRequest1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.package_id" href="#adcp.types.ProvidePerformanceFeedbackRequest1.package_id">package_id</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest1.performance_index" href="#adcp.types.ProvidePerformanceFeedbackRequest1.performance_index">performance_index</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref" href="#adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.context" href="#adcp.types.ProvidePerformanceFeedbackRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.creative_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.ext" href="#adcp.types.ProvidePerformanceFeedbackRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.feedback_source" href="#adcp.types.ProvidePerformanceFeedbackRequest.feedback_source">feedback_source</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.measurement_period" href="#adcp.types.ProvidePerformanceFeedbackRequest.measurement_period">measurement_period</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.metric_type" href="#adcp.types.ProvidePerformanceFeedbackRequest.metric_type">metric_type</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.model_config" href="#adcp.types.ProvidePerformanceFeedbackRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.package_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.performance_index" href="#adcp.types.ProvidePerformanceFeedbackRequest.performance_index">performance_index</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2" href="#adcp.types.ProvidePerformanceFeedbackRequest2">ProvidePerformanceFeedbackRequest2</a></code></h4>
+<h4><code><a title="adcp.types.ProvidePerformanceFeedbackRequest" href="#adcp.types.ProvidePerformanceFeedbackRequest">ProvidePerformanceFeedbackRequest</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.buyer_ref" href="#adcp.types.ProvidePerformanceFeedbackRequest2.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.context" href="#adcp.types.ProvidePerformanceFeedbackRequest2.context">context</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.creative_id" href="#adcp.types.ProvidePerformanceFeedbackRequest2.creative_id">creative_id</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.ext" href="#adcp.types.ProvidePerformanceFeedbackRequest2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.feedback_source" href="#adcp.types.ProvidePerformanceFeedbackRequest2.feedback_source">feedback_source</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.measurement_period" href="#adcp.types.ProvidePerformanceFeedbackRequest2.measurement_period">measurement_period</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.media_buy_id" href="#adcp.types.ProvidePerformanceFeedbackRequest2.media_buy_id">media_buy_id</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.metric_type" href="#adcp.types.ProvidePerformanceFeedbackRequest2.metric_type">metric_type</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.model_config" href="#adcp.types.ProvidePerformanceFeedbackRequest2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.package_id" href="#adcp.types.ProvidePerformanceFeedbackRequest2.package_id">package_id</a></code></li>
-<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest2.performance_index" href="#adcp.types.ProvidePerformanceFeedbackRequest2.performance_index">performance_index</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref" href="#adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.context" href="#adcp.types.ProvidePerformanceFeedbackRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.creative_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.ext" href="#adcp.types.ProvidePerformanceFeedbackRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.feedback_source" href="#adcp.types.ProvidePerformanceFeedbackRequest.feedback_source">feedback_source</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.measurement_period" href="#adcp.types.ProvidePerformanceFeedbackRequest.measurement_period">measurement_period</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.metric_type" href="#adcp.types.ProvidePerformanceFeedbackRequest.metric_type">metric_type</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.model_config" href="#adcp.types.ProvidePerformanceFeedbackRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.package_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.performance_index" href="#adcp.types.ProvidePerformanceFeedbackRequest.performance_index">performance_index</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.ProvidePerformanceFeedbackRequest" href="#adcp.types.ProvidePerformanceFeedbackRequest">ProvidePerformanceFeedbackRequest</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref" href="#adcp.types.ProvidePerformanceFeedbackRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.context" href="#adcp.types.ProvidePerformanceFeedbackRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.creative_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.ext" href="#adcp.types.ProvidePerformanceFeedbackRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.feedback_source" href="#adcp.types.ProvidePerformanceFeedbackRequest.feedback_source">feedback_source</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.measurement_period" href="#adcp.types.ProvidePerformanceFeedbackRequest.measurement_period">measurement_period</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.metric_type" href="#adcp.types.ProvidePerformanceFeedbackRequest.metric_type">metric_type</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.model_config" href="#adcp.types.ProvidePerformanceFeedbackRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.package_id" href="#adcp.types.ProvidePerformanceFeedbackRequest.package_id">package_id</a></code></li>
+<li><code><a title="adcp.types.ProvidePerformanceFeedbackRequest.performance_index" href="#adcp.types.ProvidePerformanceFeedbackRequest.performance_index">performance_index</a></code></li>
 </ul>
 </li>
 <li>
@@ -41382,23 +42129,33 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.SiSendMessageRequest1" href="#adcp.types.SiSendMessageRequest1">SiSendMessageRequest1</a></code></h4>
+<h4><code><a title="adcp.types.SiSendMessageRequest" href="#adcp.types.SiSendMessageRequest">SiSendMessageRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.SiSendMessageRequest1.action_response" href="#adcp.types.SiSendMessageRequest1.action_response">action_response</a></code></li>
-<li><code><a title="adcp.types.SiSendMessageRequest1.ext" href="#adcp.types.SiSendMessageRequest1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.SiSendMessageRequest1.message" href="#adcp.types.SiSendMessageRequest1.message">message</a></code></li>
-<li><code><a title="adcp.types.SiSendMessageRequest1.model_config" href="#adcp.types.SiSendMessageRequest1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.SiSendMessageRequest1.session_id" href="#adcp.types.SiSendMessageRequest1.session_id">session_id</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.action_response" href="#adcp.types.SiSendMessageRequest.action_response">action_response</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.ext" href="#adcp.types.SiSendMessageRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.message" href="#adcp.types.SiSendMessageRequest.message">message</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.model_config" href="#adcp.types.SiSendMessageRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.session_id" href="#adcp.types.SiSendMessageRequest.session_id">session_id</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.SiSendMessageRequest2" href="#adcp.types.SiSendMessageRequest2">SiSendMessageRequest2</a></code></h4>
+<h4><code><a title="adcp.types.SiSendMessageRequest" href="#adcp.types.SiSendMessageRequest">SiSendMessageRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.SiSendMessageRequest2.action_response" href="#adcp.types.SiSendMessageRequest2.action_response">action_response</a></code></li>
-<li><code><a title="adcp.types.SiSendMessageRequest2.ext" href="#adcp.types.SiSendMessageRequest2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.SiSendMessageRequest2.message" href="#adcp.types.SiSendMessageRequest2.message">message</a></code></li>
-<li><code><a title="adcp.types.SiSendMessageRequest2.model_config" href="#adcp.types.SiSendMessageRequest2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.SiSendMessageRequest2.session_id" href="#adcp.types.SiSendMessageRequest2.session_id">session_id</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.action_response" href="#adcp.types.SiSendMessageRequest.action_response">action_response</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.ext" href="#adcp.types.SiSendMessageRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.message" href="#adcp.types.SiSendMessageRequest.message">message</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.model_config" href="#adcp.types.SiSendMessageRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.session_id" href="#adcp.types.SiSendMessageRequest.session_id">session_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.SiSendMessageRequest" href="#adcp.types.SiSendMessageRequest">SiSendMessageRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.SiSendMessageRequest.action_response" href="#adcp.types.SiSendMessageRequest.action_response">action_response</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.ext" href="#adcp.types.SiSendMessageRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.message" href="#adcp.types.SiSendMessageRequest.message">message</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.model_config" href="#adcp.types.SiSendMessageRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.SiSendMessageRequest.session_id" href="#adcp.types.SiSendMessageRequest.session_id">session_id</a></code></li>
 </ul>
 </li>
 <li>
@@ -42001,37 +42758,54 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.UpdateMediaBuyRequest1" href="#adcp.types.UpdateMediaBuyRequest1">UpdateMediaBuyRequest1</a></code></h4>
+<h4><code><a title="adcp.types.UpdateMediaBuyRequest" href="#adcp.types.UpdateMediaBuyRequest">UpdateMediaBuyRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.buyer_ref" href="#adcp.types.UpdateMediaBuyRequest1.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.context" href="#adcp.types.UpdateMediaBuyRequest1.context">context</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.end_time" href="#adcp.types.UpdateMediaBuyRequest1.end_time">end_time</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.ext" href="#adcp.types.UpdateMediaBuyRequest1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.idempotency_key" href="#adcp.types.UpdateMediaBuyRequest1.idempotency_key">idempotency_key</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.media_buy_id" href="#adcp.types.UpdateMediaBuyRequest1.media_buy_id">media_buy_id</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.model_config" href="#adcp.types.UpdateMediaBuyRequest1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.packages" href="#adcp.types.UpdateMediaBuyRequest1.packages">packages</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.paused" href="#adcp.types.UpdateMediaBuyRequest1.paused">paused</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.push_notification_config" href="#adcp.types.UpdateMediaBuyRequest1.push_notification_config">push_notification_config</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.reporting_webhook" href="#adcp.types.UpdateMediaBuyRequest1.reporting_webhook">reporting_webhook</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest1.start_time" href="#adcp.types.UpdateMediaBuyRequest1.start_time">start_time</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.buyer_ref" href="#adcp.types.UpdateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.context" href="#adcp.types.UpdateMediaBuyRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.end_time" href="#adcp.types.UpdateMediaBuyRequest.end_time">end_time</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.ext" href="#adcp.types.UpdateMediaBuyRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.idempotency_key" href="#adcp.types.UpdateMediaBuyRequest.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.media_buy_id" href="#adcp.types.UpdateMediaBuyRequest.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.model_config" href="#adcp.types.UpdateMediaBuyRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.packages" href="#adcp.types.UpdateMediaBuyRequest.packages">packages</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.paused" href="#adcp.types.UpdateMediaBuyRequest.paused">paused</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.push_notification_config" href="#adcp.types.UpdateMediaBuyRequest.push_notification_config">push_notification_config</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.reporting_webhook" href="#adcp.types.UpdateMediaBuyRequest.reporting_webhook">reporting_webhook</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.start_time" href="#adcp.types.UpdateMediaBuyRequest.start_time">start_time</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.UpdateMediaBuyRequest2" href="#adcp.types.UpdateMediaBuyRequest2">UpdateMediaBuyRequest2</a></code></h4>
+<h4><code><a title="adcp.types.UpdateMediaBuyRequest" href="#adcp.types.UpdateMediaBuyRequest">UpdateMediaBuyRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.buyer_ref" href="#adcp.types.UpdateMediaBuyRequest2.buyer_ref">buyer_ref</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.context" href="#adcp.types.UpdateMediaBuyRequest2.context">context</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.end_time" href="#adcp.types.UpdateMediaBuyRequest2.end_time">end_time</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.ext" href="#adcp.types.UpdateMediaBuyRequest2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.idempotency_key" href="#adcp.types.UpdateMediaBuyRequest2.idempotency_key">idempotency_key</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.media_buy_id" href="#adcp.types.UpdateMediaBuyRequest2.media_buy_id">media_buy_id</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.model_config" href="#adcp.types.UpdateMediaBuyRequest2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.packages" href="#adcp.types.UpdateMediaBuyRequest2.packages">packages</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.paused" href="#adcp.types.UpdateMediaBuyRequest2.paused">paused</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.push_notification_config" href="#adcp.types.UpdateMediaBuyRequest2.push_notification_config">push_notification_config</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.reporting_webhook" href="#adcp.types.UpdateMediaBuyRequest2.reporting_webhook">reporting_webhook</a></code></li>
-<li><code><a title="adcp.types.UpdateMediaBuyRequest2.start_time" href="#adcp.types.UpdateMediaBuyRequest2.start_time">start_time</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.buyer_ref" href="#adcp.types.UpdateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.context" href="#adcp.types.UpdateMediaBuyRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.end_time" href="#adcp.types.UpdateMediaBuyRequest.end_time">end_time</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.ext" href="#adcp.types.UpdateMediaBuyRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.idempotency_key" href="#adcp.types.UpdateMediaBuyRequest.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.media_buy_id" href="#adcp.types.UpdateMediaBuyRequest.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.model_config" href="#adcp.types.UpdateMediaBuyRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.packages" href="#adcp.types.UpdateMediaBuyRequest.packages">packages</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.paused" href="#adcp.types.UpdateMediaBuyRequest.paused">paused</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.push_notification_config" href="#adcp.types.UpdateMediaBuyRequest.push_notification_config">push_notification_config</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.reporting_webhook" href="#adcp.types.UpdateMediaBuyRequest.reporting_webhook">reporting_webhook</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.start_time" href="#adcp.types.UpdateMediaBuyRequest.start_time">start_time</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.UpdateMediaBuyRequest" href="#adcp.types.UpdateMediaBuyRequest">UpdateMediaBuyRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.buyer_ref" href="#adcp.types.UpdateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.context" href="#adcp.types.UpdateMediaBuyRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.end_time" href="#adcp.types.UpdateMediaBuyRequest.end_time">end_time</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.ext" href="#adcp.types.UpdateMediaBuyRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.idempotency_key" href="#adcp.types.UpdateMediaBuyRequest.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.media_buy_id" href="#adcp.types.UpdateMediaBuyRequest.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.model_config" href="#adcp.types.UpdateMediaBuyRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.packages" href="#adcp.types.UpdateMediaBuyRequest.packages">packages</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.paused" href="#adcp.types.UpdateMediaBuyRequest.paused">paused</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.push_notification_config" href="#adcp.types.UpdateMediaBuyRequest.push_notification_config">push_notification_config</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.reporting_webhook" href="#adcp.types.UpdateMediaBuyRequest.reporting_webhook">reporting_webhook</a></code></li>
+<li><code><a title="adcp.types.UpdateMediaBuyRequest.start_time" href="#adcp.types.UpdateMediaBuyRequest.start_time">start_time</a></code></li>
 </ul>
 </li>
 <li>

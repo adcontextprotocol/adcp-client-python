@@ -48,116 +48,6 @@ el.replaceWith(d);
 <dl>
 <dt id="adcp.types.generated_poc.core.catchment.Catchment"><code class="flex name class">
 <span>class <span class="ident">Catchment</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Catchment(RootModel[Catchment1 | Catchment2 | Catchment3]):
-    root: Annotated[
-        Catchment1 | Catchment2 | Catchment3,
-        Field(
-            description=&#39;A catchment area definition for a store or location. Defines the geographic area from which a store draws customers. Three methods are supported: isochrone inputs (travel time + transport mode, platform resolves the shape), simple radius (distance from location), or pre-computed GeoJSON geometry (buyer provides the exact boundary). Provide exactly one method per catchment.&#39;,
-            examples=[
-                {
-                    &#39;data&#39;: {
-                        &#39;catchment_id&#39;: &#39;drive&#39;,
-                        &#39;label&#39;: &#39;15-min drive&#39;,
-                        &#39;transport_mode&#39;: &#39;driving&#39;,
-                        &#39;travel_time&#39;: {&#39;unit&#39;: &#39;min&#39;, &#39;value&#39;: 15},
-                    },
-                    &#39;description&#39;: &#39;Isochrone: 15-minute drive&#39;,
-                },
-                {
-                    &#39;data&#39;: {
-                        &#39;catchment_id&#39;: &#39;walk&#39;,
-                        &#39;label&#39;: &#39;10-min walk&#39;,
-                        &#39;transport_mode&#39;: &#39;walking&#39;,
-                        &#39;travel_time&#39;: {&#39;unit&#39;: &#39;min&#39;, &#39;value&#39;: 10},
-                    },
-                    &#39;description&#39;: &#39;Isochrone: 10-minute walk&#39;,
-                },
-                {
-                    &#39;data&#39;: {
-                        &#39;catchment_id&#39;: &#39;local&#39;,
-                        &#39;label&#39;: &#39;5km radius&#39;,
-                        &#39;radius&#39;: {&#39;unit&#39;: &#39;km&#39;, &#39;value&#39;: 5},
-                    },
-                    &#39;description&#39;: &#39;Simple 5km radius&#39;,
-                },
-                {
-                    &#39;data&#39;: {
-                        &#39;catchment_id&#39;: &#39;trade-area&#39;,
-                        &#39;geometry&#39;: {
-                            &#39;coordinates&#39;: [
-                                [
-                                    [4.85, 52.35],
-                                    [4.95, 52.35],
-                                    [4.95, 52.4],
-                                    [4.85, 52.4],
-                                    [4.85, 52.35],
-                                ]
-                            ],
-                            &#39;type&#39;: &#39;Polygon&#39;,
-                        },
-                        &#39;label&#39;: &#39;Primary trade area&#39;,
-                    },
-                    &#39;description&#39;: &#39;Pre-computed GeoJSON boundary&#39;,
-                },
-            ],
-            title=&#39;Catchment&#39;,
-        ),
-    ]
-
-    def __getattr__(self, name: str) -&gt; Any:
-        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
-            raise AttributeError(name)
-        return getattr(self.root, name)</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[Catchment1, Catchment2, Catchment3]]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.catchment.Catchment1" href="#adcp.types.generated_poc.core.catchment.Catchment1">Catchment1</a> | <a title="adcp.types.generated_poc.core.catchment.Catchment2" href="#adcp.types.generated_poc.core.catchment.Catchment2">Catchment2</a> | <a title="adcp.types.generated_poc.core.catchment.Catchment3" href="#adcp.types.generated_poc.core.catchment.Catchment3">Catchment3</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1"><code class="flex name class">
-<span>class <span class="ident">Catchment1</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -165,7 +55,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Catchment1(AdCPBaseModel):
+<pre><code class="python">class Catchment(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -195,125 +85,13 @@ validated to form a valid model.</p>
         ),
     ] = None
     transport_mode: Annotated[
-        transport_mode_1.TransportMode,
-        Field(
-            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
-        ),
-    ]
-    travel_time: Annotated[
-        TravelTime,
-        Field(
-            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain.&#39;
-        ),
-    ]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1.catchment_id"><code class="name">var <span class="ident">catchment_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.catchment.Geometry" href="#adcp.types.generated_poc.core.catchment.Geometry">Geometry</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.catchment.Radius" href="#adcp.types.generated_poc.core.catchment.Radius">Radius</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment1.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.catchment.TravelTime" href="#adcp.types.generated_poc.core.catchment.TravelTime">TravelTime</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2"><code class="flex name class">
-<span>class <span class="ident">Catchment2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Catchment2(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    catchment_id: Annotated[
-        str,
-        Field(
-            description=&#34;Identifier for this catchment, used to reference specific catchment areas in targeting (e.g., &#39;walk&#39;, &#39;drive&#39;, &#39;primary&#39;).&#34;
-        ),
-    ]
-    ext: ext_1.ExtensionObject | None = None
-    geometry: Annotated[
-        Geometry1 | None,
-        Field(
-            description=&#39;Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types.&#39;
-        ),
-    ] = None
-    label: Annotated[
-        str | None,
-        Field(
-            description=&#34;Human-readable label for this catchment (e.g., &#39;15-min drive&#39;, &#39;1km walking radius&#39;).&#34;
-        ),
-    ] = None
-    radius: Annotated[
-        Radius,
-        Field(
-            description=&#34;Simple radius from the store location. The platform draws a circle of this distance around the store&#39;s coordinates.&#34;
-        ),
-    ]
-    transport_mode: Annotated[
         transport_mode_1.TransportMode | None,
         Field(
             description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
     ] = None
     travel_time: Annotated[
-        TravelTime1 | None,
+        TravelTime | None,
         Field(
             description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain.&#39;
         ),
@@ -336,147 +114,35 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2.catchment_id"><code class="name">var <span class="ident">catchment_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Catchment.catchment_id"><code class="name">var <span class="ident">catchment_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Catchment.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.catchment.Geometry1" href="#adcp.types.generated_poc.core.catchment.Geometry1">Geometry1</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Catchment.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.catchment.Geometry" href="#adcp.types.generated_poc.core.catchment.Geometry">Geometry</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Catchment.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Catchment.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.catchment.Radius" href="#adcp.types.generated_poc.core.catchment.Radius">Radius</a></code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Catchment.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.catchment.Radius" href="#adcp.types.generated_poc.core.catchment.Radius">Radius</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Catchment.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment2.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.catchment.TravelTime1" href="#adcp.types.generated_poc.core.catchment.TravelTime1">TravelTime1</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3"><code class="flex name class">
-<span>class <span class="ident">Catchment3</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Catchment3(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    catchment_id: Annotated[
-        str,
-        Field(
-            description=&#34;Identifier for this catchment, used to reference specific catchment areas in targeting (e.g., &#39;walk&#39;, &#39;drive&#39;, &#39;primary&#39;).&#34;
-        ),
-    ]
-    ext: ext_1.ExtensionObject | None = None
-    geometry: Annotated[
-        Geometry2,
-        Field(
-            description=&#39;Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types.&#39;
-        ),
-    ]
-    label: Annotated[
-        str | None,
-        Field(
-            description=&#34;Human-readable label for this catchment (e.g., &#39;15-min drive&#39;, &#39;1km walking radius&#39;).&#34;
-        ),
-    ] = None
-    radius: Annotated[
-        Radius | None,
-        Field(
-            description=&#34;Simple radius from the store location. The platform draws a circle of this distance around the store&#39;s coordinates.&#34;
-        ),
-    ] = None
-    transport_mode: Annotated[
-        transport_mode_1.TransportMode | None,
-        Field(
-            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
-        ),
-    ] = None
-    travel_time: Annotated[
-        TravelTime2 | None,
-        Field(
-            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain.&#39;
-        ),
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3.catchment_id"><code class="name">var <span class="ident">catchment_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.catchment.Geometry2" href="#adcp.types.generated_poc.core.catchment.Geometry2">Geometry2</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.catchment.Radius" href="#adcp.types.generated_poc.core.catchment.Radius">Radius</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Catchment3.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.catchment.TravelTime2" href="#adcp.types.generated_poc.core.catchment.TravelTime2">TravelTime2</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.catchment.Catchment.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.catchment.TravelTime" href="#adcp.types.generated_poc.core.catchment.TravelTime">TravelTime</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -528,11 +194,6 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.catchment.Geometry1" href="#adcp.types.generated_poc.core.catchment.Geometry1">Geometry1</a></li>
-<li><a title="adcp.types.generated_poc.core.catchment.Geometry2" href="#adcp.types.generated_poc.core.catchment.Geometry2">Geometry2</a></li>
-</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.catchment.Geometry.coordinates"><code class="name">var <span class="ident">coordinates</span> : list[typing.Any]</code></dt>
@@ -555,98 +216,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Geometry1"><code class="flex name class">
-<span>class <span class="ident">Geometry1</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Geometry1(Geometry):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.catchment.Geometry" href="#adcp.types.generated_poc.core.catchment.Geometry">Geometry</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.catchment.Geometry1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.catchment.Geometry" href="#adcp.types.generated_poc.core.catchment.Geometry">Geometry</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.Geometry2"><code class="flex name class">
-<span>class <span class="ident">Geometry2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Geometry2(Geometry):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.catchment.Geometry" href="#adcp.types.generated_poc.core.catchment.Geometry">Geometry</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.catchment.Geometry2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.catchment.Geometry" href="#adcp.types.generated_poc.core.catchment.Geometry">Geometry</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -739,11 +308,6 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.catchment.TravelTime1" href="#adcp.types.generated_poc.core.catchment.TravelTime1">TravelTime1</a></li>
-<li><a title="adcp.types.generated_poc.core.catchment.TravelTime2" href="#adcp.types.generated_poc.core.catchment.TravelTime2">TravelTime2</a></li>
-</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.catchment.TravelTime.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
@@ -766,98 +330,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.TravelTime1"><code class="flex name class">
-<span>class <span class="ident">TravelTime1</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TravelTime1(TravelTime):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.catchment.TravelTime" href="#adcp.types.generated_poc.core.catchment.TravelTime">TravelTime</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.catchment.TravelTime1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.catchment.TravelTime" href="#adcp.types.generated_poc.core.catchment.TravelTime">TravelTime</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.catchment.TravelTime2"><code class="flex name class">
-<span>class <span class="ident">TravelTime2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TravelTime2(TravelTime):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.catchment.TravelTime" href="#adcp.types.generated_poc.core.catchment.TravelTime">TravelTime</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.catchment.TravelTime2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.catchment.TravelTime" href="#adcp.types.generated_poc.core.catchment.TravelTime">TravelTime</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1007,48 +479,15 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.catchment.Catchment" href="#adcp.types.generated_poc.core.catchment.Catchment">Catchment</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.catchment_id" href="#adcp.types.generated_poc.core.catchment.Catchment.catchment_id">catchment_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.ext" href="#adcp.types.generated_poc.core.catchment.Catchment.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.geometry" href="#adcp.types.generated_poc.core.catchment.Catchment.geometry">geometry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.label" href="#adcp.types.generated_poc.core.catchment.Catchment.label">label</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.model_config" href="#adcp.types.generated_poc.core.catchment.Catchment.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.root" href="#adcp.types.generated_poc.core.catchment.Catchment.root">root</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.catchment.Catchment1" href="#adcp.types.generated_poc.core.catchment.Catchment1">Catchment1</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment1.catchment_id" href="#adcp.types.generated_poc.core.catchment.Catchment1.catchment_id">catchment_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment1.ext" href="#adcp.types.generated_poc.core.catchment.Catchment1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment1.geometry" href="#adcp.types.generated_poc.core.catchment.Catchment1.geometry">geometry</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment1.label" href="#adcp.types.generated_poc.core.catchment.Catchment1.label">label</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment1.model_config" href="#adcp.types.generated_poc.core.catchment.Catchment1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment1.radius" href="#adcp.types.generated_poc.core.catchment.Catchment1.radius">radius</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment1.transport_mode" href="#adcp.types.generated_poc.core.catchment.Catchment1.transport_mode">transport_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment1.travel_time" href="#adcp.types.generated_poc.core.catchment.Catchment1.travel_time">travel_time</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.catchment.Catchment2" href="#adcp.types.generated_poc.core.catchment.Catchment2">Catchment2</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment2.catchment_id" href="#adcp.types.generated_poc.core.catchment.Catchment2.catchment_id">catchment_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment2.ext" href="#adcp.types.generated_poc.core.catchment.Catchment2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment2.geometry" href="#adcp.types.generated_poc.core.catchment.Catchment2.geometry">geometry</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment2.label" href="#adcp.types.generated_poc.core.catchment.Catchment2.label">label</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment2.model_config" href="#adcp.types.generated_poc.core.catchment.Catchment2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment2.radius" href="#adcp.types.generated_poc.core.catchment.Catchment2.radius">radius</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment2.transport_mode" href="#adcp.types.generated_poc.core.catchment.Catchment2.transport_mode">transport_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment2.travel_time" href="#adcp.types.generated_poc.core.catchment.Catchment2.travel_time">travel_time</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.catchment.Catchment3" href="#adcp.types.generated_poc.core.catchment.Catchment3">Catchment3</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment3.catchment_id" href="#adcp.types.generated_poc.core.catchment.Catchment3.catchment_id">catchment_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment3.ext" href="#adcp.types.generated_poc.core.catchment.Catchment3.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment3.geometry" href="#adcp.types.generated_poc.core.catchment.Catchment3.geometry">geometry</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment3.label" href="#adcp.types.generated_poc.core.catchment.Catchment3.label">label</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment3.model_config" href="#adcp.types.generated_poc.core.catchment.Catchment3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment3.radius" href="#adcp.types.generated_poc.core.catchment.Catchment3.radius">radius</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment3.transport_mode" href="#adcp.types.generated_poc.core.catchment.Catchment3.transport_mode">transport_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment3.travel_time" href="#adcp.types.generated_poc.core.catchment.Catchment3.travel_time">travel_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.radius" href="#adcp.types.generated_poc.core.catchment.Catchment.radius">radius</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.transport_mode" href="#adcp.types.generated_poc.core.catchment.Catchment.transport_mode">transport_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.catchment.Catchment.travel_time" href="#adcp.types.generated_poc.core.catchment.Catchment.travel_time">travel_time</a></code></li>
 </ul>
 </li>
 <li>
@@ -1057,18 +496,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.coordinates" href="#adcp.types.generated_poc.core.catchment.Geometry.coordinates">coordinates</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.model_config" href="#adcp.types.generated_poc.core.catchment.Geometry.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catchment.Geometry.type" href="#adcp.types.generated_poc.core.catchment.Geometry.type">type</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.catchment.Geometry1" href="#adcp.types.generated_poc.core.catchment.Geometry1">Geometry1</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.catchment.Geometry1.model_config" href="#adcp.types.generated_poc.core.catchment.Geometry1.model_config">model_config</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.catchment.Geometry2" href="#adcp.types.generated_poc.core.catchment.Geometry2">Geometry2</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.catchment.Geometry2.model_config" href="#adcp.types.generated_poc.core.catchment.Geometry2.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -1085,18 +512,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.model_config" href="#adcp.types.generated_poc.core.catchment.TravelTime.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.unit" href="#adcp.types.generated_poc.core.catchment.TravelTime.unit">unit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime.value" href="#adcp.types.generated_poc.core.catchment.TravelTime.value">value</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.catchment.TravelTime1" href="#adcp.types.generated_poc.core.catchment.TravelTime1">TravelTime1</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime1.model_config" href="#adcp.types.generated_poc.core.catchment.TravelTime1.model_config">model_config</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.catchment.TravelTime2" href="#adcp.types.generated_poc.core.catchment.TravelTime2">TravelTime2</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.core.catchment.TravelTime2.model_config" href="#adcp.types.generated_poc.core.catchment.TravelTime2.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

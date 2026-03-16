@@ -105,604 +105,100 @@ validated to form a valid model.</p>
 </dd>
 <dt id="adcp.types.generated_poc.core.user_match.UserMatch"><code class="flex name class">
 <span>class <span class="ident">UserMatch</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+<span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class UserMatch(RootModel[UserMatch1 | UserMatch2 | UserMatch3 | UserMatch4 | UserMatch5]):
-    root: Annotated[
-        UserMatch1 | UserMatch2 | UserMatch3 | UserMatch4 | UserMatch5,
+<pre><code class="python">class UserMatch(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    click_id: Annotated[
+        str | None,
+        Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;),
+    ] = None
+    click_id_type: Annotated[
+        str | None,
+        Field(description=&#39;Type of click identifier (e.g. fbclid, gclid, ttclid, msclkid, ScCid)&#39;),
+    ] = None
+    client_ip: Annotated[
+        str | None, Field(description=&#39;Client IP address for probabilistic matching&#39;)
+    ] = None
+    client_user_agent: Annotated[
+        str | None, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    hashed_email: Annotated[
+        str | None,
         Field(
-            description=&#39;User identifiers for attribution matching. Supports universal IDs, hashed identifiers, click IDs, and probabilistic matching.&#39;,
-            title=&#39;User Match&#39;,
+            description=&#39;SHA-256 hash of lowercase, trimmed email address. Buyer must normalize before hashing: lowercase, trim whitespace.&#39;,
+            pattern=&#39;^[a-f0-9]{64}$&#39;,
         ),
-    ]
-
-    def __getattr__(self, name: str) -&gt; Any:
-        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
-            raise AttributeError(name)
-        return getattr(self.root, name)</code></pre>
+    ] = None
+    hashed_phone: Annotated[
+        str | None,
+        Field(
+            description=&#39;SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Buyer must normalize to E.164 before hashing.&#39;,
+            pattern=&#39;^[a-f0-9]{64}$&#39;,
+        ),
+    ] = None
+    uids: Annotated[
+        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
+    ] = None</code></pre>
 </details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
 <p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
 validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[UserMatch1, UserMatch2, UserMatch3, UserMatch4, UserMatch5]]</li>
-<li>pydantic.root_model.RootModel</li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.user_match.UserMatch.click_id"><code class="name">var <span class="ident">click_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.user_match.UserMatch.click_id_type"><code class="name">var <span class="ident">click_id_type</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.user_match.UserMatch.client_ip"><code class="name">var <span class="ident">client_ip</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.user_match.UserMatch.client_user_agent"><code class="name">var <span class="ident">client_user_agent</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.user_match.UserMatch.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.user_match.UserMatch.hashed_email"><code class="name">var <span class="ident">hashed_email</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.user_match.UserMatch.hashed_phone"><code class="name">var <span class="ident">hashed_phone</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.user_match.UserMatch.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.user_match.UserMatch1" href="#adcp.types.generated_poc.core.user_match.UserMatch1">UserMatch1</a> | <a title="adcp.types.generated_poc.core.user_match.UserMatch2" href="#adcp.types.generated_poc.core.user_match.UserMatch2">UserMatch2</a> | <a title="adcp.types.generated_poc.core.user_match.UserMatch3" href="#adcp.types.generated_poc.core.user_match.UserMatch3">UserMatch3</a> | <a title="adcp.types.generated_poc.core.user_match.UserMatch4" href="#adcp.types.generated_poc.core.user_match.UserMatch4">UserMatch4</a> | <a title="adcp.types.generated_poc.core.user_match.UserMatch5" href="#adcp.types.generated_poc.core.user_match.UserMatch5">UserMatch5</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1"><code class="flex name class">
-<span>class <span class="ident">UserMatch1</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class UserMatch1(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    click_id: Annotated[
-        str | None,
-        Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;),
-    ] = None
-    click_id_type: Annotated[
-        str | None,
-        Field(description=&#39;Type of click identifier (e.g. fbclid, gclid, ttclid, msclkid, ScCid)&#39;),
-    ] = None
-    client_ip: Annotated[
-        str | None, Field(description=&#39;Client IP address for probabilistic matching&#39;)
-    ] = None
-    client_user_agent: Annotated[
-        str | None, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    hashed_email: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of lowercase, trimmed email address. Buyer must normalize before hashing: lowercase, trim whitespace.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    hashed_phone: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Buyer must normalize to E.164 before hashing.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    uids: Annotated[
-        list[Uid], Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
-    ]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.click_id"><code class="name">var <span class="ident">click_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.click_id_type"><code class="name">var <span class="ident">click_id_type</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.client_ip"><code class="name">var <span class="ident">client_ip</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.client_user_agent"><code class="name">var <span class="ident">client_user_agent</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.hashed_email"><code class="name">var <span class="ident">hashed_email</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.hashed_phone"><code class="name">var <span class="ident">hashed_phone</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch1.uids"><code class="name">var <span class="ident">uids</span> : list[<a title="adcp.types.generated_poc.core.user_match.Uid" href="#adcp.types.generated_poc.core.user_match.Uid">Uid</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2"><code class="flex name class">
-<span>class <span class="ident">UserMatch2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class UserMatch2(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    click_id: Annotated[
-        str | None,
-        Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;),
-    ] = None
-    click_id_type: Annotated[
-        str | None,
-        Field(description=&#39;Type of click identifier (e.g. fbclid, gclid, ttclid, msclkid, ScCid)&#39;),
-    ] = None
-    client_ip: Annotated[
-        str | None, Field(description=&#39;Client IP address for probabilistic matching&#39;)
-    ] = None
-    client_user_agent: Annotated[
-        str | None, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    hashed_email: Annotated[
-        str,
-        Field(
-            description=&#39;SHA-256 hash of lowercase, trimmed email address. Buyer must normalize before hashing: lowercase, trim whitespace.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ]
-    hashed_phone: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Buyer must normalize to E.164 before hashing.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    uids: Annotated[
-        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.click_id"><code class="name">var <span class="ident">click_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.click_id_type"><code class="name">var <span class="ident">click_id_type</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.client_ip"><code class="name">var <span class="ident">client_ip</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.client_user_agent"><code class="name">var <span class="ident">client_user_agent</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.hashed_email"><code class="name">var <span class="ident">hashed_email</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.hashed_phone"><code class="name">var <span class="ident">hashed_phone</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch2.uids"><code class="name">var <span class="ident">uids</span> : list[<a title="adcp.types.generated_poc.core.user_match.Uid" href="#adcp.types.generated_poc.core.user_match.Uid">Uid</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3"><code class="flex name class">
-<span>class <span class="ident">UserMatch3</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class UserMatch3(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    click_id: Annotated[
-        str | None,
-        Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;),
-    ] = None
-    click_id_type: Annotated[
-        str | None,
-        Field(description=&#39;Type of click identifier (e.g. fbclid, gclid, ttclid, msclkid, ScCid)&#39;),
-    ] = None
-    client_ip: Annotated[
-        str | None, Field(description=&#39;Client IP address for probabilistic matching&#39;)
-    ] = None
-    client_user_agent: Annotated[
-        str | None, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    hashed_email: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of lowercase, trimmed email address. Buyer must normalize before hashing: lowercase, trim whitespace.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    hashed_phone: Annotated[
-        str,
-        Field(
-            description=&#39;SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Buyer must normalize to E.164 before hashing.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ]
-    uids: Annotated[
-        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.click_id"><code class="name">var <span class="ident">click_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.click_id_type"><code class="name">var <span class="ident">click_id_type</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.client_ip"><code class="name">var <span class="ident">client_ip</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.client_user_agent"><code class="name">var <span class="ident">client_user_agent</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.hashed_email"><code class="name">var <span class="ident">hashed_email</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.hashed_phone"><code class="name">var <span class="ident">hashed_phone</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch3.uids"><code class="name">var <span class="ident">uids</span> : list[<a title="adcp.types.generated_poc.core.user_match.Uid" href="#adcp.types.generated_poc.core.user_match.Uid">Uid</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4"><code class="flex name class">
-<span>class <span class="ident">UserMatch4</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class UserMatch4(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    click_id: Annotated[
-        str, Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;)
-    ]
-    click_id_type: Annotated[
-        str | None,
-        Field(description=&#39;Type of click identifier (e.g. fbclid, gclid, ttclid, msclkid, ScCid)&#39;),
-    ] = None
-    client_ip: Annotated[
-        str | None, Field(description=&#39;Client IP address for probabilistic matching&#39;)
-    ] = None
-    client_user_agent: Annotated[
-        str | None, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    hashed_email: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of lowercase, trimmed email address. Buyer must normalize before hashing: lowercase, trim whitespace.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    hashed_phone: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Buyer must normalize to E.164 before hashing.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    uids: Annotated[
-        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.click_id"><code class="name">var <span class="ident">click_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.click_id_type"><code class="name">var <span class="ident">click_id_type</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.client_ip"><code class="name">var <span class="ident">client_ip</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.client_user_agent"><code class="name">var <span class="ident">client_user_agent</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.hashed_email"><code class="name">var <span class="ident">hashed_email</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.hashed_phone"><code class="name">var <span class="ident">hashed_phone</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch4.uids"><code class="name">var <span class="ident">uids</span> : list[<a title="adcp.types.generated_poc.core.user_match.Uid" href="#adcp.types.generated_poc.core.user_match.Uid">Uid</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5"><code class="flex name class">
-<span>class <span class="ident">UserMatch5</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class UserMatch5(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    click_id: Annotated[
-        str | None,
-        Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;),
-    ] = None
-    click_id_type: Annotated[
-        str | None,
-        Field(description=&#39;Type of click identifier (e.g. fbclid, gclid, ttclid, msclkid, ScCid)&#39;),
-    ] = None
-    client_ip: Annotated[str, Field(description=&#39;Client IP address for probabilistic matching&#39;)]
-    client_user_agent: Annotated[
-        str, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
-    ]
-    ext: ext_1.ExtensionObject | None = None
-    hashed_email: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of lowercase, trimmed email address. Buyer must normalize before hashing: lowercase, trim whitespace.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    hashed_phone: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Buyer must normalize to E.164 before hashing.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    uids: Annotated[
-        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.click_id"><code class="name">var <span class="ident">click_id</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.click_id_type"><code class="name">var <span class="ident">click_id_type</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.client_ip"><code class="name">var <span class="ident">client_ip</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.client_user_agent"><code class="name">var <span class="ident">client_user_agent</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.hashed_email"><code class="name">var <span class="ident">hashed_email</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.hashed_phone"><code class="name">var <span class="ident">hashed_phone</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.user_match.UserMatch5.uids"><code class="name">var <span class="ident">uids</span> : list[<a title="adcp.types.generated_poc.core.user_match.Uid" href="#adcp.types.generated_poc.core.user_match.Uid">Uid</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.user_match.UserMatch.uids"><code class="name">var <span class="ident">uids</span> : list[<a title="adcp.types.generated_poc.core.user_match.Uid" href="#adcp.types.generated_poc.core.user_match.Uid">Uid</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -743,79 +239,16 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.user_match.UserMatch" href="#adcp.types.generated_poc.core.user_match.UserMatch">UserMatch</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.click_id" href="#adcp.types.generated_poc.core.user_match.UserMatch.click_id">click_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.click_id_type" href="#adcp.types.generated_poc.core.user_match.UserMatch.click_id_type">click_id_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.client_ip" href="#adcp.types.generated_poc.core.user_match.UserMatch.client_ip">client_ip</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.client_user_agent" href="#adcp.types.generated_poc.core.user_match.UserMatch.client_user_agent">client_user_agent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.ext" href="#adcp.types.generated_poc.core.user_match.UserMatch.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.hashed_email" href="#adcp.types.generated_poc.core.user_match.UserMatch.hashed_email">hashed_email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.hashed_phone" href="#adcp.types.generated_poc.core.user_match.UserMatch.hashed_phone">hashed_phone</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.model_config" href="#adcp.types.generated_poc.core.user_match.UserMatch.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.root" href="#adcp.types.generated_poc.core.user_match.UserMatch.root">root</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1" href="#adcp.types.generated_poc.core.user_match.UserMatch1">UserMatch1</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.click_id" href="#adcp.types.generated_poc.core.user_match.UserMatch1.click_id">click_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.click_id_type" href="#adcp.types.generated_poc.core.user_match.UserMatch1.click_id_type">click_id_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.client_ip" href="#adcp.types.generated_poc.core.user_match.UserMatch1.client_ip">client_ip</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.client_user_agent" href="#adcp.types.generated_poc.core.user_match.UserMatch1.client_user_agent">client_user_agent</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.ext" href="#adcp.types.generated_poc.core.user_match.UserMatch1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.hashed_email" href="#adcp.types.generated_poc.core.user_match.UserMatch1.hashed_email">hashed_email</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.hashed_phone" href="#adcp.types.generated_poc.core.user_match.UserMatch1.hashed_phone">hashed_phone</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.model_config" href="#adcp.types.generated_poc.core.user_match.UserMatch1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch1.uids" href="#adcp.types.generated_poc.core.user_match.UserMatch1.uids">uids</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2" href="#adcp.types.generated_poc.core.user_match.UserMatch2">UserMatch2</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.click_id" href="#adcp.types.generated_poc.core.user_match.UserMatch2.click_id">click_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.click_id_type" href="#adcp.types.generated_poc.core.user_match.UserMatch2.click_id_type">click_id_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.client_ip" href="#adcp.types.generated_poc.core.user_match.UserMatch2.client_ip">client_ip</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.client_user_agent" href="#adcp.types.generated_poc.core.user_match.UserMatch2.client_user_agent">client_user_agent</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.ext" href="#adcp.types.generated_poc.core.user_match.UserMatch2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.hashed_email" href="#adcp.types.generated_poc.core.user_match.UserMatch2.hashed_email">hashed_email</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.hashed_phone" href="#adcp.types.generated_poc.core.user_match.UserMatch2.hashed_phone">hashed_phone</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.model_config" href="#adcp.types.generated_poc.core.user_match.UserMatch2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch2.uids" href="#adcp.types.generated_poc.core.user_match.UserMatch2.uids">uids</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3" href="#adcp.types.generated_poc.core.user_match.UserMatch3">UserMatch3</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.click_id" href="#adcp.types.generated_poc.core.user_match.UserMatch3.click_id">click_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.click_id_type" href="#adcp.types.generated_poc.core.user_match.UserMatch3.click_id_type">click_id_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.client_ip" href="#adcp.types.generated_poc.core.user_match.UserMatch3.client_ip">client_ip</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.client_user_agent" href="#adcp.types.generated_poc.core.user_match.UserMatch3.client_user_agent">client_user_agent</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.ext" href="#adcp.types.generated_poc.core.user_match.UserMatch3.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.hashed_email" href="#adcp.types.generated_poc.core.user_match.UserMatch3.hashed_email">hashed_email</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.hashed_phone" href="#adcp.types.generated_poc.core.user_match.UserMatch3.hashed_phone">hashed_phone</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.model_config" href="#adcp.types.generated_poc.core.user_match.UserMatch3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch3.uids" href="#adcp.types.generated_poc.core.user_match.UserMatch3.uids">uids</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4" href="#adcp.types.generated_poc.core.user_match.UserMatch4">UserMatch4</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.click_id" href="#adcp.types.generated_poc.core.user_match.UserMatch4.click_id">click_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.click_id_type" href="#adcp.types.generated_poc.core.user_match.UserMatch4.click_id_type">click_id_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.client_ip" href="#adcp.types.generated_poc.core.user_match.UserMatch4.client_ip">client_ip</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.client_user_agent" href="#adcp.types.generated_poc.core.user_match.UserMatch4.client_user_agent">client_user_agent</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.ext" href="#adcp.types.generated_poc.core.user_match.UserMatch4.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.hashed_email" href="#adcp.types.generated_poc.core.user_match.UserMatch4.hashed_email">hashed_email</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.hashed_phone" href="#adcp.types.generated_poc.core.user_match.UserMatch4.hashed_phone">hashed_phone</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.model_config" href="#adcp.types.generated_poc.core.user_match.UserMatch4.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch4.uids" href="#adcp.types.generated_poc.core.user_match.UserMatch4.uids">uids</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5" href="#adcp.types.generated_poc.core.user_match.UserMatch5">UserMatch5</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.click_id" href="#adcp.types.generated_poc.core.user_match.UserMatch5.click_id">click_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.click_id_type" href="#adcp.types.generated_poc.core.user_match.UserMatch5.click_id_type">click_id_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.client_ip" href="#adcp.types.generated_poc.core.user_match.UserMatch5.client_ip">client_ip</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.client_user_agent" href="#adcp.types.generated_poc.core.user_match.UserMatch5.client_user_agent">client_user_agent</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.ext" href="#adcp.types.generated_poc.core.user_match.UserMatch5.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.hashed_email" href="#adcp.types.generated_poc.core.user_match.UserMatch5.hashed_email">hashed_email</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.hashed_phone" href="#adcp.types.generated_poc.core.user_match.UserMatch5.hashed_phone">hashed_phone</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.model_config" href="#adcp.types.generated_poc.core.user_match.UserMatch5.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch5.uids" href="#adcp.types.generated_poc.core.user_match.UserMatch5.uids">uids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.user_match.UserMatch.uids" href="#adcp.types.generated_poc.core.user_match.UserMatch.uids">uids</a></code></li>
 </ul>
 </li>
 </ul>

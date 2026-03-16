@@ -97,8 +97,8 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1"><code class="flex name class">
-<span>class <span class="ident">GetSignalsRequest1</span></span>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest"><code class="flex name class">
+<span>class <span class="ident">GetSignalsRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -106,7 +106,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetSignalsRequest1(AdCPBaseModel):
+<pre><code class="python">class GetSignalsRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -151,143 +151,6 @@ validated to form a valid model.</p>
         ),
     ] = None
     signal_spec: Annotated[
-        str,
-        Field(
-            description=&#39;Natural language description of the desired signals. When used alone, enables semantic discovery. When combined with signal_ids, provides context for the agent but signal_ids matches are returned first.&#39;
-        ),
-    ]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.signals.get_signals_request.Country" href="#adcp.types.generated_poc.signals.get_signals_request.Country">Country</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.signal_filters.SignalFilters" href="../core/signal_filters.html#adcp.types.generated_poc.core.signal_filters.SignalFilters">SignalFilters</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.core.signal_id.SignalId" href="../core/signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.signal_spec"><code class="name">var <span class="ident">signal_spec</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2"><code class="flex name class">
-<span>class <span class="ident">GetSignalsRequest2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class GetSignalsRequest2(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    account: Annotated[
-        account_ref.AccountReference | None,
-        Field(
-            description=&#39;Account for this request. When provided, the signals agent returns per-account pricing options if configured.&#39;
-        ),
-    ] = None
-    buyer_campaign_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;The buyer&#39;s campaign reference. Used to correlate signal discovery with subsequent report_usage calls.&#34;
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    countries: Annotated[
-        list[Country] | None,
-        Field(
-            description=&#39;Countries where signals will be used (ISO 3166-1 alpha-2 codes). When omitted, no geographic filter is applied.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    destinations: Annotated[
-        list[destination.Destination] | None,
-        Field(
-            description=&#39;Filter signals to those activatable on specific agents/platforms. When omitted, returns all signals available on the current agent. If the authenticated caller matches one of these destinations, activation keys will be included in the response.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    filters: signal_filters.SignalFilters | None = None
-    max_results: Annotated[
-        int | None, Field(description=&#39;Maximum number of results to return&#39;, ge=1)
-    ] = None
-    pagination: pagination_request.PaginationRequest | None = None
-    signal_ids: Annotated[
-        list[signal_id.SignalId],
-        Field(
-            description=&#34;Specific signals to look up by data provider and ID. Returns exact matches from the data provider&#39;s catalog. When combined with signal_spec, these signals anchor the starting set and signal_spec guides adjustments.&#34;,
-            min_length=1,
-        ),
-    ]
-    signal_spec: Annotated[
         str | None,
         Field(
             description=&#39;Natural language description of the desired signals. When used alone, enables semantic discovery. When combined with signal_ids, provides context for the agent but signal_ids matches are returned first.&#39;
@@ -311,51 +174,51 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.signals.get_signals_request.Country" href="#adcp.types.generated_poc.signals.get_signals_request.Country">Country</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.signals.get_signals_request.Country" href="#adcp.types.generated_poc.signals.get_signals_request.Country">Country</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.destinations"><code class="name">var <span class="ident">destinations</span> : list[<a title="adcp.types.generated_poc.core.destination.Destination" href="../core/destination.html#adcp.types.generated_poc.core.destination.Destination">Destination</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.signal_filters.SignalFilters" href="../core/signal_filters.html#adcp.types.generated_poc.core.signal_filters.SignalFilters">SignalFilters</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.signal_filters.SignalFilters" href="../core/signal_filters.html#adcp.types.generated_poc.core.signal_filters.SignalFilters">SignalFilters</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.core.signal_id.SignalId" href="../core/signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a>]</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.signal_ids"><code class="name">var <span class="ident">signal_ids</span> : list[<a title="adcp.types.generated_poc.core.signal_id.SignalId" href="../core/signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.signal_spec"><code class="name">var <span class="ident">signal_spec</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.signal_spec"><code class="name">var <span class="ident">signal_spec</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -394,37 +257,20 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1">GetSignalsRequest1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest">GetSignalsRequest</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.account" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.account">account</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.buyer_campaign_ref" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.context" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.countries" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.countries">countries</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.destinations" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.destinations">destinations</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.ext" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.filters" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.filters">filters</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.max_results" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.max_results">max_results</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.model_config" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.pagination" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.signal_ids" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.signal_ids">signal_ids</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.signal_spec" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest1.signal_spec">signal_spec</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2">GetSignalsRequest2</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.account" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.account">account</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.buyer_campaign_ref" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.context" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.countries" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.countries">countries</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.destinations" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.destinations">destinations</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.ext" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.filters" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.filters">filters</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.max_results" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.max_results">max_results</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.model_config" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.pagination" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.signal_ids" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.signal_ids">signal_ids</a></code></li>
-<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.signal_spec" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest2.signal_spec">signal_spec</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.account" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.buyer_campaign_ref" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.context" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.countries" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.countries">countries</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.destinations" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.destinations">destinations</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.ext" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.filters" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.filters">filters</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.max_results" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.max_results">max_results</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.model_config" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.pagination" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.signal_ids" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.signal_ids">signal_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.signal_spec" href="#adcp.types.generated_poc.signals.get_signals_request.GetSignalsRequest.signal_spec">signal_spec</a></code></li>
 </ul>
 </li>
 </ul>

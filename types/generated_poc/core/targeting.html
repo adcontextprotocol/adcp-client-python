@@ -629,7 +629,7 @@ validated to form a valid model.</p>
     )
     ext: ext_1.ExtensionObject | None = None
     geometry: Annotated[
-        Geometry4 | None,
+        Geometry2 | None,
         Field(
             description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
         ),
@@ -669,7 +669,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     travel_time: Annotated[
-        TravelTime4 | None,
+        TravelTime2 | None,
         Field(
             description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
         ),
@@ -696,7 +696,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry4" href="#adcp.types.generated_poc.core.targeting.Geometry4">Geometry4</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry2" href="#adcp.types.generated_poc.core.targeting.Geometry2">Geometry2</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -724,7 +724,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime4" href="#adcp.types.generated_poc.core.targeting.TravelTime4">TravelTime4</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime2" href="#adcp.types.generated_poc.core.targeting.TravelTime2">TravelTime2</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -755,7 +755,7 @@ validated to form a valid model.</p>
     )
     ext: ext_1.ExtensionObject | None = None
     geometry: Annotated[
-        Geometry5,
+        Geometry3,
         Field(
             description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
         ),
@@ -795,7 +795,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     travel_time: Annotated[
-        TravelTime5 | None,
+        TravelTime3 | None,
         Field(
             description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
         ),
@@ -822,7 +822,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry3" href="#adcp.types.generated_poc.core.targeting.Geometry3">Geometry3</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -850,7 +850,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime3" href="#adcp.types.generated_poc.core.targeting.TravelTime3">TravelTime3</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1007,8 +1007,8 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.targeting.Geometry4" href="#adcp.types.generated_poc.core.targeting.Geometry4">Geometry4</a></li>
-<li><a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.Geometry2" href="#adcp.types.generated_poc.core.targeting.Geometry2">Geometry2</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.Geometry3" href="#adcp.types.generated_poc.core.targeting.Geometry3">Geometry3</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -1036,8 +1036,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.Geometry4"><code class="flex name class">
-<span>class <span class="ident">Geometry4</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry2"><code class="flex name class">
+<span>class <span class="ident">Geometry2</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1045,7 +1045,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Geometry4(Geometry):
+<pre><code class="python">class Geometry2(Geometry):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1066,7 +1066,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.Geometry4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1082,8 +1082,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.Geometry5"><code class="flex name class">
-<span>class <span class="ident">Geometry5</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry3"><code class="flex name class">
+<span>class <span class="ident">Geometry3</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1091,7 +1091,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Geometry5(Geometry):
+<pre><code class="python">class Geometry3(Geometry):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1112,7 +1112,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.Geometry5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1839,8 +1839,8 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.targeting.TravelTime4" href="#adcp.types.generated_poc.core.targeting.TravelTime4">TravelTime4</a></li>
-<li><a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.TravelTime2" href="#adcp.types.generated_poc.core.targeting.TravelTime2">TravelTime2</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.TravelTime3" href="#adcp.types.generated_poc.core.targeting.TravelTime3">TravelTime3</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -1868,8 +1868,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TravelTime4"><code class="flex name class">
-<span>class <span class="ident">TravelTime4</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime2"><code class="flex name class">
+<span>class <span class="ident">TravelTime2</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1877,7 +1877,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class TravelTime4(TravelTime):
+<pre><code class="python">class TravelTime2(TravelTime):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1898,7 +1898,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.TravelTime4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1914,8 +1914,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TravelTime5"><code class="flex name class">
-<span>class <span class="ident">TravelTime5</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime3"><code class="flex name class">
+<span>class <span class="ident">TravelTime3</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1923,7 +1923,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class TravelTime5(TravelTime):
+<pre><code class="python">class TravelTime3(TravelTime):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1944,7 +1944,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.TravelTime5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2221,15 +2221,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry4" href="#adcp.types.generated_poc.core.targeting.Geometry4">Geometry4</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry2" href="#adcp.types.generated_poc.core.targeting.Geometry2">Geometry2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry4.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry2.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry2.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry3" href="#adcp.types.generated_poc.core.targeting.Geometry3">Geometry3</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry5.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry3.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry3.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -2320,15 +2320,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime4" href="#adcp.types.generated_poc.core.targeting.TravelTime4">TravelTime4</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime2" href="#adcp.types.generated_poc.core.targeting.TravelTime2">TravelTime2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime4.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime2.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime2.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime3" href="#adcp.types.generated_poc.core.targeting.TravelTime3">TravelTime3</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime5.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime3.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime3.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
