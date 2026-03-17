@@ -152,6 +152,7 @@ el.replaceWith(d);
 <ul class="hlist">
 <li><a title="adcp.exceptions.ADCPAuthenticationError" href="#adcp.exceptions.ADCPAuthenticationError">ADCPAuthenticationError</a></li>
 <li><a title="adcp.exceptions.ADCPConnectionError" href="#adcp.exceptions.ADCPConnectionError">ADCPConnectionError</a></li>
+<li><a title="adcp.exceptions.ADCPFeatureUnsupportedError" href="#adcp.exceptions.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></li>
 <li><a title="adcp.exceptions.ADCPProtocolError" href="#adcp.exceptions.ADCPProtocolError">ADCPProtocolError</a></li>
 <li><a title="adcp.exceptions.ADCPSimpleAPIError" href="#adcp.exceptions.ADCPSimpleAPIError">ADCPSimpleAPIError</a></li>
 <li><a title="adcp.exceptions.ADCPTimeoutError" href="#adcp.exceptions.ADCPTimeoutError">ADCPTimeoutError</a></li>
@@ -159,6 +160,66 @@ el.replaceWith(d);
 <li><a title="adcp.exceptions.ADCPWebhookError" href="#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></li>
 <li><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
 <li><a title="adcp.exceptions.RegistryError" href="#adcp.exceptions.RegistryError">RegistryError</a></li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPFeatureUnsupportedError"><code class="flex name class">
+<span>class <span class="ident">ADCPFeatureUnsupportedError</span></span>
+<span>(</span><span>unsupported_features: list[str],<br>declared_features: list[str] | None = None,<br>agent_id: str | None = None,<br>agent_uri: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPFeatureUnsupportedError(ADCPError):
+    &#34;&#34;&#34;Seller does not support one or more required features.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        unsupported_features: list[str],
+        declared_features: list[str] | None = None,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+    ):
+        &#34;&#34;&#34;Initialize feature unsupported error.
+
+        Args:
+            unsupported_features: Features that are not supported.
+            declared_features: Features the seller does declare.
+            agent_id: Optional agent ID for context.
+            agent_uri: Optional agent URI for context.
+        &#34;&#34;&#34;
+        self.unsupported_features = unsupported_features
+        self.declared_features = declared_features or []
+
+        missing = &#34;, &#34;.join(unsupported_features)
+        message = f&#34;Seller does not support: {missing}&#34;
+
+        suggestion = None
+        if self.declared_features:
+            declared = &#34;, &#34;.join(sorted(self.declared_features))
+            suggestion = f&#34;Declared features: {declared}&#34;
+
+        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Seller does not support one or more required features.</p>
+<p>Initialize feature unsupported error.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>unsupported_features</code></strong></dt>
+<dd>Features that are not supported.</dd>
+<dt><strong><code>declared_features</code></strong></dt>
+<dd>Features the seller does declare.</dd>
+<dt><strong><code>agent_id</code></strong></dt>
+<dd>Optional agent ID for context.</dd>
+<dt><strong><code>agent_uri</code></strong></dt>
+<dd>Optional agent URI for context.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
 </ul>
 </dd>
 <dt id="adcp.exceptions.ADCPProtocolError"><code class="flex name class">
@@ -517,6 +578,9 @@ use the standard API (client.method()) instead of client.simple.method().</p>
 </li>
 <li>
 <h4><code><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPFeatureUnsupportedError" href="#adcp.exceptions.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></code></h4>
 </li>
 <li>
 <h4><code><a title="adcp.exceptions.ADCPProtocolError" href="#adcp.exceptions.ADCPProtocolError">ADCPProtocolError</a></code></h4>

@@ -44,6 +44,10 @@ el.replaceWith(d);
 <dd>
 <div class="desc"></div>
 </dd>
+<dt><code class="name"><a title="adcp.capabilities" href="capabilities.html">adcp.capabilities</a></code></dt>
+<dd>
+<div class="desc"><p>Feature capability resolution for AdCP …</p></div>
+</dd>
 <dt><code class="name"><a title="adcp.client" href="client.html">adcp.client</a></code></dt>
 <dd>
 <div class="desc"></div>
@@ -2071,6 +2075,83 @@ This function always returns False and will be removed in a future version.</p>
 <dd>If discriminator or field constraints are violated</dd>
 </dl></div>
 </dd>
+<dt id="adcp.validate_capabilities"><code class="name flex">
+<span>def <span class="ident">validate_capabilities</span></span>(<span>handler: Any, capabilities: GetAdcpCapabilitiesResponse) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def validate_capabilities(
+    handler: Any,
+    capabilities: GetAdcpCapabilitiesResponse,
+) -&gt; list[str]:
+    &#34;&#34;&#34;Check that a handler implements the methods required by its declared features.
+
+    Compares the features declared in a capabilities response against the handler&#39;s
+    method implementations. Returns warnings for features that are declared but
+    whose corresponding handler methods are not overridden from the base class.
+
+    This is a development-time check — call it at startup to catch misconfigurations.
+
+    Args:
+        handler: An ADCPHandler instance (or any object with handler methods).
+        capabilities: The capabilities response the handler will serve.
+
+    Returns:
+        List of warning strings. Empty if everything is consistent.
+    &#34;&#34;&#34;
+    # Late import to avoid circular dependency: server.base imports from adcp.types
+    # which may transitively import from this module.
+    from adcp.server.base import ADCPHandler
+
+    resolver = FeatureResolver(capabilities)
+    warnings: list[str] = []
+
+    for feature, handler_methods in FEATURE_HANDLER_MAP.items():
+        if not resolver.supports(feature):
+            continue
+
+        for method_name in handler_methods:
+            if not hasattr(handler, method_name):
+                warnings.append(
+                    f&#34;Feature &#39;{feature}&#39; is declared but handler has no &#34;
+                    f&#34;&#39;{method_name}&#39; method&#34;
+                )
+                continue
+
+            # Walk MRO to check if any class between the leaf and ADCPHandler
+            # overrides the method (handles mixin / intermediate-class patterns).
+            if isinstance(handler, ADCPHandler):
+                overridden = any(
+                    method_name in cls.__dict__
+                    for cls in type(handler).__mro__
+                    if cls is not ADCPHandler and not issubclass(ADCPHandler, cls)
+                )
+                if not overridden:
+                    warnings.append(
+                        f&#34;Feature &#39;{feature}&#39; is declared but &#39;{method_name}&#39; &#34;
+                        f&#34;is not overridden from ADCPHandler&#34;
+                    )
+
+    return warnings</code></pre>
+</details>
+<div class="desc"><p>Check that a handler implements the methods required by its declared features.</p>
+<p>Compares the features declared in a capabilities response against the handler's
+method implementations. Returns warnings for features that are declared but
+whose corresponding handler methods are not overridden from the base class.</p>
+<p>This is a development-time check — call it at startup to catch misconfigurations.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>handler</code></strong></dt>
+<dd>An ADCPHandler instance (or any object with handler methods).</dd>
+<dt><strong><code>capabilities</code></strong></dt>
+<dd>The capabilities response the handler will serve.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>List of warning strings. Empty if everything is consistent.</p></div>
+</dd>
 <dt id="adcp.validate_product"><code class="name flex">
 <span>def <span class="ident">validate_product</span></span>(<span>product: dict[str, Any]) ‑> None</span>
 </code></dt>
@@ -2405,7 +2486,7 @@ for ANY property on this domain</li>
 </dd>
 <dt id="adcp.ADCPClient"><code class="flex name class">
 <span>class <span class="ident">ADCPClient</span></span>
-<span>(</span><span>agent_config: <a title="adcp.AgentConfig" href="#adcp.AgentConfig">AgentConfig</a>,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300)</span>
+<span>(</span><span>agent_config: <a title="adcp.AgentConfig" href="#adcp.AgentConfig">AgentConfig</a>,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300,<br>capabilities_ttl: float = 3600.0,<br>validate_features: bool = False)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2422,6 +2503,8 @@ for ANY property on this domain</li>
         webhook_secret: str | None = None,
         on_activity: Callable[[Activity], None] | None = None,
         webhook_timestamp_tolerance: int = 300,
+        capabilities_ttl: float = 3600.0,
+        validate_features: bool = False,
     ):
         &#34;&#34;&#34;
         Initialize ADCP client for a single agent.
@@ -2435,12 +2518,23 @@ for ANY property on this domain</li>
             webhook_timestamp_tolerance: Maximum age (in seconds) for webhook
                 timestamps. Webhooks with timestamps older than this or more than
                 this far in the future are rejected. Defaults to 300 (5 minutes).
+            capabilities_ttl: Time-to-live in seconds for cached capabilities (default: 1 hour)
+            validate_features: When True, automatically check that the seller supports
+                required features before making task calls (e.g., sync_audiences requires
+                audience_targeting). Requires capabilities to have been fetched first.
         &#34;&#34;&#34;
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
         self.on_activity = on_activity
         self.webhook_timestamp_tolerance = webhook_timestamp_tolerance
+        self.capabilities_ttl = capabilities_ttl
+        self.validate_features = validate_features
+
+        # Capabilities cache
+        self._capabilities: GetAdcpCapabilitiesResponse | None = None
+        self._feature_resolver: FeatureResolver | None = None
+        self._capabilities_fetched_at: float | None = None
 
         # Initialize protocol adapter
         self.adapter: ProtocolAdapter
@@ -2471,6 +2565,121 @@ for ANY property on this domain</li>
         &#34;&#34;&#34;Emit activity event.&#34;&#34;&#34;
         if self.on_activity:
             self.on_activity(activity)
+
+    # ========================================================================
+    # Capability Validation
+    # ========================================================================
+
+    @property
+    def capabilities(self) -&gt; GetAdcpCapabilitiesResponse | None:
+        &#34;&#34;&#34;Return cached capabilities, or None if not yet fetched.&#34;&#34;&#34;
+        return self._capabilities
+
+    @property
+    def feature_resolver(self) -&gt; FeatureResolver | None:
+        &#34;&#34;&#34;Return the FeatureResolver for cached capabilities, or None.&#34;&#34;&#34;
+        return self._feature_resolver
+
+    async def fetch_capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+        &#34;&#34;&#34;Fetch capabilities, using cache if still valid.
+
+        Returns:
+            The seller&#39;s capabilities response.
+        &#34;&#34;&#34;
+        if self._capabilities is not None and self._capabilities_fetched_at is not None:
+            elapsed = time.monotonic() - self._capabilities_fetched_at
+            if elapsed &lt; self.capabilities_ttl:
+                return self._capabilities
+
+        return await self.refresh_capabilities()
+
+    async def refresh_capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+        &#34;&#34;&#34;Fetch capabilities from the seller, bypassing cache.
+
+        Returns:
+            The seller&#39;s capabilities response.
+        &#34;&#34;&#34;
+        result = await self.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
+        if result.success and result.data is not None:
+            self._capabilities = result.data
+            self._feature_resolver = FeatureResolver(result.data)
+            self._capabilities_fetched_at = time.monotonic()
+            return self._capabilities
+        raise ADCPError(
+            f&#34;Failed to fetch capabilities: {result.error or result.message}&#34;,
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+        )
+
+    def _ensure_resolver(self) -&gt; FeatureResolver:
+        &#34;&#34;&#34;Return the FeatureResolver, raising if capabilities haven&#39;t been fetched.&#34;&#34;&#34;
+        if self._feature_resolver is None:
+            raise ADCPError(
+                &#34;Cannot check feature support: capabilities have not been fetched. &#34;
+                &#34;Call fetch_capabilities() first.&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            )
+        return self._feature_resolver
+
+    def supports(self, feature: str) -&gt; bool:
+        &#34;&#34;&#34;Check if the seller supports a feature.
+
+        Supports multiple feature namespaces:
+        - Protocol support: ``supports(&#34;media_buy&#34;)`` checks ``supported_protocols``
+        - Extension support: ``supports(&#34;ext:scope3&#34;)`` checks ``extensions_supported``
+        - Targeting: ``supports(&#34;targeting.geo_countries&#34;)`` checks
+          ``media_buy.execution.targeting``
+        - Media buy features: ``supports(&#34;audience_targeting&#34;)`` checks
+          ``media_buy.features``
+        - Signals features: ``supports(&#34;catalog_signals&#34;)`` checks
+          ``signals.features``
+
+        Args:
+            feature: Feature identifier to check.
+
+        Returns:
+            True if the seller declares the feature as supported.
+
+        Raises:
+            ADCPError: If capabilities have not been fetched yet.
+        &#34;&#34;&#34;
+        return self._ensure_resolver().supports(feature)
+
+    def require(self, *features: str) -&gt; None:
+        &#34;&#34;&#34;Assert that the seller supports all listed features.
+
+        Args:
+            *features: Feature identifiers to require.
+
+        Raises:
+            ADCPFeatureUnsupportedError: If any features are not supported.
+            ADCPError: If capabilities have not been fetched yet.
+        &#34;&#34;&#34;
+        self._ensure_resolver().require(
+            *features,
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+        )
+
+    def _validate_task_features(self, task_name: str) -&gt; None:
+        &#34;&#34;&#34;Check feature requirements for a task if validate_features is enabled.
+
+        Returns without checking if validate_features is False or capabilities
+        haven&#39;t been fetched yet (logs a warning in the latter case).
+        &#34;&#34;&#34;
+        if not self.validate_features:
+            return
+        if self._feature_resolver is None:
+            logger.warning(
+                &#34;validate_features is enabled but capabilities have not been fetched. &#34;
+                &#34;Call fetch_capabilities() to enable feature validation.&#34;
+            )
+            return
+        required_feature = TASK_FEATURE_MAP.get(task_name)
+        if required_feature is None:
+            return
+        self.require(required_feature)
 
     async def get_products(
         self,
@@ -3306,6 +3515,7 @@ for ANY property on this domain</li>
         Returns:
             TaskResult containing LogEventResponse
         &#34;&#34;&#34;
+        self._validate_task_features(&#34;log_event&#34;)
         operation_id = create_operation_id()
         params = request.model_dump(exclude_none=True)
 
@@ -3347,6 +3557,7 @@ for ANY property on this domain</li>
         Returns:
             TaskResult containing SyncEventSourcesResponse
         &#34;&#34;&#34;
+        self._validate_task_features(&#34;sync_event_sources&#34;)
         operation_id = create_operation_id()
         params = request.model_dump(exclude_none=True)
 
@@ -4995,7 +5206,42 @@ for ANY property on this domain</li>
 <dd>Maximum age (in seconds) for webhook
 timestamps. Webhooks with timestamps older than this or more than
 this far in the future are rejected. Defaults to 300 (5 minutes).</dd>
+<dt><strong><code>capabilities_ttl</code></strong></dt>
+<dd>Time-to-live in seconds for cached capabilities (default: 1 hour)</dd>
+<dt><strong><code>validate_features</code></strong></dt>
+<dd>When True, automatically check that the seller supports
+required features before making task calls (e.g., sync_audiences requires
+audience_targeting). Requires capabilities to have been fetched first.</dd>
 </dl></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.ADCPClient.capabilities"><code class="name">prop <span class="ident">capabilities</span> : GetAdcpCapabilitiesResponse | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def capabilities(self) -&gt; GetAdcpCapabilitiesResponse | None:
+    &#34;&#34;&#34;Return cached capabilities, or None if not yet fetched.&#34;&#34;&#34;
+    return self._capabilities</code></pre>
+</details>
+<div class="desc"><p>Return cached capabilities, or None if not yet fetched.</p></div>
+</dd>
+<dt id="adcp.ADCPClient.feature_resolver"><code class="name">prop <span class="ident">feature_resolver</span> : <a title="adcp.FeatureResolver" href="#adcp.FeatureResolver">FeatureResolver</a> | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def feature_resolver(self) -&gt; FeatureResolver | None:
+    &#34;&#34;&#34;Return the FeatureResolver for cached capabilities, or None.&#34;&#34;&#34;
+    return self._feature_resolver</code></pre>
+</details>
+<div class="desc"><p>Return the FeatureResolver for cached capabilities, or None.</p></div>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
 <dt id="adcp.ADCPClient.activate_signal"><code class="name flex">
@@ -5576,6 +5822,31 @@ will be terminated.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing DeletePropertyListResponse</p></div>
+</dd>
+<dt id="adcp.ADCPClient.fetch_capabilities"><code class="name flex">
+<span>async def <span class="ident">fetch_capabilities</span></span>(<span>self) ‑> <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse" href="types/generated_poc/protocol/get_adcp_capabilities_response.html#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse">GetAdcpCapabilitiesResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def fetch_capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+    &#34;&#34;&#34;Fetch capabilities, using cache if still valid.
+
+    Returns:
+        The seller&#39;s capabilities response.
+    &#34;&#34;&#34;
+    if self._capabilities is not None and self._capabilities_fetched_at is not None:
+        elapsed = time.monotonic() - self._capabilities_fetched_at
+        if elapsed &lt; self.capabilities_ttl:
+            return self._capabilities
+
+    return await self.refresh_capabilities()</code></pre>
+</details>
+<div class="desc"><p>Fetch capabilities, using cache if still valid.</p>
+<h2 id="returns">Returns</h2>
+<p>The seller's capabilities response.</p></div>
 </dd>
 <dt id="adcp.ADCPClient.get_account_financials"><code class="name flex">
 <span>async def <span class="ident">get_account_financials</span></span>(<span>self,<br>request: <a title="adcp.GetAccountFinancialsRequest" href="#adcp.GetAccountFinancialsRequest">GetAccountFinancialsRequest</a>) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[<a title="adcp.GetAccountFinancialsResponse1" href="#adcp.GetAccountFinancialsResponse1">GetAccountFinancialsResponse1</a>, <a title="adcp.GetAccountFinancialsResponse2" href="#adcp.GetAccountFinancialsResponse2">GetAccountFinancialsResponse2</a>]]</span>
@@ -6930,6 +7201,7 @@ by principal or pagination parameters.</p>
     Returns:
         TaskResult containing LogEventResponse
     &#34;&#34;&#34;
+    self._validate_task_features(&#34;log_event&#34;)
     operation_id = create_operation_id()
     params = request.model_dump(exclude_none=True)
 
@@ -7083,6 +7355,36 @@ by principal or pagination parameters.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ProvidePerformanceFeedbackResponse</p></div>
 </dd>
+<dt id="adcp.ADCPClient.refresh_capabilities"><code class="name flex">
+<span>async def <span class="ident">refresh_capabilities</span></span>(<span>self) ‑> <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse" href="types/generated_poc/protocol/get_adcp_capabilities_response.html#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse">GetAdcpCapabilitiesResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def refresh_capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+    &#34;&#34;&#34;Fetch capabilities from the seller, bypassing cache.
+
+    Returns:
+        The seller&#39;s capabilities response.
+    &#34;&#34;&#34;
+    result = await self.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
+    if result.success and result.data is not None:
+        self._capabilities = result.data
+        self._feature_resolver = FeatureResolver(result.data)
+        self._capabilities_fetched_at = time.monotonic()
+        return self._capabilities
+    raise ADCPError(
+        f&#34;Failed to fetch capabilities: {result.error or result.message}&#34;,
+        agent_id=self.agent_config.id,
+        agent_uri=self.agent_config.agent_uri,
+    )</code></pre>
+</details>
+<div class="desc"><p>Fetch capabilities from the seller, bypassing cache.</p>
+<h2 id="returns">Returns</h2>
+<p>The seller's capabilities response.</p></div>
+</dd>
 <dt id="adcp.ADCPClient.report_plan_outcome"><code class="name flex">
 <span>async def <span class="ident">report_plan_outcome</span></span>(<span>self,<br>request: <a title="adcp.ReportPlanOutcomeRequest" href="#adcp.ReportPlanOutcomeRequest">ReportPlanOutcomeRequest</a>) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[<a title="adcp.ReportPlanOutcomeResponse" href="#adcp.ReportPlanOutcomeResponse">ReportPlanOutcomeResponse</a>]</span>
 </code></dt>
@@ -7183,6 +7485,44 @@ by principal or pagination parameters.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ReportUsageResponse</p></div>
+</dd>
+<dt id="adcp.ADCPClient.require"><code class="name flex">
+<span>def <span class="ident">require</span></span>(<span>self, *features: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def require(self, *features: str) -&gt; None:
+    &#34;&#34;&#34;Assert that the seller supports all listed features.
+
+    Args:
+        *features: Feature identifiers to require.
+
+    Raises:
+        ADCPFeatureUnsupportedError: If any features are not supported.
+        ADCPError: If capabilities have not been fetched yet.
+    &#34;&#34;&#34;
+    self._ensure_resolver().require(
+        *features,
+        agent_id=self.agent_config.id,
+        agent_uri=self.agent_config.agent_uri,
+    )</code></pre>
+</details>
+<div class="desc"><p>Assert that the seller supports all listed features.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>*features</code></strong></dt>
+<dd>Feature identifiers to require.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.ADCPFeatureUnsupportedError" href="#adcp.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></code></dt>
+<dd>If any features are not supported.</dd>
+<dt><code><a title="adcp.ADCPError" href="#adcp.ADCPError">ADCPError</a></code></dt>
+<dd>If capabilities have not been fetched yet.</dd>
+</dl></div>
 </dd>
 <dt id="adcp.ADCPClient.si_get_offering"><code class="name flex">
 <span>async def <span class="ident">si_get_offering</span></span>(<span>self, request: SiGetOfferingRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SiGetOfferingResponse]</span>
@@ -7429,6 +7769,61 @@ sponsored intelligence session.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing SiTerminateSessionResponse</p></div>
+</dd>
+<dt id="adcp.ADCPClient.supports"><code class="name flex">
+<span>def <span class="ident">supports</span></span>(<span>self, feature: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def supports(self, feature: str) -&gt; bool:
+    &#34;&#34;&#34;Check if the seller supports a feature.
+
+    Supports multiple feature namespaces:
+    - Protocol support: ``supports(&#34;media_buy&#34;)`` checks ``supported_protocols``
+    - Extension support: ``supports(&#34;ext:scope3&#34;)`` checks ``extensions_supported``
+    - Targeting: ``supports(&#34;targeting.geo_countries&#34;)`` checks
+      ``media_buy.execution.targeting``
+    - Media buy features: ``supports(&#34;audience_targeting&#34;)`` checks
+      ``media_buy.features``
+    - Signals features: ``supports(&#34;catalog_signals&#34;)`` checks
+      ``signals.features``
+
+    Args:
+        feature: Feature identifier to check.
+
+    Returns:
+        True if the seller declares the feature as supported.
+
+    Raises:
+        ADCPError: If capabilities have not been fetched yet.
+    &#34;&#34;&#34;
+    return self._ensure_resolver().supports(feature)</code></pre>
+</details>
+<div class="desc"><p>Check if the seller supports a feature.</p>
+<p>Supports multiple feature namespaces:
+- Protocol support: <code>supports("media_buy")</code> checks <code>supported_protocols</code>
+- Extension support: <code>supports("ext:scope3")</code> checks <code>extensions_supported</code>
+- Targeting: <code>supports("targeting.geo_countries")</code> checks
+<code>media_buy.execution.targeting</code>
+- Media buy features: <code>supports("audience_targeting")</code> checks
+<code>media_buy.features</code>
+- Signals features: <code>supports("catalog_signals")</code> checks
+<code>signals.features</code></p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>feature</code></strong></dt>
+<dd>Feature identifier to check.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>True if the seller declares the feature as supported.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.ADCPError" href="#adcp.ADCPError">ADCPError</a></code></dt>
+<dd>If capabilities have not been fetched yet.</dd>
+</dl></div>
 </dd>
 <dt id="adcp.ADCPClient.sync_accounts"><code class="name flex">
 <span>async def <span class="ident">sync_accounts</span></span>(<span>self,<br>request: <a title="adcp.SyncAccountsRequest" href="#adcp.SyncAccountsRequest">SyncAccountsRequest</a>) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[<a title="adcp.SyncAccountsResponse1" href="#adcp.SyncAccountsResponse1">SyncAccountsResponse1</a>, <a title="adcp.SyncAccountsResponse2" href="#adcp.SyncAccountsResponse2">SyncAccountsResponse2</a>]]</span>
@@ -7683,6 +8078,7 @@ sponsored intelligence session.</p>
     Returns:
         TaskResult containing SyncEventSourcesResponse
     &#34;&#34;&#34;
+    self._validate_task_features(&#34;sync_event_sources&#34;)
     operation_id = create_operation_id()
     params = request.model_dump(exclude_none=True)
 
@@ -8125,6 +8521,7 @@ of an existing property list.</p>
 <ul class="hlist">
 <li><a title="adcp.exceptions.ADCPAuthenticationError" href="exceptions.html#adcp.exceptions.ADCPAuthenticationError">ADCPAuthenticationError</a></li>
 <li><a title="adcp.exceptions.ADCPConnectionError" href="exceptions.html#adcp.exceptions.ADCPConnectionError">ADCPConnectionError</a></li>
+<li><a title="adcp.exceptions.ADCPFeatureUnsupportedError" href="exceptions.html#adcp.exceptions.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></li>
 <li><a title="adcp.exceptions.ADCPProtocolError" href="exceptions.html#adcp.exceptions.ADCPProtocolError">ADCPProtocolError</a></li>
 <li><a title="adcp.exceptions.ADCPSimpleAPIError" href="exceptions.html#adcp.exceptions.ADCPSimpleAPIError">ADCPSimpleAPIError</a></li>
 <li><a title="adcp.exceptions.ADCPTimeoutError" href="exceptions.html#adcp.exceptions.ADCPTimeoutError">ADCPTimeoutError</a></li>
@@ -8132,6 +8529,66 @@ of an existing property list.</p>
 <li><a title="adcp.exceptions.ADCPWebhookError" href="exceptions.html#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></li>
 <li><a title="adcp.exceptions.AdagentsValidationError" href="exceptions.html#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
 <li><a title="adcp.exceptions.RegistryError" href="exceptions.html#adcp.exceptions.RegistryError">RegistryError</a></li>
+</ul>
+</dd>
+<dt id="adcp.ADCPFeatureUnsupportedError"><code class="flex name class">
+<span>class <span class="ident">ADCPFeatureUnsupportedError</span></span>
+<span>(</span><span>unsupported_features: list[str],<br>declared_features: list[str] | None = None,<br>agent_id: str | None = None,<br>agent_uri: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPFeatureUnsupportedError(ADCPError):
+    &#34;&#34;&#34;Seller does not support one or more required features.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        unsupported_features: list[str],
+        declared_features: list[str] | None = None,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+    ):
+        &#34;&#34;&#34;Initialize feature unsupported error.
+
+        Args:
+            unsupported_features: Features that are not supported.
+            declared_features: Features the seller does declare.
+            agent_id: Optional agent ID for context.
+            agent_uri: Optional agent URI for context.
+        &#34;&#34;&#34;
+        self.unsupported_features = unsupported_features
+        self.declared_features = declared_features or []
+
+        missing = &#34;, &#34;.join(unsupported_features)
+        message = f&#34;Seller does not support: {missing}&#34;
+
+        suggestion = None
+        if self.declared_features:
+            declared = &#34;, &#34;.join(sorted(self.declared_features))
+            suggestion = f&#34;Declared features: {declared}&#34;
+
+        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Seller does not support one or more required features.</p>
+<p>Initialize feature unsupported error.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>unsupported_features</code></strong></dt>
+<dd>Features that are not supported.</dd>
+<dt><strong><code>declared_features</code></strong></dt>
+<dd>Features the seller does declare.</dd>
+<dt><strong><code>agent_id</code></strong></dt>
+<dd>Optional agent ID for context.</dd>
+<dt><strong><code>agent_uri</code></strong></dt>
+<dd>Optional agent URI for context.</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
 </ul>
 </dd>
 <dt id="adcp.ADCPMultiAgentClient"><code class="flex name class">
@@ -16637,6 +17094,351 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.FeatureResolver"><code class="flex name class">
+<span>class <span class="ident">FeatureResolver</span></span>
+<span>(</span><span>capabilities: GetAdcpCapabilitiesResponse)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FeatureResolver:
+    &#34;&#34;&#34;Resolves feature support from a GetAdcpCapabilitiesResponse.
+
+    Supports multiple feature namespaces:
+
+    - Protocol support: ``&#34;media_buy&#34;`` checks ``supported_protocols``
+    - Extension support: ``&#34;ext:scope3&#34;`` checks ``extensions_supported``
+    - Targeting: ``&#34;targeting.geo_countries&#34;`` checks
+      ``media_buy.execution.targeting``
+    - Media buy features: ``&#34;audience_targeting&#34;`` checks
+      ``media_buy.features``
+    - Signals features: ``&#34;catalog_signals&#34;`` checks
+      ``signals.features``
+    &#34;&#34;&#34;
+
+    def __init__(self, capabilities: GetAdcpCapabilitiesResponse) -&gt; None:
+        self._caps = capabilities
+
+        # Pre-compute the set of valid protocol names so supports() doesn&#39;t
+        # need a runtime import on every call.
+        from adcp.types.generated_poc.protocol.get_adcp_capabilities_response import (
+            SupportedProtocol,
+        )
+
+        self._valid_protocols = {p.value for p in SupportedProtocol}
+        self._declared_protocols = {p.value for p in capabilities.supported_protocols}
+
+    @property
+    def capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+        return self._caps
+
+    def supports(self, feature: str) -&gt; bool:
+        &#34;&#34;&#34;Check if a feature is supported.&#34;&#34;&#34;
+        caps = self._caps
+
+        # Extension check: &#34;ext:scope3&#34;
+        if feature.startswith(&#34;ext:&#34;):
+            ext_name = feature[4:]
+            if caps.extensions_supported is None:
+                return False
+            return any(item.root == ext_name for item in caps.extensions_supported)
+
+        # Targeting check: &#34;targeting.geo_countries&#34;
+        if feature.startswith(&#34;targeting.&#34;):
+            attr_name = feature[len(&#34;targeting.&#34;):]
+            if caps.media_buy is None or caps.media_buy.execution is None:
+                return False
+            targeting = caps.media_buy.execution.targeting
+            if targeting is None:
+                return False
+            if attr_name not in type(targeting).model_fields:
+                return False
+            val = getattr(targeting, attr_name, None)
+            # For bool fields, check truthiness. For object fields (like geo_metros),
+            # presence means supported.
+            return val is not None and val is not False
+
+        # Protocol check: if the string is a known protocol name, resolve it
+        # against supported_protocols and stop — don&#39;t fall through to features.
+        if feature in self._declared_protocols:
+            return True
+        if feature in self._valid_protocols:
+            return False
+
+        # Media buy features check
+        if caps.media_buy is not None and caps.media_buy.features is not None:
+            if feature in type(caps.media_buy.features).model_fields:
+                val = getattr(caps.media_buy.features, feature, None)
+                if val is True:
+                    return True
+
+        # Signals features check
+        if caps.signals is not None and caps.signals.features is not None:
+            if feature in type(caps.signals.features).model_fields:
+                val = getattr(caps.signals.features, feature, None)
+                if val is True:
+                    return True
+
+        return False
+
+    def require(
+        self,
+        *features: str,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+    ) -&gt; None:
+        &#34;&#34;&#34;Assert that all listed features are supported.
+
+        Args:
+            *features: Feature identifiers to require.
+            agent_id: Optional agent ID for error context.
+            agent_uri: Optional agent URI for error context.
+
+        Raises:
+            ADCPFeatureUnsupportedError: If any features are not supported.
+        &#34;&#34;&#34;
+        unsupported = [f for f in features if not self.supports(f)]
+        if not unsupported:
+            return
+
+        declared = self.get_declared_features()
+
+        raise ADCPFeatureUnsupportedError(
+            unsupported_features=unsupported,
+            declared_features=declared,
+            agent_id=agent_id,
+            agent_uri=agent_uri,
+        )
+
+    def get_declared_features(self) -&gt; list[str]:
+        &#34;&#34;&#34;Collect all features the response declares as supported.&#34;&#34;&#34;
+        caps = self._caps
+        declared: list[str] = []
+
+        # Supported protocols
+        for p in caps.supported_protocols:
+            declared.append(p.value)
+
+        # Media buy features
+        if caps.media_buy is not None and caps.media_buy.features is not None:
+            for field_name in type(caps.media_buy.features).model_fields:
+                if getattr(caps.media_buy.features, field_name, None) is True:
+                    declared.append(field_name)
+
+        # Signals features
+        if caps.signals is not None and caps.signals.features is not None:
+            for field_name in type(caps.signals.features).model_fields:
+                if getattr(caps.signals.features, field_name, None) is True:
+                    declared.append(field_name)
+
+        # Targeting features
+        if caps.media_buy is not None and caps.media_buy.execution is not None:
+            targeting = caps.media_buy.execution.targeting
+            if targeting is not None:
+                for field_name in type(targeting).model_fields:
+                    val = getattr(targeting, field_name, None)
+                    if val is not None and val is not False:
+                        declared.append(f&#34;targeting.{field_name}&#34;)
+
+        # Extensions
+        if caps.extensions_supported is not None:
+            for item in caps.extensions_supported:
+                declared.append(f&#34;ext:{item.root}&#34;)
+
+        return declared</code></pre>
+</details>
+<div class="desc"><p>Resolves feature support from a GetAdcpCapabilitiesResponse.</p>
+<p>Supports multiple feature namespaces:</p>
+<ul>
+<li>Protocol support: <code>"media_buy"</code> checks <code>supported_protocols</code></li>
+<li>Extension support: <code>"ext:scope3"</code> checks <code>extensions_supported</code></li>
+<li>Targeting: <code>"targeting.geo_countries"</code> checks
+<code>media_buy.execution.targeting</code></li>
+<li>Media buy features: <code>"audience_targeting"</code> checks
+<code>media_buy.features</code></li>
+<li>Signals features: <code>"catalog_signals"</code> checks
+<code>signals.features</code></li>
+</ul></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.FeatureResolver.capabilities"><code class="name">prop <span class="ident">capabilities</span> : GetAdcpCapabilitiesResponse</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+    return self._caps</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.FeatureResolver.get_declared_features"><code class="name flex">
+<span>def <span class="ident">get_declared_features</span></span>(<span>self) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_declared_features(self) -&gt; list[str]:
+    &#34;&#34;&#34;Collect all features the response declares as supported.&#34;&#34;&#34;
+    caps = self._caps
+    declared: list[str] = []
+
+    # Supported protocols
+    for p in caps.supported_protocols:
+        declared.append(p.value)
+
+    # Media buy features
+    if caps.media_buy is not None and caps.media_buy.features is not None:
+        for field_name in type(caps.media_buy.features).model_fields:
+            if getattr(caps.media_buy.features, field_name, None) is True:
+                declared.append(field_name)
+
+    # Signals features
+    if caps.signals is not None and caps.signals.features is not None:
+        for field_name in type(caps.signals.features).model_fields:
+            if getattr(caps.signals.features, field_name, None) is True:
+                declared.append(field_name)
+
+    # Targeting features
+    if caps.media_buy is not None and caps.media_buy.execution is not None:
+        targeting = caps.media_buy.execution.targeting
+        if targeting is not None:
+            for field_name in type(targeting).model_fields:
+                val = getattr(targeting, field_name, None)
+                if val is not None and val is not False:
+                    declared.append(f&#34;targeting.{field_name}&#34;)
+
+    # Extensions
+    if caps.extensions_supported is not None:
+        for item in caps.extensions_supported:
+            declared.append(f&#34;ext:{item.root}&#34;)
+
+    return declared</code></pre>
+</details>
+<div class="desc"><p>Collect all features the response declares as supported.</p></div>
+</dd>
+<dt id="adcp.FeatureResolver.require"><code class="name flex">
+<span>def <span class="ident">require</span></span>(<span>self, *features: str, agent_id: str | None = None, agent_uri: str | None = None) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def require(
+    self,
+    *features: str,
+    agent_id: str | None = None,
+    agent_uri: str | None = None,
+) -&gt; None:
+    &#34;&#34;&#34;Assert that all listed features are supported.
+
+    Args:
+        *features: Feature identifiers to require.
+        agent_id: Optional agent ID for error context.
+        agent_uri: Optional agent URI for error context.
+
+    Raises:
+        ADCPFeatureUnsupportedError: If any features are not supported.
+    &#34;&#34;&#34;
+    unsupported = [f for f in features if not self.supports(f)]
+    if not unsupported:
+        return
+
+    declared = self.get_declared_features()
+
+    raise ADCPFeatureUnsupportedError(
+        unsupported_features=unsupported,
+        declared_features=declared,
+        agent_id=agent_id,
+        agent_uri=agent_uri,
+    )</code></pre>
+</details>
+<div class="desc"><p>Assert that all listed features are supported.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>*features</code></strong></dt>
+<dd>Feature identifiers to require.</dd>
+<dt><strong><code>agent_id</code></strong></dt>
+<dd>Optional agent ID for error context.</dd>
+<dt><strong><code>agent_uri</code></strong></dt>
+<dd>Optional agent URI for error context.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.ADCPFeatureUnsupportedError" href="#adcp.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></code></dt>
+<dd>If any features are not supported.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.FeatureResolver.supports"><code class="name flex">
+<span>def <span class="ident">supports</span></span>(<span>self, feature: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def supports(self, feature: str) -&gt; bool:
+    &#34;&#34;&#34;Check if a feature is supported.&#34;&#34;&#34;
+    caps = self._caps
+
+    # Extension check: &#34;ext:scope3&#34;
+    if feature.startswith(&#34;ext:&#34;):
+        ext_name = feature[4:]
+        if caps.extensions_supported is None:
+            return False
+        return any(item.root == ext_name for item in caps.extensions_supported)
+
+    # Targeting check: &#34;targeting.geo_countries&#34;
+    if feature.startswith(&#34;targeting.&#34;):
+        attr_name = feature[len(&#34;targeting.&#34;):]
+        if caps.media_buy is None or caps.media_buy.execution is None:
+            return False
+        targeting = caps.media_buy.execution.targeting
+        if targeting is None:
+            return False
+        if attr_name not in type(targeting).model_fields:
+            return False
+        val = getattr(targeting, attr_name, None)
+        # For bool fields, check truthiness. For object fields (like geo_metros),
+        # presence means supported.
+        return val is not None and val is not False
+
+    # Protocol check: if the string is a known protocol name, resolve it
+    # against supported_protocols and stop — don&#39;t fall through to features.
+    if feature in self._declared_protocols:
+        return True
+    if feature in self._valid_protocols:
+        return False
+
+    # Media buy features check
+    if caps.media_buy is not None and caps.media_buy.features is not None:
+        if feature in type(caps.media_buy.features).model_fields:
+            val = getattr(caps.media_buy.features, feature, None)
+            if val is True:
+                return True
+
+    # Signals features check
+    if caps.signals is not None and caps.signals.features is not None:
+        if feature in type(caps.signals.features).model_fields:
+            val = getattr(caps.signals.features, feature, None)
+            if val is True:
+                return True
+
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if a feature is supported.</p></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.FeedFormat"><code class="flex name class">
 <span>class <span class="ident">FeedFormat</span></span>
@@ -33954,6 +34756,7 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
 <li><code><a title="adcp.adagents" href="adagents.html">adcp.adagents</a></code></li>
+<li><code><a title="adcp.capabilities" href="capabilities.html">adcp.capabilities</a></code></li>
 <li><code><a title="adcp.client" href="client.html">adcp.client</a></code></li>
 <li><code><a title="adcp.config" href="config.html">adcp.config</a></code></li>
 <li><code><a title="adcp.exceptions" href="exceptions.html">adcp.exceptions</a></code></li>
@@ -33994,6 +34797,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.uses_deprecated_assets_field" href="#adcp.uses_deprecated_assets_field">uses_deprecated_assets_field</a></code></li>
 <li><code><a title="adcp.validate_adagents" href="#adcp.validate_adagents">validate_adagents</a></code></li>
 <li><code><a title="adcp.validate_agent_authorization" href="#adcp.validate_agent_authorization">validate_agent_authorization</a></code></li>
+<li><code><a title="adcp.validate_capabilities" href="#adcp.validate_capabilities">validate_capabilities</a></code></li>
 <li><code><a title="adcp.validate_product" href="#adcp.validate_product">validate_product</a></code></li>
 <li><code><a title="adcp.validate_publisher_properties_item" href="#adcp.validate_publisher_properties_item">validate_publisher_properties_item</a></code></li>
 <li><code><a title="adcp.verify_agent_authorization" href="#adcp.verify_agent_authorization">verify_agent_authorization</a></code></li>
@@ -34011,12 +34815,15 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.ADCPClient.activate_signal" href="#adcp.ADCPClient.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.ADCPClient.build_creative" href="#adcp.ADCPClient.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.ADCPClient.calibrate_content" href="#adcp.ADCPClient.calibrate_content">calibrate_content</a></code></li>
+<li><code><a title="adcp.ADCPClient.capabilities" href="#adcp.ADCPClient.capabilities">capabilities</a></code></li>
 <li><code><a title="adcp.ADCPClient.check_governance" href="#adcp.ADCPClient.check_governance">check_governance</a></code></li>
 <li><code><a title="adcp.ADCPClient.close" href="#adcp.ADCPClient.close">close</a></code></li>
 <li><code><a title="adcp.ADCPClient.create_content_standards" href="#adcp.ADCPClient.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.ADCPClient.create_media_buy" href="#adcp.ADCPClient.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.ADCPClient.create_property_list" href="#adcp.ADCPClient.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.ADCPClient.delete_property_list" href="#adcp.ADCPClient.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.ADCPClient.feature_resolver" href="#adcp.ADCPClient.feature_resolver">feature_resolver</a></code></li>
+<li><code><a title="adcp.ADCPClient.fetch_capabilities" href="#adcp.ADCPClient.fetch_capabilities">fetch_capabilities</a></code></li>
 <li><code><a title="adcp.ADCPClient.get_account_financials" href="#adcp.ADCPClient.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.ADCPClient.get_adcp_capabilities" href="#adcp.ADCPClient.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.ADCPClient.get_content_standards" href="#adcp.ADCPClient.get_content_standards">get_content_standards</a></code></li>
@@ -34041,12 +34848,15 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.ADCPClient.log_event" href="#adcp.ADCPClient.log_event">log_event</a></code></li>
 <li><code><a title="adcp.ADCPClient.preview_creative" href="#adcp.ADCPClient.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.ADCPClient.provide_performance_feedback" href="#adcp.ADCPClient.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.ADCPClient.refresh_capabilities" href="#adcp.ADCPClient.refresh_capabilities">refresh_capabilities</a></code></li>
 <li><code><a title="adcp.ADCPClient.report_plan_outcome" href="#adcp.ADCPClient.report_plan_outcome">report_plan_outcome</a></code></li>
 <li><code><a title="adcp.ADCPClient.report_usage" href="#adcp.ADCPClient.report_usage">report_usage</a></code></li>
+<li><code><a title="adcp.ADCPClient.require" href="#adcp.ADCPClient.require">require</a></code></li>
 <li><code><a title="adcp.ADCPClient.si_get_offering" href="#adcp.ADCPClient.si_get_offering">si_get_offering</a></code></li>
 <li><code><a title="adcp.ADCPClient.si_initiate_session" href="#adcp.ADCPClient.si_initiate_session">si_initiate_session</a></code></li>
 <li><code><a title="adcp.ADCPClient.si_send_message" href="#adcp.ADCPClient.si_send_message">si_send_message</a></code></li>
 <li><code><a title="adcp.ADCPClient.si_terminate_session" href="#adcp.ADCPClient.si_terminate_session">si_terminate_session</a></code></li>
+<li><code><a title="adcp.ADCPClient.supports" href="#adcp.ADCPClient.supports">supports</a></code></li>
 <li><code><a title="adcp.ADCPClient.sync_accounts" href="#adcp.ADCPClient.sync_accounts">sync_accounts</a></code></li>
 <li><code><a title="adcp.ADCPClient.sync_audiences" href="#adcp.ADCPClient.sync_audiences">sync_audiences</a></code></li>
 <li><code><a title="adcp.ADCPClient.sync_catalogs" href="#adcp.ADCPClient.sync_catalogs">sync_catalogs</a></code></li>
@@ -34064,6 +34874,9 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.ADCPError" href="#adcp.ADCPError">ADCPError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.ADCPFeatureUnsupportedError" href="#adcp.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></code></h4>
 </li>
 <li>
 <h4><code><a title="adcp.ADCPMultiAgentClient" href="#adcp.ADCPMultiAgentClient">ADCPMultiAgentClient</a></code></h4>
@@ -35106,6 +35919,15 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.ExtensionObject" href="#adcp.ExtensionObject">ExtensionObject</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.ExtensionObject.model_config" href="#adcp.ExtensionObject.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.FeatureResolver" href="#adcp.FeatureResolver">FeatureResolver</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.FeatureResolver.capabilities" href="#adcp.FeatureResolver.capabilities">capabilities</a></code></li>
+<li><code><a title="adcp.FeatureResolver.get_declared_features" href="#adcp.FeatureResolver.get_declared_features">get_declared_features</a></code></li>
+<li><code><a title="adcp.FeatureResolver.require" href="#adcp.FeatureResolver.require">require</a></code></li>
+<li><code><a title="adcp.FeatureResolver.supports" href="#adcp.FeatureResolver.supports">supports</a></code></li>
 </ul>
 </li>
 <li>

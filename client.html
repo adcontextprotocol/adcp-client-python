@@ -48,7 +48,7 @@ el.replaceWith(d);
 <dl>
 <dt id="adcp.client.ADCPClient"><code class="flex name class">
 <span>class <span class="ident">ADCPClient</span></span>
-<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300)</span>
+<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300,<br>capabilities_ttl: float = 3600.0,<br>validate_features: bool = False)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -65,6 +65,8 @@ el.replaceWith(d);
         webhook_secret: str | None = None,
         on_activity: Callable[[Activity], None] | None = None,
         webhook_timestamp_tolerance: int = 300,
+        capabilities_ttl: float = 3600.0,
+        validate_features: bool = False,
     ):
         &#34;&#34;&#34;
         Initialize ADCP client for a single agent.
@@ -78,12 +80,23 @@ el.replaceWith(d);
             webhook_timestamp_tolerance: Maximum age (in seconds) for webhook
                 timestamps. Webhooks with timestamps older than this or more than
                 this far in the future are rejected. Defaults to 300 (5 minutes).
+            capabilities_ttl: Time-to-live in seconds for cached capabilities (default: 1 hour)
+            validate_features: When True, automatically check that the seller supports
+                required features before making task calls (e.g., sync_audiences requires
+                audience_targeting). Requires capabilities to have been fetched first.
         &#34;&#34;&#34;
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
         self.webhook_secret = webhook_secret
         self.on_activity = on_activity
         self.webhook_timestamp_tolerance = webhook_timestamp_tolerance
+        self.capabilities_ttl = capabilities_ttl
+        self.validate_features = validate_features
+
+        # Capabilities cache
+        self._capabilities: GetAdcpCapabilitiesResponse | None = None
+        self._feature_resolver: FeatureResolver | None = None
+        self._capabilities_fetched_at: float | None = None
 
         # Initialize protocol adapter
         self.adapter: ProtocolAdapter
@@ -114,6 +127,121 @@ el.replaceWith(d);
         &#34;&#34;&#34;Emit activity event.&#34;&#34;&#34;
         if self.on_activity:
             self.on_activity(activity)
+
+    # ========================================================================
+    # Capability Validation
+    # ========================================================================
+
+    @property
+    def capabilities(self) -&gt; GetAdcpCapabilitiesResponse | None:
+        &#34;&#34;&#34;Return cached capabilities, or None if not yet fetched.&#34;&#34;&#34;
+        return self._capabilities
+
+    @property
+    def feature_resolver(self) -&gt; FeatureResolver | None:
+        &#34;&#34;&#34;Return the FeatureResolver for cached capabilities, or None.&#34;&#34;&#34;
+        return self._feature_resolver
+
+    async def fetch_capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+        &#34;&#34;&#34;Fetch capabilities, using cache if still valid.
+
+        Returns:
+            The seller&#39;s capabilities response.
+        &#34;&#34;&#34;
+        if self._capabilities is not None and self._capabilities_fetched_at is not None:
+            elapsed = time.monotonic() - self._capabilities_fetched_at
+            if elapsed &lt; self.capabilities_ttl:
+                return self._capabilities
+
+        return await self.refresh_capabilities()
+
+    async def refresh_capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+        &#34;&#34;&#34;Fetch capabilities from the seller, bypassing cache.
+
+        Returns:
+            The seller&#39;s capabilities response.
+        &#34;&#34;&#34;
+        result = await self.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
+        if result.success and result.data is not None:
+            self._capabilities = result.data
+            self._feature_resolver = FeatureResolver(result.data)
+            self._capabilities_fetched_at = time.monotonic()
+            return self._capabilities
+        raise ADCPError(
+            f&#34;Failed to fetch capabilities: {result.error or result.message}&#34;,
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+        )
+
+    def _ensure_resolver(self) -&gt; FeatureResolver:
+        &#34;&#34;&#34;Return the FeatureResolver, raising if capabilities haven&#39;t been fetched.&#34;&#34;&#34;
+        if self._feature_resolver is None:
+            raise ADCPError(
+                &#34;Cannot check feature support: capabilities have not been fetched. &#34;
+                &#34;Call fetch_capabilities() first.&#34;,
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            )
+        return self._feature_resolver
+
+    def supports(self, feature: str) -&gt; bool:
+        &#34;&#34;&#34;Check if the seller supports a feature.
+
+        Supports multiple feature namespaces:
+        - Protocol support: ``supports(&#34;media_buy&#34;)`` checks ``supported_protocols``
+        - Extension support: ``supports(&#34;ext:scope3&#34;)`` checks ``extensions_supported``
+        - Targeting: ``supports(&#34;targeting.geo_countries&#34;)`` checks
+          ``media_buy.execution.targeting``
+        - Media buy features: ``supports(&#34;audience_targeting&#34;)`` checks
+          ``media_buy.features``
+        - Signals features: ``supports(&#34;catalog_signals&#34;)`` checks
+          ``signals.features``
+
+        Args:
+            feature: Feature identifier to check.
+
+        Returns:
+            True if the seller declares the feature as supported.
+
+        Raises:
+            ADCPError: If capabilities have not been fetched yet.
+        &#34;&#34;&#34;
+        return self._ensure_resolver().supports(feature)
+
+    def require(self, *features: str) -&gt; None:
+        &#34;&#34;&#34;Assert that the seller supports all listed features.
+
+        Args:
+            *features: Feature identifiers to require.
+
+        Raises:
+            ADCPFeatureUnsupportedError: If any features are not supported.
+            ADCPError: If capabilities have not been fetched yet.
+        &#34;&#34;&#34;
+        self._ensure_resolver().require(
+            *features,
+            agent_id=self.agent_config.id,
+            agent_uri=self.agent_config.agent_uri,
+        )
+
+    def _validate_task_features(self, task_name: str) -&gt; None:
+        &#34;&#34;&#34;Check feature requirements for a task if validate_features is enabled.
+
+        Returns without checking if validate_features is False or capabilities
+        haven&#39;t been fetched yet (logs a warning in the latter case).
+        &#34;&#34;&#34;
+        if not self.validate_features:
+            return
+        if self._feature_resolver is None:
+            logger.warning(
+                &#34;validate_features is enabled but capabilities have not been fetched. &#34;
+                &#34;Call fetch_capabilities() to enable feature validation.&#34;
+            )
+            return
+        required_feature = TASK_FEATURE_MAP.get(task_name)
+        if required_feature is None:
+            return
+        self.require(required_feature)
 
     async def get_products(
         self,
@@ -949,6 +1077,7 @@ el.replaceWith(d);
         Returns:
             TaskResult containing LogEventResponse
         &#34;&#34;&#34;
+        self._validate_task_features(&#34;log_event&#34;)
         operation_id = create_operation_id()
         params = request.model_dump(exclude_none=True)
 
@@ -990,6 +1119,7 @@ el.replaceWith(d);
         Returns:
             TaskResult containing SyncEventSourcesResponse
         &#34;&#34;&#34;
+        self._validate_task_features(&#34;sync_event_sources&#34;)
         operation_id = create_operation_id()
         params = request.model_dump(exclude_none=True)
 
@@ -2638,7 +2768,42 @@ el.replaceWith(d);
 <dd>Maximum age (in seconds) for webhook
 timestamps. Webhooks with timestamps older than this or more than
 this far in the future are rejected. Defaults to 300 (5 minutes).</dd>
+<dt><strong><code>capabilities_ttl</code></strong></dt>
+<dd>Time-to-live in seconds for cached capabilities (default: 1 hour)</dd>
+<dt><strong><code>validate_features</code></strong></dt>
+<dd>When True, automatically check that the seller supports
+required features before making task calls (e.g., sync_audiences requires
+audience_targeting). Requires capabilities to have been fetched first.</dd>
 </dl></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.client.ADCPClient.capabilities"><code class="name">prop <span class="ident">capabilities</span> : GetAdcpCapabilitiesResponse | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def capabilities(self) -&gt; GetAdcpCapabilitiesResponse | None:
+    &#34;&#34;&#34;Return cached capabilities, or None if not yet fetched.&#34;&#34;&#34;
+    return self._capabilities</code></pre>
+</details>
+<div class="desc"><p>Return cached capabilities, or None if not yet fetched.</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.feature_resolver"><code class="name">prop <span class="ident">feature_resolver</span> : FeatureResolver | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def feature_resolver(self) -&gt; FeatureResolver | None:
+    &#34;&#34;&#34;Return the FeatureResolver for cached capabilities, or None.&#34;&#34;&#34;
+    return self._feature_resolver</code></pre>
+</details>
+<div class="desc"><p>Return the FeatureResolver for cached capabilities, or None.</p></div>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
 <dt id="adcp.client.ADCPClient.activate_signal"><code class="name flex">
@@ -3219,6 +3384,31 @@ will be terminated.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing DeletePropertyListResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.fetch_capabilities"><code class="name flex">
+<span>async def <span class="ident">fetch_capabilities</span></span>(<span>self) ‑> <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse" href="types/generated_poc/protocol/get_adcp_capabilities_response.html#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse">GetAdcpCapabilitiesResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def fetch_capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+    &#34;&#34;&#34;Fetch capabilities, using cache if still valid.
+
+    Returns:
+        The seller&#39;s capabilities response.
+    &#34;&#34;&#34;
+    if self._capabilities is not None and self._capabilities_fetched_at is not None:
+        elapsed = time.monotonic() - self._capabilities_fetched_at
+        if elapsed &lt; self.capabilities_ttl:
+            return self._capabilities
+
+    return await self.refresh_capabilities()</code></pre>
+</details>
+<div class="desc"><p>Fetch capabilities, using cache if still valid.</p>
+<h2 id="returns">Returns</h2>
+<p>The seller's capabilities response.</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_account_financials"><code class="name flex">
 <span>async def <span class="ident">get_account_financials</span></span>(<span>self, request: GetAccountFinancialsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[GetAccountFinancialsResponse1, GetAccountFinancialsResponse2]]</span>
@@ -4573,6 +4763,7 @@ by principal or pagination parameters.</p>
     Returns:
         TaskResult containing LogEventResponse
     &#34;&#34;&#34;
+    self._validate_task_features(&#34;log_event&#34;)
     operation_id = create_operation_id()
     params = request.model_dump(exclude_none=True)
 
@@ -4726,6 +4917,36 @@ by principal or pagination parameters.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ProvidePerformanceFeedbackResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.refresh_capabilities"><code class="name flex">
+<span>async def <span class="ident">refresh_capabilities</span></span>(<span>self) ‑> <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse" href="types/generated_poc/protocol/get_adcp_capabilities_response.html#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse">GetAdcpCapabilitiesResponse</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def refresh_capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
+    &#34;&#34;&#34;Fetch capabilities from the seller, bypassing cache.
+
+    Returns:
+        The seller&#39;s capabilities response.
+    &#34;&#34;&#34;
+    result = await self.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
+    if result.success and result.data is not None:
+        self._capabilities = result.data
+        self._feature_resolver = FeatureResolver(result.data)
+        self._capabilities_fetched_at = time.monotonic()
+        return self._capabilities
+    raise ADCPError(
+        f&#34;Failed to fetch capabilities: {result.error or result.message}&#34;,
+        agent_id=self.agent_config.id,
+        agent_uri=self.agent_config.agent_uri,
+    )</code></pre>
+</details>
+<div class="desc"><p>Fetch capabilities from the seller, bypassing cache.</p>
+<h2 id="returns">Returns</h2>
+<p>The seller's capabilities response.</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.report_plan_outcome"><code class="name flex">
 <span>async def <span class="ident">report_plan_outcome</span></span>(<span>self, request: ReportPlanOutcomeRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ReportPlanOutcomeResponse]</span>
 </code></dt>
@@ -4826,6 +5047,44 @@ by principal or pagination parameters.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ReportUsageResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.require"><code class="name flex">
+<span>def <span class="ident">require</span></span>(<span>self, *features: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def require(self, *features: str) -&gt; None:
+    &#34;&#34;&#34;Assert that the seller supports all listed features.
+
+    Args:
+        *features: Feature identifiers to require.
+
+    Raises:
+        ADCPFeatureUnsupportedError: If any features are not supported.
+        ADCPError: If capabilities have not been fetched yet.
+    &#34;&#34;&#34;
+    self._ensure_resolver().require(
+        *features,
+        agent_id=self.agent_config.id,
+        agent_uri=self.agent_config.agent_uri,
+    )</code></pre>
+</details>
+<div class="desc"><p>Assert that the seller supports all listed features.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>*features</code></strong></dt>
+<dd>Feature identifiers to require.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ADCPFeatureUnsupportedError</code></dt>
+<dd>If any features are not supported.</dd>
+<dt><code>ADCPError</code></dt>
+<dd>If capabilities have not been fetched yet.</dd>
+</dl></div>
 </dd>
 <dt id="adcp.client.ADCPClient.si_get_offering"><code class="name flex">
 <span>async def <span class="ident">si_get_offering</span></span>(<span>self, request: SiGetOfferingRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SiGetOfferingResponse]</span>
@@ -5072,6 +5331,61 @@ sponsored intelligence session.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing SiTerminateSessionResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.supports"><code class="name flex">
+<span>def <span class="ident">supports</span></span>(<span>self, feature: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def supports(self, feature: str) -&gt; bool:
+    &#34;&#34;&#34;Check if the seller supports a feature.
+
+    Supports multiple feature namespaces:
+    - Protocol support: ``supports(&#34;media_buy&#34;)`` checks ``supported_protocols``
+    - Extension support: ``supports(&#34;ext:scope3&#34;)`` checks ``extensions_supported``
+    - Targeting: ``supports(&#34;targeting.geo_countries&#34;)`` checks
+      ``media_buy.execution.targeting``
+    - Media buy features: ``supports(&#34;audience_targeting&#34;)`` checks
+      ``media_buy.features``
+    - Signals features: ``supports(&#34;catalog_signals&#34;)`` checks
+      ``signals.features``
+
+    Args:
+        feature: Feature identifier to check.
+
+    Returns:
+        True if the seller declares the feature as supported.
+
+    Raises:
+        ADCPError: If capabilities have not been fetched yet.
+    &#34;&#34;&#34;
+    return self._ensure_resolver().supports(feature)</code></pre>
+</details>
+<div class="desc"><p>Check if the seller supports a feature.</p>
+<p>Supports multiple feature namespaces:
+- Protocol support: <code>supports("media_buy")</code> checks <code>supported_protocols</code>
+- Extension support: <code>supports("ext:scope3")</code> checks <code>extensions_supported</code>
+- Targeting: <code>supports("targeting.geo_countries")</code> checks
+<code>media_buy.execution.targeting</code>
+- Media buy features: <code>supports("audience_targeting")</code> checks
+<code>media_buy.features</code>
+- Signals features: <code>supports("catalog_signals")</code> checks
+<code>signals.features</code></p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>feature</code></strong></dt>
+<dd>Feature identifier to check.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>True if the seller declares the feature as supported.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ADCPError</code></dt>
+<dd>If capabilities have not been fetched yet.</dd>
+</dl></div>
 </dd>
 <dt id="adcp.client.ADCPClient.sync_accounts"><code class="name flex">
 <span>async def <span class="ident">sync_accounts</span></span>(<span>self, request: SyncAccountsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncAccountsResponse1, SyncAccountsResponse2]]</span>
@@ -5326,6 +5640,7 @@ sponsored intelligence session.</p>
     Returns:
         TaskResult containing SyncEventSourcesResponse
     &#34;&#34;&#34;
+    self._validate_task_features(&#34;sync_event_sources&#34;)
     operation_id = create_operation_id()
     params = request.model_dump(exclude_none=True)
 
@@ -5929,12 +6244,15 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.activate_signal" href="#adcp.client.ADCPClient.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.build_creative" href="#adcp.client.ADCPClient.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.calibrate_content" href="#adcp.client.ADCPClient.calibrate_content">calibrate_content</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.capabilities" href="#adcp.client.ADCPClient.capabilities">capabilities</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.check_governance" href="#adcp.client.ADCPClient.check_governance">check_governance</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.close" href="#adcp.client.ADCPClient.close">close</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_content_standards" href="#adcp.client.ADCPClient.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_media_buy" href="#adcp.client.ADCPClient.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_property_list" href="#adcp.client.ADCPClient.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.delete_property_list" href="#adcp.client.ADCPClient.delete_property_list">delete_property_list</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.feature_resolver" href="#adcp.client.ADCPClient.feature_resolver">feature_resolver</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.fetch_capabilities" href="#adcp.client.ADCPClient.fetch_capabilities">fetch_capabilities</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_account_financials" href="#adcp.client.ADCPClient.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_adcp_capabilities" href="#adcp.client.ADCPClient.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_content_standards" href="#adcp.client.ADCPClient.get_content_standards">get_content_standards</a></code></li>
@@ -5959,12 +6277,15 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.log_event" href="#adcp.client.ADCPClient.log_event">log_event</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.preview_creative" href="#adcp.client.ADCPClient.preview_creative">preview_creative</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.provide_performance_feedback" href="#adcp.client.ADCPClient.provide_performance_feedback">provide_performance_feedback</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.refresh_capabilities" href="#adcp.client.ADCPClient.refresh_capabilities">refresh_capabilities</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.report_plan_outcome" href="#adcp.client.ADCPClient.report_plan_outcome">report_plan_outcome</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.report_usage" href="#adcp.client.ADCPClient.report_usage">report_usage</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.require" href="#adcp.client.ADCPClient.require">require</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.si_get_offering" href="#adcp.client.ADCPClient.si_get_offering">si_get_offering</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.si_initiate_session" href="#adcp.client.ADCPClient.si_initiate_session">si_initiate_session</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.si_send_message" href="#adcp.client.ADCPClient.si_send_message">si_send_message</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.si_terminate_session" href="#adcp.client.ADCPClient.si_terminate_session">si_terminate_session</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.supports" href="#adcp.client.ADCPClient.supports">supports</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_accounts" href="#adcp.client.ADCPClient.sync_accounts">sync_accounts</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_audiences" href="#adcp.client.ADCPClient.sync_audiences">sync_audiences</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_catalogs" href="#adcp.client.ADCPClient.sync_catalogs">sync_catalogs</a></code></li>
