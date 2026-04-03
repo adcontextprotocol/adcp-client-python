@@ -312,6 +312,8 @@ _UNWRAP_TO_UNION: set[str] = {
     "BuildCreativeRequest",
     "BuildCreativeResponse",
     "CalibrateContentResponse",
+    "ComplyTestControllerRequest",
+    "ComplyTestControllerResponse",
     "CreateContentStandardsResponse",
     "CreateMediaBuyResponse",
     "CreativeApprovalResponse",

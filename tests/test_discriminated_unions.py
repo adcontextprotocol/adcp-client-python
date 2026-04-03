@@ -816,7 +816,6 @@ class TestRootModelUnwrapForSubclassing:
 
         resp = MySuccessResponse(
             media_buy_id="mb_123",
-            buyer_ref="ref_456",
             packages=[],
         )
         assert resp.media_buy_id == "mb_123"
@@ -825,7 +824,6 @@ class TestRootModelUnwrapForSubclassing:
         with pytest.raises(ValidationError):
             MySuccessResponse(
                 media_buy_id="mb_123",
-                buyer_ref="ref_456",
                 packages=[],
                 unknown_field="should fail",
             )

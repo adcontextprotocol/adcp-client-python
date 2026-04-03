@@ -309,9 +309,7 @@ class TestGovernanceHandler:
                 return CheckGovernanceResponse(
                     check_id="chk_123",
                     status="approved",
-                    binding="proposed",
                     plan_id="plan_123",
-                    buyer_campaign_ref="campaign_123",
                     explanation="Approved",
                 )
 
@@ -385,8 +383,8 @@ class TestGovernanceHandler:
         result = await handler.check_governance(
             {
                 "plan_id": "plan_123",
-                "buyer_campaign_ref": "campaign_123",
-                "binding": "proposed",
+                "media_buy_id": "mb_123",
+                "phase": "purchase",
                 "caller": "https://buyer.example.com",
             }
         )
@@ -395,7 +393,7 @@ class TestGovernanceHandler:
         result = await handler.report_plan_outcome(
             {
                 "plan_id": "plan_123",
-                "buyer_campaign_ref": "campaign_123",
+                "governance_context": "ctx_123",
                 "outcome": "completed",
                 "seller_response": {},
             }

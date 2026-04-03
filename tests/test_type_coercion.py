@@ -21,6 +21,9 @@ from adcp.types import (
 )
 from adcp.types.generated_poc.core.context import ContextObject
 from adcp.types.generated_poc.core.ext import ExtensionObject
+from adcp.types.generated_poc.creative.list_creative_formats_request import (
+    ListCreativeFormatsRequestCreativeAgent,
+)
 from adcp.types.generated_poc.creative.list_creatives_request import Field1 as FieldModel
 from adcp.types.generated_poc.creative.list_creatives_request import Sort
 from adcp.types.generated_poc.enums.creative_sort_field import CreativeSortField
@@ -32,31 +35,31 @@ class TestEnumStringCoercion:
     """Test that enum fields accept string values."""
 
     def test_format_category_accepts_string(self):
-        """ListCreativeFormatsRequest.type accepts string 'video'."""
-        req = ListCreativeFormatsRequest(type="video")
+        """ListCreativeFormatsRequestCreativeAgent.type accepts string 'video'."""
+        req = ListCreativeFormatsRequestCreativeAgent(type="video")
         assert req.type == FormatCategory.video
         assert isinstance(req.type, FormatCategory)
 
     def test_format_category_accepts_enum(self):
-        """ListCreativeFormatsRequest.type still accepts enum values."""
-        req = ListCreativeFormatsRequest(type=FormatCategory.display)
+        """ListCreativeFormatsRequestCreativeAgent.type still accepts enum values."""
+        req = ListCreativeFormatsRequestCreativeAgent(type=FormatCategory.display)
         assert req.type == FormatCategory.display
 
     def test_format_category_accepts_none(self):
-        """ListCreativeFormatsRequest.type accepts None."""
-        req = ListCreativeFormatsRequest(type=None)
+        """ListCreativeFormatsRequestCreativeAgent.type accepts None."""
+        req = ListCreativeFormatsRequestCreativeAgent(type=None)
         assert req.type is None
 
     def test_all_format_categories_coerce(self):
         """All FormatCategory values coerce from strings."""
         for category in FormatCategory:
-            req = ListCreativeFormatsRequest(type=category.value)
+            req = ListCreativeFormatsRequestCreativeAgent(type=category.value)
             assert req.type == category
 
     def test_invalid_format_category_raises(self):
         """Invalid string values raise ValidationError."""
         with pytest.raises(ValidationError):
-            ListCreativeFormatsRequest(type="invalid_category")
+            ListCreativeFormatsRequestCreativeAgent(type="invalid_category")
 
 
 class TestEnumListCoercion:
@@ -213,10 +216,8 @@ class TestBackwardCompatibility:
     def test_explicit_enum_values_work(self):
         """Existing code using enum values still works."""
         req = ListCreativeFormatsRequest(
-            type=FormatCategory.video,
             asset_types=[AssetContentType.image, AssetContentType.video],
         )
-        assert req.type == FormatCategory.video
         assert req.asset_types == [AssetContentType.image, AssetContentType.video]
 
     def test_explicit_model_values_work(self):
@@ -369,7 +370,7 @@ class TestSerializationRoundtrip:
 
     def test_enum_serializes_as_string(self):
         """Coerced enum values serialize as strings in JSON."""
-        req = ListCreativeFormatsRequest(type="video")
+        req = ListCreativeFormatsRequestCreativeAgent(type="video")
         data = req.model_dump(mode="json")
         assert data["type"] == "video"  # Enum serializes to its value
 
@@ -388,14 +389,12 @@ class TestSerializationRoundtrip:
     def test_full_request_roundtrip(self):
         """Full request with coerced values can roundtrip through JSON."""
         req = ListCreativeFormatsRequest(
-            type="video",
             asset_types=["image", "html"],
             context={"key": "value"},
             name_search="test",
         )
         json_str = req.model_dump_json()
         restored = ListCreativeFormatsRequest.model_validate_json(json_str)
-        assert restored.type == FormatCategory.video
         assert restored.asset_types == [AssetContentType.image, AssetContentType.html]
         assert restored.context.key == "value"
         assert restored.name_search == "test"

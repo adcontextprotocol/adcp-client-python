@@ -313,7 +313,6 @@ def test_list_creative_formats_request_has_filter_params():
         "is_responsive",  # Filter for responsive formats
         "name_search",  # Search formats by name (case-insensitive partial match)
         "asset_types",  # Filter by asset types (image, video, etc.)
-        "type",  # Filter by format category (display, video, etc.)
         "format_ids",  # Return only specific format IDs
         "min_width",  # Minimum width filter
         "max_width",  # Maximum width filter

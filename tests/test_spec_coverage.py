@@ -197,10 +197,11 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
         },
         "build_creative": {
             "brand", "concept_id", "context", "creative_id",
-            "creative_manifest", "ext", "include_preview", "item_limit",
-            "macro_values", "media_buy_id", "message", "package_id",
-            "preview_inputs", "preview_output_format", "preview_quality",
-            "quality", "target_format_id", "target_format_ids",
+            "creative_manifest", "ext", "idempotency_key", "include_preview",
+            "item_limit", "macro_values", "media_buy_id", "message",
+            "package_id", "preview_inputs", "preview_output_format",
+            "preview_quality", "quality", "target_format_id",
+            "target_format_ids",
         },
         "sync_creatives": {
             "account", "assignments", "context", "creative_ids",
@@ -212,15 +213,18 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
             "include_snapshot", "include_variables", "sort",
         },
         "create_media_buy": {
-            "account", "artifact_webhook", "brand", "buyer_campaign_ref",
-            "buyer_ref", "context", "end_time", "ext", "plan_id",
+            "account", "advertiser_industry", "artifact_webhook", "brand",
+            "buyer_campaign_ref", "buyer_ref", "context", "end_time", "ext",
+            "idempotency_key", "invoice_recipient", "io_acceptance", "plan_id",
             "po_number", "push_notification_config", "reporting_webhook",
             "start_time", "total_budget",
         },
         "update_media_buy": {
-            "buyer_ref", "context", "end_time", "ext", "idempotency_key",
-            "paused", "push_notification_config", "reporting_webhook",
-            "start_time", "status_filter", "total_budget",
+            "buyer_ref", "canceled", "cancellation_reason", "context",
+            "end_time", "ext", "idempotency_key", "invoice_recipient",
+            "new_packages", "paused", "push_notification_config",
+            "reporting_webhook", "revision", "start_time", "status_filter",
+            "total_budget",
         },
         "get_media_buy_delivery": {
             "account", "attribution_window", "buyer_refs", "context",
@@ -231,7 +235,8 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
         },
         "get_media_buys": {
             "context", "ext", "fields", "include_delivery_snapshot",
-            "include_packages", "include_snapshot", "status_filter",
+            "include_history", "include_packages", "include_snapshot",
+            "status_filter",
         },
         "get_signals": {
             "account", "buyer_campaign_ref", "context", "countries",
@@ -239,13 +244,13 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
         },
         "activate_signal": {
             "account", "action", "buyer_campaign_ref", "context",
-            "destinations", "ext", "pricing_option_id",
+            "destinations", "ext", "idempotency_key", "pricing_option_id",
             "signal_agent_segment_id",
         },
         "provide_performance_feedback": {
             "buyer_ref", "context", "creative_id", "ext", "feedback_source",
-            "measurement_period", "metric_type", "package_id",
-            "performance_index",
+            "idempotency_key", "measurement_period", "metric_type",
+            "package_id", "performance_index",
         },
         "list_accounts": {"context", "ext", "sandbox", "status"},
         "sync_accounts": {
@@ -254,7 +259,10 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
         },
         "get_account_financials": {"context", "ext", "period"},
         "report_usage": {"context", "ext", "idempotency_key", "reporting_period"},
-        "log_event": {"context", "event_source_id", "ext", "test_event_code"},
+        "log_event": {
+            "context", "event_source_id", "ext", "idempotency_key",
+            "test_event_code",
+        },
         "sync_event_sources": {"account", "context", "delete_missing", "ext"},
         "sync_audiences": {"context", "delete_missing", "ext"},
         "sync_catalogs": {
@@ -267,48 +275,54 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
         },
         "get_adcp_capabilities": {"context", "ext", "protocols"},
         "create_content_standards": {
-            "calibration_exemplars", "context", "ext", "policy",
-            "registry_policy_ids", "scope",
+            "calibration_exemplars", "context", "ext", "idempotency_key",
+            "policy", "registry_policy_ids", "scope",
         },
         "get_content_standards": {"context", "ext", "standards_id"},
         "list_content_standards": {
             "channels", "context", "countries", "ext", "languages",
         },
         "update_content_standards": {
-            "calibration_exemplars", "context", "ext", "policy",
-            "registry_policy_ids", "scope", "standards_id",
+            "calibration_exemplars", "context", "ext", "idempotency_key",
+            "policy", "registry_policy_ids", "scope", "standards_id",
         },
-        "calibrate_content": {"artifact", "standards_id"},
+        "calibrate_content": {"artifact", "idempotency_key", "standards_id"},
         "validate_content_delivery": {
             "context", "ext", "feature_ids", "include_passed", "records",
             "standards_id",
         },
         "get_media_buy_artifacts": {
-            "account", "context", "ext", "package_ids", "pagination",
-            "sampling", "time_range",
+            "account", "context", "ext", "failures_only", "package_ids",
+            "pagination", "sampling", "time_range",
         },
         "get_creative_features": {"ext", "feature_ids"},
         "check_governance": {
-            "buyer_ref", "delivery_metrics", "media_buy_id",
-            "modification_summary", "phase", "planned_delivery",
+            "buyer_ref", "delivery_metrics", "invoice_recipient",
+            "media_buy_id", "modification_summary", "phase",
+            "planned_delivery",
+        },
+        "report_plan_outcome": {
+            "governance_context", "idempotency_key",
         },
         "si_get_offering": {
             "context", "ext", "include_products", "offering_id",
             "product_limit",
         },
         "si_initiate_session": {
-            "context", "ext", "identity", "media_buy_id", "offering_id",
-            "offering_token", "placement", "supported_capabilities",
+            "context", "ext", "idempotency_key", "identity", "media_buy_id",
+            "offering_id", "offering_token", "placement",
+            "supported_capabilities",
         },
         "si_send_message": {"action_response", "ext"},
         "si_terminate_session": {"ext", "reason", "termination_context"},
-        "create_property_list": {"brand", "context", "ext"},
+        "create_property_list": {"brand", "context", "ext", "idempotency_key"},
         "get_property_list": {"context", "ext"},
         "list_property_lists": {"context", "ext", "name_contains"},
         "update_property_list": {
-            "base_properties", "brand", "context", "ext", "webhook_url",
+            "base_properties", "brand", "context", "ext", "idempotency_key",
+            "webhook_url",
         },
-        "delete_property_list": {"context", "ext"},
+        "delete_property_list": {"context", "ext", "idempotency_key"},
     }
 
     drift: list[str] = []

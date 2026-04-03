@@ -114,7 +114,9 @@ async def test_get_products():
         result = await client.get_products(request)
 
         # Verify adapter method was called
-        mock_get.assert_called_once_with({"brief": "test campaign", "buying_mode": "brief"})
+        call_args = mock_get.call_args[0][0]
+        assert call_args["brief"] == "test campaign"
+        assert call_args["buying_mode"].value == "brief"
         # Verify parsing was called with correct type
         mock_parse.assert_called_once_with(mock_raw_result, GetProductsResponse)
         # Verify final result
@@ -330,8 +332,6 @@ async def test_all_client_methods():
             "CheckGovernanceRequest",
             {
                 "plan_id": "plan_123",
-                "buyer_campaign_ref": "campaign_123",
-                "binding": "proposed",
                 "caller": "https://buyer.example.com",
             },
         ),
@@ -340,9 +340,8 @@ async def test_all_client_methods():
             "ReportPlanOutcomeRequest",
             {
                 "plan_id": "plan_123",
-                "buyer_campaign_ref": "campaign_123",
+                "governance_context": "campaign_123",
                 "outcome": "completed",
-                "seller_response": {},
             },
         ),
         (
@@ -479,8 +478,10 @@ async def test_multi_agent_parallel_execution():
         results = await client.get_products(request)
 
         # Verify both agents' get_products method was called
-        mock1.assert_called_once_with({"buying_mode": "wholesale"})
-        mock2.assert_called_once_with({"buying_mode": "wholesale"})
+        for mock in (mock1, mock2):
+            mock.assert_called_once()
+            call_args = mock.call_args[0][0]
+            assert call_args["buying_mode"].value == "wholesale"
 
         # Verify results from both agents
         assert len(results) == 2
@@ -743,7 +744,7 @@ async def test_get_media_buys_parses_response():
             GetMediaBuysRequest.model_validate({"account": {"account_id": "acct-1"}})
         )
         mock_adapter.assert_called_once_with(
-            {"account": {"account_id": "acct-1"}, "include_snapshot": False}
+            {"account": {"account_id": "acct-1"}, "include_history": 0, "include_snapshot": False}
         )
         assert result.success is True
         assert isinstance(result.data, GetMediaBuysResponse)
@@ -830,7 +831,7 @@ async def test_get_media_buys_parses_snapshot_response():
             )
         )
         mock_adapter.assert_called_once_with(
-            {"account": {"account_id": "acct-1"}, "include_snapshot": True}
+            {"account": {"account_id": "acct-1"}, "include_history": 0, "include_snapshot": True}
         )
         assert result.success is True
         assert isinstance(result.data, GetMediaBuysResponse)
