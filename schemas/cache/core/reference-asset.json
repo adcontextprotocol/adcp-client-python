@@ -1,17 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/reference-asset.json",
-  "title": "Reference Asset",
+  "additionalProperties": true,
   "description": "A reference asset that provides creative context. Carries visual materials (mood boards, product shots, example creatives) with semantic roles that tell creative agents how to use them.",
-  "type": "object",
   "properties": {
-    "url": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL to the reference asset (image, video, or document)"
+    "description": {
+      "description": "Human-readable description of the asset and how it should inform creative generation",
+      "type": "string"
     },
     "role": {
-      "type": "string",
+      "description": "How the creative agent should use this asset. style_reference: match the visual style; product_shot: include this product; mood_board: overall look and feel; example_creative: example of a similar execution; logo: logo to use; strategy_doc: strategy or planning document for context; storyboard: sequential visual direction for video or multi-scene creative",
       "enum": [
         "style_reference",
         "product_shot",
@@ -21,13 +18,18 @@
         "strategy_doc",
         "storyboard"
       ],
-      "description": "How the creative agent should use this asset. style_reference: match the visual style; product_shot: include this product; mood_board: overall look and feel; example_creative: example of a similar execution; logo: logo to use; strategy_doc: strategy or planning document for context; storyboard: sequential visual direction for video or multi-scene creative"
+      "type": "string"
     },
-    "description": {
-      "type": "string",
-      "description": "Human-readable description of the asset and how it should inform creative generation"
+    "url": {
+      "description": "URL to the reference asset (image, video, or document)",
+      "format": "uri",
+      "type": "string"
     }
   },
-  "required": ["url", "role"],
-  "additionalProperties": true
+  "required": [
+    "url",
+    "role"
+  ],
+  "title": "Reference Asset",
+  "type": "object"
 }

@@ -1,172 +1,215 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/brand/get-rights-response.json",
-  "title": "Get Rights Response",
   "description": "Licensable rights matching the search criteria, with pricing options. Each result is a complete snapshot of current availability (stateless, DDEX PIE pattern). Excluded results explain why they were filtered out.",
-  "type": "object",
   "oneOf": [
     {
-      "title": "GetRightsSuccess",
+      "additionalProperties": true,
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
       "properties": {
-        "rights": {
-          "type": "array",
-          "description": "Matching rights with pricing options, ranked by relevance",
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "excluded": {
+          "description": "Results that matched but were filtered out, with reasons",
           "items": {
-            "type": "object",
+            "additionalProperties": true,
             "properties": {
-              "rights_id": {
-                "type": "string",
-                "description": "Identifier for this rights offering. Referenced in acquire_rights."
-              },
               "brand_id": {
-                "type": "string",
-                "description": "Brand identifier from the agent's roster"
+                "type": "string"
               },
               "name": {
-                "type": "string",
-                "description": "Display name of the rights subject"
+                "type": "string"
               },
-              "description": {
-                "type": "string",
-                "description": "Description of the rights subject"
+              "reason": {
+                "description": "Why this result was excluded. May be sanitized to protect confidential brand rules.",
+                "type": "string"
               },
-              "right_type": {
-                "$ref": "/schemas/3.0.0-rc.2/enums/right-type.json"
-              },
-              "match_score": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1,
-                "description": "Relevance score from 0 to 1"
-              },
-              "match_reasons": {
-                "type": "array",
-                "description": "Human-readable reasons for the match",
-                "items": { "type": "string" }
-              },
+              "suggestions": {
+                "description": "Actionable alternatives if the exclusion is fixable (e.g., 'Available in BE and DE markets'). Absent if the exclusion is final.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "brand_id",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "rights": {
+          "description": "Matching rights with pricing options, ranked by relevance",
+          "items": {
+            "additionalProperties": true,
+            "properties": {
               "available_uses": {
-                "type": "array",
                 "description": "Rights uses available for licensing",
-                "items": { "$ref": "/schemas/3.0.0-rc.2/enums/right-use.json" }
+                "items": {
+                  "$ref": "../enums/right-use.json"
+                },
+                "type": "array"
+              },
+              "brand_id": {
+                "description": "Brand identifier from the agent's roster",
+                "type": "string"
+              },
+              "content_restrictions": {
+                "description": "Content restrictions or approval requirements",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
               },
               "countries": {
-                "type": "array",
                 "description": "Countries where rights are available (ISO 3166-1 alpha-2). When both countries and excluded_countries are present, the effective set is countries minus excluded_countries. If neither is present, all countries are available.",
                 "items": {
-                  "type": "string",
-                  "pattern": "^[A-Z]{2}$"
-                }
+                  "pattern": "^[A-Z]{2}$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "description": {
+                "description": "Description of the rights subject",
+                "type": "string"
               },
               "excluded_countries": {
-                "type": "array",
                 "description": "Countries excluded from availability",
                 "items": {
-                  "type": "string",
-                  "pattern": "^[A-Z]{2}$"
-                }
+                  "pattern": "^[A-Z]{2}$",
+                  "type": "string"
+                },
+                "type": "array"
               },
               "exclusivity_status": {
-                "type": "object",
+                "additionalProperties": true,
                 "description": "Current exclusivity availability",
                 "properties": {
                   "available": {
-                    "type": "boolean",
-                    "description": "Whether exclusivity is available"
+                    "description": "Whether exclusivity is available",
+                    "type": "boolean"
                   },
                   "existing_exclusives": {
-                    "type": "array",
                     "description": "Active exclusivity commitments that may affect availability. Implementers should use vague descriptions ('exclusive commitment in this category') rather than specific deal terms to protect confidential business relationships.",
-                    "items": { "type": "string" }
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   }
                 },
-                "additionalProperties": true
+                "type": "object"
               },
-              "pricing_options": {
-                "type": "array",
-                "description": "Available pricing options for these rights",
+              "match_reasons": {
+                "description": "Human-readable reasons for the match",
                 "items": {
-                  "$ref": "/schemas/3.0.0-rc.2/brand/rights-pricing-option.json"
+                  "type": "string"
                 },
-                "minItems": 1
+                "type": "array"
               },
-              "content_restrictions": {
-                "type": "array",
-                "description": "Content restrictions or approval requirements",
-                "items": { "type": "string" }
+              "match_score": {
+                "description": "Relevance score from 0 to 1",
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "name": {
+                "description": "Display name of the rights subject",
+                "type": "string"
               },
               "preview_assets": {
-                "type": "array",
                 "description": "Preview-only assets for evaluation",
                 "items": {
-                  "type": "object",
+                  "additionalProperties": true,
                   "properties": {
-                    "url": { "type": "string", "format": "uri" },
-                    "usage": { "type": "string" }
+                    "url": {
+                      "format": "uri",
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "string"
+                    }
                   },
-                  "required": ["url"],
-                  "additionalProperties": true
-                }
-              }
-            },
-            "required": ["rights_id", "brand_id", "name", "available_uses", "pricing_options"],
-            "additionalProperties": true
-          }
-        },
-        "excluded": {
-          "type": "array",
-          "description": "Results that matched but were filtered out, with reasons",
-          "items": {
-            "type": "object",
-            "properties": {
-              "brand_id": { "type": "string" },
-              "name": { "type": "string" },
-              "reason": {
-                "type": "string",
-                "description": "Why this result was excluded. May be sanitized to protect confidential brand rules."
+                  "required": [
+                    "url"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
               },
-              "suggestions": {
-                "type": "array",
-                "description": "Actionable alternatives if the exclusion is fixable (e.g., 'Available in BE and DE markets'). Absent if the exclusion is final.",
-                "items": { "type": "string" }
+              "pricing_options": {
+                "description": "Available pricing options for these rights",
+                "items": {
+                  "$ref": "rights-pricing-option.json"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              "right_type": {
+                "$ref": "../enums/right-type.json"
+              },
+              "rights_id": {
+                "description": "Identifier for this rights offering. Referenced in acquire_rights.",
+                "type": "string"
               }
             },
-            "required": ["brand_id", "reason"],
-            "additionalProperties": true
-          }
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+            "required": [
+              "rights_id",
+              "brand_id",
+              "name",
+              "available_uses",
+              "pricing_options"
+            ],
+            "type": "object"
+          },
+          "type": "array"
         }
       },
-      "required": ["rights"],
-      "additionalProperties": true,
-      "not": { "required": ["errors"] }
+      "required": [
+        "rights"
+      ],
+      "title": "GetRightsSuccess"
     },
     {
-      "title": "GetRightsError",
-      "properties": {
-        "errors": {
-          "type": "array",
-          "items": { "$ref": "/schemas/3.0.0-rc.2/core/error.json" },
-          "minItems": 1
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
-        }
-      },
-      "required": ["errors"],
       "additionalProperties": true,
       "not": {
         "anyOf": [
-          { "required": ["rights"] }
+          {
+            "required": [
+              "rights"
+            ]
+          }
         ]
-      }
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "title": "GetRightsError"
     }
-  ]
+  ],
+  "title": "Get Rights Response",
+  "type": "object"
 }

@@ -1,9 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/enums/wcag-level.json",
-  "title": "WCAG Level",
   "description": "Web Content Accessibility Guidelines conformance level",
-  "type": "string",
   "enum": [
     "A",
     "AA",
@@ -13,5 +10,7 @@
     "A": "Minimum level of conformance. Addresses the most basic accessibility barriers.",
     "AA": "Addresses the most common barriers for disabled users. Required by most accessibility regulations.",
     "AAA": "Highest level of conformance. Addresses the widest range of accessibility barriers."
-  }
+  },
+  "title": "WCAG Level",
+  "type": "string"
 }

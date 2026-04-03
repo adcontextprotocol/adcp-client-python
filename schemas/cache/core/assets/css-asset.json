@@ -1,25 +1,24 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/assets/css-asset.json",
-  "title": "CSS Asset",
+  "additionalProperties": true,
   "description": "CSS stylesheet asset",
-  "type": "object",
   "properties": {
     "content": {
-      "type": "string",
-      "description": "CSS content"
+      "description": "CSS content",
+      "type": "string"
     },
     "media": {
-      "type": "string",
-      "description": "CSS media query context (e.g., 'screen', 'print')"
+      "description": "CSS media query context (e.g., 'screen', 'print')",
+      "type": "string"
     },
     "provenance": {
-      "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
+      "$ref": "../../core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },
   "required": [
     "content"
   ],
-  "additionalProperties": true
+  "title": "CSS Asset",
+  "type": "object"
 }

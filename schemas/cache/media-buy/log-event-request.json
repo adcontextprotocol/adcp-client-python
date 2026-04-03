@@ -1,37 +1,42 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/media-buy/log-event-request.json",
-  "title": "Log Event Request",
+  "additionalProperties": true,
   "description": "Request parameters for logging marketing events",
-  "type": "object",
   "properties": {
-    "event_source_id": {
-      "type": "string",
-      "description": "Event source configured on the account via sync_event_sources"
+    "context": {
+      "$ref": "../core/context.json"
     },
-    "test_event_code": {
-      "type": "string",
-      "description": "Test event code for validation without affecting production data. Events with this code appear in the platform's test events UI."
+    "event_source_id": {
+      "description": "Event source configured on the account via sync_event_sources",
+      "type": "string"
     },
     "events": {
-      "type": "array",
       "description": "Events to log",
       "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/event.json"
+        "$ref": "../core/event.json"
       },
+      "maxItems": 10000,
       "minItems": 1,
-      "maxItems": 10000
-    },
-    "context": {
-      "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+      "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "$ref": "../core/ext.json"
+    },
+    "idempotency_key": {
+      "description": "Client-generated unique key for this request. Prevents duplicate event logging on retries. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.",
+      "maxLength": 255,
+      "minLength": 16,
+      "type": "string"
+    },
+    "test_event_code": {
+      "description": "Test event code for validation without affecting production data. Events with this code appear in the platform's test events UI.",
+      "type": "string"
     }
   },
   "required": [
     "event_source_id",
     "events"
   ],
-  "additionalProperties": true
+  "title": "Log Event Request",
+  "type": "object"
 }

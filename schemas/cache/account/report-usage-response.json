@@ -1,54 +1,55 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/account/report-usage-response.json",
-  "title": "Report Usage Response",
-  "description": "Response from report_usage. Partial acceptance is valid — records that pass validation are stored even when others fail.",
-  "type": "object",
-  "properties": {
-    "accepted": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Number of usage records successfully stored."
-    },
-    "errors": {
-      "type": "array",
-      "description": "Validation errors for individual records. The field property identifies which record failed (e.g., 'usage[1].pricing_option_id').",
-      "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/error.json"
-      }
-    },
-    "sandbox": {
-      "type": "boolean",
-      "description": "When true, the account is a sandbox account and no billing occurred."
-    },
-    "context": {
-      "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-    },
-    "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
-    }
-  },
-  "required": ["accepted"],
   "additionalProperties": true,
+  "description": "Response from report_usage. Partial acceptance is valid \u2014 records that pass validation are stored even when others fail.",
   "examples": [
     {
-      "description": "All records accepted",
       "data": {
         "accepted": 2
-      }
+      },
+      "description": "All records accepted"
     },
     {
-      "description": "Partial acceptance — one record failed validation",
       "data": {
         "accepted": 1,
         "errors": [
           {
             "code": "INVALID_PRICING_OPTION",
-            "message": "pricing_option_id 'po_unknown' does not exist on this account",
-            "field": "usage[1].pricing_option_id"
+            "field": "usage[1].pricing_option_id",
+            "message": "pricing_option_id 'po_unknown' does not exist on this account"
           }
         ]
-      }
+      },
+      "description": "Partial acceptance \u2014 one record failed validation"
     }
-  ]
+  ],
+  "properties": {
+    "accepted": {
+      "description": "Number of usage records successfully stored.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "errors": {
+      "description": "Validation errors for individual records. The field property identifies which record failed (e.g., 'usage[1].pricing_option_id').",
+      "items": {
+        "$ref": "../core/error.json"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "sandbox": {
+      "description": "When true, the account is a sandbox account and no billing occurred.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "accepted"
+  ],
+  "title": "Report Usage Response",
+  "type": "object"
 }

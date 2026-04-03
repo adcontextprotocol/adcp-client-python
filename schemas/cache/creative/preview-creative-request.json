@@ -1,219 +1,220 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/creative/preview-creative-request.json",
-  "title": "Preview Creative Request",
   "description": "Request to generate previews of one or more creative manifests. Accepts either a single creative request or an array of requests for batch processing.",
   "oneOf": [
     {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Single creative preview request",
       "properties": {
-        "request_type": {
-          "type": "string",
-          "const": "single",
-          "description": "Discriminator indicating this is a single preview request"
-        },
-        "format_id": {
-          "$ref": "/schemas/3.0.0-rc.2/core/format-id.json",
-          "description": "Format identifier for rendering the preview. Optional — defaults to creative_manifest.format_id if omitted."
+        "context": {
+          "$ref": "../core/context.json"
         },
         "creative_manifest": {
-          "$ref": "/schemas/3.0.0-rc.2/core/creative-manifest.json",
+          "$ref": "../core/creative-manifest.json",
           "description": "Complete creative manifest with all required assets for the format."
         },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "format_id": {
+          "$ref": "../core/format-id.json",
+          "description": "Format identifier for rendering the preview. Optional \u2014 defaults to creative_manifest.format_id if omitted."
+        },
         "inputs": {
-          "type": "array",
           "description": "Array of input sets for generating multiple preview variants. Each input set defines macros and context values for one preview rendering. If not provided, creative agent will generate default previews.",
           "items": {
-            "type": "object",
+            "additionalProperties": true,
             "properties": {
-              "name": {
-                "type": "string",
-                "description": "Human-readable name for this input set (e.g., 'Sunny morning on mobile', 'Evening podcast ad', 'Desktop dark mode')"
+              "context_description": {
+                "description": "Natural language description of the context for AI-generated content (e.g., 'User just searched for running shoes', 'Podcast discussing weather patterns', 'Article about electric vehicles')",
+                "type": "string"
               },
               "macros": {
-                "type": "object",
-                "description": "Macro values to use for this preview. Supports all universal macros from the format's supported_macros list. See docs/creative/universal-macros.md for available macros.",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "description": "Macro values to use for this preview. Supports all universal macros from the format's supported_macros list. See docs/creative/universal-macros.md for available macros.",
+                "type": "object"
               },
-              "context_description": {
-                "type": "string",
-                "description": "Natural language description of the context for AI-generated content (e.g., 'User just searched for running shoes', 'Podcast discussing weather patterns', 'Article about electric vehicles')"
+              "name": {
+                "description": "Human-readable name for this input set (e.g., 'Sunny morning on mobile', 'Evening podcast ad', 'Desktop dark mode')",
+                "type": "string"
               }
             },
             "required": [
               "name"
             ],
-            "additionalProperties": true
+            "type": "object"
           },
-          "minItems": 1
+          "minItems": 1,
+          "type": "array"
         },
-        "template_id": {
-          "type": "string",
-          "description": "Specific template ID for custom format rendering"
-        },
-        "quality": {
-          "$ref": "/schemas/3.0.0-rc.2/enums/creative-quality.json",
-          "description": "Render quality for the preview. 'draft' produces fast, lower-fidelity renderings for rapid iteration. 'production' produces full-quality renderings for final review. If omitted, the creative agent uses its own default."
+        "item_limit": {
+          "description": "Maximum number of catalog items to render in the preview. For catalog-driven generative formats, caps how many items are rendered per preview variant. When item_limit exceeds the format's max_items, the creative agent SHOULD use the lesser of the two. Ignored when the manifest contains no catalog assets. Creative agents SHOULD default to a reasonable sample when omitted and the catalog is large.",
+          "minimum": 1,
+          "type": "integer"
         },
         "output_format": {
-          "$ref": "/schemas/3.0.0-rc.2/enums/preview-output-format.json",
+          "$ref": "../enums/preview-output-format.json",
           "default": "url",
           "description": "Output format for previews. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding). Default: 'url' for backward compatibility."
         },
-        "item_limit": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Maximum number of catalog items to render in the preview. For catalog-driven generative formats, caps how many items are rendered per preview variant. When item_limit exceeds the format's max_items, the creative agent SHOULD use the lesser of the two. Ignored when the manifest contains no catalog assets. Creative agents SHOULD default to a reasonable sample when omitted and the catalog is large."
+        "quality": {
+          "$ref": "../enums/creative-quality.json",
+          "description": "Render quality for the preview. 'draft' produces fast, lower-fidelity renderings for rapid iteration. 'production' produces full-quality renderings for final review. If omitted, the creative agent uses its own default."
         },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+        "request_type": {
+          "const": "single",
+          "description": "Discriminator indicating this is a single preview request",
+          "type": "string"
         },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+        "template_id": {
+          "description": "Specific template ID for custom format rendering",
+          "type": "string"
         }
       },
       "required": [
         "request_type",
         "creative_manifest"
       ],
-      "additionalProperties": true
+      "type": "object"
     },
     {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Batch preview request for multiple creatives (5-10x faster than individual calls)",
       "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "output_format": {
+          "$ref": "../enums/preview-output-format.json",
+          "default": "url",
+          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
+        },
+        "quality": {
+          "$ref": "../enums/creative-quality.json",
+          "description": "Default render quality for all requests in this batch. Individual requests can override this. 'draft' produces fast, lower-fidelity renderings. 'production' produces full-quality renderings."
+        },
         "request_type": {
-          "type": "string",
           "const": "batch",
-          "description": "Discriminator indicating this is a batch preview request"
+          "description": "Discriminator indicating this is a batch preview request",
+          "type": "string"
         },
         "requests": {
-          "type": "array",
           "description": "Array of preview requests (1-50 items). Each follows the single request structure.",
           "items": {
-            "type": "object",
+            "additionalProperties": true,
             "properties": {
-              "format_id": {
-                "$ref": "/schemas/3.0.0-rc.2/core/format-id.json",
-                "description": "Format identifier for rendering the preview. Optional — defaults to creative_manifest.format_id if omitted."
-              },
               "creative_manifest": {
-                "$ref": "/schemas/3.0.0-rc.2/core/creative-manifest.json",
+                "$ref": "../core/creative-manifest.json",
                 "description": "Complete creative manifest with all required assets."
               },
+              "format_id": {
+                "$ref": "../core/format-id.json",
+                "description": "Format identifier for rendering the preview. Optional \u2014 defaults to creative_manifest.format_id if omitted."
+              },
               "inputs": {
-                "type": "array",
                 "description": "Array of input sets for generating multiple preview variants",
                 "items": {
-                  "type": "object",
+                  "additionalProperties": true,
                   "properties": {
-                    "name": {
-                      "type": "string",
-                      "description": "Human-readable name for this input set"
+                    "context_description": {
+                      "description": "Natural language description of the context for AI-generated content",
+                      "type": "string"
                     },
                     "macros": {
-                      "type": "object",
-                      "description": "Macro values to use for this preview",
                       "additionalProperties": {
                         "type": "string"
-                      }
+                      },
+                      "description": "Macro values to use for this preview",
+                      "type": "object"
                     },
-                    "context_description": {
-                      "type": "string",
-                      "description": "Natural language description of the context for AI-generated content"
+                    "name": {
+                      "description": "Human-readable name for this input set",
+                      "type": "string"
                     }
                   },
                   "required": [
                     "name"
                   ],
-                  "additionalProperties": true
+                  "type": "object"
                 },
-                "minItems": 1
+                "minItems": 1,
+                "type": "array"
               },
-              "template_id": {
-                "type": "string",
-                "description": "Specific template ID for custom format rendering"
-              },
-              "quality": {
-                "$ref": "/schemas/3.0.0-rc.2/enums/creative-quality.json",
-                "description": "Render quality for this preview. 'draft' produces fast, lower-fidelity renderings. 'production' produces full-quality renderings. Overrides any batch-level default."
+              "item_limit": {
+                "description": "Maximum number of catalog items to render in this preview.",
+                "minimum": 1,
+                "type": "integer"
               },
               "output_format": {
-                "$ref": "/schemas/3.0.0-rc.2/enums/preview-output-format.json",
+                "$ref": "../enums/preview-output-format.json",
                 "default": "url",
                 "description": "Output format for this preview. 'url' returns preview_url, 'html' returns preview_html."
               },
-              "item_limit": {
-                "type": "integer",
-                "minimum": 1,
-                "description": "Maximum number of catalog items to render in this preview."
+              "quality": {
+                "$ref": "../enums/creative-quality.json",
+                "description": "Render quality for this preview. 'draft' produces fast, lower-fidelity renderings. 'production' produces full-quality renderings. Overrides any batch-level default."
+              },
+              "template_id": {
+                "description": "Specific template ID for custom format rendering",
+                "type": "string"
               }
             },
-            "required": ["creative_manifest"],
-            "additionalProperties": true
+            "required": [
+              "creative_manifest"
+            ],
+            "type": "object"
           },
+          "maxItems": 50,
           "minItems": 1,
-          "maxItems": 50
-        },
-        "quality": {
-          "$ref": "/schemas/3.0.0-rc.2/enums/creative-quality.json",
-          "description": "Default render quality for all requests in this batch. Individual requests can override this. 'draft' produces fast, lower-fidelity renderings. 'production' produces full-quality renderings."
-        },
-        "output_format": {
-          "$ref": "/schemas/3.0.0-rc.2/enums/preview-output-format.json",
-          "default": "url",
-          "description": "Default output format for all requests in this batch. Individual requests can override this. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "type": "array"
         }
       },
       "required": [
         "request_type",
         "requests"
       ],
-      "additionalProperties": true
+      "type": "object"
     },
     {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Variant preview request - retrieve a post-flight preview of a specific creative variant that was served during delivery",
       "properties": {
-        "request_type": {
-          "type": "string",
-          "const": "variant",
-          "description": "Discriminator indicating this is a variant preview request"
-        },
-        "variant_id": {
-          "type": "string",
-          "description": "Platform-assigned variant identifier from get_creative_delivery response"
+        "context": {
+          "$ref": "../core/context.json"
         },
         "creative_id": {
-          "type": "string",
-          "description": "Creative identifier for context"
+          "description": "Creative identifier for context",
+          "type": "string"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         },
         "output_format": {
-          "$ref": "/schemas/3.0.0-rc.2/enums/preview-output-format.json",
+          "$ref": "../enums/preview-output-format.json",
           "default": "url",
           "description": "Output format for the preview. 'url' returns preview_url (iframe-embeddable URL), 'html' returns preview_html (raw HTML for direct embedding)."
         },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+        "request_type": {
+          "const": "variant",
+          "description": "Discriminator indicating this is a variant preview request",
+          "type": "string"
         },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+        "variant_id": {
+          "description": "Platform-assigned variant identifier from get_creative_delivery response",
+          "type": "string"
         }
       },
       "required": [
         "request_type",
         "variant_id"
       ],
-      "additionalProperties": true
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Preview Creative Request"
 }

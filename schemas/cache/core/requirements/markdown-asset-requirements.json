@@ -1,15 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/requirements/markdown-asset-requirements.json",
-  "title": "Markdown Asset Requirements",
+  "additionalProperties": true,
   "description": "Requirements for markdown creative assets.",
-  "type": "object",
   "properties": {
     "max_length": {
-      "type": "integer",
+      "description": "Maximum character length",
       "minimum": 1,
-      "description": "Maximum character length"
+      "type": "integer"
     }
   },
-  "additionalProperties": true
+  "title": "Markdown Asset Requirements",
+  "type": "object"
 }

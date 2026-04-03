@@ -1,77 +1,93 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/content-standards/calibrate-content-response.json",
-  "title": "Calibrate Content Response",
   "description": "Response payload with verdict and detailed explanations for collaborative calibration",
-  "type": "object",
   "oneOf": [
     {
-      "type": "object",
       "description": "Success response with detailed calibration feedback",
       "properties": {
-        "verdict": {
-          "type": "string",
-          "enum": ["pass", "fail"],
-          "description": "Overall pass/fail verdict for the content evaluation"
-        },
         "confidence": {
-          "type": "number",
-          "minimum": 0,
+          "description": "Model confidence in the verdict (0-1)",
           "maximum": 1,
-          "description": "Model confidence in the verdict (0-1)"
+          "minimum": 0,
+          "type": "number"
+        },
+        "context": {
+          "$ref": "../core/context.json"
         },
         "explanation": {
-          "type": "string",
-          "description": "Detailed natural language explanation of the decision"
+          "description": "Detailed natural language explanation of the decision",
+          "type": "string"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         },
         "features": {
-          "type": "array",
           "description": "Per-feature breakdown with explanations",
           "items": {
-            "type": "object",
             "properties": {
+              "explanation": {
+                "description": "Human-readable explanation of why this feature passed or failed",
+                "type": "string"
+              },
               "feature_id": {
-                "type": "string",
-                "description": "Which feature was evaluated (e.g., brand_safety, brand_suitability, competitor_adjacency)"
+                "description": "Which feature was evaluated (e.g., brand_safety, brand_suitability, competitor_adjacency)",
+                "type": "string"
               },
               "status": {
-                "type": "string",
-                "enum": ["passed", "failed", "warning", "unevaluated"],
-                "description": "Evaluation status for this feature"
-              },
-              "explanation": {
-                "type": "string",
-                "description": "Human-readable explanation of why this feature passed or failed"
+                "description": "Evaluation status for this feature",
+                "enum": [
+                  "passed",
+                  "failed",
+                  "warning",
+                  "unevaluated"
+                ],
+                "type": "string"
               }
             },
-            "required": ["feature_id", "status"]
-          }
+            "required": [
+              "feature_id",
+              "status"
+            ],
+            "type": "object"
+          },
+          "type": "array"
         },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+        "verdict": {
+          "description": "Overall pass/fail verdict for the content evaluation",
+          "enum": [
+            "pass",
+            "fail"
+          ],
+          "type": "string"
         }
       },
-      "required": ["verdict"]
+      "required": [
+        "verdict"
+      ],
+      "type": "object"
     },
     {
-      "type": "object",
       "description": "Error response",
       "properties": {
-        "errors": {
-          "type": "array",
-          "items": { "$ref": "/schemas/3.0.0-rc.2/core/error.json" }
-        },
         "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["errors"]
+      "required": [
+        "errors"
+      ],
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Calibrate Content Response",
+  "type": "object"
 }

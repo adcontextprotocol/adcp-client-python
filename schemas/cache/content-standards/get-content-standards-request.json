@@ -1,20 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/content-standards/get-content-standards-request.json",
-  "title": "Get Content Standards Request",
   "description": "Request parameters for retrieving content safety policies",
-  "type": "object",
   "properties": {
-    "standards_id": {
-      "type": "string",
-      "description": "Identifier for the standards configuration to retrieve"
-    },
     "context": {
-      "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "$ref": "../core/ext.json"
+    },
+    "standards_id": {
+      "description": "Identifier for the standards configuration to retrieve",
+      "type": "string"
     }
   },
-  "required": ["standards_id"]
+  "required": [
+    "standards_id"
+  ],
+  "title": "Get Content Standards Request",
+  "type": "object"
 }

@@ -1,37 +1,35 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/assets/image-asset.json",
-  "title": "Image Asset",
+  "additionalProperties": true,
   "description": "Image asset with URL and dimensions",
-  "type": "object",
   "properties": {
-    "url": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL to the image asset"
-    },
-    "width": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Width in pixels"
-    },
-    "height": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Height in pixels"
-    },
-    "format": {
-      "type": "string",
-      "description": "Image file format (jpg, png, gif, webp, etc.)"
-    },
     "alt_text": {
-      "type": "string",
       "description": "Alternative text for accessibility",
+      "type": "string",
       "x-accessibility": true
     },
+    "format": {
+      "description": "Image file format (jpg, png, gif, webp, etc.)",
+      "type": "string"
+    },
+    "height": {
+      "description": "Height in pixels",
+      "minimum": 1,
+      "type": "integer"
+    },
     "provenance": {
-      "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
+      "$ref": "../../core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+    },
+    "url": {
+      "description": "URL to the image asset",
+      "format": "uri",
+      "type": "string"
+    },
+    "width": {
+      "description": "Width in pixels",
+      "minimum": 1,
+      "type": "integer"
     }
   },
   "required": [
@@ -39,5 +37,6 @@
     "width",
     "height"
   ],
-  "additionalProperties": true
+  "title": "Image Asset",
+  "type": "object"
 }

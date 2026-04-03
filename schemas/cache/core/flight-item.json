@@ -1,127 +1,158 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/flight-item.json",
-  "title": "Flight Item",
+  "additionalProperties": true,
   "description": "A flight route within a flight-type catalog. Carries origin/destination, airline, pricing, and schedule data that platforms use for flight ads and dynamic travel remarketing. Maps to Google DynamicFlightsAsset, Meta flight catalogs, and similar formats.",
-  "type": "object",
-  "properties": {
-    "flight_id": {
-      "type": "string",
-      "description": "Unique identifier for this flight route or offer."
-    },
-    "origin": {
-      "type": "object",
-      "description": "Departure airport or city.",
-      "properties": {
-        "airport_code": {
-          "type": "string",
-          "pattern": "^[A-Z]{3}$",
-          "description": "IATA airport code (e.g., 'AMS', 'JFK', 'LHR')."
+  "examples": [
+    {
+      "data": {
+        "airline": "KLM",
+        "description": "Direct flights from Amsterdam to New York, daily departures.",
+        "destination": {
+          "airport_code": "JFK",
+          "city": "New York"
         },
-        "city": {
-          "type": "string",
-          "description": "City name (e.g., 'Amsterdam', 'New York')."
-        }
+        "flight_id": "ams-jfk-summer",
+        "image_url": "https://images.acmeair.com/routes/ams-jfk.jpg",
+        "origin": {
+          "airport_code": "AMS",
+          "city": "Amsterdam"
+        },
+        "price": {
+          "amount": 449,
+          "currency": "EUR"
+        },
+        "tags": [
+          "direct",
+          "transatlantic"
+        ],
+        "url": "https://acmeair.com/flights/ams-jfk"
       },
-      "required": ["airport_code"],
-      "additionalProperties": false
+      "description": "Direct transatlantic route"
+    },
+    {
+      "data": {
+        "destination": {
+          "airport_code": "LIS",
+          "city": "Lisbon"
+        },
+        "flight_id": "bcn-lis-q4",
+        "origin": {
+          "airport_code": "BCN",
+          "city": "Barcelona"
+        },
+        "price": {
+          "amount": 39,
+          "currency": "EUR"
+        },
+        "tags": [
+          "budget",
+          "short-haul"
+        ],
+        "url": "https://acmeair.com/flights/bcn-lis"
+      },
+      "description": "Budget European route"
+    }
+  ],
+  "properties": {
+    "airline": {
+      "description": "Airline name or IATA airline code.",
+      "type": "string"
+    },
+    "arrival_time": {
+      "description": "Arrival date and time (ISO 8601).",
+      "format": "date-time",
+      "type": "string"
+    },
+    "assets": {
+      "description": "Typed creative asset pools for this flight. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: 'images_landscape' (destination hero), 'images_vertical' (9:16 for Stories), 'images_square' (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.",
+      "items": {
+        "$ref": "offering-asset-group.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "departure_time": {
+      "description": "Departure date and time (ISO 8601).",
+      "format": "date-time",
+      "type": "string"
+    },
+    "description": {
+      "description": "Route description or promotional text.",
+      "type": "string"
     },
     "destination": {
-      "type": "object",
+      "additionalProperties": false,
       "description": "Arrival airport or city.",
       "properties": {
         "airport_code": {
-          "type": "string",
+          "description": "IATA airport code.",
           "pattern": "^[A-Z]{3}$",
-          "description": "IATA airport code."
+          "type": "string"
         },
         "city": {
-          "type": "string",
-          "description": "City name."
+          "description": "City name.",
+          "type": "string"
         }
       },
-      "required": ["airport_code"],
-      "additionalProperties": false
+      "required": [
+        "airport_code"
+      ],
+      "type": "object"
     },
-    "airline": {
-      "type": "string",
-      "description": "Airline name or IATA airline code."
+    "ext": {
+      "$ref": "ext.json"
     },
-    "price": {
-      "$ref": "/schemas/3.0.0-rc.2/core/price.json",
-      "description": "Ticket price or starting fare."
-    },
-    "description": {
-      "type": "string",
-      "description": "Route description or promotional text."
-    },
-    "departure_time": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Departure date and time (ISO 8601)."
-    },
-    "arrival_time": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Arrival date and time (ISO 8601)."
+    "flight_id": {
+      "description": "Unique identifier for this flight route or offer.",
+      "type": "string"
     },
     "image_url": {
-      "type": "string",
+      "description": "Promotional image URL (typically a destination photo).",
       "format": "uri",
-      "description": "Promotional image URL (typically a destination photo)."
+      "type": "string"
     },
-    "url": {
-      "type": "string",
-      "format": "uri",
-      "description": "Booking page URL for this route."
+    "origin": {
+      "additionalProperties": false,
+      "description": "Departure airport or city.",
+      "properties": {
+        "airport_code": {
+          "description": "IATA airport code (e.g., 'AMS', 'JFK', 'LHR').",
+          "pattern": "^[A-Z]{3}$",
+          "type": "string"
+        },
+        "city": {
+          "description": "City name (e.g., 'Amsterdam', 'New York').",
+          "type": "string"
+        }
+      },
+      "required": [
+        "airport_code"
+      ],
+      "type": "object"
+    },
+    "price": {
+      "$ref": "price.json",
+      "description": "Ticket price or starting fare."
     },
     "tags": {
-      "type": "array",
       "description": "Tags for filtering (e.g., 'direct', 'red-eye', 'business-class').",
       "items": {
         "type": "string"
       },
-      "minItems": 1
+      "minItems": 1,
+      "type": "array"
     },
-    "assets": {
-      "type": "array",
-      "description": "Typed creative asset pools for this flight. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: 'images_landscape' (destination hero), 'images_vertical' (9:16 for Stories), 'images_square' (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.",
-      "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/offering-asset-group.json"
-      },
-      "minItems": 1
-    },
-    "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+    "url": {
+      "description": "Booking page URL for this route.",
+      "format": "uri",
+      "type": "string"
     }
   },
-  "required": ["flight_id", "origin", "destination"],
-  "additionalProperties": true,
-  "examples": [
-    {
-      "description": "Direct transatlantic route",
-      "data": {
-        "flight_id": "ams-jfk-summer",
-        "origin": { "airport_code": "AMS", "city": "Amsterdam" },
-        "destination": { "airport_code": "JFK", "city": "New York" },
-        "airline": "KLM",
-        "price": { "amount": 449, "currency": "EUR" },
-        "description": "Direct flights from Amsterdam to New York, daily departures.",
-        "image_url": "https://images.acmeair.com/routes/ams-jfk.jpg",
-        "url": "https://acmeair.com/flights/ams-jfk",
-        "tags": ["direct", "transatlantic"]
-      }
-    },
-    {
-      "description": "Budget European route",
-      "data": {
-        "flight_id": "bcn-lis-q4",
-        "origin": { "airport_code": "BCN", "city": "Barcelona" },
-        "destination": { "airport_code": "LIS", "city": "Lisbon" },
-        "price": { "amount": 39, "currency": "EUR" },
-        "url": "https://acmeair.com/flights/bcn-lis",
-        "tags": ["budget", "short-haul"]
-      }
-    }
-  ]
+  "required": [
+    "flight_id",
+    "origin",
+    "destination"
+  ],
+  "title": "Flight Item",
+  "type": "object"
 }

@@ -49,11 +49,17 @@ def generate_consolidated_exports() -> str:
     """Generate the consolidated exports file content."""
 
     # Discover all modules recursively (including subdirectories)
-    # Process enums/ first so canonical enum definitions take priority over inline duplicates
+    # Process enums/ and core/ first so canonical definitions take priority over inline duplicates
     def _module_sort_key(p: Path) -> tuple[int, str]:
         rel = p.relative_to(GENERATED_POC_DIR)
-        is_enum = rel.parts[0] == "enums" if len(rel.parts) > 1 else False
-        return (0 if is_enum else 1, str(p))
+        first_dir = rel.parts[0] if len(rel.parts) > 1 else ""
+        if first_dir == "enums":
+            priority = 0
+        elif first_dir == "core":
+            priority = 1
+        else:
+            priority = 2
+        return (priority, str(p))
 
     modules = sorted(GENERATED_POC_DIR.rglob("*.py"), key=_module_sort_key)
     modules = [m for m in modules if m.stem != "__init__" and not m.stem.startswith(".")]
@@ -291,6 +297,10 @@ def generate_consolidated_exports() -> str:
         "# Measurement was renamed to OutcomeMeasurement upstream. This alias preserves imports.",
         "Measurement = OutcomeMeasurement",
         "",
+        "# FormatCategory was inlined into ListCreativeFormatsRequest as 'Type' in rc.3.",
+        "# Re-export under the old name so existing code continues to work.",
+        "from adcp.types.generated_poc.creative.list_creative_formats_request import Type as FormatCategory",
+        "",
         "# ListAuthorizedProperties was removed from upstream schemas.",
         "# Replaced by adagents.json-based authorization model.",
         "class ListAuthorizedPropertiesRequest(_AdCPBaseModel):",
@@ -314,6 +324,7 @@ def generate_consolidated_exports() -> str:
         "AssetSelectors",
         "BrandManifest",
         "DeliverTo",
+        "FormatCategory",
         "DeliverTo1",
         "ListAuthorizedPropertiesRequest",
         "ListAuthorizedPropertiesResponse",

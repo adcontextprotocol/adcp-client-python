@@ -1,60 +1,67 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/content-standards/update-content-standards-response.json",
-  "title": "Update Content Standards Response",
   "description": "Response from updating a content standards configuration",
   "oneOf": [
     {
-      "title": "UpdateContentStandardsSuccess",
-      "type": "object",
+      "additionalProperties": true,
       "properties": {
-        "success": {
-          "type": "boolean",
-          "const": true,
-          "description": "Indicates the update was applied successfully"
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         },
         "standards_id": {
-          "type": "string",
-          "description": "ID of the updated standards configuration"
+          "description": "ID of the updated standards configuration",
+          "type": "string"
         },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+        "success": {
+          "const": true,
+          "description": "Indicates the update was applied successfully",
+          "type": "boolean"
         }
       },
-      "required": ["success", "standards_id"],
-      "additionalProperties": true
+      "required": [
+        "success",
+        "standards_id"
+      ],
+      "title": "UpdateContentStandardsSuccess",
+      "type": "object"
     },
     {
-      "title": "UpdateContentStandardsError",
-      "type": "object",
+      "additionalProperties": true,
       "properties": {
-        "success": {
-          "type": "boolean",
-          "const": false,
-          "description": "Indicates the update failed"
-        },
-        "errors": {
-          "type": "array",
-          "items": { "$ref": "/schemas/3.0.0-rc.2/core/error.json" },
-          "description": "Errors that occurred during the update",
-          "minItems": 1
-        },
         "conflicting_standards_id": {
-          "type": "string",
-          "description": "If scope change conflicts with another configuration, the ID of the conflicting standards"
+          "description": "If scope change conflicts with another configuration, the ID of the conflicting standards",
+          "type": "string"
         },
         "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Errors that occurred during the update",
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "$ref": "../core/ext.json"
+        },
+        "success": {
+          "const": false,
+          "description": "Indicates the update failed",
+          "type": "boolean"
         }
       },
-      "required": ["success", "errors"],
-      "additionalProperties": true
+      "required": [
+        "success",
+        "errors"
+      ],
+      "title": "UpdateContentStandardsError",
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Update Content Standards Response"
 }

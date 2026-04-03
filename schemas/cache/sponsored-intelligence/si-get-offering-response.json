@@ -1,138 +1,142 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/sponsored-intelligence/si-get-offering-response.json",
-  "title": "SI Get Offering Response",
+  "additionalProperties": true,
   "description": "Offering details, availability status, and optionally matching products. Use the offering_token in si_initiate_session for correlation.",
-  "type": "object",
   "properties": {
-    "available": {
-      "type": "boolean",
-      "description": "Whether the offering is currently available"
-    },
-    "offering_token": {
-      "type": "string",
-      "description": "Token to pass to si_initiate_session for session continuity. Brand stores the full query context server-side (products shown, order, context) so they can resolve references like 'the second one' when the session starts."
-    },
-    "ttl_seconds": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "How long this offering information is valid (seconds). Host should re-fetch after TTL expires."
-    },
-    "checked_at": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When this offering information was retrieved"
-    },
-    "offering": {
-      "type": "object",
-      "description": "Offering details",
-      "properties": {
-        "offering_id": {
-          "type": "string",
-          "description": "Offering identifier"
-        },
-        "title": {
-          "type": "string",
-          "description": "Offering title"
-        },
-        "summary": {
-          "type": "string",
-          "description": "Brief summary of the offering"
-        },
-        "tagline": {
-          "type": "string",
-          "description": "Short promotional tagline"
-        },
-        "expires_at": {
-          "type": "string",
-          "format": "date-time",
-          "description": "When this offering expires"
-        },
-        "price_hint": {
-          "type": "string",
-          "description": "Price indication (e.g., 'from $199', '50% off')"
-        },
-        "image_url": {
-          "type": "string",
-          "format": "uri",
-          "description": "Hero image for the offering"
-        },
-        "landing_url": {
-          "type": "string",
-          "format": "uri",
-          "description": "Landing page URL"
-        }
-      },
-      "additionalProperties": true
-    },
-    "matching_products": {
-      "type": "array",
-      "description": "Products matching the request context. Only included if include_products was true.",
-      "items": {
-        "type": "object",
-        "properties": {
-          "product_id": {
-            "type": "string",
-            "description": "Product identifier"
-          },
-          "name": {
-            "type": "string",
-            "description": "Product name"
-          },
-          "price": {
-            "type": "string",
-            "description": "Display price (e.g., '$129', '$89.99')"
-          },
-          "original_price": {
-            "type": "string",
-            "description": "Original price if on sale"
-          },
-          "image_url": {
-            "type": "string",
-            "format": "uri",
-            "description": "Product image"
-          },
-          "availability_summary": {
-            "type": "string",
-            "description": "Brief availability info (e.g., 'In stock', 'Size 14 available', '3 left')"
-          },
-          "url": {
-            "type": "string",
-            "format": "uri",
-            "description": "Product detail page URL"
-          }
-        },
-        "required": ["product_id", "name"],
-        "additionalProperties": true
-      }
-    },
-    "total_matching": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Total number of products matching the context (may be more than returned in matching_products)"
-    },
-    "unavailable_reason": {
-      "type": "string",
-      "description": "If not available, why (e.g., 'expired', 'sold_out', 'region_restricted')"
-    },
     "alternative_offering_ids": {
-      "type": "array",
+      "description": "Alternative offerings to consider if this one is unavailable",
       "items": {
         "type": "string"
       },
-      "description": "Alternative offerings to consider if this one is unavailable"
+      "type": "array"
+    },
+    "available": {
+      "description": "Whether the offering is currently available",
+      "type": "boolean"
+    },
+    "checked_at": {
+      "description": "When this offering information was retrieved",
+      "format": "date-time",
+      "type": "string"
     },
     "errors": {
-      "type": "array",
+      "description": "Errors during offering lookup",
       "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/error.json"
+        "$ref": "../core/error.json"
       },
-      "description": "Errors during offering lookup"
+      "type": "array"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "$ref": "../core/ext.json"
+    },
+    "matching_products": {
+      "description": "Products matching the request context. Only included if include_products was true.",
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "availability_summary": {
+            "description": "Brief availability info (e.g., 'In stock', 'Size 14 available', '3 left')",
+            "type": "string"
+          },
+          "image_url": {
+            "description": "Product image",
+            "format": "uri",
+            "type": "string"
+          },
+          "name": {
+            "description": "Product name",
+            "type": "string"
+          },
+          "original_price": {
+            "description": "Original price if on sale",
+            "type": "string"
+          },
+          "price": {
+            "description": "Display price (e.g., '$129', '$89.99')",
+            "type": "string"
+          },
+          "product_id": {
+            "description": "Product identifier",
+            "type": "string"
+          },
+          "url": {
+            "description": "Product detail page URL",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "offering": {
+      "additionalProperties": true,
+      "description": "Offering details",
+      "properties": {
+        "expires_at": {
+          "description": "When this offering expires",
+          "format": "date-time",
+          "type": "string"
+        },
+        "image_url": {
+          "description": "Hero image for the offering",
+          "format": "uri",
+          "type": "string"
+        },
+        "landing_url": {
+          "description": "Landing page URL",
+          "format": "uri",
+          "type": "string"
+        },
+        "offering_id": {
+          "description": "Offering identifier",
+          "type": "string"
+        },
+        "price_hint": {
+          "description": "Price indication (e.g., 'from $199', '50% off')",
+          "type": "string"
+        },
+        "summary": {
+          "description": "Brief summary of the offering",
+          "type": "string"
+        },
+        "tagline": {
+          "description": "Short promotional tagline",
+          "type": "string"
+        },
+        "title": {
+          "description": "Offering title",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "offering_token": {
+      "description": "Token to pass to si_initiate_session for session continuity. Brand stores the full query context server-side (products shown, order, context) so they can resolve references like 'the second one' when the session starts.",
+      "type": "string"
+    },
+    "total_matching": {
+      "description": "Total number of products matching the context (may be more than returned in matching_products)",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ttl_seconds": {
+      "description": "How long this offering information is valid (seconds). Host should re-fetch after TTL expires.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "unavailable_reason": {
+      "description": "If not available, why (e.g., 'expired', 'sold_out', 'region_restricted')",
+      "type": "string"
     }
   },
-  "required": ["available"],
-  "additionalProperties": true
+  "required": [
+    "available"
+  ],
+  "title": "SI Get Offering Response",
+  "type": "object"
 }

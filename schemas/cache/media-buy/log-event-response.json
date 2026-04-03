@@ -1,107 +1,129 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/media-buy/log-event-response.json",
-  "title": "Log Event Response",
   "description": "Response from event logging operation. Returns either event processing results OR operation-level errors.",
-  "type": "object",
   "oneOf": [
     {
-      "title": "LogEventSuccess",
+      "additionalProperties": true,
       "description": "Success response - events received and queued for processing",
-      "type": "object",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
       "properties": {
-        "events_received": {
-          "type": "integer",
-          "description": "Number of events received",
-          "minimum": 0
+        "context": {
+          "$ref": "../core/context.json"
         },
         "events_processed": {
-          "type": "integer",
           "description": "Number of events successfully queued for processing",
-          "minimum": 0
+          "minimum": 0,
+          "type": "integer"
+        },
+        "events_received": {
+          "description": "Number of events received",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "match_quality": {
+          "description": "Overall match quality score for the batch (0.0 = no matches, 1.0 = all matched)",
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
         },
         "partial_failures": {
-          "type": "array",
           "description": "Events that failed validation",
           "items": {
-            "type": "object",
+            "additionalProperties": true,
             "properties": {
-              "event_id": {
-                "type": "string",
-                "description": "ID of the failed event"
-              },
               "code": {
-                "type": "string",
-                "description": "Error code"
+                "description": "Error code",
+                "type": "string"
+              },
+              "event_id": {
+                "description": "ID of the failed event",
+                "type": "string"
               },
               "message": {
-                "type": "string",
-                "description": "Human-readable error message"
+                "description": "Human-readable error message",
+                "type": "string"
               }
             },
-            "required": ["event_id", "code", "message"],
-            "additionalProperties": true
-          }
+            "required": [
+              "event_id",
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
         },
         "warnings": {
-          "type": "array",
           "description": "Non-fatal issues (low match quality, missing recommended fields, deprecation notices)",
           "items": {
             "type": "string"
-          }
-        },
-        "match_quality": {
-          "type": "number",
-          "description": "Overall match quality score for the batch (0.0 = no matches, 1.0 = all matched)",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "sandbox": {
-          "type": "boolean",
-          "description": "When true, this response contains simulated data from sandbox mode."
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          },
+          "type": "array"
         }
       },
-      "required": ["events_received", "events_processed"],
-      "additionalProperties": true,
-      "not": {
-        "required": ["errors"]
-      }
+      "required": [
+        "events_received",
+        "events_processed"
+      ],
+      "title": "LogEventSuccess",
+      "type": "object"
     },
     {
-      "title": "LogEventError",
-      "description": "Error response - request failed entirely",
-      "type": "object",
-      "properties": {
-        "errors": {
-          "type": "array",
-          "description": "Operation-level errors",
-          "items": {
-            "$ref": "/schemas/3.0.0-rc.2/core/error.json"
-          },
-          "minItems": 1
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
-        }
-      },
-      "required": ["errors"],
       "additionalProperties": true,
+      "description": "Error response - request failed entirely",
       "not": {
         "anyOf": [
-          { "required": ["events_received"] },
-          { "required": ["events_processed"] },
-          { "required": ["sandbox"] }
+          {
+            "required": [
+              "events_received"
+            ]
+          },
+          {
+            "required": [
+              "events_processed"
+            ]
+          },
+          {
+            "required": [
+              "sandbox"
+            ]
+          }
         ]
-      }
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Operation-level errors",
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "title": "LogEventError",
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Log Event Response",
+  "type": "object"
 }

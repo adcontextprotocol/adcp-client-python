@@ -1,38 +1,40 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/outcome-measurement.json",
-  "title": "Outcome Measurement",
+  "additionalProperties": true,
   "description": "Business outcome measurement capabilities included with a product (e.g., incremental sales lift, brand lift, foot traffic). Distinct from delivery_measurement, which declares who counts ad impressions.",
-  "type": "object",
   "properties": {
+    "attribution": {
+      "description": "Attribution methodology",
+      "examples": [
+        "deterministic_purchase",
+        "probabilistic"
+      ],
+      "type": "string"
+    },
+    "reporting": {
+      "description": "Reporting frequency and format",
+      "examples": [
+        "weekly_dashboard",
+        "real_time_api"
+      ],
+      "type": "string"
+    },
     "type": {
-      "type": "string",
       "description": "Type of measurement",
       "examples": [
         "incremental_sales_lift",
         "brand_lift",
         "foot_traffic"
-      ]
-    },
-    "attribution": {
-      "type": "string",
-      "description": "Attribution methodology",
-      "examples": [
-        "deterministic_purchase",
-        "probabilistic"
-      ]
+      ],
+      "type": "string"
     },
     "window": {
-      "allOf": [{ "$ref": "/schemas/3.0.0-rc.2/core/duration.json" }],
+      "allOf": [
+        {
+          "$ref": "duration.json"
+        }
+      ],
       "description": "Attribution window as a structured duration (e.g., {\"interval\": 30, \"unit\": \"days\"})."
-    },
-    "reporting": {
-      "type": "string",
-      "description": "Reporting frequency and format",
-      "examples": [
-        "weekly_dashboard",
-        "real_time_api"
-      ]
     }
   },
   "required": [
@@ -40,5 +42,6 @@
     "attribution",
     "reporting"
   ],
-  "additionalProperties": true
+  "title": "Outcome Measurement",
+  "type": "object"
 }

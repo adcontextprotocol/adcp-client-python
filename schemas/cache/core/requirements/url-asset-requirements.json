@@ -1,40 +1,49 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/requirements/url-asset-requirements.json",
-  "title": "URL Asset Requirements",
+  "additionalProperties": true,
   "description": "Requirements for URL assets such as click-through URLs, tracking pixels, and landing pages.",
-  "type": "object",
   "properties": {
-    "role": {
-      "type": "string",
-      "enum": ["clickthrough", "landing_page", "impression_tracker", "click_tracker", "viewability_tracker", "third_party_tracker"],
-      "description": "Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum."
-    },
-    "protocols": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": ["https", "http"]
-      },
-      "description": "Allowed URL protocols. HTTPS is recommended for all ad URLs."
-    },
     "allowed_domains": {
-      "type": "array",
+      "description": "List of allowed domains for the URL",
       "items": {
-        "type": "string",
-        "format": "hostname"
+        "format": "hostname",
+        "type": "string"
       },
-      "description": "List of allowed domains for the URL"
-    },
-    "max_length": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum URL length in characters"
+      "type": "array"
     },
     "macro_support": {
-      "type": "boolean",
-      "description": "Whether the URL supports macro substitution (e.g., ${CACHEBUSTER})"
+      "description": "Whether the URL supports macro substitution (e.g., ${CACHEBUSTER})",
+      "type": "boolean"
+    },
+    "max_length": {
+      "description": "Maximum URL length in characters",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "protocols": {
+      "description": "Allowed URL protocols. HTTPS is recommended for all ad URLs.",
+      "items": {
+        "enum": [
+          "https",
+          "http"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "role": {
+      "description": "Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum.",
+      "enum": [
+        "clickthrough",
+        "landing_page",
+        "impression_tracker",
+        "click_tracker",
+        "viewability_tracker",
+        "third_party_tracker"
+      ],
+      "type": "string"
     }
   },
-  "additionalProperties": true
+  "title": "URL Asset Requirements",
+  "type": "object"
 }

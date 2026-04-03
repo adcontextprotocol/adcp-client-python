@@ -1,61 +1,150 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/requirements/image-asset-requirements.json",
-  "title": "Image Asset Requirements",
+  "additionalProperties": true,
   "description": "Requirements for image creative assets. These define the technical constraints for image files.",
-  "type": "object",
+  "if": {
+    "required": [
+      "min_dpi"
+    ]
+  },
   "properties": {
-    "min_width": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Minimum width in pixels. For exact dimensions, set min_width = max_width."
-    },
-    "max_width": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum width in pixels. For exact dimensions, set min_width = max_width."
-    },
-    "min_height": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Minimum height in pixels. For exact dimensions, set min_height = max_height."
-    },
-    "max_height": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum height in pixels. For exact dimensions, set min_height = max_height."
+    "animation_allowed": {
+      "description": "Whether animated images (GIF, animated WebP) are accepted",
+      "type": "boolean"
     },
     "aspect_ratio": {
-      "type": "string",
+      "description": "Required aspect ratio (e.g., '16:9', '1:1', '1.91:1')",
       "pattern": "^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$",
-      "description": "Required aspect ratio (e.g., '16:9', '1:1', '1.91:1')"
+      "type": "string"
+    },
+    "bleed": {
+      "description": "Required bleed area beyond the trim size. The submitted image must be larger than the declared dimensions: total width = trim width + left bleed + right bleed, total height = trim height + top bleed + bottom bleed. For uniform bleed: total = trim + (2 * uniform). Uses the same unit as the parent dimensions.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "uniform": {
+              "description": "Same bleed on all four sides",
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": [
+            "uniform"
+          ]
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "bottom": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "left": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "right": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "top": {
+              "minimum": 0,
+              "type": "number"
+            }
+          },
+          "required": [
+            "top",
+            "right",
+            "bottom",
+            "left"
+          ]
+        }
+      ],
+      "type": "object"
+    },
+    "color_space": {
+      "description": "Required color space. Print typically requires CMYK.",
+      "enum": [
+        "rgb",
+        "cmyk",
+        "grayscale"
+      ],
+      "type": "string"
     },
     "formats": {
-      "type": "array",
+      "description": "Accepted image file formats",
       "items": {
-        "type": "string",
-        "enum": ["jpg", "jpeg", "png", "gif", "webp", "svg", "avif"]
+        "enum": [
+          "jpg",
+          "jpeg",
+          "png",
+          "gif",
+          "webp",
+          "svg",
+          "avif",
+          "tiff",
+          "pdf",
+          "eps"
+        ],
+        "type": "string"
       },
-      "description": "Accepted image file formats"
-    },
-    "max_file_size_kb": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum file size in kilobytes"
-    },
-    "transparency_required": {
-      "type": "boolean",
-      "description": "Whether the image must support transparency (requires PNG, WebP, or GIF)"
-    },
-    "animation_allowed": {
-      "type": "boolean",
-      "description": "Whether animated images (GIF, animated WebP) are accepted"
+      "type": "array"
     },
     "max_animation_duration_ms": {
-      "type": "integer",
+      "description": "Maximum animation duration in milliseconds (if animation_allowed is true)",
       "minimum": 0,
-      "description": "Maximum animation duration in milliseconds (if animation_allowed is true)"
+      "type": "integer"
+    },
+    "max_file_size_kb": {
+      "description": "Maximum file size in kilobytes",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_height": {
+      "description": "Maximum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height.",
+      "exclusiveMinimum": 0,
+      "type": "number"
+    },
+    "max_weight_grams": {
+      "description": "Maximum weight in grams for the finished physical piece (print inserts, flyers). Affects postage calculations and production constraints. Only applicable to print channels.",
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "max_width": {
+      "description": "Maximum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width.",
+      "exclusiveMinimum": 0,
+      "type": "number"
+    },
+    "min_dpi": {
+      "description": "Minimum resolution in dots per inch. Always in DPI regardless of the dimension unit. Standard print requires 300 DPI, newspaper 150 DPI.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_height": {
+      "description": "Minimum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height.",
+      "exclusiveMinimum": 0,
+      "type": "number"
+    },
+    "min_width": {
+      "description": "Minimum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width.",
+      "exclusiveMinimum": 0,
+      "type": "number"
+    },
+    "transparency_required": {
+      "description": "Whether the image must support transparency (requires PNG, WebP, or GIF)",
+      "type": "boolean"
+    },
+    "unit": {
+      "$ref": "../../enums/dimension-unit.json",
+      "description": "Unit of measurement for width/height values. Defaults to 'px' when absent. Print formats use 'inches' or 'cm'."
     }
   },
-  "additionalProperties": true
+  "then": {
+    "required": [
+      "unit"
+    ]
+  },
+  "title": "Image Asset Requirements",
+  "type": "object"
 }

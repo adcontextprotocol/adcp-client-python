@@ -1,68 +1,83 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/planned-delivery.json",
-  "title": "Planned Delivery",
+  "additionalProperties": true,
   "description": "The seller's interpreted delivery parameters for a media buy. Represents what the seller will actually run, which may differ from what the buyer requested (e.g., the seller may apply additional targeting, frequency caps, or adjust geo to match their inventory). Used for authorization verification and audit.",
-  "type": "object",
   "properties": {
+    "audience_summary": {
+      "description": "Human-readable summary of the audience the seller will target.",
+      "type": "string"
+    },
+    "audience_targeting": {
+      "description": "Structured audience targeting the seller will activate. Each entry is either a signal reference or a descriptive criterion. When present, governance agents MUST use this for bias/fairness validation and SHOULD ignore audience_summary for validation purposes. The audience_summary field is a human-readable rendering of this array, not an independent declaration.",
+      "items": {
+        "$ref": "audience-selector.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "channels": {
+      "description": "Channels the seller will deliver on.",
+      "items": {
+        "$ref": "../enums/channels.json"
+      },
+      "type": "array"
+    },
+    "currency": {
+      "description": "ISO 4217 currency code for the budget.",
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
+    },
+    "end_time": {
+      "description": "Actual flight end the seller will use.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "enforced_policies": {
+      "description": "Registry policy IDs the seller will enforce for this delivery.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "frequency_cap": {
+      "$ref": "frequency-cap.json",
+      "description": "Frequency cap the seller will apply."
+    },
     "geo": {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Geographic targeting the seller will apply.",
       "properties": {
         "countries": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "ISO 3166-1 alpha-2 country codes where ads will deliver."
+          "description": "ISO 3166-1 alpha-2 country codes where ads will deliver.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "regions": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "ISO 3166-2 subdivision codes where ads will deliver."
+          "description": "ISO 3166-2 subdivision codes where ads will deliver.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
-      "additionalProperties": true
-    },
-    "channels": {
-      "type": "array",
-      "items": { "$ref": "/schemas/3.0.0-rc.2/enums/channels.json" },
-      "description": "Channels the seller will deliver on."
+      "type": "object"
     },
     "start_time": {
-      "type": "string",
+      "description": "Actual flight start the seller will use.",
       "format": "date-time",
-      "description": "Actual flight start the seller will use."
-    },
-    "end_time": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Actual flight end the seller will use."
-    },
-    "frequency_cap": {
-      "$ref": "/schemas/3.0.0-rc.2/core/frequency-cap.json",
-      "description": "Frequency cap the seller will apply."
-    },
-    "audience_summary": {
-      "type": "string",
-      "description": "Human-readable summary of the audience the seller will target."
+      "type": "string"
     },
     "total_budget": {
-      "type": "number",
       "description": "Total budget the seller will deliver against.",
-      "minimum": 0
-    },
-    "currency": {
-      "type": "string",
-      "description": "ISO 4217 currency code for the budget.",
-      "pattern": "^[A-Z]{3}$"
-    },
-    "enforced_policies": {
-      "type": "array",
-      "description": "Registry policy IDs the seller will enforce for this delivery.",
-      "items": { "type": "string" }
-    },
-    "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "minimum": 0,
+      "type": "number"
     }
   },
-  "additionalProperties": true
+  "title": "Planned Delivery",
+  "type": "object"
 }

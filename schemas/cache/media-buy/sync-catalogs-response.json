@@ -1,167 +1,146 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/media-buy/sync-catalogs-response.json",
-  "title": "Sync Catalogs Response",
   "description": "Response from catalog sync operation. Returns either per-catalog results (best-effort processing) OR operation-level errors (complete failure). Platforms may approve, reject, or flag individual items within each catalog (similar to Google Merchant Center product review).",
-  "type": "object",
   "oneOf": [
     {
-      "title": "SyncCatalogsSuccess",
+      "additionalProperties": true,
       "description": "Success response - sync operation processed catalogs (may include per-catalog failures)",
-      "type": "object",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
       "properties": {
-        "dry_run": {
-          "type": "boolean",
-          "description": "Whether this was a dry run (no actual changes made)"
-        },
         "catalogs": {
-          "type": "array",
           "description": "Results for each catalog processed. Items with action='failed' indicate per-catalog validation/processing failures, not operation-level failures.",
           "items": {
-            "type": "object",
+            "additionalProperties": true,
             "properties": {
-              "catalog_id": {
-                "type": "string",
-                "description": "Catalog ID from the request"
-              },
               "action": {
-                "$ref": "/schemas/3.0.0-rc.2/enums/catalog-action.json",
+                "$ref": "../enums/catalog-action.json",
                 "description": "Action taken for this catalog"
               },
-              "platform_id": {
-                "type": "string",
-                "description": "Platform-specific ID assigned to the catalog"
-              },
-              "item_count": {
-                "type": "integer",
-                "minimum": 0,
-                "description": "Total number of items in the catalog after sync"
-              },
-              "items_approved": {
-                "type": "integer",
-                "minimum": 0,
-                "description": "Number of items approved by the platform. Populated when the platform performs item-level review."
-              },
-              "items_pending": {
-                "type": "integer",
-                "minimum": 0,
-                "description": "Number of items pending platform review. Common for product catalogs where items must pass content policy checks."
-              },
-              "items_rejected": {
-                "type": "integer",
-                "minimum": 0,
-                "description": "Number of items rejected by the platform. Check item_issues for rejection reasons."
-              },
-              "item_issues": {
-                "type": "array",
-                "description": "Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review.",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "item_id": {
-                      "type": "string",
-                      "description": "ID of the catalog item with an issue"
-                    },
-                    "status": {
-                      "$ref": "/schemas/3.0.0-rc.2/enums/catalog-item-status.json",
-                      "description": "Item review status"
-                    },
-                    "reasons": {
-                      "type": "array",
-                      "description": "Reasons for rejection or warning",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
-                  },
-                  "required": ["item_id", "status"],
-                  "additionalProperties": true
-                }
-              },
-              "last_synced_at": {
-                "type": "string",
-                "format": "date-time",
-                "description": "ISO 8601 timestamp of when the most recent sync was accepted by the platform"
-              },
-              "next_fetch_at": {
-                "type": "string",
-                "format": "date-time",
-                "description": "ISO 8601 timestamp of when the platform will next fetch the feed URL. Only present for URL-based catalogs with update_frequency."
+              "catalog_id": {
+                "description": "Catalog ID from the request",
+                "type": "string"
               },
               "changes": {
-                "type": "array",
                 "description": "Field names that were modified (only present when action='updated')",
                 "items": {
                   "type": "string"
-                }
+                },
+                "type": "array"
               },
               "errors": {
-                "type": "array",
                 "description": "Validation or processing errors (only present when action='failed')",
                 "items": {
                   "type": "string"
-                }
+                },
+                "type": "array"
+              },
+              "item_count": {
+                "description": "Total number of items in the catalog after sync",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "item_issues": {
+                "description": "Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review.",
+                "items": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "item_id": {
+                      "description": "ID of the catalog item with an issue",
+                      "type": "string"
+                    },
+                    "reasons": {
+                      "description": "Reasons for rejection or warning",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "status": {
+                      "$ref": "../enums/catalog-item-status.json",
+                      "description": "Item review status"
+                    }
+                  },
+                  "required": [
+                    "item_id",
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "items_approved": {
+                "description": "Number of items approved by the platform. Populated when the platform performs item-level review.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "items_pending": {
+                "description": "Number of items pending platform review. Common for product catalogs where items must pass content policy checks.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "items_rejected": {
+                "description": "Number of items rejected by the platform. Check item_issues for rejection reasons.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "last_synced_at": {
+                "description": "ISO 8601 timestamp of when the most recent sync was accepted by the platform",
+                "format": "date-time",
+                "type": "string"
+              },
+              "next_fetch_at": {
+                "description": "ISO 8601 timestamp of when the platform will next fetch the feed URL. Only present for URL-based catalogs with update_frequency.",
+                "format": "date-time",
+                "type": "string"
+              },
+              "platform_id": {
+                "description": "Platform-specific ID assigned to the catalog",
+                "type": "string"
               },
               "warnings": {
-                "type": "array",
                 "description": "Non-fatal warnings about this catalog",
                 "items": {
                   "type": "string"
-                }
+                },
+                "type": "array"
               }
             },
             "required": [
               "catalog_id",
               "action"
             ],
-            "additionalProperties": true
-          }
-        },
-        "sandbox": {
-          "type": "boolean",
-          "description": "When true, this response contains simulated data from sandbox mode."
+            "type": "object"
+          },
+          "type": "array"
         },
         "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+          "$ref": "../core/context.json"
+        },
+        "dry_run": {
+          "description": "Whether this was a dry run (no actual changes made)",
+          "type": "boolean"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "$ref": "../core/ext.json"
+        },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
         }
       },
       "required": [
         "catalogs"
       ],
-      "additionalProperties": true,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "title": "SyncCatalogsSuccess",
+      "type": "object"
     },
     {
-      "title": "SyncCatalogsError",
-      "description": "Error response - operation failed completely, no catalogs were processed",
-      "type": "object",
-      "properties": {
-        "errors": {
-          "type": "array",
-          "description": "Operation-level errors that prevented processing any catalogs (e.g., authentication failure, service unavailable, invalid request format)",
-          "items": {
-            "$ref": "/schemas/3.0.0-rc.2/core/error.json"
-          },
-          "minItems": 1
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
-        }
-      },
-      "required": [
-        "errors"
-      ],
       "additionalProperties": true,
+      "description": "Error response - operation failed completely, no catalogs were processed",
       "not": {
         "anyOf": [
           {
@@ -180,7 +159,30 @@
             ]
           }
         ]
-      }
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Operation-level errors that prevented processing any catalogs (e.g., authentication failure, service unavailable, invalid request format)",
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "title": "SyncCatalogsError",
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Sync Catalogs Response",
+  "type": "object"
 }

@@ -1,15 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/requirements/css-asset-requirements.json",
-  "title": "CSS Asset Requirements",
+  "additionalProperties": true,
   "description": "Requirements for CSS creative assets.",
-  "type": "object",
   "properties": {
     "max_file_size_kb": {
-      "type": "integer",
+      "description": "Maximum file size in kilobytes",
       "minimum": 1,
-      "description": "Maximum file size in kilobytes"
+      "type": "integer"
     }
   },
-  "additionalProperties": true
+  "title": "CSS Asset Requirements",
+  "type": "object"
 }

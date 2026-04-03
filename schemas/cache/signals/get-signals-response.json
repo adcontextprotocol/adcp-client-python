@@ -1,87 +1,107 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/signals/get-signals-response.json",
-  "title": "Get Signals Response",
+  "additionalProperties": true,
   "description": "Response payload for get_signals task",
-  "type": "object",
   "properties": {
+    "context": {
+      "$ref": "../core/context.json"
+    },
+    "errors": {
+      "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
+      "items": {
+        "$ref": "../core/error.json"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
+    },
+    "pagination": {
+      "$ref": "../core/pagination-response.json"
+    },
+    "sandbox": {
+      "description": "When true, this response contains simulated data from sandbox mode.",
+      "type": "boolean"
+    },
     "signals": {
-      "type": "array",
       "description": "Array of matching signals",
       "items": {
-        "type": "object",
+        "additionalProperties": true,
         "properties": {
-          "signal_id": {
-            "$ref": "/schemas/3.0.0-rc.2/core/signal-id.json",
-            "description": "Universal signal identifier referencing the data provider's catalog. Use this to verify authorization and look up signal definitions."
-          },
-          "signal_agent_segment_id": {
-            "type": "string",
-            "description": "Opaque identifier used for activation. This is the signals agent's internal segment ID."
-          },
-          "name": {
-            "type": "string",
-            "description": "Human-readable signal name"
-          },
-          "description": {
-            "type": "string",
-            "description": "Detailed signal description"
-          },
-          "value_type": {
-            "$ref": "/schemas/3.0.0-rc.2/enums/signal-value-type.json",
-            "description": "The data type of this signal's values (binary, categorical, numeric)"
-          },
           "categories": {
-            "type": "array",
             "description": "Valid values for categorical signals. Present when value_type is 'categorical'. Buyers must use one of these values in SignalTargeting.values.",
             "items": {
               "type": "string"
-            }
-          },
-          "range": {
-            "type": "object",
-            "description": "Valid range for numeric signals. Present when value_type is 'numeric'.",
-            "properties": {
-              "min": {
-                "type": "number",
-                "description": "Minimum value (inclusive)"
-              },
-              "max": {
-                "type": "number",
-                "description": "Maximum value (inclusive)"
-              }
             },
-            "required": ["min", "max"],
-            "additionalProperties": false
-          },
-          "signal_type": {
-            "$ref": "/schemas/3.0.0-rc.2/enums/signal-catalog-type.json",
-            "description": "Catalog type of signal (marketplace, custom, owned)"
-          },
-          "data_provider": {
-            "type": "string",
-            "description": "Human-readable name of the data provider"
+            "type": "array"
           },
           "coverage_percentage": {
-            "type": "number",
             "description": "Percentage of audience coverage",
+            "maximum": 100,
             "minimum": 0,
-            "maximum": 100
+            "type": "number"
+          },
+          "data_provider": {
+            "description": "Human-readable name of the data provider",
+            "type": "string"
           },
           "deployments": {
-            "type": "array",
             "description": "Array of deployment targets",
             "items": {
-              "$ref": "/schemas/3.0.0-rc.2/core/deployment.json"
-            }
+              "$ref": "../core/deployment.json"
+            },
+            "type": "array"
+          },
+          "description": {
+            "description": "Detailed signal description",
+            "type": "string"
+          },
+          "name": {
+            "description": "Human-readable signal name",
+            "type": "string"
           },
           "pricing_options": {
-            "type": "array",
             "description": "Pricing options available for this signal. The buyer selects one and passes its pricing_option_id in report_usage for billing verification.",
             "items": {
-              "$ref": "/schemas/3.0.0-rc.2/core/signal-pricing-option.json"
+              "$ref": "../core/signal-pricing-option.json"
             },
-            "minItems": 1
+            "minItems": 1,
+            "type": "array"
+          },
+          "range": {
+            "additionalProperties": false,
+            "description": "Valid range for numeric signals. Present when value_type is 'numeric'.",
+            "properties": {
+              "max": {
+                "description": "Maximum value (inclusive)",
+                "type": "number"
+              },
+              "min": {
+                "description": "Minimum value (inclusive)",
+                "type": "number"
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ],
+            "type": "object"
+          },
+          "signal_agent_segment_id": {
+            "description": "Opaque identifier used for activation. This is the signals agent's internal segment ID.",
+            "type": "string"
+          },
+          "signal_id": {
+            "$ref": "../core/signal-id.json",
+            "description": "Universal signal identifier referencing the data provider's catalog. Use this to verify authorization and look up signal definitions."
+          },
+          "signal_type": {
+            "$ref": "../enums/signal-catalog-type.json",
+            "description": "Catalog type of signal (marketplace, custom, owned)"
+          },
+          "value_type": {
+            "$ref": "../enums/signal-value-type.json",
+            "description": "The data type of this signal's values (binary, categorical, numeric)"
           }
         },
         "required": [
@@ -94,32 +114,14 @@
           "deployments",
           "pricing_options"
         ],
-        "additionalProperties": true
-      }
-    },
-    "errors": {
-      "type": "array",
-      "description": "Task-specific errors and warnings (e.g., signal discovery or pricing issues)",
-      "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/error.json"
-      }
-    },
-    "pagination": {
-      "$ref": "/schemas/3.0.0-rc.2/core/pagination-response.json"
-    },
-    "sandbox": {
-      "type": "boolean",
-      "description": "When true, this response contains simulated data from sandbox mode."
-    },
-    "context": {
-      "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-    },
-    "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+        "type": "object"
+      },
+      "type": "array"
     }
   },
   "required": [
     "signals"
   ],
-  "additionalProperties": true
+  "title": "Get Signals Response",
+  "type": "object"
 }

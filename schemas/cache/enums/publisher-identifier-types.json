@@ -1,9 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/enums/publisher-identifier-types.json",
-  "title": "Publisher Identifier Types",
   "description": "Valid identifier types for publisher/legal entity identification",
-  "type": "string",
   "enum": [
     "tag_id",
     "duns",
@@ -15,5 +12,7 @@
     "tag_id",
     "seller_id",
     "duns"
-  ]
+  ],
+  "title": "Publisher Identifier Types",
+  "type": "string"
 }

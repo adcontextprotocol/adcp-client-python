@@ -1,9 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/enums/daast-tracking-event.json",
-  "title": "DAAST Tracking Event",
   "description": "Standard DAAST tracking events for audio ad playback and interaction",
-  "type": "string",
   "enum": [
     "start",
     "firstQuartile",
@@ -16,5 +13,7 @@
     "skip",
     "mute",
     "unmute"
-  ]
+  ],
+  "title": "DAAST Tracking Event",
+  "type": "string"
 }

@@ -1,93 +1,115 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/pricing-options/flat-rate-option.json",
-  "title": "Flat Rate Pricing Option",
-  "description": "Flat rate pricing for sponsorships, takeovers, and DOOH exclusive placements. A fixed total cost regardless of delivery volume. For duration-scaled pricing (rate × time units), use the `time` model instead. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",
-  "type": "object",
+  "additionalProperties": true,
+  "description": "Flat rate pricing for sponsorships, takeovers, and DOOH exclusive placements. A fixed total cost regardless of delivery volume. For duration-scaled pricing (rate \u00d7 time units), use the `time` model instead. If fixed_price is present, it's fixed pricing. If absent, it's auction-based.",
   "properties": {
-    "pricing_option_id": {
-      "type": "string",
-      "description": "Unique identifier for this pricing option within the product"
-    },
-    "pricing_model": {
-      "type": "string",
-      "const": "flat_rate",
-      "description": "Fixed cost regardless of delivery volume"
-    },
     "currency": {
-      "type": "string",
       "description": "ISO 4217 currency code",
+      "examples": [
+        "USD",
+        "EUR",
+        "GBP",
+        "JPY"
+      ],
       "pattern": "^[A-Z]{3}$",
-      "examples": ["USD", "EUR", "GBP", "JPY"]
+      "type": "string"
+    },
+    "eligible_adjustments": {
+      "description": "Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared \u2014 the buyer should check price_breakdown if present.",
+      "items": {
+        "$ref": "../enums/adjustment-kind.json"
+      },
+      "type": "array",
+      "uniqueItems": true
     },
     "fixed_price": {
-      "type": "number",
       "description": "Flat rate cost. If present, this is fixed pricing. If absent, auction-based.",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
     },
     "floor_price": {
-      "type": "number",
       "description": "Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.",
-      "minimum": 0
-    },
-    "price_guidance": {
-      "description": "Optional pricing guidance for auction-based bidding",
-      "$ref": "/schemas/3.0.0-rc.2/pricing-options/price-guidance.json"
-    },
-    "parameters": {
-      "title": "DoohParameters",
-      "description": "DOOH inventory allocation parameters. Sponsorship and takeover flat_rate options omit this field entirely — only include for digital out-of-home inventory.",
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "dooh",
-          "description": "Discriminator identifying this as DOOH parameters"
-        },
-        "sov_percentage": {
-          "type": "number",
-          "description": "Guaranteed share of voice as a percentage (0-100)",
-          "minimum": 0,
-          "maximum": 100
-        },
-        "loop_duration_seconds": {
-          "type": "integer",
-          "description": "Duration of the ad loop rotation in seconds",
-          "minimum": 1
-        },
-        "min_plays_per_hour": {
-          "type": "integer",
-          "description": "Minimum number of plays per hour guaranteed",
-          "minimum": 1
-        },
-        "venue_package": {
-          "type": "string",
-          "description": "Named collection of screens included in this buy"
-        },
-        "duration_hours": {
-          "type": "number",
-          "description": "Duration of the DOOH slot in hours (e.g., 24 for a full-day takeover)",
-          "minimum": 0
-        },
-        "daypart": {
-          "type": "string",
-          "description": "Named daypart for this slot (e.g., morning_commute, evening_rush)"
-        },
-        "estimated_impressions": {
-          "type": "integer",
-          "description": "Estimated audience impressions for this slot (informational, not a delivery guarantee)",
-          "minimum": 0
-        }
-      },
-      "required": ["type"],
-      "additionalProperties": true
+      "minimum": 0,
+      "type": "number"
     },
     "min_spend_per_package": {
-      "type": "number",
       "description": "Minimum spend requirement per package using this pricing option, in the specified currency",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
+    },
+    "parameters": {
+      "additionalProperties": true,
+      "description": "DOOH inventory allocation parameters. Sponsorship and takeover flat_rate options omit this field entirely \u2014 only include for digital out-of-home inventory.",
+      "properties": {
+        "daypart": {
+          "description": "Named daypart for this slot (e.g., morning_commute, evening_rush)",
+          "type": "string"
+        },
+        "duration_hours": {
+          "description": "Duration of the DOOH slot in hours (e.g., 24 for a full-day takeover)",
+          "minimum": 0,
+          "type": "number"
+        },
+        "estimated_impressions": {
+          "description": "Estimated audience impressions for this slot (informational, not a delivery guarantee)",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "loop_duration_seconds": {
+          "description": "Duration of the ad loop rotation in seconds",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "min_plays_per_hour": {
+          "description": "Minimum number of plays per hour guaranteed",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sov_percentage": {
+          "description": "Guaranteed share of voice as a percentage (0-100)",
+          "maximum": 100,
+          "minimum": 0,
+          "type": "number"
+        },
+        "type": {
+          "const": "dooh",
+          "description": "Discriminator identifying this as DOOH parameters",
+          "type": "string"
+        },
+        "venue_package": {
+          "description": "Named collection of screens included in this buy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "DoohParameters",
+      "type": "object"
+    },
+    "price_breakdown": {
+      "$ref": "price-breakdown.json",
+      "description": "Breakdown of how fixed_price was derived from the list (rate card) price. Only meaningful when fixed_price is present."
+    },
+    "price_guidance": {
+      "$ref": "price-guidance.json",
+      "description": "Optional pricing guidance for auction-based bidding"
+    },
+    "pricing_model": {
+      "const": "flat_rate",
+      "description": "Fixed cost regardless of delivery volume",
+      "type": "string"
+    },
+    "pricing_option_id": {
+      "description": "Unique identifier for this pricing option within the product",
+      "type": "string"
     }
   },
-  "required": ["pricing_option_id", "pricing_model", "currency"],
-  "additionalProperties": true
+  "required": [
+    "pricing_option_id",
+    "pricing_model",
+    "currency"
+  ],
+  "title": "Flat Rate Pricing Option",
+  "type": "object"
 }

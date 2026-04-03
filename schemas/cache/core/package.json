@@ -1,105 +1,149 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/package.json",
-  "title": "Package",
+  "additionalProperties": true,
   "description": "A specific product within a media buy (line item)",
-  "type": "object",
   "properties": {
-    "package_id": {
-      "type": "string",
-      "description": "Publisher's unique identifier for the package"
-    },
-    "buyer_ref": {
-      "type": "string",
-      "description": "Buyer's reference identifier for this package. Sellers SHOULD deduplicate requests with the same buyer_ref within a media buy, returning the existing package rather than creating a duplicate."
-    },
-    "product_id": {
-      "type": "string",
-      "description": "ID of the product this package is based on"
+    "bid_price": {
+      "description": "Bid price for auction-based pricing. This is the exact bid/price to honor unless the selected pricing option has max_bid=true, in which case bid_price is the buyer's maximum willingness to pay (ceiling).",
+      "minimum": 0,
+      "type": "number"
     },
     "budget": {
-      "type": "number",
       "description": "Budget allocation for this package in the currency specified by the pricing option",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
     },
-    "pacing": {
-      "$ref": "/schemas/3.0.0-rc.2/enums/pacing.json"
+    "canceled": {
+      "default": false,
+      "description": "Whether this package has been canceled. Canceled packages stop delivery and cannot be reactivated. Defaults to false.",
+      "type": "boolean"
     },
-    "pricing_option_id": {
-      "type": "string",
-      "description": "ID of the selected pricing option from the product's pricing_options array"
-    },
-    "bid_price": {
-      "type": "number",
-      "description": "Bid price for auction-based pricing. This is the exact bid/price to honor unless the selected pricing option has max_bid=true, in which case bid_price is the buyer's maximum willingness to pay (ceiling).",
-      "minimum": 0
-    },
-    "impressions": {
-      "type": "number",
-      "description": "Impression goal for this package",
-      "minimum": 0
+    "cancellation": {
+      "additionalProperties": false,
+      "description": "Cancellation metadata. Present only when canceled is true.",
+      "properties": {
+        "acknowledged_at": {
+          "description": "ISO 8601 timestamp when the seller acknowledged the cancellation. Confirms inventory has been released and billing stopped. Absent until the seller processes the cancellation.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "canceled_at": {
+          "description": "ISO 8601 timestamp when this package was canceled.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "canceled_by": {
+          "$ref": "../enums/canceled-by.json",
+          "description": "Which party initiated the package cancellation."
+        },
+        "reason": {
+          "description": "Reason the package was canceled.",
+          "maxLength": 500,
+          "type": "string"
+        }
+      },
+      "required": [
+        "canceled_at",
+        "canceled_by"
+      ],
+      "type": "object"
     },
     "catalogs": {
-      "type": "array",
-      "description": "Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level — sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Echoed from the create_media_buy request.",
+      "description": "Catalogs this package promotes. Each catalog MUST have a distinct type (e.g., one product catalog, one store catalog). This constraint is enforced at the application level \u2014 sellers MUST reject requests containing multiple catalogs of the same type with a validation_error. Echoed from the create_media_buy request.",
       "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/catalog.json"
-      }
+        "$ref": "catalog.json"
+      },
+      "type": "array"
     },
-    "format_ids": {
-      "type": "array",
-      "description": "Format IDs active for this package. Echoed from the create_media_buy request; omitted means all formats for the product are active.",
-      "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/format-id.json"
-      }
-    },
-    "targeting_overlay": {
-      "$ref": "/schemas/3.0.0-rc.2/core/targeting.json"
+    "context": {
+      "$ref": "context.json"
     },
     "creative_assignments": {
-      "type": "array",
       "description": "Creative assets assigned to this package",
       "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/creative-assignment.json"
-      }
-    },
-    "format_ids_to_provide": {
-      "type": "array",
-      "description": "Format IDs that creative assets will be provided for this package",
-      "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/format-id.json"
-      }
-    },
-    "optimization_goals": {
-      "type": "array",
-      "description": "Optimization targets for this package. The seller optimizes delivery toward these goals in priority order. Common pattern: event goals (purchase, install) as primary targets at priority 1; metric goals (clicks, views) as secondary proxy signals at priority 2+.",
-      "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/optimization-goal.json"
+        "$ref": "creative-assignment.json"
       },
-      "minItems": 1
+      "type": "array"
     },
-    "start_time": {
-      "type": "string",
+    "creative_deadline": {
+      "description": "ISO 8601 timestamp for creative upload or change deadline for this package. After this deadline, creative changes are rejected. When absent, the media buy's creative_deadline applies.",
       "format": "date-time",
-      "not": { "const": "asap" },
-      "description": "Flight start date/time for this package in ISO 8601 format. When omitted, the package inherits the media buy's start_time. Sellers SHOULD always include the resolved value in responses, even when inherited."
+      "type": "string"
     },
     "end_time": {
-      "type": "string",
+      "description": "Flight end date/time for this package in ISO 8601 format. When omitted, the package inherits the media buy's end_time. Sellers SHOULD always include the resolved value in responses, even when inherited.",
       "format": "date-time",
-      "description": "Flight end date/time for this package in ISO 8601 format. When omitted, the package inherits the media buy's end_time. Sellers SHOULD always include the resolved value in responses, even when inherited."
-    },
-    "paused": {
-      "type": "boolean",
-      "description": "Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.",
-      "default": false
+      "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "$ref": "ext.json"
+    },
+    "format_ids": {
+      "description": "Format IDs active for this package. Echoed from the create_media_buy request; omitted means all formats for the product are active.",
+      "items": {
+        "$ref": "format-id.json"
+      },
+      "type": "array"
+    },
+    "format_ids_to_provide": {
+      "description": "Format IDs that creative assets will be provided for this package",
+      "items": {
+        "$ref": "format-id.json"
+      },
+      "type": "array"
+    },
+    "impressions": {
+      "description": "Impression goal for this package",
+      "minimum": 0,
+      "type": "number"
+    },
+    "optimization_goals": {
+      "description": "Optimization targets for this package. The seller optimizes delivery toward these goals in priority order. Common pattern: event goals (purchase, install) as primary targets at priority 1; metric goals (clicks, views) as secondary proxy signals at priority 2+.",
+      "items": {
+        "$ref": "optimization-goal.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "pacing": {
+      "$ref": "../enums/pacing.json"
+    },
+    "package_id": {
+      "description": "Seller's unique identifier for the package",
+      "type": "string"
+    },
+    "paused": {
+      "default": false,
+      "description": "Whether this package is paused by the buyer. Paused packages do not deliver impressions. Defaults to false.",
+      "type": "boolean"
+    },
+    "price_breakdown": {
+      "$ref": "../pricing-options/price-breakdown.json",
+      "description": "Breakdown of the effective price for this package. On fixed-price packages, echoes the pricing option's breakdown. On auction packages, shows the clearing price breakdown including any commission or settlement terms."
+    },
+    "pricing_option_id": {
+      "description": "ID of the selected pricing option from the product's pricing_options array",
+      "type": "string"
+    },
+    "product_id": {
+      "description": "ID of the product this package is based on",
+      "type": "string"
+    },
+    "start_time": {
+      "description": "Flight start date/time for this package in ISO 8601 format. When omitted, the package inherits the media buy's start_time. Sellers SHOULD always include the resolved value in responses, even when inherited.",
+      "format": "date-time",
+      "not": {
+        "const": "asap"
+      },
+      "type": "string"
+    },
+    "targeting_overlay": {
+      "$ref": "targeting.json"
     }
   },
   "required": [
     "package_id"
   ],
-  "additionalProperties": true
+  "title": "Package",
+  "type": "object"
 }

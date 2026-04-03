@@ -1,9 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/enums/postal-system.json",
-  "title": "Postal Code System",
   "description": "Postal code systems for geographic targeting. System names encode country and precision level.",
-  "type": "string",
   "enum": [
     "us_zip",
     "us_zip_plus_four",
@@ -16,5 +13,7 @@
     "au_postcode",
     "ch_plz",
     "at_plz"
-  ]
+  ],
+  "title": "Postal Code System",
+  "type": "string"
 }

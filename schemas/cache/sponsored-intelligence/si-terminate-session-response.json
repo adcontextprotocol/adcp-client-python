@@ -1,63 +1,80 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/sponsored-intelligence/si-terminate-session-response.json",
-  "title": "SI Terminate Session Response",
+  "additionalProperties": true,
   "description": "Confirmation of session termination",
-  "type": "object",
   "properties": {
-    "session_id": {
-      "type": "string",
-      "description": "Terminated session identifier"
-    },
-    "terminated": {
-      "type": "boolean",
-      "description": "Whether session was successfully terminated"
-    },
     "acp_handoff": {
-      "type": "object",
-      "description": "ACP checkout handoff data (for handoff_transaction)",
+      "additionalProperties": true,
+      "description": "ACP checkout handoff data. Present when reason is handoff_transaction.",
       "properties": {
-        "checkout_url": {
-          "type": "string",
-          "format": "uri",
-          "description": "ACP checkout initiation URL"
-        },
         "checkout_token": {
-          "type": "string",
-          "description": "Token for ACP checkout flow"
+          "description": "Opaque token for the checkout flow. The host passes this to the checkout endpoint to correlate the SI session with the transaction.",
+          "type": "string"
         },
-        "product": {
-          "type": "object",
-          "description": "Product details for checkout"
+        "checkout_url": {
+          "description": "Brand's ACP checkout endpoint. Hosts MUST validate this is HTTPS before opening.",
+          "format": "uri",
+          "type": "string"
+        },
+        "expires_at": {
+          "description": "When this handoff data expires. Hosts should initiate checkout before this time.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "description": "Rich checkout context to pass to the ACP endpoint (product details, applied offers, pricing). Alternative to checkout_token for integrations that need structured data.",
+          "type": "object"
         }
       },
-      "additionalProperties": true
+      "type": "object"
+    },
+    "errors": {
+      "items": {
+        "$ref": "../core/error.json"
+      },
+      "type": "array"
+    },
+    "ext": {
+      "$ref": "../core/ext.json"
     },
     "follow_up": {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Suggested follow-up actions",
       "properties": {
         "action": {
-          "type": "string",
-          "enum": ["save_for_later", "set_reminder", "subscribe_updates", "none"]
+          "enum": [
+            "save_for_later",
+            "set_reminder",
+            "subscribe_updates",
+            "none"
+          ],
+          "type": "string"
         },
         "data": {
-          "type": "object",
-          "description": "Data for follow-up action"
+          "description": "Data for follow-up action",
+          "type": "object"
         }
       },
-      "additionalProperties": true
+      "type": "object"
     },
-    "errors": {
-      "type": "array",
-      "items": {
-        "$ref": "/schemas/3.0.0-rc.2/core/error.json"
-      }
+    "session_id": {
+      "description": "Terminated session identifier",
+      "type": "string"
     },
-    "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+    "session_status": {
+      "$ref": "../enums/si-session-status.json",
+      "description": "Resulting session state. 'complete' for handoff_transaction/handoff_complete, 'terminated' for user_exit/session_timeout/host_terminated."
+    },
+    "terminated": {
+      "description": "Whether session was successfully terminated",
+      "type": "boolean"
     }
   },
-  "required": ["session_id", "terminated"],
-  "additionalProperties": true
+  "required": [
+    "session_id",
+    "terminated"
+  ],
+  "title": "SI Terminate Session Response",
+  "type": "object"
 }

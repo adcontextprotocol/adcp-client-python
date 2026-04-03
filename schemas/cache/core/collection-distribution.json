@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A collection's presence on a specific publisher platform, identified by platform-specific identifiers. Enables cross-seller matching when the same collection is sold by different agents.",
+  "properties": {
+    "identifiers": {
+      "description": "Platform-specific identifiers for the collection on this publisher",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "$ref": "../enums/distribution-identifier-type.json",
+            "description": "Type of distribution identifier"
+          },
+          "value": {
+            "description": "The identifier value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "publisher_domain": {
+      "description": "Domain of the publisher platform where the collection is distributed (e.g., 'youtube.com', 'spotify.com')",
+      "type": "string"
+    }
+  },
+  "required": [
+    "publisher_domain",
+    "identifiers"
+  ],
+  "title": "Collection Distribution",
+  "type": "object"
+}

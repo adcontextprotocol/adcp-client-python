@@ -1,130 +1,151 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/content-standards/update-content-standards-request.json",
-  "title": "Update Content Standards Request",
+  "additionalProperties": true,
   "description": "Request parameters for updating an existing content standards configuration. Creates a new version.",
-  "type": "object",
   "properties": {
-    "standards_id": {
-      "type": "string",
-      "description": "ID of the standards configuration to update"
-    },
-    "scope": {
-      "type": "object",
-      "description": "Updated scope for where this standards configuration applies",
-      "properties": {
-        "countries_all": {
-          "type": "array",
-          "items": { "type": "string" },
-          "minItems": 1,
-          "description": "ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic)."
-        },
-        "channels_any": {
-          "type": "array",
-          "items": { "$ref": "/schemas/3.0.0-rc.2/enums/channels.json" },
-          "minItems": 1,
-          "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
-        },
-        "languages_any": {
-          "type": "array",
-          "items": { "type": "string" },
-          "minItems": 1,
-          "description": "BCP 47 language tags (e.g., 'en', 'de', 'fr'). Standards apply to content in ANY of these languages (OR logic). Content in unlisted languages is not covered by these standards."
-        },
-        "description": {
-          "type": "string",
-          "description": "Human-readable description of this scope"
-        }
-      }
-    },
-    "registry_policy_ids": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Registry policy IDs to use as the evaluation basis. When provided, the agent resolves policies from the registry and uses their policy text and exemplars as the evaluation criteria."
-    },
-    "policy": {
-      "type": "string",
-      "description": "Updated natural language policy describing acceptable and unacceptable content contexts."
-    },
     "calibration_exemplars": {
-      "type": "object",
       "description": "Updated training/test set to calibrate policy interpretation. Use URL references for pages to be fetched and analyzed, or full artifacts for pre-extracted content.",
       "properties": {
-        "pass": {
-          "type": "array",
-          "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "description": "URL reference - specific page to fetch and evaluate",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "const": "url",
-                    "description": "Indicates this is a URL reference"
-                  },
-                  "value": {
-                    "type": "string",
-                    "format": "uri",
-                    "description": "Full URL to a specific page (e.g., 'https://espn.com/nba/story/_/id/12345/lakers-win')"
-                  },
-                  "language": {
-                    "type": "string",
-                    "description": "BCP 47 language tag for content at this URL"
-                  }
-                },
-                "required": ["type", "value"]
-              },
-              {
-                "$ref": "/schemas/3.0.0-rc.2/content-standards/artifact.json",
-                "description": "Full artifact with pre-extracted content (text, images, video, audio)"
-              }
-            ]
-          },
-          "description": "Content that passes the standards"
-        },
         "fail": {
-          "type": "array",
+          "description": "Content that fails the standards",
           "items": {
             "oneOf": [
               {
-                "type": "object",
                 "description": "URL reference - specific page to fetch and evaluate",
                 "properties": {
+                  "language": {
+                    "description": "BCP 47 language tag for content at this URL",
+                    "type": "string"
+                  },
                   "type": {
-                    "type": "string",
                     "const": "url",
-                    "description": "Indicates this is a URL reference"
+                    "description": "Indicates this is a URL reference",
+                    "type": "string"
                   },
                   "value": {
-                    "type": "string",
+                    "description": "Full URL to a specific page (e.g., 'https://news.example.com/controversial-article')",
                     "format": "uri",
-                    "description": "Full URL to a specific page (e.g., 'https://news.example.com/controversial-article')"
-                  },
-                  "language": {
-                    "type": "string",
-                    "description": "BCP 47 language tag for content at this URL"
+                    "type": "string"
                   }
                 },
-                "required": ["type", "value"]
+                "required": [
+                  "type",
+                  "value"
+                ],
+                "type": "object"
               },
               {
-                "$ref": "/schemas/3.0.0-rc.2/content-standards/artifact.json",
+                "$ref": "artifact.json",
                 "description": "Full artifact with pre-extracted content (text, images, video, audio)"
               }
             ]
           },
-          "description": "Content that fails the standards"
+          "type": "array"
+        },
+        "pass": {
+          "description": "Content that passes the standards",
+          "items": {
+            "oneOf": [
+              {
+                "description": "URL reference - specific page to fetch and evaluate",
+                "properties": {
+                  "language": {
+                    "description": "BCP 47 language tag for content at this URL",
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "url",
+                    "description": "Indicates this is a URL reference",
+                    "type": "string"
+                  },
+                  "value": {
+                    "description": "Full URL to a specific page (e.g., 'https://espn.com/nba/story/_/id/12345/lakers-win')",
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "value"
+                ],
+                "type": "object"
+              },
+              {
+                "$ref": "artifact.json",
+                "description": "Full artifact with pre-extracted content (text, images, video, audio)"
+              }
+            ]
+          },
+          "type": "array"
         }
-      }
+      },
+      "type": "object"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+      "$ref": "../core/context.json"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "$ref": "../core/ext.json"
+    },
+    "idempotency_key": {
+      "description": "Client-generated unique key for at-most-once execution. If a request with the same key has already been processed, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.",
+      "maxLength": 255,
+      "minLength": 16,
+      "type": "string"
+    },
+    "policy": {
+      "description": "Updated natural language policy describing acceptable and unacceptable content contexts.",
+      "type": "string"
+    },
+    "registry_policy_ids": {
+      "description": "Registry policy IDs to use as the evaluation basis. When provided, the agent resolves policies from the registry and uses their policy text and exemplars as the evaluation criteria.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "scope": {
+      "description": "Updated scope for where this standards configuration applies",
+      "properties": {
+        "channels_any": {
+          "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic).",
+          "items": {
+            "$ref": "../enums/channels.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "countries_all": {
+          "description": "ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "description": {
+          "description": "Human-readable description of this scope",
+          "type": "string"
+        },
+        "languages_any": {
+          "description": "BCP 47 language tags (e.g., 'en', 'de', 'fr'). Standards apply to content in ANY of these languages (OR logic). Content in unlisted languages is not covered by these standards.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "standards_id": {
+      "description": "ID of the standards configuration to update",
+      "type": "string"
     }
   },
-  "required": ["standards_id"],
-  "additionalProperties": true
+  "required": [
+    "standards_id"
+  ],
+  "title": "Update Content Standards Request",
+  "type": "object"
 }

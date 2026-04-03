@@ -1,123 +1,135 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/content-standards/get-media-buy-artifacts-response.json",
-  "title": "Get Media Buy Artifacts Response",
   "description": "Response containing content artifacts from a media buy for validation",
-  "type": "object",
   "oneOf": [
     {
-      "type": "object",
       "description": "Success response with artifacts",
       "properties": {
-        "media_buy_id": {
-          "type": "string",
-          "description": "Media buy these artifacts belong to"
-        },
         "artifacts": {
-          "type": "array",
           "description": "Delivery records with full artifact content",
           "items": {
-            "type": "object",
             "properties": {
-              "record_id": {
-                "type": "string",
-                "description": "Unique identifier for this delivery record"
-              },
-              "timestamp": {
-                "type": "string",
-                "format": "date-time",
-                "description": "When the delivery occurred"
-              },
-              "package_id": {
-                "type": "string",
-                "description": "Which package this delivery belongs to"
-              },
               "artifact": {
-                "$ref": "/schemas/3.0.0-rc.2/content-standards/artifact.json",
+                "$ref": "artifact.json",
                 "description": "Full artifact with content assets"
               },
-              "country": {
-                "type": "string",
-                "description": "ISO 3166-1 alpha-2 country code where delivery occurred"
-              },
-              "channel": {
-                "type": "string",
-                "description": "Channel type (e.g., display, video, audio, social)"
-              },
               "brand_context": {
-                "type": "object",
                 "description": "Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.",
                 "properties": {
                   "brand_id": {
-                    "type": "string",
-                    "description": "Brand identifier"
+                    "description": "Brand identifier",
+                    "type": "string"
                   },
                   "sku_id": {
-                    "type": "string",
-                    "description": "Product/SKU identifier if applicable"
+                    "description": "Product/SKU identifier if applicable",
+                    "type": "string"
                   }
-                }
+                },
+                "type": "object"
+              },
+              "channel": {
+                "description": "Channel type (e.g., display, video, audio, social)",
+                "type": "string"
+              },
+              "country": {
+                "description": "ISO 3166-1 alpha-2 country code where delivery occurred",
+                "type": "string"
               },
               "local_verdict": {
-                "type": "string",
-                "enum": ["pass", "fail", "unevaluated"],
-                "description": "Seller's local model verdict for this artifact"
+                "description": "Seller's local model verdict for this artifact",
+                "enum": [
+                  "pass",
+                  "fail",
+                  "unevaluated"
+                ],
+                "type": "string"
+              },
+              "package_id": {
+                "description": "Which package this delivery belongs to",
+                "type": "string"
+              },
+              "record_id": {
+                "description": "Unique identifier for this delivery record",
+                "type": "string"
+              },
+              "timestamp": {
+                "description": "When the delivery occurred",
+                "format": "date-time",
+                "type": "string"
               }
             },
-            "required": ["record_id", "artifact"]
-          }
+            "required": [
+              "record_id",
+              "artifact"
+            ],
+            "type": "object"
+          },
+          "type": "array"
         },
-        "sampling_info": {
-          "type": "object",
-          "description": "Information about how the sample was generated",
+        "collection_info": {
+          "description": "Information about artifact collection for this media buy. Sampling is configured at buy creation time \u2014 this reports what was actually collected.",
           "properties": {
-            "total_deliveries": {
-              "type": "integer",
-              "description": "Total deliveries in the time range"
-            },
-            "sampled_count": {
-              "type": "integer",
-              "description": "Number of artifacts in this response"
-            },
             "effective_rate": {
-              "type": "number",
-              "description": "Actual sampling rate achieved"
+              "description": "Actual collection rate achieved (total_collected / total_deliveries)",
+              "type": "number"
             },
-            "method": {
-              "type": "string",
-              "enum": ["random", "stratified", "recent", "failures_only"],
-              "description": "Sampling method used"
+            "returned_count": {
+              "description": "Number of artifacts in this response (may be less than total_collected due to pagination or filters)",
+              "type": "integer"
+            },
+            "total_collected": {
+              "description": "Total artifacts collected (per the buy's sampling configuration)",
+              "type": "integer"
+            },
+            "total_deliveries": {
+              "description": "Total deliveries in the requested time range",
+              "type": "integer"
             }
-          }
+          },
+          "type": "object"
+        },
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "media_buy_id": {
+          "description": "Media buy these artifacts belong to",
+          "type": "string"
         },
         "pagination": {
-          "$ref": "/schemas/3.0.0-rc.2/core/pagination-response.json"
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "$ref": "../core/pagination-response.json"
         }
       },
-      "required": ["media_buy_id", "artifacts"]
+      "required": [
+        "media_buy_id",
+        "artifacts"
+      ],
+      "type": "object"
     },
     {
-      "type": "object",
       "description": "Error response",
       "properties": {
-        "errors": {
-          "type": "array",
-          "items": { "$ref": "/schemas/3.0.0-rc.2/core/error.json" }
-        },
         "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["errors"]
+      "required": [
+        "errors"
+      ],
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Get Media Buy Artifacts Response",
+  "type": "object"
 }

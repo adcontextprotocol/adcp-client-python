@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "An actionable issue detected during a health or readiness assessment. Used by event source health and measurement readiness to surface problems and recommendations.",
+  "properties": {
+    "message": {
+      "description": "Human/agent-readable description of the issue and how to resolve it.",
+      "type": "string"
+    },
+    "severity": {
+      "description": "'error': blocks optimization until resolved. 'warning': optimization works but effectiveness is reduced. 'info': suggestion for improvement.",
+      "enum": [
+        "error",
+        "warning",
+        "info"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "severity",
+    "message"
+  ],
+  "title": "Diagnostic Issue",
+  "type": "object"
+}

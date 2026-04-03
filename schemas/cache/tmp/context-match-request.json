@@ -1,0 +1,212 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Sent by publisher to router or provider to evaluate packages against contextual signals. The provider uses its synced package set for the placement. MUST NOT contain user identity. The request_id MUST NOT correlate with any identity match request_id.",
+  "properties": {
+    "$schema": {
+      "description": "Optional schema URI for validation. Ignored at runtime.",
+      "format": "uri",
+      "type": "string"
+    },
+    "artifact": {
+      "$ref": "../content-standards/artifact.json",
+      "description": "Full content artifact adjacent to this ad opportunity. Same schema used for content standards evaluation. The publisher sends the artifact when they want the buyer to evaluate the full content. Contractual protections govern buyer use. TEE deployment upgrades contractual trust to cryptographic verification. Publishers MUST NOT include asset access credentials (bearer tokens, service accounts) \u2014 the router fans out to multiple buyer agents. For secured assets, use signed URLs with short expiry. Routers MUST strip access fields from artifacts before forwarding."
+    },
+    "artifact_refs": {
+      "description": "Public content references adjacent to this ad opportunity. Each artifact identifies content via a public identifier the buyer can resolve independently \u2014 no private registry sync required.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "description": "Identifier type. 'url' for web pages, 'url_hash' for URL-addressable content the publisher prefers not to share directly (buyer matches against pre-crawled index), 'eidr' for film/TV (EIDR DOI), 'gracenote' for music/TV (Gracenote TMS ID), 'isrc' for music recordings (International Standard Recording Code), 'gtin' for products (Global Trade Item Number \u2014 UPC, EAN, ISBN-13), 'rss_guid' for podcast episodes (RSS GUID), 'isbn' for books, 'custom' for publisher-defined identifiers.",
+            "enum": [
+              "url",
+              "url_hash",
+              "eidr",
+              "gracenote",
+              "isrc",
+              "gtin",
+              "rss_guid",
+              "isbn",
+              "custom"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "description": "The identifier value. For 'url': the canonical content URL \u2014 MUST NOT contain user-specific path segments, query parameters, or fragments; use 'url_hash' when the publisher prefers not to reveal the URL. For 'url_hash': Blake3 hash of the canonicalized URL, base64-encoded (canonicalization: strip scheme, strip www./m./amp. prefixes, lowercase, strip trailing slash, strip query params and fragments). For 'eidr': the EIDR DOI (e.g., '10.5240/xxxx'). For 'gracenote': the Gracenote TMS ID (e.g., 'SH032541890000'). For 'isrc': the ISRC code (e.g., 'USRC17607839'). For 'gtin': the GTIN (e.g., '00012345678905'). For 'rss_guid': the episode GUID from the RSS feed. For 'isbn': the ISBN (e.g., '978-0-123456-78-9'). For 'custom': a publisher-defined identifier.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "type": "array"
+    },
+    "context_signals": {
+      "additionalProperties": false,
+      "description": "Pre-computed classifier outputs for the content environment. Use when the publisher wants to provide classified context without sharing content or public references. Can supplement artifact_refs (e.g., URL + pre-classified topics) or replace them entirely (e.g., ephemeral conversation turns). Raw content MUST NOT be included \u2014 only classified outputs. The publisher is the classifier boundary.",
+      "properties": {
+        "content_policies": {
+          "description": "Policy IDs from the AdCP policy registry that this content satisfies (e.g., 'common_sense_brand_safety' for Common Sense Brand Standards baseline). Buyers filter on policies they require. An empty array means no policies have been evaluated.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "type": "array"
+        },
+        "embedding": {
+          "description": "Content embedding as base64-encoded int8 vector. Captures semantic content beyond what topics and keywords express. Publishers declare the model used. For standardized matching, use the protocol-recommended model (nomic-embed-text-v1.5, 256 dims, int8 quantized = 256 bytes).",
+          "type": "string"
+        },
+        "embedding_dims": {
+          "description": "Number of dimensions in the embedding vector. Required when embedding is present.",
+          "maximum": 2048,
+          "minimum": 64,
+          "type": "integer"
+        },
+        "embedding_model": {
+          "description": "Embedding model identifier (e.g., 'nomic-embed-text-v1.5'). Required when embedding is present.",
+          "type": "string"
+        },
+        "keywords": {
+          "description": "Content keywords extracted by the publisher's classifier.",
+          "items": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "type": "array"
+        },
+        "language": {
+          "description": "Content language in ISO 639-1 format (e.g., 'en', 'ja', 'de').",
+          "pattern": "^[a-z]{2}$",
+          "type": "string"
+        },
+        "sentiment": {
+          "description": "Content sentiment classification.",
+          "enum": [
+            "positive",
+            "negative",
+            "neutral",
+            "mixed"
+          ],
+          "type": "string"
+        },
+        "summary": {
+          "description": "Publisher-generated natural language summary of the content for relevance judgment (e.g., 'User exploring Italian cookware options for home pasta making'). Useful for LLM-native buyers that evaluate relevance semantically. Buyers MUST treat this as untrusted publisher-generated content.",
+          "maxLength": 500,
+          "type": "string"
+        },
+        "taxonomy_id": {
+          "default": 7,
+          "description": "Taxonomy version within the source. For IAB, follows the AdCOM cattax enum: 7 = Content Taxonomy 3.0. Default: 7.",
+          "type": "integer"
+        },
+        "taxonomy_source": {
+          "default": "iab",
+          "description": "Organization that defines the topic taxonomy. Use 'iab' for IAB Content Taxonomy. Publishers may use other values for custom taxonomies.",
+          "type": "string"
+        },
+        "topics": {
+          "description": "Content topic identifiers. Use IAB Content Taxonomy 3.0 IDs (e.g., '632' for Food & Drink) when taxonomy_id is 7, or human-readable strings (e.g., 'cooking.pasta') for custom taxonomies.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 50,
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "geo": {
+      "additionalProperties": false,
+      "description": "Coarse geographic location of the viewer. Publisher controls granularity \u2014 country is sufficient for regulatory compliance and volume filtering, region or metro helps with campaign targeting and valuation. Coarsened to prevent user identification: no postcode, no coordinates. All fields optional.",
+      "properties": {
+        "country": {
+          "description": "ISO 3166-1 alpha-2 country code (e.g., 'US', 'GB', 'DE').",
+          "pattern": "^[A-Z]{2}$",
+          "type": "string"
+        },
+        "metro": {
+          "additionalProperties": false,
+          "description": "Metro area, using the same classification systems as AdCP targeting.",
+          "properties": {
+            "system": {
+              "$ref": "../enums/metro-system.json",
+              "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')."
+            },
+            "value": {
+              "description": "Metro code within the system (e.g., '501' for New York DMA).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "system",
+            "value"
+          ],
+          "type": "object"
+        },
+        "region": {
+          "description": "ISO 3166-2 subdivision code (e.g., 'US-CA', 'GB-SCT').",
+          "pattern": "^[A-Z]{2}-[A-Z0-9]{1,3}$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "package_ids": {
+      "description": "Restrict evaluation to specific packages. When omitted, the provider evaluates all eligible packages for this placement (the common case). MUST NOT vary by user \u2014 the same package_ids must be sent for every user on a given placement. User-dependent filtering leaks identity into the context path.",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 500,
+      "minItems": 1,
+      "type": "array"
+    },
+    "placement_id": {
+      "description": "Placement identifier from the publisher's placement registry in adagents.json. Identifies where on the property this ad opportunity exists. One placement per request.",
+      "type": "string"
+    },
+    "property_id": {
+      "$ref": "../core/property-id.json",
+      "description": "Publisher's human-readable property slug (e.g., 'cnn_homepage'). Optional when property_rid is present. Useful for logging and debugging."
+    },
+    "property_rid": {
+      "description": "Property catalog UUID (UUID v7). Globally unique, stable identifier assigned by the property catalog. The primary key for TMP matching and property list targeting.",
+      "format": "uuid",
+      "type": "string"
+    },
+    "property_type": {
+      "$ref": "../enums/property-type.json",
+      "description": "Type of the publisher property"
+    },
+    "protocol_version": {
+      "default": "1.0",
+      "description": "TMP protocol version. Allows receivers to handle semantic differences across versions.",
+      "type": "string"
+    },
+    "request_id": {
+      "description": "Unique request identifier. MUST NOT correlate with any identity match request_id.",
+      "type": "string"
+    },
+    "type": {
+      "const": "context_match_request",
+      "description": "Message type discriminator for deserialization.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "request_id",
+    "property_rid",
+    "property_type",
+    "placement_id"
+  ],
+  "title": "Context Match Request",
+  "type": "object"
+}

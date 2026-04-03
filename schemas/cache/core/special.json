@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Event-anchored content tied to a real-world event or occasion. When present on a collection, indicates the collection is a special. When present on an installment, indicates that specific installment is event-anchored (overrides or supplements the collection-level special).",
+  "properties": {
+    "category": {
+      "$ref": "../enums/special-category.json",
+      "description": "Category of the event"
+    },
+    "ends": {
+      "description": "When the event ends (ISO 8601). Omit for single-day events.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "name": {
+      "description": "Name of the event (e.g., 'Olympics 2028', 'Super Bowl LXI')",
+      "type": "string"
+    },
+    "starts": {
+      "description": "When the event starts (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "title": "Special",
+  "type": "object"
+}

@@ -1,67 +1,43 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/signals/activate-signal-response.json",
-  "title": "Activate Signal Response",
   "description": "Response payload for activate_signal task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the signal is either fully activated or not activated at all.",
-  "type": "object",
   "oneOf": [
     {
-      "title": "ActivateSignalSuccess",
+      "additionalProperties": true,
       "description": "Success response - signal activated successfully to one or more deployment targets",
-      "type": "object",
+      "not": {
+        "required": [
+          "errors"
+        ]
+      },
       "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
         "deployments": {
-          "type": "array",
           "description": "Array of deployment results for each deployment target",
           "items": {
-            "$ref": "/schemas/3.0.0-rc.2/core/deployment.json"
-          }
-        },
-        "sandbox": {
-          "type": "boolean",
-          "description": "When true, this response contains simulated data from sandbox mode."
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+            "$ref": "../core/deployment.json"
+          },
+          "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "$ref": "../core/ext.json"
+        },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
         }
       },
       "required": [
         "deployments"
       ],
-      "additionalProperties": true,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "title": "ActivateSignalSuccess",
+      "type": "object"
     },
     {
-      "title": "ActivateSignalError",
-      "description": "Error response - operation failed, signal not activated",
-      "type": "object",
-      "properties": {
-        "errors": {
-          "type": "array",
-          "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
-          "items": {
-            "$ref": "/schemas/3.0.0-rc.2/core/error.json"
-          },
-          "minItems": 1
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
-        }
-      },
-      "required": [
-        "errors"
-      ],
       "additionalProperties": true,
+      "description": "Error response - operation failed, signal not activated",
       "not": {
         "anyOf": [
           {
@@ -75,7 +51,30 @@
             ]
           }
         ]
-      }
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)",
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "title": "ActivateSignalError",
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Activate Signal Response",
+  "type": "object"
 }

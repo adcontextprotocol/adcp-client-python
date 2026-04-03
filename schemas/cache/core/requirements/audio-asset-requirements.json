@@ -1,59 +1,67 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/requirements/audio-asset-requirements.json",
-  "title": "Audio Asset Requirements",
+  "additionalProperties": true,
   "description": "Requirements for audio creative assets.",
-  "type": "object",
   "properties": {
-    "min_duration_ms": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Minimum duration in milliseconds"
-    },
-    "max_duration_ms": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum duration in milliseconds"
+    "channels": {
+      "description": "Accepted audio channel configurations",
+      "items": {
+        "enum": [
+          "mono",
+          "stereo"
+        ],
+        "type": "string"
+      },
+      "type": "array"
     },
     "formats": {
-      "type": "array",
+      "description": "Accepted audio file formats",
       "items": {
-        "type": "string",
-        "enum": ["mp3", "aac", "wav", "ogg", "flac"]
+        "enum": [
+          "mp3",
+          "aac",
+          "wav",
+          "ogg",
+          "flac"
+        ],
+        "type": "string"
       },
-      "description": "Accepted audio file formats"
-    },
-    "max_file_size_kb": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Maximum file size in kilobytes"
-    },
-    "sample_rates": {
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "minimum": 1
-      },
-      "description": "Accepted sample rates in Hz (e.g., [44100, 48000])"
-    },
-    "channels": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": ["mono", "stereo"]
-      },
-      "description": "Accepted audio channel configurations"
-    },
-    "min_bitrate_kbps": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Minimum audio bitrate in kilobits per second"
+      "type": "array"
     },
     "max_bitrate_kbps": {
-      "type": "integer",
+      "description": "Maximum audio bitrate in kilobits per second",
       "minimum": 1,
-      "description": "Maximum audio bitrate in kilobits per second"
+      "type": "integer"
+    },
+    "max_duration_ms": {
+      "description": "Maximum duration in milliseconds",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_file_size_kb": {
+      "description": "Maximum file size in kilobytes",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_bitrate_kbps": {
+      "description": "Minimum audio bitrate in kilobits per second",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "min_duration_ms": {
+      "description": "Minimum duration in milliseconds",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "sample_rates": {
+      "description": "Accepted sample rates in Hz (e.g., [44100, 48000])",
+      "items": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "type": "array"
     }
   },
-  "additionalProperties": true
+  "title": "Audio Asset Requirements",
+  "type": "object"
 }

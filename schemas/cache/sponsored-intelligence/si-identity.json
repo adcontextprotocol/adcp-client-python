@@ -1,84 +1,101 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/sponsored-intelligence/si-identity.json",
-  "title": "SI Identity",
+  "additionalProperties": true,
   "description": "User identity shared with brand agent (with explicit consent)",
-  "type": "object",
   "properties": {
-    "consent_granted": {
-      "type": "boolean",
-      "description": "Whether user consented to share identity"
+    "anonymous_session_id": {
+      "description": "Session ID for anonymous users (when consent_granted is false)",
+      "type": "string"
     },
-    "consent_timestamp": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When consent was granted (ISO 8601)"
+    "consent_granted": {
+      "description": "Whether user consented to share identity",
+      "type": "boolean"
     },
     "consent_scope": {
-      "type": "array",
+      "description": "What data was consented to share",
       "items": {
-        "type": "string",
-        "enum": ["name", "email", "shipping_address", "phone", "locale"]
+        "enum": [
+          "name",
+          "email",
+          "shipping_address",
+          "phone",
+          "locale"
+        ],
+        "type": "string"
       },
-      "description": "What data was consented to share"
+      "type": "array"
+    },
+    "consent_timestamp": {
+      "description": "When consent was granted (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
     },
     "privacy_policy_acknowledged": {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Brand privacy policy acknowledgment",
       "properties": {
         "brand_policy_url": {
-          "type": "string",
+          "description": "URL to brand's privacy policy",
           "format": "uri",
-          "description": "URL to brand's privacy policy"
+          "type": "string"
         },
         "brand_policy_version": {
-          "type": "string",
-          "description": "Version of policy acknowledged"
+          "description": "Version of policy acknowledged",
+          "type": "string"
         }
       },
-      "additionalProperties": true
+      "type": "object"
     },
     "user": {
-      "type": "object",
+      "additionalProperties": true,
       "description": "User data (only present if consent_granted is true)",
       "properties": {
         "email": {
-          "type": "string",
+          "description": "User's email address",
           "format": "email",
-          "description": "User's email address"
-        },
-        "name": {
-          "type": "string",
-          "description": "User's display name"
+          "type": "string"
         },
         "locale": {
-          "type": "string",
-          "description": "User's locale (e.g., en-US)"
+          "description": "User's locale (e.g., en-US)",
+          "type": "string"
+        },
+        "name": {
+          "description": "User's display name",
+          "type": "string"
         },
         "phone": {
-          "type": "string",
-          "description": "User's phone number"
+          "description": "User's phone number",
+          "type": "string"
         },
         "shipping_address": {
-          "type": "object",
+          "additionalProperties": true,
           "description": "User's shipping address for accurate pricing",
           "properties": {
-            "street": { "type": "string" },
-            "city": { "type": "string" },
-            "state": { "type": "string" },
-            "postal_code": { "type": "string" },
-            "country": { "type": "string" }
+            "city": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            },
+            "postal_code": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "street": {
+              "type": "string"
+            }
           },
-          "additionalProperties": true
+          "type": "object"
         }
       },
-      "additionalProperties": true
-    },
-    "anonymous_session_id": {
-      "type": "string",
-      "description": "Session ID for anonymous users (when consent_granted is false)"
+      "type": "object"
     }
   },
-  "required": ["consent_granted"],
-  "additionalProperties": true
+  "required": [
+    "consent_granted"
+  ],
+  "title": "SI Identity",
+  "type": "object"
 }

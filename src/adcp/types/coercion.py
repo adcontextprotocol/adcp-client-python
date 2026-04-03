@@ -7,7 +7,7 @@ patterns (strings for enums, dicts for models) without explicit type constructio
 Examples:
     # With coercion, these are equivalent:
     ListCreativeFormatsRequest(type="video")
-    ListCreativeFormatsRequest(type=FormatCategory.video)
+    ListCreativeFormatsRequest(type="video")
 
     # Dict coercion for context:
     ListCreativeFormatsRequest(context={"key": "value"})

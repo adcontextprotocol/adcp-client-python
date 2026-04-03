@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "How two collections are related. References are scoped to the same get_products response. Symmetric types (companion, crossover) do not require both collections to declare the relationship.",
+  "enum": [
+    "spinoff",
+    "companion",
+    "sequel",
+    "prequel",
+    "crossover"
+  ],
+  "enumDescriptions": {
+    "companion": "A companion collection (behind-the-scenes, reaction, or supplementary content)",
+    "crossover": "Shows that share installments, guests, or story arcs",
+    "prequel": "A predecessor to the referenced collection",
+    "sequel": "A continuation of the referenced collection",
+    "spinoff": "A collection derived from the referenced collection (e.g., an after-collection or character spinoff)"
+  },
+  "title": "Collection Relationship",
+  "type": "string"
+}

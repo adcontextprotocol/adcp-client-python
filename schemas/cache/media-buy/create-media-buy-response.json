@@ -1,104 +1,101 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/media-buy/create-media-buy-response.json",
-  "title": "Create Media Buy Response",
   "description": "Response payload for create_media_buy task. Returns either complete success data OR error information, never both. This enforces atomic operation semantics - the media buy is either fully created or not created at all.",
-  "type": "object",
   "oneOf": [
     {
-      "title": "CreateMediaBuySuccess",
-      "description": "Success response - media buy created successfully",
-      "type": "object",
-      "properties": {
-        "media_buy_id": {
-          "type": "string",
-          "description": "Publisher's unique identifier for the created media buy"
-        },
-        "buyer_ref": {
-          "type": "string",
-          "description": "Buyer's reference identifier for this media buy"
-        },
-        "buyer_campaign_ref": {
-          "type": "string",
-          "description": "Buyer's campaign reference label, echoed from the request"
-        },
-        "account": {
-          "$ref": "/schemas/3.0.0-rc.2/core/account.json",
-          "description": "Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied."
-        },
-        "creative_deadline": {
-          "type": "string",
-          "format": "date-time",
-          "description": "ISO 8601 timestamp for creative upload deadline"
-        },
-        "packages": {
-          "type": "array",
-          "description": "Array of created packages with complete state information",
-          "items": {
-            "$ref": "/schemas/3.0.0-rc.2/core/package.json"
-          }
-        },
-        "planned_delivery": {
-          "$ref": "/schemas/3.0.0-rc.2/core/planned-delivery.json",
-          "description": "The seller's interpreted delivery parameters. Describes what the seller will actually run -- geo, channels, flight dates, frequency caps, and budget. Present when the account has governance_agents or when the seller chooses to provide delivery transparency."
-        },
-        "sandbox": {
-          "type": "boolean",
-          "description": "When true, this response contains simulated data from sandbox mode."
-        },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
-        }
-      },
-      "required": [
-        "media_buy_id",
-        "buyer_ref",
-        "packages"
-      ],
       "additionalProperties": true,
+      "description": "Success response - media buy created successfully",
       "not": {
         "required": [
           "errors"
         ]
-      }
-    },
-    {
-      "title": "CreateMediaBuyError",
-      "description": "Error response - operation failed, no media buy created",
-      "type": "object",
+      },
       "properties": {
-        "errors": {
-          "type": "array",
-          "description": "Array of errors explaining why the operation failed",
-          "items": {
-            "$ref": "/schemas/3.0.0-rc.2/core/error.json"
-          },
-          "minItems": 1
+        "account": {
+          "$ref": "../core/account.json",
+          "description": "Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied."
+        },
+        "confirmed_at": {
+          "description": "ISO 8601 timestamp when this media buy was confirmed by the seller. A successful create_media_buy response constitutes order confirmation.",
+          "format": "date-time",
+          "type": "string"
         },
         "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+          "$ref": "../core/context.json"
+        },
+        "creative_deadline": {
+          "description": "ISO 8601 timestamp for creative upload deadline",
+          "format": "date-time",
+          "type": "string"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "$ref": "../core/ext.json"
+        },
+        "invoice_recipient": {
+          "$ref": "../core/business-entity.json",
+          "description": "Per-buy invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only)."
+        },
+        "media_buy_id": {
+          "description": "Seller's unique identifier for the created media buy",
+          "type": "string"
+        },
+        "packages": {
+          "description": "Array of created packages with complete state information",
+          "items": {
+            "$ref": "../core/package.json"
+          },
+          "type": "array"
+        },
+        "planned_delivery": {
+          "$ref": "../core/planned-delivery.json",
+          "description": "The seller's interpreted delivery parameters. Describes what the seller will actually run -- geo, channels, flight dates, frequency caps, and budget. Present when the account has governance_agents or when the seller chooses to provide delivery transparency."
+        },
+        "revision": {
+          "description": "Initial revision number for this media buy. Use in subsequent update_media_buy requests for optimistic concurrency.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sandbox": {
+          "description": "When true, this response contains simulated data from sandbox mode.",
+          "type": "boolean"
+        },
+        "status": {
+          "$ref": "../enums/media-buy-status.json",
+          "description": "Initial media buy status. Either 'active' (immediate activation) or 'pending_activation' (awaiting platform setup)."
+        },
+        "valid_actions": {
+          "description": "Actions the buyer can perform on this media buy after creation. Saves a round-trip to get_media_buys.",
+          "items": {
+            "enum": [
+              "pause",
+              "resume",
+              "cancel",
+              "update_budget",
+              "update_dates",
+              "update_packages",
+              "add_packages",
+              "sync_creatives"
+            ],
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
-        "errors"
+        "media_buy_id",
+        "packages"
       ],
+      "title": "CreateMediaBuySuccess",
+      "type": "object"
+    },
+    {
       "additionalProperties": true,
+      "description": "Error response - operation failed, no media buy created",
       "not": {
         "anyOf": [
           {
             "required": [
               "media_buy_id"
-            ]
-          },
-          {
-            "required": [
-              "buyer_ref"
             ]
           },
           {
@@ -112,7 +109,30 @@
             ]
           }
         ]
-      }
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "description": "Array of errors explaining why the operation failed",
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        }
+      },
+      "required": [
+        "errors"
+      ],
+      "title": "CreateMediaBuyError",
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Create Media Buy Response",
+  "type": "object"
 }

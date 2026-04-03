@@ -1,56 +1,76 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/brand/rights-terms.json",
-  "title": "Rights Terms",
+  "additionalProperties": true,
   "description": "Contractual terms for a rights grant. Shared between acquire_rights and update_rights responses.",
-  "type": "object",
   "properties": {
-    "pricing_option_id": { "type": "string" },
-    "amount": { "type": "number", "minimum": 0 },
+    "amount": {
+      "minimum": 0,
+      "type": "number"
+    },
     "currency": {
-      "type": "string",
-      "pattern": "^[A-Z]{3}$"
-    },
-    "period": {
-      "type": "string",
-      "enum": ["daily", "weekly", "monthly", "quarterly", "annual", "one_time"]
-    },
-    "uses": {
-      "type": "array",
-      "items": { "$ref": "/schemas/3.0.0-rc.2/enums/right-use.json" }
-    },
-    "impression_cap": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "overage_cpm": {
-      "type": "number",
-      "minimum": 0
-    },
-    "start_date": {
-      "type": "string",
-      "format": "date"
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
     },
     "end_date": {
-      "type": "string",
-      "format": "date"
+      "format": "date",
+      "type": "string"
     },
     "exclusivity": {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Exclusivity terms if applicable",
       "properties": {
-        "scope": { "type": "string" },
         "countries": {
-          "type": "array",
           "items": {
-            "type": "string",
-            "pattern": "^[A-Z]{2}$"
-          }
+            "pattern": "^[A-Z]{2}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scope": {
+          "type": "string"
         }
       },
-      "additionalProperties": true
+      "type": "object"
+    },
+    "impression_cap": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "overage_cpm": {
+      "minimum": 0,
+      "type": "number"
+    },
+    "period": {
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "quarterly",
+        "annual",
+        "one_time"
+      ],
+      "type": "string"
+    },
+    "pricing_option_id": {
+      "type": "string"
+    },
+    "start_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "uses": {
+      "items": {
+        "$ref": "../enums/right-use.json"
+      },
+      "type": "array"
     }
   },
-  "required": ["pricing_option_id", "amount", "currency", "uses"],
-  "additionalProperties": true
+  "required": [
+    "pricing_option_id",
+    "amount",
+    "currency",
+    "uses"
+  ],
+  "title": "Rights Terms",
+  "type": "object"
 }

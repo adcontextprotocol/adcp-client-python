@@ -91,10 +91,8 @@ from adcp.types._generated import (
     # Media buy artifacts responses
     GetMediaBuyArtifactsResponse1,
     GetMediaBuyArtifactsResponse2,
-    # Get products request variants
-    GetProductsRequest1,
-    GetProductsRequest2,
-    GetProductsRequest3,
+    # Get products request (unified in rc.3, was 3 variants)
+    GetProductsRequest,
     GetSignalsRequest,
     # Content standards list responses
     ListContentStandardsResponse1,
@@ -443,7 +441,7 @@ PreviewCreativeVariantRequest = PreviewCreativeRequest3
 
 
 # Get Products Request Variants
-GetProductsRefineRequest = GetProductsRequest3
+GetProductsRefineRequest = GetProductsRequest
 """Get products request in refine mode - buying_mode='refine'.
 
 Used to iterate on previous product results with refinement actions
@@ -486,10 +484,10 @@ GetCreativeDeliveryByCreativeRequest = GetCreativeDeliveryRequest
 """Request creative delivery — use media_buy_ids, media_buy_buyer_refs, or creative_ids."""
 
 # Get Products Request Variants (by buying_mode)
-GetProductsBriefRequest = GetProductsRequest1
+GetProductsBriefRequest = GetProductsRequest
 """Get products in brief mode - buying_mode='brief', requires brief text."""
 
-GetProductsWholesaleRequest = GetProductsRequest2
+GetProductsWholesaleRequest = GetProductsRequest
 """Get products in wholesale mode - buying_mode='wholesale', raw inventory."""
 
 # Get Signals Request Aliases (backward compat — now a single class)

@@ -1,30 +1,29 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/pricing-options/price-guidance.json",
-  "title": "Price Guidance",
+  "additionalProperties": true,
   "description": "Pricing guidance for auction-based bidding. Helps buyers calibrate bids with historical percentiles.",
-  "type": "object",
   "properties": {
     "p25": {
-      "type": "number",
       "description": "25th percentile of recent winning bids",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
     },
     "p50": {
-      "type": "number",
       "description": "Median of recent winning bids",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
     },
     "p75": {
-      "type": "number",
       "description": "75th percentile of recent winning bids",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
     },
     "p90": {
-      "type": "number",
       "description": "90th percentile of recent winning bids",
-      "minimum": 0
+      "minimum": 0,
+      "type": "number"
     }
   },
-  "additionalProperties": true
+  "title": "Price Guidance",
+  "type": "object"
 }

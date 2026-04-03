@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Selects an audience by signal reference or natural language description. Uses 'type' as the primary discriminator (signal vs description). Signal selectors additionally use 'value_type' to determine the targeting expression format (matching signal-targeting.json variants).",
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "description": "Signal-based selector for binary signals \u2014 user either matches or doesn't. The governance agent can resolve catalog signals to their full definition for structural validation.",
+      "properties": {
+        "signal_id": {
+          "$ref": "signal-id.json",
+          "description": "The signal to target"
+        },
+        "type": {
+          "const": "signal",
+          "description": "Discriminator for signal-based selectors",
+          "type": "string"
+        },
+        "value": {
+          "description": "Whether to include (true) or exclude (false) users matching this signal",
+          "type": "boolean"
+        },
+        "value_type": {
+          "const": "binary",
+          "description": "Discriminator for binary signals",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "signal_id",
+        "value_type",
+        "value"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Signal-based selector for categorical signals \u2014 target users with specific values.",
+      "properties": {
+        "signal_id": {
+          "$ref": "signal-id.json",
+          "description": "The signal to target"
+        },
+        "type": {
+          "const": "signal",
+          "description": "Discriminator for signal-based selectors",
+          "type": "string"
+        },
+        "value_type": {
+          "const": "categorical",
+          "description": "Discriminator for categorical signals",
+          "type": "string"
+        },
+        "values": {
+          "description": "Values to target. Users with any of these values will be included.",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "signal_id",
+        "value_type",
+        "values"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Signal-based selector for numeric signals \u2014 target users within a value range.",
+      "properties": {
+        "max_value": {
+          "description": "Maximum value (inclusive). Omit for no maximum. Must be >= min_value when both are provided.",
+          "type": "number"
+        },
+        "min_value": {
+          "description": "Minimum value (inclusive). Omit for no minimum. Must be <= max_value when both are provided.",
+          "type": "number"
+        },
+        "signal_id": {
+          "$ref": "signal-id.json",
+          "description": "The signal to target"
+        },
+        "type": {
+          "const": "signal",
+          "description": "Discriminator for signal-based selectors",
+          "type": "string"
+        },
+        "value_type": {
+          "const": "numeric",
+          "description": "Discriminator for numeric signals",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "signal_id",
+        "value_type"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Description-based selector \u2014 natural language audience description. Used when the caller doesn't have a specific signal ID (e.g., buyer setting plan-level goals, or seller using proprietary segments without public catalog entries).",
+      "properties": {
+        "category": {
+          "description": "Optional grouping hint for the governance agent (e.g., 'demographic', 'behavioral', 'contextual', 'financial')",
+          "type": "string"
+        },
+        "description": {
+          "description": "Natural language description of the audience (e.g., 'likely EV buyers', 'high net worth individuals', 'vulnerable communities')",
+          "maxLength": 2000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "const": "description",
+          "description": "Discriminator for description-based selectors",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "description"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Audience Selector"
+}

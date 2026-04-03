@@ -1,0 +1,318 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Response from the comply_test_controller tool. Shape varies by scenario type: list_scenarios returns available scenarios, force_* returns state transition results, simulate_* returns simulation results.",
+  "examples": [
+    {
+      "data": {
+        "scenarios": [
+          "force_creative_status",
+          "force_account_status",
+          "force_media_buy_status"
+        ],
+        "success": true
+      },
+      "description": "List scenarios response"
+    },
+    {
+      "data": {
+        "current_state": "approved",
+        "message": "Creative cr-123 transitioned from processing to approved",
+        "previous_state": "processing",
+        "success": true
+      },
+      "description": "Successful state transition"
+    },
+    {
+      "data": {
+        "cumulative": {
+          "clicks": 380,
+          "impressions": 25000,
+          "reported_spend": {
+            "amount": 375.0,
+            "currency": "USD"
+          }
+        },
+        "message": "Delivery simulated for mb-789: 10000 impressions, 150 clicks, $150.00 spend",
+        "simulated": {
+          "clicks": 150,
+          "impressions": 10000,
+          "reported_spend": {
+            "amount": 150.0,
+            "currency": "USD"
+          }
+        },
+        "success": true
+      },
+      "description": "Delivery simulation with cumulative totals"
+    },
+    {
+      "data": {
+        "message": "Budget for mb-789 set to 95% consumed ($950.00 of $1000.00)",
+        "simulated": {
+          "budget": {
+            "amount": 1000.0,
+            "currency": "USD"
+          },
+          "computed_spend": {
+            "amount": 950.0,
+            "currency": "USD"
+          },
+          "spend_percentage": 95
+        },
+        "success": true
+      },
+      "description": "Budget spend simulation"
+    },
+    {
+      "data": {
+        "current_state": "archived",
+        "error": "INVALID_TRANSITION",
+        "error_detail": "Cannot transition from archived to processing \u2014 archived is terminal",
+        "success": false
+      },
+      "description": "Invalid transition error"
+    },
+    {
+      "data": {
+        "current_state": null,
+        "error": "NOT_FOUND",
+        "error_detail": "Creative cr-unknown not found",
+        "success": false
+      },
+      "description": "Entity not found"
+    }
+  ],
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "description": "Lists which scenarios this seller's test controller supports",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "error"
+            ]
+          },
+          {
+            "required": [
+              "previous_state"
+            ]
+          },
+          {
+            "required": [
+              "simulated"
+            ]
+          }
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "scenarios": {
+          "description": "Scenarios this seller has implemented",
+          "items": {
+            "enum": [
+              "force_creative_status",
+              "force_account_status",
+              "force_media_buy_status",
+              "force_session_status",
+              "simulate_delivery",
+              "simulate_budget_spend"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "success": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "scenarios"
+      ],
+      "title": "ListScenariosSuccess",
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "A force_* scenario successfully transitioned the entity to the target state",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "error"
+            ]
+          },
+          {
+            "required": [
+              "scenarios"
+            ]
+          },
+          {
+            "required": [
+              "simulated"
+            ]
+          }
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "current_state": {
+          "description": "State after this transition",
+          "type": "string"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "message": {
+          "description": "Human-readable description of the transition",
+          "type": "string"
+        },
+        "previous_state": {
+          "description": "State before this transition",
+          "type": "string"
+        },
+        "success": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "previous_state",
+        "current_state"
+      ],
+      "title": "StateTransitionSuccess",
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "A simulate_delivery or simulate_budget_spend scenario succeeded. For delivery: simulated contains impressions/clicks/reported_spend/conversions and cumulative contains running totals. For budget: simulated contains spend_percentage/computed_spend/budget.",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "error"
+            ]
+          },
+          {
+            "required": [
+              "scenarios"
+            ]
+          },
+          {
+            "required": [
+              "previous_state"
+            ]
+          }
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "cumulative": {
+          "additionalProperties": true,
+          "description": "Running totals across all simulation calls (simulate_delivery only)",
+          "type": "object"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "message": {
+          "type": "string"
+        },
+        "simulated": {
+          "additionalProperties": true,
+          "description": "Values injected or applied by this call. Shape depends on scenario.",
+          "type": "object"
+        },
+        "success": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "simulated"
+      ],
+      "title": "SimulationSuccess",
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "description": "The scenario failed \u2014 invalid transition, unknown entity, unsupported scenario, or invalid params",
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "scenarios"
+            ]
+          },
+          {
+            "required": [
+              "simulated"
+            ]
+          },
+          {
+            "required": [
+              "previous_state"
+            ]
+          }
+        ]
+      },
+      "properties": {
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "current_state": {
+          "description": "Current state of the entity, or null if not found",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "error": {
+          "description": "Structured error code",
+          "enum": [
+            "INVALID_TRANSITION",
+            "INVALID_STATE",
+            "NOT_FOUND",
+            "UNKNOWN_SCENARIO",
+            "INVALID_PARAMS",
+            "FORBIDDEN",
+            "INTERNAL_ERROR"
+          ],
+          "type": "string"
+        },
+        "error_detail": {
+          "description": "Human-readable explanation of the failure",
+          "type": "string"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        },
+        "success": {
+          "const": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "error"
+      ],
+      "title": "ControllerError",
+      "type": "object"
+    }
+  ],
+  "title": "Comply Test Controller Response",
+  "type": "object"
+}

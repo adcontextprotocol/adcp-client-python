@@ -1,152 +1,191 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/assets/video-asset.json",
-  "title": "Video Asset",
+  "additionalProperties": true,
   "description": "Video asset with URL and technical specifications including audio track properties",
-  "type": "object",
   "properties": {
-    "url": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL to the video asset"
-    },
-    "width": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Width in pixels"
-    },
-    "height": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Height in pixels"
-    },
-    "duration_ms": {
-      "type": "integer",
-      "description": "Video duration in milliseconds",
-      "minimum": 1
-    },
-    "file_size_bytes": {
-      "type": "integer",
-      "description": "File size in bytes",
-      "minimum": 1
-    },
-    "container_format": {
-      "type": "string",
-      "description": "Video container format (mp4, webm, mov, etc.)"
-    },
-    "video_codec": {
-      "type": "string",
-      "description": "Video codec used (h264, h265, vp9, av1, prores, etc.)"
-    },
-    "video_bitrate_kbps": {
-      "type": "integer",
-      "description": "Video stream bitrate in kilobits per second",
-      "minimum": 1
-    },
-    "frame_rate": {
-      "type": "string",
-      "description": "Frame rate as string to preserve precision (e.g., '23.976', '29.97', '30')"
-    },
-    "frame_rate_type": {
-      "type": "string",
-      "enum": ["constant", "variable"],
-      "description": "Whether the video uses constant (CFR) or variable (VFR) frame rate"
-    },
-    "scan_type": {
-      "type": "string",
-      "enum": ["progressive", "interlaced"],
-      "description": "Scan type of the video"
-    },
-    "color_space": {
-      "type": "string",
-      "enum": ["rec709", "rec2020", "rec2100", "srgb", "dci_p3"],
-      "description": "Color space of the video"
-    },
-    "hdr_format": {
-      "type": "string",
-      "enum": ["sdr", "hdr10", "hdr10_plus", "hlg", "dolby_vision"],
-      "description": "HDR format if applicable, or 'sdr' for standard dynamic range"
-    },
-    "chroma_subsampling": {
-      "type": "string",
-      "enum": ["4:2:0", "4:2:2", "4:4:4"],
-      "description": "Chroma subsampling format"
-    },
-    "video_bit_depth": {
-      "type": "integer",
-      "enum": [8, 10, 12],
-      "description": "Video bit depth"
-    },
-    "gop_interval_seconds": {
-      "type": "number",
-      "description": "GOP/keyframe interval in seconds"
-    },
-    "gop_type": {
-      "type": "string",
-      "enum": ["closed", "open"],
-      "description": "GOP structure type"
-    },
-    "moov_atom_position": {
-      "type": "string",
-      "enum": ["start", "end"],
-      "description": "Position of moov atom in MP4 container"
-    },
-    "has_audio": {
-      "type": "boolean",
-      "description": "Whether the video contains an audio track"
-    },
-    "audio_codec": {
-      "type": "string",
-      "description": "Audio codec used (aac, aac_lc, he_aac, pcm, mp3, ac3, eac3, etc.)"
-    },
-    "audio_sampling_rate_hz": {
-      "type": "integer",
-      "description": "Audio sampling rate in Hz (e.g., 44100, 48000)"
-    },
-    "audio_channels": {
-      "type": "string",
-      "enum": ["mono", "stereo", "5.1", "7.1"],
-      "description": "Audio channel configuration"
-    },
     "audio_bit_depth": {
-      "type": "integer",
-      "enum": [16, 24, 32],
-      "description": "Audio bit depth"
+      "description": "Audio bit depth",
+      "enum": [
+        16,
+        24,
+        32
+      ],
+      "type": "integer"
     },
     "audio_bitrate_kbps": {
-      "type": "integer",
       "description": "Audio bitrate in kilobits per second",
-      "minimum": 1
+      "minimum": 1,
+      "type": "integer"
     },
-    "audio_loudness_lufs": {
-      "type": "number",
-      "description": "Integrated loudness in LUFS"
+    "audio_channels": {
+      "description": "Audio channel configuration",
+      "enum": [
+        "mono",
+        "stereo",
+        "5.1",
+        "7.1"
+      ],
+      "type": "string"
     },
-    "audio_true_peak_dbfs": {
-      "type": "number",
-      "description": "True peak level in dBFS"
-    },
-    "captions_url": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL to captions file (WebVTT, SRT, etc.)",
-      "x-accessibility": true
-    },
-    "transcript_url": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL to text transcript of the video content",
-      "x-accessibility": true
+    "audio_codec": {
+      "description": "Audio codec used (aac, aac_lc, he_aac, pcm, mp3, ac3, eac3, etc.)",
+      "type": "string"
     },
     "audio_description_url": {
-      "type": "string",
-      "format": "uri",
       "description": "URL to audio description track for visually impaired users",
+      "format": "uri",
+      "type": "string",
       "x-accessibility": true
     },
+    "audio_loudness_lufs": {
+      "description": "Integrated loudness in LUFS",
+      "type": "number"
+    },
+    "audio_sampling_rate_hz": {
+      "description": "Audio sampling rate in Hz (e.g., 44100, 48000)",
+      "type": "integer"
+    },
+    "audio_true_peak_dbfs": {
+      "description": "True peak level in dBFS",
+      "type": "number"
+    },
+    "captions_url": {
+      "description": "URL to captions file (WebVTT, SRT, etc.)",
+      "format": "uri",
+      "type": "string",
+      "x-accessibility": true
+    },
+    "chroma_subsampling": {
+      "description": "Chroma subsampling format",
+      "enum": [
+        "4:2:0",
+        "4:2:2",
+        "4:4:4"
+      ],
+      "type": "string"
+    },
+    "color_space": {
+      "description": "Color space of the video",
+      "enum": [
+        "rec709",
+        "rec2020",
+        "rec2100",
+        "srgb",
+        "dci_p3"
+      ],
+      "type": "string"
+    },
+    "container_format": {
+      "description": "Video container format (mp4, webm, mov, etc.)",
+      "type": "string"
+    },
+    "duration_ms": {
+      "description": "Video duration in milliseconds",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "file_size_bytes": {
+      "description": "File size in bytes",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "frame_rate": {
+      "description": "Frame rate as string to preserve precision (e.g., '23.976', '29.97', '30')",
+      "type": "string"
+    },
+    "frame_rate_type": {
+      "description": "Whether the video uses constant (CFR) or variable (VFR) frame rate",
+      "enum": [
+        "constant",
+        "variable"
+      ],
+      "type": "string"
+    },
+    "gop_interval_seconds": {
+      "description": "GOP/keyframe interval in seconds",
+      "type": "number"
+    },
+    "gop_type": {
+      "description": "GOP structure type",
+      "enum": [
+        "closed",
+        "open"
+      ],
+      "type": "string"
+    },
+    "has_audio": {
+      "description": "Whether the video contains an audio track",
+      "type": "boolean"
+    },
+    "hdr_format": {
+      "description": "HDR format if applicable, or 'sdr' for standard dynamic range",
+      "enum": [
+        "sdr",
+        "hdr10",
+        "hdr10_plus",
+        "hlg",
+        "dolby_vision"
+      ],
+      "type": "string"
+    },
+    "height": {
+      "description": "Height in pixels",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "moov_atom_position": {
+      "description": "Position of moov atom in MP4 container",
+      "enum": [
+        "start",
+        "end"
+      ],
+      "type": "string"
+    },
     "provenance": {
-      "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
+      "$ref": "../../core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
+    },
+    "scan_type": {
+      "description": "Scan type of the video",
+      "enum": [
+        "progressive",
+        "interlaced"
+      ],
+      "type": "string"
+    },
+    "transcript_url": {
+      "description": "URL to text transcript of the video content",
+      "format": "uri",
+      "type": "string",
+      "x-accessibility": true
+    },
+    "url": {
+      "description": "URL to the video asset",
+      "format": "uri",
+      "type": "string"
+    },
+    "video_bit_depth": {
+      "description": "Video bit depth",
+      "enum": [
+        8,
+        10,
+        12
+      ],
+      "type": "integer"
+    },
+    "video_bitrate_kbps": {
+      "description": "Video stream bitrate in kilobits per second",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "video_codec": {
+      "description": "Video codec used (h264, h265, vp9, av1, prores, etc.)",
+      "type": "string"
+    },
+    "width": {
+      "description": "Width in pixels",
+      "minimum": 1,
+      "type": "integer"
     }
   },
   "required": [
@@ -154,5 +193,6 @@
     "width",
     "height"
   ],
-  "additionalProperties": true
+  "title": "Video Asset",
+  "type": "object"
 }

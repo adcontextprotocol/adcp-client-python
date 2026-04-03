@@ -1,53 +1,64 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/sponsored-intelligence/si-terminate-session-request.json",
-  "title": "SI Terminate Session Request",
+  "additionalProperties": true,
   "description": "Request to terminate an SI session",
-  "type": "object",
   "properties": {
-    "session_id": {
-      "type": "string",
-      "description": "Session identifier to terminate"
+    "ext": {
+      "$ref": "../core/ext.json"
     },
     "reason": {
-      "type": "string",
-      "enum": ["handoff_transaction", "handoff_complete", "user_exit", "session_timeout", "host_terminated"],
-      "description": "Reason for termination"
+      "description": "Reason for termination",
+      "enum": [
+        "handoff_transaction",
+        "handoff_complete",
+        "user_exit",
+        "session_timeout",
+        "host_terminated"
+      ],
+      "type": "string"
+    },
+    "session_id": {
+      "description": "Session identifier to terminate",
+      "type": "string"
     },
     "termination_context": {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Context for the termination",
       "properties": {
+        "cause": {
+          "description": "For host_terminated - why host ended session",
+          "type": "string"
+        },
         "summary": {
-          "type": "string",
-          "description": "Summary of the conversation"
+          "description": "Summary of the conversation",
+          "type": "string"
         },
         "transaction_intent": {
-          "type": "object",
+          "additionalProperties": true,
           "description": "For handoff_transaction - what user wants to buy",
           "properties": {
             "action": {
-              "type": "string",
-              "enum": ["purchase", "subscribe"]
+              "enum": [
+                "purchase",
+                "subscribe"
+              ],
+              "type": "string"
             },
             "product": {
-              "type": "object",
-              "description": "Product/service details"
+              "description": "Product/service details",
+              "type": "object"
             }
           },
-          "additionalProperties": true
-        },
-        "cause": {
-          "type": "string",
-          "description": "For host_terminated - why host ended session"
+          "type": "object"
         }
       },
-      "additionalProperties": true
-    },
-    "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "type": "object"
     }
   },
-  "required": ["session_id", "reason"],
-  "additionalProperties": true
+  "required": [
+    "session_id",
+    "reason"
+  ],
+  "title": "SI Terminate Session Request",
+  "type": "object"
 }

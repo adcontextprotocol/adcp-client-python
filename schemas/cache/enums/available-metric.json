@@ -1,9 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/enums/available-metric.json",
-  "title": "Available Metric",
   "description": "Standard delivery and performance metrics available for reporting",
-  "type": "string",
   "enum": [
     "impressions",
     "spend",
@@ -27,5 +24,7 @@
     "quartile_data",
     "dooh_metrics",
     "cost_per_click"
-  ]
+  ],
+  "title": "Available Metric",
+  "type": "string"
 }

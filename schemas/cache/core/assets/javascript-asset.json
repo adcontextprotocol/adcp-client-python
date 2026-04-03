@@ -1,48 +1,47 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/assets/javascript-asset.json",
-  "title": "JavaScript Asset",
+  "additionalProperties": true,
   "description": "JavaScript code asset",
-  "type": "object",
   "properties": {
-    "content": {
-      "type": "string",
-      "description": "JavaScript content"
-    },
-    "module_type": {
-      "$ref": "/schemas/3.0.0-rc.2/enums/javascript-module-type.json",
-      "description": "JavaScript module type"
-    },
     "accessibility": {
-      "type": "object",
       "description": "Self-declared accessibility properties for this opaque creative",
-      "x-accessibility": true,
       "properties": {
         "alt_text": {
-          "type": "string",
-          "description": "Text alternative describing the creative content"
+          "description": "Text alternative describing the creative content",
+          "type": "string"
         },
         "keyboard_navigable": {
-          "type": "boolean",
-          "description": "Whether the creative can be fully operated via keyboard"
+          "description": "Whether the creative can be fully operated via keyboard",
+          "type": "boolean"
         },
         "motion_control": {
-          "type": "boolean",
-          "description": "Whether the creative respects prefers-reduced-motion or provides pause/stop controls"
+          "description": "Whether the creative respects prefers-reduced-motion or provides pause/stop controls",
+          "type": "boolean"
         },
         "screen_reader_tested": {
-          "type": "boolean",
-          "description": "Whether the creative has been tested with screen readers"
+          "description": "Whether the creative has been tested with screen readers",
+          "type": "boolean"
         }
-      }
+      },
+      "type": "object",
+      "x-accessibility": true
+    },
+    "content": {
+      "description": "JavaScript content",
+      "type": "string"
+    },
+    "module_type": {
+      "$ref": "../../enums/javascript-module-type.json",
+      "description": "JavaScript module type"
     },
     "provenance": {
-      "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
+      "$ref": "../../core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },
   "required": [
     "content"
   ],
-  "additionalProperties": true
+  "title": "JavaScript Asset",
+  "type": "object"
 }

@@ -1,34 +1,35 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/sponsored-intelligence/si-get-offering-request.json",
-  "title": "SI Get Offering Request",
+  "additionalProperties": true,
   "description": "Get offering details and availability before session handoff. Returns offering information, availability status, and optionally matching products based on context.",
-  "type": "object",
   "properties": {
-    "offering_id": {
-      "type": "string",
-      "description": "Offering identifier from the catalog to get details for"
-    },
     "context": {
-      "type": "string",
-      "description": "Optional natural language context about user intent for personalized results (e.g., 'mens size 14 near Cincinnati'). Must be anonymous - no PII."
-    },
-    "include_products": {
-      "type": "boolean",
-      "default": false,
-      "description": "Whether to include matching products in the response"
-    },
-    "product_limit": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 50,
-      "default": 5,
-      "description": "Maximum number of matching products to return"
+      "description": "Optional natural language context about user intent for personalized results (e.g., 'mens size 14 near Cincinnati'). Must be anonymous - no PII.",
+      "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "$ref": "../core/ext.json"
+    },
+    "include_products": {
+      "default": false,
+      "description": "Whether to include matching products in the response",
+      "type": "boolean"
+    },
+    "offering_id": {
+      "description": "Offering identifier from the catalog to get details for",
+      "type": "string"
+    },
+    "product_limit": {
+      "default": 5,
+      "description": "Maximum number of matching products to return",
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
     }
   },
-  "required": ["offering_id"],
-  "additionalProperties": true
+  "required": [
+    "offering_id"
+  ],
+  "title": "SI Get Offering Request",
+  "type": "object"
 }

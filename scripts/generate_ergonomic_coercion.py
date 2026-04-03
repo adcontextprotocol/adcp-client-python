@@ -47,9 +47,7 @@ RESPONSE_TYPES_TO_ANALYZE = [
 # Nested types that also need coercion
 NESTED_TYPES_TO_ANALYZE = [
     ("Sort", "creative.list_creatives_request"),
-    ("GetProductsRequest1", "media_buy.get_products_request"),
-    ("GetProductsRequest2", "media_buy.get_products_request"),
-    ("GetProductsRequest3", "media_buy.get_products_request"),
+    ("GetProductsRequest", "media_buy.get_products_request"),
     ("PackageUpdate", "media_buy.package_update"),
 ]
 
@@ -232,9 +230,7 @@ def generate_code() -> str:
     )
     from adcp.types.generated_poc.media_buy.get_products_request import (
         Field1 as GetProductsField,
-        GetProductsRequest1,
-        GetProductsRequest2,
-        GetProductsRequest3,
+        GetProductsRequest,
     )
 
     # Response types
@@ -272,9 +268,7 @@ def generate_code() -> str:
 
     nested_classes = {
         "Sort": Sort,
-        "GetProductsRequest1": GetProductsRequest1,
-        "GetProductsRequest2": GetProductsRequest2,
-        "GetProductsRequest3": GetProductsRequest3,
+        "GetProductsRequest": GetProductsRequest,
         "PackageUpdate": PackageUpdate,
     }
 
@@ -380,10 +374,9 @@ def generate_code() -> str:
     lines.append("    CreateMediaBuyRequest,")
     lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.get_products_request import (")
+    lines.append("    BuyingMode,")
     lines.append("    Field1 as GetProductsField,")
-    lines.append("    GetProductsRequest1,")
-    lines.append("    GetProductsRequest2,")
-    lines.append("    GetProductsRequest3,")
+    lines.append("    GetProductsRequest,")
     lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.list_creative_formats_request import (")
     lines.append("    ListCreativeFormatsRequest,")
@@ -399,6 +392,7 @@ def generate_code() -> str:
     # Add response type imports
     lines.append("from adcp.types.generated_poc.media_buy.create_media_buy_response import (")
     lines.append("    CreateMediaBuyResponse1,")
+    lines.append("    ValidAction,")
     lines.append(")")
     lines.append("from adcp.types.generated_poc.media_buy.get_media_buy_delivery_response import (")
     lines.append("    GetMediaBuyDeliveryResponse,")
@@ -433,9 +427,7 @@ def generate_code() -> str:
         "ListCreativeFormatsRequest",
         "ListCreativesRequest",
         "Sort",
-        "GetProductsRequest1",
-        "GetProductsRequest2",
-        "GetProductsRequest3",
+        "GetProductsRequest",
         "PackageRequest",
         "CreateMediaBuyRequest",
         "PackageUpdate",

@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Default deadline rules for installments that do not declare their own deadlines. Agents compute absolute deadlines from the installment's scheduled_at and these lead times. Installments with explicit deadlines override this policy. booking_lead_days SHOULD be >= cancellation_lead_days (bookings close before cancellation window closes).",
+  "minProperties": 1,
+  "properties": {
+    "booking_lead_days": {
+      "description": "Days before scheduled_at by which the placement must be booked",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "business_days_only": {
+      "default": false,
+      "description": "When true, lead_days counts business days (Mon-Fri) rather than calendar days. Defaults to false.",
+      "type": "boolean"
+    },
+    "cancellation_lead_days": {
+      "description": "Days before scheduled_at by which cancellation is penalty-free",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "material_stages": {
+      "description": "Default material submission stages. Items MUST be in chronological order (earliest due first). Agents compute due_at as: installment.scheduled_at minus lead_days.",
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "label": {
+            "description": "What the seller needs at this stage",
+            "type": "string"
+          },
+          "lead_days": {
+            "description": "Days before scheduled_at this stage is due",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "stage": {
+            "description": "Stage identifier. Standard values: 'draft' (needs seller processing), 'final' (production-ready).",
+            "examples": [
+              "draft",
+              "final"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "lead_days"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "title": "Deadline Policy",
+  "type": "object"
+}

@@ -1,35 +1,42 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/governance/get-plan-audit-logs-request.json",
-  "title": "Get Plan Audit Logs Request",
+  "additionalProperties": false,
+  "anyOf": [
+    {
+      "required": [
+        "plan_ids"
+      ]
+    },
+    {
+      "required": [
+        "portfolio_plan_ids"
+      ]
+    }
+  ],
   "description": "Retrieve governance state and audit trail for one or more plans.",
-  "type": "object",
   "properties": {
+    "include_entries": {
+      "default": false,
+      "description": "Include the full audit trail. Default: false.",
+      "type": "boolean"
+    },
     "plan_ids": {
-      "type": "array",
-      "items": { "type": "string" },
+      "description": "Plan IDs to retrieve. For a single plan, pass a one-element array.",
+      "items": {
+        "type": "string"
+      },
       "minItems": 1,
-      "description": "Plan IDs to retrieve. For a single plan, pass a one-element array."
+      "type": "array"
     },
     "portfolio_plan_ids": {
-      "type": "array",
-      "items": { "type": "string" },
+      "description": "Portfolio plan IDs. The governance agent expands each to its member_plan_ids and returns combined audit data.",
+      "items": {
+        "type": "string"
+      },
       "minItems": 1,
-      "description": "Portfolio plan IDs. The governance agent expands each to its member_plan_ids and returns combined audit data."
-    },
-    "buyer_campaign_ref": {
-      "type": "string",
-      "description": "Filter to a specific campaign. Omit for plan-level aggregate."
-    },
-    "include_entries": {
-      "type": "boolean",
-      "description": "Include the full audit trail. Default: false.",
-      "default": false
+      "type": "array"
     }
   },
-  "anyOf": [
-    { "required": ["plan_ids"] },
-    { "required": ["portfolio_plan_ids"] }
-  ],
-  "additionalProperties": false
+  "title": "Get Plan Audit Logs Request",
+  "type": "object"
 }

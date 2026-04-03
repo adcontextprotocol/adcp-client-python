@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "Buyer-defined audience targeting constraints for a campaign plan. Specifies who the campaign should and should not reach. The governance agent evaluates seller targeting against these constraints during check_governance.",
+  "minProperties": 1,
+  "properties": {
+    "exclude": {
+      "description": "Excluded audience criteria. The seller's targeting must not overlap with these. Exclusions take precedence over inclusions. Used for protected groups, vulnerable communities, regulatory restrictions, or brand safety.",
+      "items": {
+        "$ref": "../core/audience-selector.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "include": {
+      "description": "Desired audience criteria. The seller's targeting should align with these. Each criterion is evaluated independently \u2014 the combined targeting should satisfy at least one inclusion criterion.",
+      "items": {
+        "$ref": "../core/audience-selector.json"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "title": "Audience Constraints",
+  "type": "object"
+}

@@ -1,56 +1,55 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/media-buy/sync-catalogs-async-response-working.json",
-  "title": "Sync Catalogs - Working",
+  "additionalProperties": true,
   "description": "Progress payload for active sync_catalogs task.",
-  "type": "object",
   "properties": {
-    "percentage": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 100,
-      "description": "Completion percentage (0-100)"
-    },
-    "current_step": {
-      "type": "string",
-      "description": "Current step or phase of the operation (e.g., 'Fetching product feed', 'Validating items', 'Platform review')"
-    },
-    "total_steps": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Total number of steps in the operation"
-    },
-    "step_number": {
-      "type": "integer",
-      "minimum": 1,
-      "description": "Current step number"
-    },
     "catalogs_processed": {
-      "type": "integer",
+      "description": "Number of catalogs processed so far",
       "minimum": 0,
-      "description": "Number of catalogs processed so far"
+      "type": "integer"
     },
     "catalogs_total": {
-      "type": "integer",
+      "description": "Total number of catalogs to process",
       "minimum": 0,
-      "description": "Total number of catalogs to process"
-    },
-    "items_processed": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Total number of catalog items processed across all catalogs"
-    },
-    "items_total": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Total number of catalog items to process across all catalogs"
+      "type": "integer"
     },
     "context": {
-      "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+      "$ref": "../core/context.json"
+    },
+    "current_step": {
+      "description": "Current step or phase of the operation (e.g., 'Fetching product feed', 'Validating items', 'Platform review')",
+      "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "$ref": "../core/ext.json"
+    },
+    "items_processed": {
+      "description": "Total number of catalog items processed across all catalogs",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "items_total": {
+      "description": "Total number of catalog items to process across all catalogs",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "percentage": {
+      "description": "Completion percentage (0-100)",
+      "maximum": 100,
+      "minimum": 0,
+      "type": "number"
+    },
+    "step_number": {
+      "description": "Current step number",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "total_steps": {
+      "description": "Total number of steps in the operation",
+      "minimum": 1,
+      "type": "integer"
     }
   },
-  "additionalProperties": true
+  "title": "Sync Catalogs - Working",
+  "type": "object"
 }

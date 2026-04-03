@@ -1,9 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/enums/uid-type.json",
-  "title": "UID Type",
-  "description": "Universal ID types for user matching",
-  "type": "string",
+  "description": "Type of user identifier. Used in audience sync, event logging, and TMP identity match requests to tell the receiver which identity graph to resolve against.",
   "enum": [
     "rampid",
     "id5",
@@ -11,15 +8,21 @@
     "euid",
     "pairid",
     "maid",
+    "hashed_email",
+    "publisher_first_party",
     "other"
   ],
   "enumDescriptions": {
-    "rampid": "LiveRamp RampID",
-    "id5": "ID5 universal ID",
-    "uid2": "Unified ID 2.0",
     "euid": "European Unified ID",
-    "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
+    "hashed_email": "SHA-256 hashed email address",
+    "id5": "ID5 universal ID",
     "maid": "Mobile Advertising ID (IDFA/GAID)",
-    "other": "Other universal ID type (specify in ext)"
-  }
+    "other": "Other universal ID type (specify in ext)",
+    "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
+    "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
+    "rampid": "LiveRamp RampID",
+    "uid2": "Unified ID 2.0"
+  },
+  "title": "UID Type",
+  "type": "string"
 }

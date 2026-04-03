@@ -1,9 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/enums/media-buy-status.json",
-  "title": "Media Buy Status",
   "description": "Status of a media buy.",
-  "type": "string",
   "enum": [
     "pending_activation",
     "active",
@@ -13,11 +10,13 @@
     "canceled"
   ],
   "enumDescriptions": {
-    "pending_activation": "Media buy created but not yet activated",
     "active": "Media buy is currently running",
-    "paused": "Media buy is temporarily paused",
+    "canceled": "Media buy was terminated before natural completion. Check cancellation.canceled_by to determine whether the buyer or seller initiated.",
     "completed": "Media buy has finished running",
-    "rejected": "Media buy was declined by the seller after creation",
-    "canceled": "Media buy was terminated by the buyer before natural completion"
-  }
+    "paused": "Media buy is temporarily paused",
+    "pending_activation": "Media buy created but not yet activated",
+    "rejected": "Media buy was declined by the seller after creation"
+  },
+  "title": "Media Buy Status",
+  "type": "string"
 }

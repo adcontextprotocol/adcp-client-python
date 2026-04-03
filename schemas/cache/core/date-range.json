@@ -1,21 +1,23 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/date-range.json",
-  "title": "Date Range",
+  "additionalProperties": true,
   "description": "A date range with inclusive start and end dates (ISO 8601 calendar dates). Used for billing periods, flight dates, and other calendar-day boundaries.",
-  "type": "object",
   "properties": {
-    "start": {
-      "type": "string",
-      "format": "date",
-      "description": "Start date (inclusive), ISO 8601"
-    },
     "end": {
-      "type": "string",
+      "description": "End date (inclusive), ISO 8601",
       "format": "date",
-      "description": "End date (inclusive), ISO 8601"
+      "type": "string"
+    },
+    "start": {
+      "description": "Start date (inclusive), ISO 8601",
+      "format": "date",
+      "type": "string"
     }
   },
-  "required": ["start", "end"],
-  "additionalProperties": true
+  "required": [
+    "start",
+    "end"
+  ],
+  "title": "Date Range",
+  "type": "object"
 }

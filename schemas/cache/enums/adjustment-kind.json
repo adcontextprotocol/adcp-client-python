@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Categorizes how a price adjustment affects the transaction",
+  "enum": [
+    "fee",
+    "discount",
+    "commission",
+    "settlement"
+  ],
+  "enumDescriptions": {
+    "commission": "Does not change the buyer's price or budget. Represents a revenue split \u2014 the portion retained by an intermediary (e.g., agency commission). Budgets are managed inclusive of commissions.",
+    "discount": "Reduces the price the buyer pays and the revenue the seller receives. Applied between list_price and fixed_price (e.g., volume discounts, negotiated rates, early booking).",
+    "fee": "Increases the price the buyer pays and the revenue the seller receives. Applied between list_price and fixed_price (e.g., ad serving fees, data/targeting surcharges, brand safety verification).",
+    "settlement": "Does not change the committed price or budget. Applied at invoicing or payment time (e.g., cash discount for early payment). Informational for buyer agents; affects actual settlement amount."
+  },
+  "title": "Price Adjustment Kind",
+  "type": "string"
+}

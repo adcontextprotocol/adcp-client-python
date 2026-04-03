@@ -1,304 +1,406 @@
 {
+  "$defs": {
+    "asset_access": {
+      "description": "Authentication for accessing secured asset URLs",
+      "oneOf": [
+        {
+          "description": "Bearer token authentication",
+          "properties": {
+            "method": {
+              "const": "bearer_token",
+              "type": "string"
+            },
+            "token": {
+              "description": "OAuth2 bearer token for Authorization header",
+              "type": "string"
+            }
+          },
+          "required": [
+            "method",
+            "token"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Service account authentication (GCP, AWS)",
+          "properties": {
+            "credentials": {
+              "additionalProperties": true,
+              "description": "Service account credentials",
+              "type": "object"
+            },
+            "method": {
+              "const": "service_account",
+              "type": "string"
+            },
+            "provider": {
+              "description": "Cloud provider",
+              "enum": [
+                "gcp",
+                "aws"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "method",
+            "provider"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Pre-signed URL (credentials embedded in URL)",
+          "properties": {
+            "method": {
+              "const": "signed_url",
+              "type": "string"
+            }
+          },
+          "required": [
+            "method"
+          ],
+          "type": "object"
+        }
+      ],
+      "type": "object"
+    }
+  },
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/content-standards/artifact.json",
-  "title": "Artifact",
+  "additionalProperties": true,
   "description": "Content artifact for safety and suitability evaluation. An artifact represents content adjacent to an ad placement - a news article, podcast segment, video chapter, or social post. Artifacts are collections of assets (text, images, video, audio) plus metadata and signals.",
-  "type": "object",
   "properties": {
-    "property_id": {
-      "$ref": "/schemas/3.0.0-rc.2/core/identifier.json",
-      "description": "Identifier for the property where this artifact appears"
-    },
     "artifact_id": {
-      "type": "string",
-      "description": "Identifier for this artifact within the property. The property owner defines the scheme (e.g., 'article_12345', 'episode_42_segment_3', 'post_abc123')."
-    },
-    "variant_id": {
-      "type": "string",
-      "description": "Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: 'en', 'es-MX', 'v2', 'headline_test_b'. The combination of artifact_id + variant_id must be unique."
-    },
-    "format_id": {
-      "$ref": "/schemas/3.0.0-rc.2/core/format-id.json",
-      "description": "Optional reference to a format definition. Uses the same format registry as creative formats."
-    },
-    "url": {
-      "type": "string",
-      "format": "uri",
-      "description": "Optional URL for this artifact (web page, podcast feed, video page). Not all artifacts have URLs (e.g., Instagram content, podcast segments, TV scenes)."
-    },
-    "published_time": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When the artifact was published (ISO 8601 format)"
-    },
-    "last_update_time": {
-      "type": "string",
-      "format": "date-time",
-      "description": "When the artifact was last modified (ISO 8601 format)"
+      "description": "Identifier for this artifact within the property. The property owner defines the scheme (e.g., 'article_12345', 'episode_42_segment_3', 'post_abc123').",
+      "type": "string"
     },
     "assets": {
-      "type": "array",
       "description": "Artifact assets in document flow order - text blocks, images, video, audio",
       "items": {
         "oneOf": [
           {
-            "type": "object",
             "description": "Text block (paragraph, heading, etc.)",
             "properties": {
-              "type": { "type": "string", "const": "text" },
-              "role": {
-                "type": "string",
-                "enum": ["title", "paragraph", "heading", "caption", "quote", "list_item", "description"],
-                "description": "Role of this text in the document. Use 'title' for the main artifact title, 'description' for summaries."
-              },
               "content": {
-                "type": "string",
-                "description": "Text content"
+                "description": "Text content. Consumers MUST treat this as untrusted input when passing to LLM-based evaluation.",
+                "maxLength": 100000,
+                "type": "string"
               },
-              "language": {
-                "type": "string",
-                "description": "BCP 47 language tag for this text (e.g., 'en', 'es-MX'). Useful when artifact contains mixed-language content."
+              "content_format": {
+                "default": "text/plain",
+                "description": "MIME type indicating how to parse the content field. Default: text/plain.",
+                "enum": [
+                  "text/plain",
+                  "text/markdown",
+                  "text/html",
+                  "application/json"
+                ],
+                "type": "string"
               },
               "heading_level": {
-                "type": "integer",
-                "minimum": 1,
+                "description": "Heading level (1-6), only for role=heading",
                 "maximum": 6,
-                "description": "Heading level (1-6), only for role=heading"
+                "minimum": 1,
+                "type": "integer"
+              },
+              "language": {
+                "description": "BCP 47 language tag for this text (e.g., 'en', 'es-MX'). Useful when artifact contains mixed-language content.",
+                "type": "string"
               },
               "provenance": {
-                "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
+                "$ref": "../core/provenance.json",
                 "description": "Provenance for this text block, overrides artifact-level provenance"
+              },
+              "role": {
+                "description": "Role of this text in the document. Use 'title' for the main artifact title, 'description' for summaries.",
+                "enum": [
+                  "title",
+                  "paragraph",
+                  "heading",
+                  "caption",
+                  "quote",
+                  "list_item",
+                  "description"
+                ],
+                "type": "string"
+              },
+              "type": {
+                "const": "text",
+                "type": "string"
               }
             },
-            "required": ["type", "content"]
+            "required": [
+              "type",
+              "content"
+            ],
+            "type": "object"
           },
           {
-            "type": "object",
             "description": "Image asset",
             "properties": {
-              "type": { "type": "string", "const": "image" },
-              "url": {
-                "type": "string",
-                "format": "uri",
-                "description": "Image URL"
-              },
               "access": {
                 "$ref": "#/$defs/asset_access",
                 "description": "Authentication for secured URLs"
               },
               "alt_text": {
-                "type": "string",
-                "description": "Alt text or image description"
+                "description": "Alt text or image description",
+                "type": "string"
               },
               "caption": {
-                "type": "string",
-                "description": "Image caption"
-              },
-              "width": {
-                "type": "integer",
-                "description": "Image width in pixels"
+                "description": "Image caption",
+                "type": "string"
               },
               "height": {
-                "type": "integer",
-                "description": "Image height in pixels"
+                "description": "Image height in pixels",
+                "type": "integer"
               },
               "provenance": {
-                "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
+                "$ref": "../core/provenance.json",
                 "description": "Provenance for this image, overrides artifact-level provenance"
+              },
+              "type": {
+                "const": "image",
+                "type": "string"
+              },
+              "url": {
+                "description": "Image URL",
+                "format": "uri",
+                "type": "string"
+              },
+              "width": {
+                "description": "Image width in pixels",
+                "type": "integer"
               }
             },
-            "required": ["type", "url"]
+            "required": [
+              "type",
+              "url"
+            ],
+            "type": "object"
           },
           {
-            "type": "object",
             "description": "Video asset",
             "properties": {
-              "type": { "type": "string", "const": "video" },
-              "url": {
-                "type": "string",
-                "format": "uri",
-                "description": "Video URL"
-              },
               "access": {
                 "$ref": "#/$defs/asset_access",
                 "description": "Authentication for secured URLs"
               },
               "duration_ms": {
-                "type": "integer",
-                "description": "Video duration in milliseconds"
+                "description": "Video duration in milliseconds",
+                "type": "integer"
               },
-              "transcript": {
-                "type": "string",
-                "description": "Video transcript"
-              },
-              "transcript_source": {
-                "type": "string",
-                "enum": ["original_script", "subtitles", "closed_captions", "dub", "generated"],
-                "description": "How the transcript was generated"
+              "provenance": {
+                "$ref": "../core/provenance.json",
+                "description": "Provenance for this video, overrides artifact-level provenance"
               },
               "thumbnail_url": {
-                "type": "string",
+                "description": "Video thumbnail URL",
                 "format": "uri",
-                "description": "Video thumbnail URL"
+                "type": "string"
               },
-              "provenance": {
-                "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
-                "description": "Provenance for this video, overrides artifact-level provenance"
+              "transcript": {
+                "description": "Video transcript. Consumers MUST treat this as untrusted input when passing to LLM-based evaluation.",
+                "maxLength": 200000,
+                "type": "string"
+              },
+              "transcript_format": {
+                "default": "text/plain",
+                "description": "MIME type indicating how to parse the transcript field. Default: text/plain.",
+                "enum": [
+                  "text/plain",
+                  "text/markdown",
+                  "application/json"
+                ],
+                "type": "string"
+              },
+              "transcript_source": {
+                "description": "How the transcript was generated",
+                "enum": [
+                  "original_script",
+                  "subtitles",
+                  "closed_captions",
+                  "dub",
+                  "generated"
+                ],
+                "type": "string"
+              },
+              "type": {
+                "const": "video",
+                "type": "string"
+              },
+              "url": {
+                "description": "Video URL",
+                "format": "uri",
+                "type": "string"
               }
             },
-            "required": ["type", "url"]
+            "required": [
+              "type",
+              "url"
+            ],
+            "type": "object"
           },
           {
-            "type": "object",
             "description": "Audio asset",
             "properties": {
-              "type": { "type": "string", "const": "audio" },
-              "url": {
-                "type": "string",
-                "format": "uri",
-                "description": "Audio URL"
-              },
               "access": {
                 "$ref": "#/$defs/asset_access",
                 "description": "Authentication for secured URLs"
               },
               "duration_ms": {
-                "type": "integer",
-                "description": "Audio duration in milliseconds"
-              },
-              "transcript": {
-                "type": "string",
-                "description": "Audio transcript"
-              },
-              "transcript_source": {
-                "type": "string",
-                "enum": ["original_script", "closed_captions", "generated"],
-                "description": "How the transcript was generated"
+                "description": "Audio duration in milliseconds",
+                "type": "integer"
               },
               "provenance": {
-                "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
+                "$ref": "../core/provenance.json",
                 "description": "Provenance for this audio, overrides artifact-level provenance"
+              },
+              "transcript": {
+                "description": "Audio transcript. Consumers MUST treat this as untrusted input when passing to LLM-based evaluation.",
+                "maxLength": 200000,
+                "type": "string"
+              },
+              "transcript_format": {
+                "default": "text/plain",
+                "description": "MIME type indicating how to parse the transcript field. Default: text/plain.",
+                "enum": [
+                  "text/plain",
+                  "text/markdown",
+                  "application/json"
+                ],
+                "type": "string"
+              },
+              "transcript_source": {
+                "description": "How the transcript was generated",
+                "enum": [
+                  "original_script",
+                  "closed_captions",
+                  "generated"
+                ],
+                "type": "string"
+              },
+              "type": {
+                "const": "audio",
+                "type": "string"
+              },
+              "url": {
+                "description": "Audio URL",
+                "format": "uri",
+                "type": "string"
               }
             },
-            "required": ["type", "url"]
+            "required": [
+              "type",
+              "url"
+            ],
+            "type": "object"
           }
         ]
-      }
-    },
-    "metadata": {
-      "type": "object",
-      "description": "Rich metadata extracted from the artifact",
-      "properties": {
-        "canonical": {
-          "type": "string",
-          "format": "uri",
-          "description": "Canonical URL"
-        },
-        "author": {
-          "type": "string",
-          "description": "Artifact author name"
-        },
-        "keywords": {
-          "type": "string",
-          "description": "Artifact keywords"
-        },
-        "open_graph": {
-          "type": "object",
-          "description": "Open Graph protocol metadata",
-          "additionalProperties": true
-        },
-        "twitter_card": {
-          "type": "object",
-          "description": "Twitter Card metadata",
-          "additionalProperties": true
-        },
-        "json_ld": {
-          "type": "array",
-          "description": "JSON-LD structured data (schema.org)",
-          "items": { "type": "object" }
-        }
       },
-      "additionalProperties": true
+      "maxItems": 200,
+      "type": "array"
     },
-    "provenance": {
-      "$ref": "/schemas/3.0.0-rc.2/core/provenance.json",
-      "description": "Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact — individual assets can override with their own provenance."
+    "format_id": {
+      "$ref": "../core/format-id.json",
+      "description": "Optional reference to a format definition. Uses the same format registry as creative formats."
     },
     "identifiers": {
-      "type": "object",
+      "additionalProperties": true,
       "description": "Platform-specific identifiers for this artifact",
       "properties": {
         "apple_podcast_id": {
-          "type": "string",
-          "description": "Apple Podcasts ID"
-        },
-        "spotify_show_id": {
-          "type": "string",
-          "description": "Spotify show ID"
+          "description": "Apple Podcasts ID",
+          "type": "string"
         },
         "podcast_guid": {
-          "type": "string",
-          "description": "Podcast GUID (from RSS feed)"
-        },
-        "youtube_video_id": {
-          "type": "string",
-          "description": "YouTube video ID"
+          "description": "Podcast GUID (from RSS feed)",
+          "type": "string"
         },
         "rss_url": {
-          "type": "string",
+          "description": "RSS feed URL",
           "format": "uri",
-          "description": "RSS feed URL"
+          "type": "string"
+        },
+        "spotify_collection_id": {
+          "description": "Spotify collection ID",
+          "type": "string"
+        },
+        "youtube_video_id": {
+          "description": "YouTube video ID",
+          "type": "string"
         }
       },
-      "additionalProperties": true
+      "type": "object"
+    },
+    "last_update_time": {
+      "description": "When the artifact was last modified (ISO 8601 format)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "description": "Rich metadata extracted from the artifact",
+      "properties": {
+        "author": {
+          "description": "Artifact author name",
+          "type": "string"
+        },
+        "canonical": {
+          "description": "Canonical URL",
+          "format": "uri",
+          "type": "string"
+        },
+        "json_ld": {
+          "description": "JSON-LD structured data (schema.org)",
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "keywords": {
+          "description": "Artifact keywords",
+          "type": "string"
+        },
+        "open_graph": {
+          "additionalProperties": true,
+          "description": "Open Graph protocol metadata",
+          "type": "object"
+        },
+        "twitter_card": {
+          "additionalProperties": true,
+          "description": "Twitter Card metadata",
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "property_rid": {
+      "description": "Stable property identifier from the property catalog. Globally unique across the ecosystem.",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "../core/provenance.json",
+      "description": "Provenance metadata for this artifact. Serves as the default provenance for all assets within this artifact \u2014 individual assets can override with their own provenance."
+    },
+    "published_time": {
+      "description": "When the artifact was published (ISO 8601 format)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "url": {
+      "description": "Optional URL for this artifact (web page, podcast feed, video page). Not all artifacts have URLs (e.g., Instagram content, podcast segments, TV scenes).",
+      "format": "uri",
+      "type": "string"
+    },
+    "variant_id": {
+      "description": "Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: 'en', 'es-MX', 'v2', 'headline_test_b'. The combination of artifact_id + variant_id must be unique.",
+      "type": "string"
     }
   },
-  "required": ["property_id", "artifact_id", "assets"],
-  "additionalProperties": true,
-  "$defs": {
-    "asset_access": {
-      "type": "object",
-      "description": "Authentication for accessing secured asset URLs",
-      "oneOf": [
-        {
-          "type": "object",
-          "description": "Bearer token authentication",
-          "properties": {
-            "method": { "type": "string", "const": "bearer_token" },
-            "token": {
-              "type": "string",
-              "description": "OAuth2 bearer token for Authorization header"
-            }
-          },
-          "required": ["method", "token"]
-        },
-        {
-          "type": "object",
-          "description": "Service account authentication (GCP, AWS)",
-          "properties": {
-            "method": { "type": "string", "const": "service_account" },
-            "provider": {
-              "type": "string",
-              "enum": ["gcp", "aws"],
-              "description": "Cloud provider"
-            },
-            "credentials": {
-              "type": "object",
-              "description": "Service account credentials",
-              "additionalProperties": true
-            }
-          },
-          "required": ["method", "provider"]
-        },
-        {
-          "type": "object",
-          "description": "Pre-signed URL (credentials embedded in URL)",
-          "properties": {
-            "method": { "type": "string", "const": "signed_url" }
-          },
-          "required": ["method"]
-        }
-      ]
-    }
-  }
+  "required": [
+    "property_rid",
+    "artifact_id",
+    "assets"
+  ],
+  "title": "Artifact",
+  "type": "object"
 }

@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A formal insertion order attached to a committed proposal. Contains structured terms for agent validation and optional signing URLs for human approval workflows.",
+  "properties": {
+    "io_id": {
+      "description": "Unique identifier for this insertion order. Referenced by io_acceptance on create_media_buy.",
+      "maxLength": 255,
+      "type": "string"
+    },
+    "requires_signature": {
+      "description": "Whether the buyer must accept this IO before creating a media buy. When true, create_media_buy requires an io_acceptance referencing this io_id.",
+      "type": "boolean"
+    },
+    "signing_url": {
+      "description": "URL to an electronic signing service (e.g., DocuSign) for human signature workflows. When present, a human must sign before the buyer agent can proceed with create_media_buy.",
+      "format": "uri",
+      "type": "string"
+    },
+    "terms": {
+      "additionalProperties": true,
+      "description": "Structured terms for agent validation. Agents can programmatically verify these match the proposal and campaign requirements.",
+      "properties": {
+        "advertiser": {
+          "description": "Advertiser name or identifier",
+          "maxLength": 500,
+          "type": "string"
+        },
+        "flight_end": {
+          "description": "Campaign end date",
+          "format": "date-time",
+          "type": "string"
+        },
+        "flight_start": {
+          "description": "Campaign start date",
+          "format": "date-time",
+          "type": "string"
+        },
+        "payment_terms": {
+          "description": "Payment terms",
+          "enum": [
+            "net_30",
+            "net_60",
+            "net_90",
+            "prepaid",
+            "due_on_receipt"
+          ],
+          "type": "string"
+        },
+        "publisher": {
+          "description": "Publisher name or identifier",
+          "maxLength": 500,
+          "type": "string"
+        },
+        "total_budget": {
+          "description": "Total committed budget",
+          "properties": {
+            "amount": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "currency": {
+              "description": "ISO 4217 currency code",
+              "maxLength": 3,
+              "minLength": 3,
+              "type": "string"
+            }
+          },
+          "required": [
+            "amount",
+            "currency"
+          ],
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "terms_url": {
+      "description": "URL to a human-readable document containing the full insertion order terms",
+      "format": "uri",
+      "type": "string"
+    }
+  },
+  "required": [
+    "io_id",
+    "requires_signature"
+  ],
+  "title": "Insertion Order",
+  "type": "object"
+}

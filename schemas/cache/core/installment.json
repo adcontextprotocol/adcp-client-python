@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "A single bookable unit within a collection \u2014 one episode, issue, event, or rotation period. The parent collection's kind indicates how to interpret each installment: TV/podcast episodes, print issues, live event airings, newsletter editions, or DOOH rotation periods. Installments inherit collection-level fields they don't override: content_rating defaults to the collection's baseline, guest_talent is additive to the collection's recurring talent, and topics add context beyond the collection's genre.",
+  "properties": {
+    "ad_inventory": {
+      "$ref": "ad-inventory-config.json",
+      "description": "Break-based ad inventory for this installment. For non-break formats (host reads, integrations), use product placements."
+    },
+    "collection_id": {
+      "description": "Parent collection reference. Required when the product spans multiple collections. Maps to a collection_id declared in one of the publishers' adagents.json files referenced by the product's collection selectors.",
+      "type": "string"
+    },
+    "content_rating": {
+      "$ref": "content-rating.json",
+      "description": "Installment-specific content rating. Overrides the collection's baseline content_rating when present."
+    },
+    "deadlines": {
+      "$ref": "installment-deadlines.json",
+      "description": "Booking, cancellation, and material submission deadlines for this installment. Present when the installment has time-sensitive inventory that requires advance commitment or material delivery."
+    },
+    "derivative_of": {
+      "additionalProperties": false,
+      "description": "When this installment is a clip, highlight, or recap derived from a full installment. The source installment_id must reference an installment within the same response.",
+      "properties": {
+        "installment_id": {
+          "description": "The source installment this content is derived from",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "../enums/derivative-type.json",
+          "description": "What kind of derivative content this is"
+        }
+      },
+      "required": [
+        "installment_id",
+        "type"
+      ],
+      "type": "object"
+    },
+    "duration_seconds": {
+      "description": "Expected duration of the installment in seconds",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "ext": {
+      "$ref": "ext.json"
+    },
+    "flexible_end": {
+      "description": "Whether the end time is approximate (live events, sports)",
+      "type": "boolean"
+    },
+    "guest_talent": {
+      "description": "Installment-specific guests and talent. Additive to the collection's recurring talent.",
+      "items": {
+        "$ref": "talent.json"
+      },
+      "type": "array"
+    },
+    "installment_id": {
+      "description": "Unique identifier for this installment within the collection",
+      "type": "string"
+    },
+    "installment_number": {
+      "description": "Installment number within the season (e.g., '3', '47')",
+      "type": "string"
+    },
+    "name": {
+      "description": "Installment title",
+      "type": "string"
+    },
+    "scheduled_at": {
+      "description": "When the installment airs or publishes (ISO 8601)",
+      "format": "date-time",
+      "type": "string"
+    },
+    "season": {
+      "description": "Season identifier (e.g., '1', '2024', 'spring_2026')",
+      "type": "string"
+    },
+    "special": {
+      "$ref": "special.json",
+      "description": "Installment-specific event context. When present, this installment is anchored to a real-world event. Overrides the collection-level special when present."
+    },
+    "status": {
+      "$ref": "../enums/installment-status.json",
+      "description": "Lifecycle status of the installment"
+    },
+    "topics": {
+      "description": "Content topics for this installment. Uses the same taxonomy as the collection's genre_taxonomy when present. Enables installment-level brand safety evaluation beyond content_rating.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "valid_until": {
+      "description": "When this installment data expires and should be re-queried. Agents should re-query before committing budget to products with tentative installments.",
+      "format": "date-time",
+      "type": "string"
+    }
+  },
+  "required": [
+    "installment_id"
+  ],
+  "title": "Installment",
+  "type": "object"
+}

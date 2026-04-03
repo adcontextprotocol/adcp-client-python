@@ -1,89 +1,123 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/content-standards/validate-content-delivery-response.json",
-  "title": "Validate Content Delivery Response",
   "description": "Response payload with per-record verdicts and optional feature breakdown",
-  "type": "object",
   "oneOf": [
     {
-      "type": "object",
       "description": "Success response",
       "properties": {
-        "summary": {
-          "type": "object",
-          "description": "Summary counts across all records",
-          "properties": {
-            "total_records": { "type": "integer" },
-            "passed_records": { "type": "integer" },
-            "failed_records": { "type": "integer" }
-          },
-          "required": ["total_records", "passed_records", "failed_records"]
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
         },
         "results": {
-          "type": "array",
           "description": "Per-record evaluation results",
           "items": {
-            "type": "object",
             "properties": {
-              "record_id": {
-                "type": "string",
-                "description": "Which delivery record was evaluated"
-              },
-              "verdict": {
-                "type": "string",
-                "enum": ["pass", "fail"],
-                "description": "Overall pass/fail verdict for this record"
-              },
               "features": {
-                "type": "array",
                 "description": "Optional feature-level breakdown",
                 "items": {
-                  "type": "object",
                   "properties": {
-                    "feature_id": { "type": "string" },
-                    "status": {
-                      "type": "string",
-                      "enum": ["passed", "failed", "warning", "unevaluated"]
+                    "feature_id": {
+                      "type": "string"
                     },
-                    "value": {},
-                    "message": { "type": "string" },
+                    "message": {
+                      "type": "string"
+                    },
                     "rule_id": {
-                      "type": "string",
-                      "description": "Which rule triggered this result (e.g., GARM category, Scope3 standard)"
-                    }
+                      "description": "Which rule triggered this result (e.g., GARM category, Scope3 standard)",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "passed",
+                        "failed",
+                        "warning",
+                        "unevaluated"
+                      ],
+                      "type": "string"
+                    },
+                    "value": {}
                   },
-                  "required": ["feature_id", "status"]
-                }
+                  "required": [
+                    "feature_id",
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "record_id": {
+                "description": "Which delivery record was evaluated",
+                "type": "string"
+              },
+              "verdict": {
+                "description": "Overall pass/fail verdict for this record",
+                "enum": [
+                  "pass",
+                  "fail"
+                ],
+                "type": "string"
               }
             },
-            "required": ["record_id", "verdict"]
-          }
+            "required": [
+              "record_id",
+              "verdict"
+            ],
+            "type": "object"
+          },
+          "type": "array"
         },
-        "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
-        },
-        "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+        "summary": {
+          "description": "Summary counts across all records",
+          "properties": {
+            "failed_records": {
+              "type": "integer"
+            },
+            "passed_records": {
+              "type": "integer"
+            },
+            "total_records": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "total_records",
+            "passed_records",
+            "failed_records"
+          ],
+          "type": "object"
         }
       },
-      "required": ["summary", "results"]
+      "required": [
+        "summary",
+        "results"
+      ],
+      "type": "object"
     },
     {
-      "type": "object",
       "description": "Error response",
       "properties": {
-        "errors": {
-          "type": "array",
-          "items": { "$ref": "/schemas/3.0.0-rc.2/core/error.json" }
-        },
         "context": {
-          "$ref": "/schemas/3.0.0-rc.2/core/context.json"
+          "$ref": "../core/context.json"
+        },
+        "errors": {
+          "items": {
+            "$ref": "../core/error.json"
+          },
+          "type": "array"
         },
         "ext": {
-          "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+          "$ref": "../core/ext.json"
         }
       },
-      "required": ["errors"]
+      "required": [
+        "errors"
+      ],
+      "type": "object"
     }
-  ]
+  ],
+  "title": "Validate Content Delivery Response",
+  "type": "object"
 }

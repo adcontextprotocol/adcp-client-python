@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Lifecycle status of an installment",
+  "enum": [
+    "scheduled",
+    "tentative",
+    "live",
+    "postponed",
+    "cancelled",
+    "aired",
+    "published"
+  ],
+  "enumDescriptions": {
+    "aired": "Already broadcast (live/linear content)",
+    "cancelled": "Will not happen",
+    "live": "Currently airing or streaming right now",
+    "postponed": "Was scheduled but delayed to a future date",
+    "published": "Already released (on-demand content)",
+    "scheduled": "Confirmed, will happen as planned",
+    "tentative": "May not happen (e.g., playoff Game 7 depends on Game 6)"
+  },
+  "title": "Installment Status",
+  "type": "string"
+}

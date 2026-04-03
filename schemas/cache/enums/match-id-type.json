@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Identifier types for audience match reporting. Combines hashed PII types (from audience-member.json field names) with universal ID types (from uid-type.json).",
+  "enum": [
+    "hashed_email",
+    "hashed_phone",
+    "rampid",
+    "id5",
+    "uid2",
+    "euid",
+    "pairid",
+    "maid",
+    "other"
+  ],
+  "enumDescriptions": {
+    "euid": "European Unified ID",
+    "hashed_email": "SHA-256 hashed email address (matches audience-member.hashed_email)",
+    "hashed_phone": "SHA-256 hashed phone number in E.164 format (matches audience-member.hashed_phone)",
+    "id5": "ID5 universal ID",
+    "maid": "Mobile Advertising ID (IDFA/GAID)",
+    "other": "Other identifier type (specify in ext)",
+    "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
+    "rampid": "LiveRamp RampID",
+    "uid2": "Unified ID 2.0"
+  },
+  "title": "Match ID Type",
+  "type": "string"
+}

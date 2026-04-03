@@ -1,9 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/enums/distance-unit.json",
-  "title": "Distance Unit",
   "description": "Units of distance measurement for radius-based catchment areas.",
-  "type": "string",
   "enum": [
     "km",
     "mi",
@@ -11,7 +8,9 @@
   ],
   "enumDescriptions": {
     "km": "Kilometers",
-    "mi": "Miles",
-    "m": "Meters"
-  }
+    "m": "Meters",
+    "mi": "Miles"
+  },
+  "title": "Distance Unit",
+  "type": "string"
 }

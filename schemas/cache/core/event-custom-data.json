@@ -1,84 +1,85 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "/schemas/3.0.0-rc.2/core/event-custom-data.json",
-  "title": "Event Custom Data",
+  "additionalProperties": true,
   "description": "Event-specific data for attribution and reporting",
-  "type": "object",
   "properties": {
-    "value": {
-      "type": "number",
-      "description": "Monetary value of the event (should be accompanied by currency)",
-      "minimum": 0
-    },
-    "currency": {
-      "type": "string",
-      "pattern": "^[A-Z]{3}$",
-      "description": "ISO 4217 currency code"
-    },
-    "order_id": {
-      "type": "string",
-      "description": "Unique order or transaction identifier"
+    "content_category": {
+      "description": "Category of the product or content",
+      "type": "string"
     },
     "content_ids": {
-      "type": "array",
       "description": "Item identifiers for catalog attribution. Values are matched against catalog items using the identifier type declared by the catalog's content_id_type field (e.g., SKUs, GTINs, or vertical-specific IDs like job_id).",
       "items": {
         "type": "string"
-      }
-    },
-    "content_type": {
-      "type": "string",
-      "description": "Category of content associated with the event (e.g., 'product', 'job', 'hotel'). Corresponds to the catalog type when used for catalog attribution."
+      },
+      "type": "array"
     },
     "content_name": {
-      "type": "string",
-      "description": "Name of the product or content"
+      "description": "Name of the product or content",
+      "type": "string"
     },
-    "content_category": {
-      "type": "string",
-      "description": "Category of the product or content"
-    },
-    "num_items": {
-      "type": "integer",
-      "description": "Number of items in the event",
-      "minimum": 0
-    },
-    "search_string": {
-      "type": "string",
-      "description": "Search query for search events"
+    "content_type": {
+      "description": "Category of content associated with the event (e.g., 'product', 'job', 'hotel'). Corresponds to the catalog type when used for catalog attribution.",
+      "type": "string"
     },
     "contents": {
-      "type": "array",
       "description": "Per-item details for e-commerce events",
       "items": {
-        "type": "object",
+        "additionalProperties": true,
         "properties": {
-          "id": {
-            "type": "string",
-            "description": "Product or content identifier"
+          "brand": {
+            "description": "Brand name of this item",
+            "type": "string"
           },
-          "quantity": {
-            "type": "integer",
-            "description": "Quantity of this item",
-            "minimum": 1
+          "id": {
+            "description": "Product or content identifier",
+            "type": "string"
           },
           "price": {
-            "type": "number",
             "description": "Price per unit of this item",
-            "minimum": 0
+            "minimum": 0,
+            "type": "number"
           },
-          "brand": {
-            "type": "string",
-            "description": "Brand name of this item"
+          "quantity": {
+            "description": "Quantity of this item",
+            "minimum": 1,
+            "type": "integer"
           }
         },
-        "required": ["id"],
-        "additionalProperties": true
-      }
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "currency": {
+      "description": "ISO 4217 currency code",
+      "pattern": "^[A-Z]{3}$",
+      "type": "string"
     },
     "ext": {
-      "$ref": "/schemas/3.0.0-rc.2/core/ext.json"
+      "$ref": "ext.json"
+    },
+    "num_items": {
+      "description": "Number of items in the event",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "order_id": {
+      "description": "Unique order or transaction identifier",
+      "type": "string"
+    },
+    "search_string": {
+      "description": "Search query for search events",
+      "type": "string"
+    },
+    "value": {
+      "description": "Monetary value of the event (should be accompanied by currency)",
+      "minimum": 0,
+      "type": "number"
     }
   },
-  "additionalProperties": true
+  "title": "Event Custom Data",
+  "type": "object"
 }
