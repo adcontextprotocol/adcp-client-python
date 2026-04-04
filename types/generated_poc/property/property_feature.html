@@ -60,11 +60,11 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     feature_id: Annotated[str, Field(description=&#39;Identifier for the feature being assessed&#39;)]
-    value: Annotated[str, Field(description=&#39;The feature value&#39;)]
     source: Annotated[
         str | None,
         Field(description=&#39;Source of the feature data (e.g., app_store_privacy_label, tcf_string)&#39;),
-    ] = None</code></pre>
+    ] = None
+    value: Annotated[str, Field(description=&#39;The feature value&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

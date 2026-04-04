@@ -59,22 +59,46 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s identifier for the media buy&#34;)]
-    buyer_ref: Annotated[str, Field(description=&#34;Buyer&#39;s reference identifier for the media buy&#34;)]
+    affected_packages: Annotated[
+        list[package.Package] | None,
+        Field(description=&#39;Array of packages that were modified with complete state information&#39;),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     implementation_date: Annotated[
         AwareDatetime | None,
         Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
     ] = None
-    affected_packages: Annotated[
-        list[package.Package] | None,
-        Field(description=&#39;Array of packages that were modified with complete state information&#39;),
+    invoice_recipient: Annotated[
+        business_entity.BusinessEntity | None,
+        Field(
+            description=&#39;Updated invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#39;
+        ),
+    ] = None
+    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s identifier for the media buy&#34;)]
+    revision: Annotated[
+        int | None,
+        Field(
+            description=&#39;Revision number after this update. Use this value in subsequent update_media_buy requests for optimistic concurrency.&#39;,
+            ge=1,
+        ),
     ] = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    status: Annotated[
+        media_buy_status.MediaBuyStatus | None,
+        Field(
+            description=&#34;Media buy status after the update. Present when the update changes the media buy&#39;s status (e.g., cancellation transitions to &#39;canceled&#39;, pause transitions to &#39;paused&#39;).&#34;
+        ),
+    ] = None
+    valid_actions: Annotated[
+        list[ValidAction] | None,
+        Field(
+            description=&#39;Actions the buyer can perform after this update. Saves a round-trip to get_media_buys.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -97,10 +121,6 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -113,6 +133,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.invoice_recipient"><code class="name">var <span class="ident">invoice_recipient</span> : <a title="adcp.types.generated_poc.core.business_entity.BusinessEntity" href="../core/business_entity.html#adcp.types.generated_poc.core.business_entity.BusinessEntity">BusinessEntity</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -121,7 +145,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.revision"><code class="name">var <span class="ident">revision</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus" href="../enums/media_buy_status.html#adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus">MediaBuyStatus</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.valid_actions"><code class="name">var <span class="ident">valid_actions</span> : list[<a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction">ValidAction</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -150,11 +186,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
     ]
-    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -202,6 +238,100 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction"><code class="flex name class">
+<span>class <span class="ident">ValidAction</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ValidAction(Enum):
+    pause = &#39;pause&#39;
+    resume = &#39;resume&#39;
+    cancel = &#39;cancel&#39;
+    update_budget = &#39;update_budget&#39;
+    update_dates = &#39;update_dates&#39;
+    update_packages = &#39;update_packages&#39;
+    add_packages = &#39;add_packages&#39;
+    sync_creatives = &#39;sync_creatives&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.add_packages"><code class="name">var <span class="ident">add_packages</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.cancel"><code class="name">var <span class="ident">cancel</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.pause"><code class="name">var <span class="ident">pause</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.resume"><code class="name">var <span class="ident">resume</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.sync_creatives"><code class="name">var <span class="ident">sync_creatives</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_budget"><code class="name">var <span class="ident">update_budget</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_dates"><code class="name">var <span class="ident">update_dates</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_packages"><code class="name">var <span class="ident">update_packages</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -221,13 +351,16 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1">UpdateMediaBuyResponse1</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.affected_packages" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.affected_packages">affected_packages</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.buyer_ref" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.context" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.ext" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.implementation_date" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.implementation_date">implementation_date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.invoice_recipient" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.invoice_recipient">invoice_recipient</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.media_buy_id" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.model_config" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.revision" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.revision">revision</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.status" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.status">status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.valid_actions" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1.valid_actions">valid_actions</a></code></li>
 </ul>
 </li>
 <li>
@@ -237,6 +370,19 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2.errors" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2.ext" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2.model_config" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction">ValidAction</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.add_packages" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.add_packages">add_packages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.cancel" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.cancel">cancel</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.pause" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.pause">pause</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.resume" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.resume">resume</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.sync_creatives" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.sync_creatives">sync_creatives</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_budget" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_budget">update_budget</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_dates" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_dates">update_dates</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_packages" href="#adcp.types.generated_poc.media_buy.update_media_buy_response.ValidAction.update_packages">update_packages</a></code></li>
 </ul>
 </li>
 </ul>

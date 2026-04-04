@@ -59,10 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    allowed_domains: Annotated[
+        list[str] | None,
+        Field(description=&#39;Domains authorized to send events for this event source&#39;, min_length=1),
+    ] = None
     event_source_id: Annotated[str, Field(description=&#39;Unique identifier for this event source&#39;)]
-    name: Annotated[str | None, Field(description=&#39;Human-readable name for this event source&#39;)] = (
-        None
-    )
     event_types: Annotated[
         list[event_type.EventType] | None,
         Field(
@@ -70,10 +71,9 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    allowed_domains: Annotated[
-        list[str] | None,
-        Field(description=&#39;Domains authorized to send events for this event source&#39;, min_length=1),
-    ] = None</code></pre>
+    name: Annotated[str | None, Field(description=&#39;Human-readable name for this event source&#39;)] = (
+        None
+    )</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -140,6 +140,11 @@ validated to form a valid model.</p>
     account: Annotated[
         account_ref.AccountReference, Field(description=&#39;Account to configure event sources for.&#39;)
     ]
+    context: context_1.ContextObject | None = None
+    delete_missing: Annotated[
+        bool | None,
+        Field(description=&#39;When true, event sources not included in this sync will be removed&#39;),
+    ] = False
     event_sources: Annotated[
         list[EventSource] | None,
         Field(
@@ -147,11 +152,6 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    delete_missing: Annotated[
-        bool | None,
-        Field(description=&#39;When true, event sources not included in this sync will be removed&#39;),
-    ] = False
-    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

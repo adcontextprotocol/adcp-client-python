@@ -55,8 +55,8 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Accent(Primary):
-    pass</code></pre>
+<pre><code class="python">class Accent(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^#[0-9A-Fa-f]{6}$&#39;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -80,15 +80,30 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
 </ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent1Item">Accent1Item</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background">Background</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item">Background2Item</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary1Item">Primary1Item</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Secondary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Secondary">Secondary</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item">Secondary1Item</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Text" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Text">Text</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Text1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Text1Item">Text1Item</a></li>
+</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Accent.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Accent.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -154,7 +169,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Accent1Item(Primary):
+<pre><code class="python">class Accent1Item(Accent):
     pass</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -179,7 +194,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
@@ -210,17 +225,17 @@ validated to form a valid model.</p>
     asset_type: Annotated[
         asset_content_type.AssetContentType, Field(description=&#39;Type of asset content&#39;)
     ]
-    url: Annotated[AnyUrl, Field(description=&#39;URL to CDN-hosted asset file&#39;)]
-    tags: Annotated[list[str] | None, Field(description=&#39;Tags for discovery&#39;)] = None
-    name: Annotated[str | None, Field(description=&#39;Human-readable name&#39;)] = None
     description: Annotated[str | None, Field(description=&#39;Asset description or usage notes&#39;)] = None
-    width: Annotated[int | None, Field(description=&#39;Image/video width in pixels&#39;)] = None
-    height: Annotated[int | None, Field(description=&#39;Image/video height in pixels&#39;)] = None
     duration_seconds: Annotated[
         float | None, Field(description=&#39;Video/audio duration in seconds&#39;)
     ] = None
     file_size_bytes: Annotated[int | None, Field(description=&#39;File size in bytes&#39;)] = None
-    format: Annotated[str | None, Field(description=&#34;File format (e.g., &#39;jpg&#39;, &#39;mp4&#39;)&#34;)] = None</code></pre>
+    format: Annotated[str | None, Field(description=&#34;File format (e.g., &#39;jpg&#39;, &#39;mp4&#39;)&#34;)] = None
+    height: Annotated[int | None, Field(description=&#39;Image/video height in pixels&#39;)] = None
+    name: Annotated[str | None, Field(description=&#39;Human-readable name&#39;)] = None
+    tags: Annotated[list[str] | None, Field(description=&#39;Tags for discovery&#39;)] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL to CDN-hosted asset file&#39;)]
+    width: Annotated[int | None, Field(description=&#39;Image/video width in pixels&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -310,7 +325,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AvailableField(Enum):
     description = &#39;description&#39;
-    industry = &#39;industry&#39;
+    industries = &#39;industries&#39;
     keller_type = &#39;keller_type&#39;
     logos = &#39;logos&#39;
     colors = &#39;colors&#39;
@@ -379,7 +394,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.industry"><code class="name">var <span class="ident">industry</span></code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.industries"><code class="name">var <span class="ident">industries</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -415,6 +430,153 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 <dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background"><code class="flex name class">
 <span>class <span class="ident">Background</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Background(Accent):
+    pass</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background2"><code class="flex name class">
+<span>class <span class="ident">Background2</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Background2(RootModel[list[Background2Item]]):
+    root: Annotated[list[Background2Item], Field(min_length=1)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[list[Background2Item]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background2.root"><code class="name">var <span class="ident">root</span> : list[<a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item">Background2Item</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item"><code class="flex name class">
+<span>class <span class="ident">Background2Item</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Background2Item(Accent):
+    pass</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3"><code class="flex name class">
+<span>class <span class="ident">Background3</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -422,7 +584,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Background(Enum):
+<pre><code class="python">class Background3(Enum):
     dark_bg = &#39;dark-bg&#39;
     light_bg = &#39;light-bg&#39;
     transparent_bg = &#39;transparent-bg&#39;</code></pre>
@@ -468,162 +630,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background.dark_bg"><code class="name">var <span class="ident">dark_bg</span></code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.dark_bg"><code class="name">var <span class="ident">dark_bg</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background.light_bg"><code class="name">var <span class="ident">light_bg</span></code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.light_bg"><code class="name">var <span class="ident">light_bg</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background.transparent_bg"><code class="name">var <span class="ident">transparent_bg</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background2"><code class="flex name class">
-<span>class <span class="ident">Background2</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Background2(Primary):
-    pass</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
-<li>pydantic.root_model.RootModel[str]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3"><code class="flex name class">
-<span>class <span class="ident">Background3</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Background3(RootModel[list[Background3Item]]):
-    root: Annotated[list[Background3Item], Field(min_length=1)]</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>pydantic.root_model.RootModel[list[Background3Item]]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.root"><code class="name">var <span class="ident">root</span> : list[<a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item">Background3Item</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item"><code class="flex name class">
-<span>class <span class="ident">Background3Item</span></span>
-<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Background3Item(Primary):
-    pass</code></pre>
-</details>
-<div class="desc"><div class="admonition abstract">
-<p class="admonition-title">Usage Documentation</p>
-<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
-</div>
-<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>root</code></strong></dt>
-<dd>The root object of the model.</dd>
-<dt><strong><code>__pydantic_root_model__</code></strong></dt>
-<dd>Whether the model is a RootModel.</dd>
-<dt><strong><code>__pydantic_private__</code></strong></dt>
-<dd>Private fields in the model.</dd>
-<dt><strong><code>__pydantic_extra__</code></strong></dt>
-<dd>Extra fields in the model.</dd>
-</dl>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
-<li>pydantic.root_model.RootModel[str]</li>
-<li>pydantic.root_model.RootModel</li>
-<li>pydantic.main.BaseModel</li>
-<li>typing.Generic</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.transparent_bg"><code class="name">var <span class="ident">transparent_bg</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -642,10 +657,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    accent: Accent | Accent1 | None = None
+    background: Background | Background2 | None = None
     primary: Primary | Primary1 | None = None
     secondary: Secondary | Secondary1 | None = None
-    accent: Accent | Accent1 | None = None
-    background: Background2 | Background3 | None = None
     text: Text | Text1 | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -669,7 +684,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Colors.background"><code class="name">var <span class="ident">background</span> : <a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2">Background2</a> | <a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3">Background3</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Colors.background"><code class="name">var <span class="ident">background</span> : <a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background">Background</a> | <a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2">Background2</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -817,9 +832,9 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    font_urls: Annotated[list[AnyUrl] | None, Field(description=&#39;URLs to web font files&#39;)] = None
     primary: Annotated[str | None, Field(description=&#39;Primary font family&#39;)] = None
-    secondary: Annotated[str | None, Field(description=&#39;Secondary font family&#39;)] = None
-    font_urls: Annotated[list[AnyUrl] | None, Field(description=&#39;URLs to web font files&#39;)] = None</code></pre>
+    secondary: Annotated[str | None, Field(description=&#39;Secondary font family&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -879,16 +894,41 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    assets: Annotated[
+        list[Asset] | None,
+        Field(
+            description=&#39;Available brand assets (images, audio, video). Authorized callers only. Shape matches brand.json asset definition.&#39;
+        ),
+    ] = None
+    available_fields: Annotated[
+        list[AvailableField] | None,
+        Field(
+            description=&#39;Fields available but not returned in this response due to authorization level. Tells the caller what they would gain by linking their account via sync_accounts. Values match the request fields enum.&#39;
+        ),
+    ] = None
     brand_id: Annotated[str, Field(description=&#39;Brand identifier&#39;)]
+    colors: Annotated[
+        Colors | None,
+        Field(
+            description=&#39;Brand color palette. Each role accepts a single hex color or an array of hex colors. Shape matches brand.json colors definition.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    description: Annotated[str | None, Field(description=&#39;Brand description&#39;)] = None
+    ext: ext_1.ExtensionObject | None = None
+    fonts: Annotated[
+        Fonts | None,
+        Field(description=&#39;Brand typography. Shape matches brand.json fonts definition.&#39;),
+    ] = None
     house: Annotated[
         House,
         Field(
             description=&#39;The house (corporate entity) this brand belongs to. Always returned regardless of authorization level.&#39;
         ),
     ]
-    names: Annotated[list[dict[str, str]], Field(description=&#39;Localized brand names&#39;)]
-    description: Annotated[str | None, Field(description=&#39;Brand description&#39;)] = None
-    industry: Annotated[str | None, Field(description=&#39;Industry or category&#39;)] = None
+    industries: Annotated[
+        list[str] | None, Field(description=&#39;Brand industries.&#39;, min_length=1)
+    ] = None
     keller_type: Annotated[
         KellerType | None,
         Field(
@@ -901,46 +941,33 @@ validated to form a valid model.</p>
             description=&#39;Brand logos. Public callers get standard logos; authorized callers also receive high-res variants. Shape matches brand.json logo definition.&#39;
         ),
     ] = None
-    colors: Annotated[
-        Colors | None,
+    names: Annotated[
+        list[dict[str, str]],
         Field(
-            description=&#39;Brand color palette. Each role accepts a single hex color or an array of hex colors. Shape matches brand.json colors definition.&#39;
+            description=&#34;Localized brand names with BCP 47 locale code keys (e.g., &#39;en_US&#39;, &#39;fr_CA&#39;). Bare language codes (&#39;en&#39;) are accepted as wildcards for backwards compatibility.&#34;
+        ),
+    ]
+    rights: Annotated[
+        Rights | None,
+        Field(description=&#39;Rights availability summary. For detailed pricing, use get_rights.&#39;),
+    ] = None
+    tagline: Annotated[
+        str | Tagline | None,
+        Field(
+            description=&#39;Brand tagline or slogan. Accepts a plain string or a localized array matching the names pattern.&#39;
         ),
     ] = None
-    fonts: Annotated[
-        Fonts | None,
-        Field(description=&#39;Brand typography. Shape matches brand.json fonts definition.&#39;),
-    ] = None
+    tone: Annotated[Tone | None, Field(description=&#39;Brand voice and messaging guidelines&#39;)] = None
     visual_guidelines: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#39;Structured visual rules for generative creative systems (photography, graphic_style, colorways, type_scale, motion). Matches brand.json visual_guidelines definition. Authorized callers only.&#39;
         ),
     ] = None
-    tone: Annotated[Tone | None, Field(description=&#39;Brand voice and messaging guidelines&#39;)] = None
-    tagline: Annotated[str | None, Field(description=&#39;Brand tagline or slogan&#39;)] = None
     voice_synthesis: Annotated[
         VoiceSynthesis | None,
         Field(description=&#39;Voice synthesis configuration for AI-generated audio&#39;),
-    ] = None
-    assets: Annotated[
-        list[Asset] | None,
-        Field(
-            description=&#39;Available brand assets (images, audio, video). Authorized callers only. Shape matches brand.json asset definition.&#39;
-        ),
-    ] = None
-    rights: Annotated[
-        Rights | None,
-        Field(description=&#39;Rights availability summary. For detailed pricing, use get_rights.&#39;),
-    ] = None
-    available_fields: Annotated[
-        list[AvailableField] | None,
-        Field(
-            description=&#39;Fields available but not returned in this response due to authorization level. Tells the caller what they would gain by linking their account via sync_accounts. Values match the request fields enum.&#39;
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -995,7 +1022,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.industry"><code class="name">var <span class="ident">industry</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.industries"><code class="name">var <span class="ident">industries</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1019,7 +1046,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.tagline"><code class="name">var <span class="ident">tagline</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.tagline"><code class="name">var <span class="ident">tagline</span> : str | <a title="adcp.types.generated_poc.brand.get_brand_identity_response.Tagline" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Tagline">Tagline</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1060,8 +1087,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    errors: Annotated[list[error.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None
+    errors: Annotated[list[error.Error], Field(min_length=1)]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1253,16 +1280,16 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the logo asset&#39;)]
+    background: Annotated[Background3 | None, Field(description=&#39;Background compatibility&#39;)] = None
+    height: Annotated[int | None, Field(description=&#39;Height in pixels&#39;)] = None
     orientation: Annotated[
         Orientation | None, Field(description=&#39;Logo aspect ratio orientation&#39;)
     ] = None
-    background: Annotated[Background | None, Field(description=&#39;Background compatibility&#39;)] = None
-    variant: Annotated[Variant | None, Field(description=&#39;Logo variant type&#39;)] = None
     tags: Annotated[list[str] | None, Field(description=&#39;Additional semantic tags&#39;)] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the logo asset&#39;)]
     usage: Annotated[str | None, Field(description=&#39;When to use this logo variant&#39;)] = None
-    width: Annotated[int | None, Field(description=&#39;Width in pixels&#39;)] = None
-    height: Annotated[int | None, Field(description=&#39;Height in pixels&#39;)] = None</code></pre>
+    variant: Annotated[Variant | None, Field(description=&#39;Logo variant type&#39;)] = None
+    width: Annotated[int | None, Field(description=&#39;Width in pixels&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1281,7 +1308,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Logo.background"><code class="name">var <span class="ident">background</span> : <a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background">Background</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Logo.background"><code class="name">var <span class="ident">background</span> : <a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3">Background3</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1412,8 +1439,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Primary(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^#[0-9A-Fa-f]{6}$&#39;)]</code></pre>
+<pre><code class="python">class Primary(Accent):
+    pass</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -1437,30 +1464,15 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
 </ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent1Item">Accent1Item</a></li>
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2">Background2</a></li>
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item">Background3Item</a></li>
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary1Item">Primary1Item</a></li>
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Secondary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Secondary">Secondary</a></li>
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item">Secondary1Item</a></li>
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Text" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Text">Text</a></li>
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Text1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Text1Item">Text1Item</a></li>
-</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Primary.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Primary.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1526,7 +1538,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Primary1Item(Primary):
+<pre><code class="python">class Primary1Item(Accent):
     pass</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -1551,7 +1563,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
@@ -1579,6 +1591,7 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     available_uses: list[right_use.RightUse] | None = None
+    content_restrictions: list[str] | None = None
     countries: Annotated[
         list[Country] | None,
         Field(
@@ -1589,8 +1602,7 @@ validated to form a valid model.</p>
         list[ExcludedCountry] | None,
         Field(description=&#39;Countries excluded from availability (ISO 3166-1 alpha-2)&#39;),
     ] = None
-    exclusivity_model: str | None = None
-    content_restrictions: list[str] | None = None</code></pre>
+    exclusivity_model: str | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1654,7 +1666,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Secondary(Primary):
+<pre><code class="python">class Secondary(Accent):
     pass</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -1679,7 +1691,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
@@ -1753,7 +1765,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Secondary1Item(Primary):
+<pre><code class="python">class Secondary1Item(Accent):
     pass</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -1778,7 +1790,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
@@ -1787,6 +1799,60 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Tagline"><code class="flex name class">
+<span>class <span class="ident">Tagline</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Tagline(RootModel[list[dict[str, str]]]):
+    root: Annotated[
+        list[dict[str, str]],
+        Field(description=&#39;Localized taglines with BCP 47 locale codes&#39;, min_length=1),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[list[dict[str, str]]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Tagline.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_response.Tagline.root"><code class="name">var <span class="ident">root</span> : list[dict[str, str]]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1801,7 +1867,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Text(Primary):
+<pre><code class="python">class Text(Accent):
     pass</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -1826,7 +1892,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
@@ -1900,7 +1966,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Text1Item(Primary):
+<pre><code class="python">class Text1Item(Accent):
     pass</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -1925,7 +1991,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></li>
+<li><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
@@ -1952,25 +2018,25 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    voice: Annotated[
-        str | None,
-        Field(
-            description=&#34;Brand personality described as comma-separated adjectives (e.g., &#39;enthusiastic, warm, competitive&#39;)&#34;
-        ),
-    ] = None
     attributes: Annotated[
         list[str] | None,
         Field(
             description=&#39;Personality traits that characterize the brand voice, used as prompt guidance&#39;
         ),
     ] = None
+    donts: Annotated[
+        list[str] | None,
+        Field(description=&#39;Prohibited topics, competitor references, and phrasings to avoid&#39;),
+    ] = None
     dos: Annotated[
         list[str] | None,
         Field(description=&#39;Approved messaging approaches, content themes, and reference points&#39;),
     ] = None
-    donts: Annotated[
-        list[str] | None,
-        Field(description=&#39;Prohibited topics, competitor references, and phrasings to avoid&#39;),
+    voice: Annotated[
+        str | None,
+        Field(
+            description=&#34;Brand personality described as comma-separated adjectives (e.g., &#39;enthusiastic, warm, competitive&#39;)&#34;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2115,8 +2181,8 @@ attributes &ndash; see the documentation for details.</p></div>
         extra=&#39;allow&#39;,
     )
     provider: str | None = None
-    voice_id: str | None = None
-    settings: dict[str, Any] | None = None</code></pre>
+    settings: dict[str, Any] | None = None
+    voice_id: str | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2182,6 +2248,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent">Accent</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Accent.root" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Accent.root">root</a></code></li>
 </ul>
 </li>
 <li>
@@ -2221,7 +2288,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.colors" href="#adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.colors">colors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.description" href="#adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.fonts" href="#adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.fonts">fonts</a></code></li>
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.industry" href="#adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.industry">industry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.industries" href="#adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.industries">industries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.keller_type" href="#adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.keller_type">keller_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.logos" href="#adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.logos">logos</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.rights" href="#adcp.types.generated_poc.brand.get_brand_identity_response.AvailableField.rights">rights</a></code></li>
@@ -2234,28 +2301,28 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background">Background</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background.dark_bg" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background.dark_bg">dark_bg</a></code></li>
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background.light_bg" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background.light_bg">light_bg</a></code></li>
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background.transparent_bg" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background.transparent_bg">transparent_bg</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2">Background2</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2.root" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item">Background2Item</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background2Item.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3">Background3</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.root" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3.root">root</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item">Background3Item</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3Item.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.dark_bg" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3.dark_bg">dark_bg</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.light_bg" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3.light_bg">light_bg</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Background3.transparent_bg" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Background3.transparent_bg">transparent_bg</a></code></li>
 </ul>
 </li>
 <li>
@@ -2303,7 +2370,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.ext" href="#adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.fonts" href="#adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.fonts">fonts</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.house" href="#adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.house">house</a></code></li>
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.industry" href="#adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.industry">industry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.industries" href="#adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.industries">industries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.keller_type" href="#adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.keller_type">keller_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.logos" href="#adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.logos">logos</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.GetBrandIdentityResponse1.model_config">model_config</a></code></li>
@@ -2368,7 +2435,6 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary">Primary</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Primary.root" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Primary.root">root</a></code></li>
 </ul>
 </li>
 <li>
@@ -2412,6 +2478,13 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item">Secondary1Item</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Secondary1Item.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Tagline" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Tagline">Tagline</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Tagline.model_config" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Tagline.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_response.Tagline.root" href="#adcp.types.generated_poc.brand.get_brand_identity_response.Tagline.root">root</a></code></li>
 </ul>
 </li>
 <li>

@@ -62,15 +62,15 @@ el.replaceWith(d);
     action_source: Annotated[
         action_source_1.ActionSource, Field(description=&#39;Where the conversion occurred&#39;)
     ]
+    count: Annotated[
+        float, Field(description=&#39;Number of conversions from this action source&#39;, ge=0.0)
+    ]
     event_source_id: Annotated[
         str | None,
         Field(
             description=&#39;Event source that produced these conversions (for disambiguation when multiple event sources are configured)&#39;
         ),
     ] = None
-    count: Annotated[
-        float, Field(description=&#39;Number of conversions from this action source&#39;, ge=0.0)
-    ]
     value: Annotated[
         float | None,
         Field(description=&#39;Total monetary value of conversions from this action source&#39;, ge=0.0),
@@ -138,14 +138,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    event_type: Annotated[event_type_1.EventType, Field(description=&#39;The event type&#39;)]
+    count: Annotated[float, Field(description=&#39;Number of events of this type&#39;, ge=0.0)]
     event_source_id: Annotated[
         str | None,
         Field(
             description=&#39;Event source that produced these conversions (for disambiguation when multiple event sources are configured)&#39;
         ),
     ] = None
-    count: Annotated[float, Field(description=&#39;Number of events of this type&#39;, ge=0.0)]
+    event_type: Annotated[event_type_1.EventType, Field(description=&#39;The event type&#39;)]
     value: Annotated[
         float | None, Field(description=&#39;Total monetary value of events of this type&#39;, ge=0.0)
     ] = None</code></pre>
@@ -212,13 +212,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    impressions: Annotated[float | None, Field(description=&#39;Impressions delivered&#39;, ge=0.0)] = None
-    spend: Annotated[float | None, Field(description=&#39;Amount spent&#39;, ge=0.0)] = None
-    clicks: Annotated[float | None, Field(description=&#39;Total clicks&#39;, ge=0.0)] = None
-    ctr: Annotated[
-        float | None, Field(description=&#39;Click-through rate (clicks/impressions)&#39;, ge=0.0, le=1.0)
+    by_action_source: Annotated[
+        list[ByActionSourceItem] | None,
+        Field(
+            description=&#39;Conversion metrics broken down by action source (website, app, in_store, etc.). Useful for omnichannel sellers where conversions occur across digital and physical channels.&#39;
+        ),
     ] = None
-    views: Annotated[float | None, Field(description=&#39;Views at threshold (for CPV)&#39;, ge=0.0)] = None
+    by_event_type: Annotated[
+        list[ByEventTypeItem] | None,
+        Field(
+            description=&#39;Conversion metrics broken down by event type. Spend-derived metrics (ROAS, CPA) are only available at the package/totals level since spend cannot be attributed to individual event types.&#39;
+        ),
+    ] = None
+    clicks: Annotated[float | None, Field(description=&#39;Total clicks&#39;, ge=0.0)] = None
     completed_views: Annotated[
         float | None,
         Field(
@@ -230,13 +236,6 @@ validated to form a valid model.</p>
         float | None,
         Field(description=&#39;Completion rate (completed_views/impressions)&#39;, ge=0.0, le=1.0),
     ] = None
-    conversions: Annotated[
-        float | None,
-        Field(
-            description=&#39;Total conversions attributed to this delivery. When by_event_type is present, this equals the sum of all by_event_type[].count entries.&#39;,
-            ge=0.0,
-        ),
-    ] = None
     conversion_value: Annotated[
         float | None,
         Field(
@@ -244,61 +243,32 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    roas: Annotated[
-        float | None, Field(description=&#39;Return on ad spend (conversion_value / spend)&#39;, ge=0.0)
+    conversions: Annotated[
+        float | None,
+        Field(
+            description=&#39;Total conversions attributed to this delivery. When by_event_type is present, this equals the sum of all by_event_type[].count entries.&#39;,
+            ge=0.0,
+        ),
     ] = None
     cost_per_acquisition: Annotated[
         float | None, Field(description=&#39;Cost per conversion (spend / conversions)&#39;, ge=0.0)
     ] = None
-    new_to_brand_rate: Annotated[
-        float | None,
-        Field(
-            description=&#39;Fraction of conversions from first-time brand buyers (0 = none, 1 = all)&#39;,
-            ge=0.0,
-            le=1.0,
-        ),
+    cost_per_click: Annotated[
+        float | None, Field(description=&#39;Cost per click (spend / clicks)&#39;, ge=0.0)
     ] = None
-    leads: Annotated[
-        float | None,
-        Field(
-            description=&#34;Leads generated (convenience alias for by_event_type where event_type=&#39;lead&#39;)&#34;,
-            ge=0.0,
-        ),
-    ] = None
-    by_event_type: Annotated[
-        list[ByEventTypeItem] | None,
-        Field(
-            description=&#39;Conversion metrics broken down by event type. Spend-derived metrics (ROAS, CPA) are only available at the package/totals level since spend cannot be attributed to individual event types.&#39;
-        ),
-    ] = None
-    grps: Annotated[
-        float | None, Field(description=&#39;Gross Rating Points delivered (for CPP)&#39;, ge=0.0)
-    ] = None
-    reach: Annotated[
-        float | None,
-        Field(
-            description=&#39;Unique reach - units depend on measurement provider (e.g., individuals, households, devices, cookies). See delivery_measurement.provider for methodology.&#39;,
-            ge=0.0,
-        ),
-    ] = None
-    frequency: Annotated[
-        float | None,
-        Field(
-            description=&#39;Average frequency per individual (typically measured over campaign duration, but can vary by measurement provider)&#39;,
-            ge=0.0,
-        ),
-    ] = None
-    quartile_data: Annotated[
-        QuartileData | None, Field(description=&#39;Video quartile completion data&#39;)
+    ctr: Annotated[
+        float | None, Field(description=&#39;Click-through rate (clicks/impressions)&#39;, ge=0.0, le=1.0)
     ] = None
     dooh_metrics: Annotated[
         DoohMetrics | None,
         Field(description=&#39;DOOH-specific metrics (only included for DOOH campaigns)&#39;),
     ] = None
-    viewability: Annotated[
-        Viewability | None,
+    engagement_rate: Annotated[
+        float | None,
         Field(
-            description=&#39;Viewability metrics. Viewable rate should be calculated as viewable_impressions / measurable_impressions (not total impressions), since some environments cannot measure viewability.&#39;
+            description=&#39;Platform-specific engagement rate (0.0 to 1.0). Typically engagements/impressions, but definition varies by platform.&#39;,
+            ge=0.0,
+            le=1.0,
         ),
     ] = None
     engagements: Annotated[
@@ -315,10 +285,30 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    saves: Annotated[
+    frequency: Annotated[
         float | None,
         Field(
-            description=&#39;Saves, bookmarks, playlist adds, pins attributed to this delivery.&#39;, ge=0.0
+            description=&#34;Average frequency per reach unit (typically measured over campaign duration, but can vary by measurement provider). When reach_unit is &#39;households&#39;, this is average exposures per household; when &#39;accounts&#39;, per logged-in account; etc.&#34;,
+            ge=0.0,
+        ),
+    ] = None
+    grps: Annotated[
+        float | None, Field(description=&#39;Gross Rating Points delivered (for CPP)&#39;, ge=0.0)
+    ] = None
+    impressions: Annotated[float | None, Field(description=&#39;Impressions delivered&#39;, ge=0.0)] = None
+    leads: Annotated[
+        float | None,
+        Field(
+            description=&#34;Leads generated (convenience alias for by_event_type where event_type=&#39;lead&#39;)&#34;,
+            ge=0.0,
+        ),
+    ] = None
+    new_to_brand_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fraction of conversions from first-time brand buyers (0 = none, 1 = all)&#39;,
+            ge=0.0,
+            le=1.0,
         ),
     ] = None
     profile_visits: Annotated[
@@ -328,21 +318,43 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    engagement_rate: Annotated[
+    quartile_data: Annotated[
+        QuartileData | None, Field(description=&#39;Audio/video quartile completion data&#39;)
+    ] = None
+    reach: Annotated[
         float | None,
         Field(
-            description=&#39;Platform-specific engagement rate (0.0 to 1.0). Typically engagements/impressions, but definition varies by platform.&#39;,
+            description=&#39;Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.&#39;,
             ge=0.0,
-            le=1.0,
         ),
     ] = None
-    cost_per_click: Annotated[
-        float | None, Field(description=&#39;Cost per click (spend / clicks)&#39;, ge=0.0)
-    ] = None
-    by_action_source: Annotated[
-        list[ByActionSourceItem] | None,
+    reach_unit: Annotated[
+        reach_unit_1.ReachUnit | None,
         Field(
-            description=&#39;Conversion metrics broken down by action source (website, app, in_store, etc.). Useful for omnichannel sellers where conversions occur across digital and physical channels.&#39;
+            description=&#39;Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison.&#39;
+        ),
+    ] = None
+    roas: Annotated[
+        float | None, Field(description=&#39;Return on ad spend (conversion_value / spend)&#39;, ge=0.0)
+    ] = None
+    saves: Annotated[
+        float | None,
+        Field(
+            description=&#39;Saves, bookmarks, playlist adds, pins attributed to this delivery.&#39;, ge=0.0
+        ),
+    ] = None
+    spend: Annotated[float | None, Field(description=&#39;Amount spent&#39;, ge=0.0)] = None
+    viewability: Annotated[
+        Viewability | None,
+        Field(
+            description=&#39;Viewability metrics. Viewable rate should be calculated as viewable_impressions / measurable_impressions (not total impressions), since some environments cannot measure viewability.&#39;
+        ),
+    ] = None
+    views: Annotated[
+        float | None,
+        Field(
+            description=&#34;Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model&#39;s view definition. When the package uses CPV pricing, spend = views × rate.&#34;,
+            ge=0.0,
         ),
     ] = None</code></pre>
 </details>
@@ -469,6 +481,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach_unit"><code class="name">var <span class="ident">reach_unit</span> : <a title="adcp.types.generated_poc.enums.reach_unit.ReachUnit" href="../enums/reach_unit.html#adcp.types.generated_poc.enums.reach_unit.ReachUnit">ReachUnit</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas"><code class="name">var <span class="ident">roas</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -514,21 +530,21 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    calculation_notes: Annotated[
+        str | None, Field(description=&#39;Explanation of how DOOH impressions were calculated&#39;)
+    ] = None
     loop_plays: Annotated[
         int | None, Field(description=&#39;Number of times ad played in rotation&#39;, ge=0)
-    ] = None
-    screens_used: Annotated[
-        int | None, Field(description=&#39;Number of unique screens displaying the ad&#39;, ge=0)
     ] = None
     screen_time_seconds: Annotated[
         int | None, Field(description=&#39;Total display time in seconds&#39;, ge=0)
     ] = None
+    screens_used: Annotated[
+        int | None, Field(description=&#39;Number of unique screens displaying the ad&#39;, ge=0)
+    ] = None
     sov_achieved: Annotated[
         float | None,
         Field(description=&#39;Actual share of voice delivered (0.0 to 1.0)&#39;, ge=0.0, le=1.0),
-    ] = None
-    calculation_notes: Annotated[
-        str | None, Field(description=&#39;Explanation of how DOOH impressions were calculated&#39;)
     ] = None
     venue_breakdown: Annotated[
         list[VenueBreakdownItem] | None, Field(description=&#39;Per-venue performance breakdown&#39;)
@@ -732,16 +748,16 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    impressions: Annotated[int, Field(description=&#39;Impressions delivered at this venue&#39;, ge=0)]
+    loop_plays: Annotated[int | None, Field(description=&#39;Loop plays at this venue&#39;, ge=0)] = None
+    screens_used: Annotated[
+        int | None, Field(description=&#39;Number of screens used at this venue&#39;, ge=0)
+    ] = None
     venue_id: Annotated[str, Field(description=&#39;Venue identifier&#39;)]
     venue_name: Annotated[str | None, Field(description=&#39;Human-readable venue name&#39;)] = None
     venue_type: Annotated[
         str | None,
         Field(description=&#34;Venue type (e.g., &#39;airport&#39;, &#39;transit&#39;, &#39;retail&#39;, &#39;billboard&#39;)&#34;),
-    ] = None
-    impressions: Annotated[int, Field(description=&#39;Impressions delivered at this venue&#39;, ge=0)]
-    loop_plays: Annotated[int | None, Field(description=&#39;Loop plays at this venue&#39;, ge=0)] = None
-    screens_used: Annotated[
-        int | None, Field(description=&#39;Number of screens used at this venue&#39;, ge=0)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -821,6 +837,12 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
+    standard: Annotated[
+        Standard | None,
+        Field(
+            description=&#34;Viewability measurement standard. &#39;mrc&#39;: 50% of pixels in view for 1 second (display) or 2 seconds (video), per MRC/IAB guidelines. &#39;groupm&#39;: 100% of pixels in view for the same durations. These are materially different thresholds and should not be compared across standards.&#34;
+        ),
+    ] = None
     viewable_impressions: Annotated[
         float | None,
         Field(
@@ -834,12 +856,6 @@ validated to form a valid model.</p>
             description=&#39;Viewable impression rate (viewable_impressions / measurable_impressions). Range 0.0 to 1.0.&#39;,
             ge=0.0,
             le=1.0,
-        ),
-    ] = None
-    standard: Annotated[
-        Standard | None,
-        Field(
-            description=&#34;Viewability measurement standard. &#39;mrc&#39;: 50% of pixels in view for 1 second (display) or 2 seconds (video), per MRC/IAB guidelines. &#39;groupm&#39;: 100% of pixels in view for the same durations. These are materially different thresholds and should not be compared across standards.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -953,6 +969,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.profile_visits" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.profile_visits">profile_visits</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.quartile_data" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.quartile_data">quartile_data</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach">reach</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach_unit" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.reach_unit">reach_unit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.roas">roas</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.saves" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.saves">saves</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.spend" href="#adcp.types.generated_poc.core.delivery_metrics.DeliveryMetrics.spend">spend</a></code></li>

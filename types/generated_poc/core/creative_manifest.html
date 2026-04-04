@@ -59,12 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    format_id: Annotated[
-        format_id_1.FormatId,
-        Field(
-            description=&#34;Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: &#39;display_static&#39;, width: 300, height: 250, unit: &#39;px&#39;}).&#34;
-        ),
-    ]
     assets: Annotated[
         dict[
             Annotated[str, StringConstraints(pattern=r&#39;^[a-z0-9_]+$&#39;)],
@@ -87,19 +81,25 @@ el.replaceWith(d);
             description=&#34;Map of asset IDs to actual asset content. Each key MUST match an asset_id from the format&#39;s assets array (e.g., &#39;banner_image&#39;, &#39;clickthrough_url&#39;, &#39;video_file&#39;, &#39;vast_tag&#39;). The asset_id is the technical identifier used to match assets to format requirements.\n\nIMPORTANT: Full validation requires format context. The format defines what type each asset_id should be. Standalone schema validation only checks structural conformance — each asset must match at least one valid asset type schema.&#34;
         ),
     ]
-    rights: Annotated[
-        list[rights_constraint.RightsConstraint] | None,
+    ext: ext_1.ExtensionObject | None = None
+    format_id: Annotated[
+        format_id_1.FormatId,
         Field(
-            description=&#39;Rights constraints attached to this creative. Each entry represents constraints from a single rights holder. A creative may combine multiple rights constraints (e.g., talent likeness + music license). For v1, rights constraints are informational metadata — the buyer/orchestrator manages creative lifecycle against these terms.&#39;
+            description=&#34;Format identifier this manifest is for. Can be a template format (id only) or a deterministic format (id + dimensions/duration). For dimension-specific creatives, include width/height/unit in the format_id to create a unique identifier (e.g., {id: &#39;display_static&#39;, width: 300, height: 250, unit: &#39;px&#39;}).&#34;
         ),
-    ] = None
+    ]
     provenance: Annotated[
         provenance_1.Provenance | None,
         Field(
             description=&#39;Provenance metadata for this creative manifest. Serves as the default provenance for all assets in this manifest. An asset with its own provenance replaces this object entirely (no field-level merging).&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    rights: Annotated[
+        list[rights_constraint.RightsConstraint] | None,
+        Field(
+            description=&#39;Rights constraints attached to this creative. Each entry represents constraints from a single rights holder. A creative may combine multiple rights constraints (e.g., talent likeness + music license). For v1, rights constraints are informational metadata — the buyer/orchestrator manages creative lifecycle against these terms.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

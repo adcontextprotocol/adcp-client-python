@@ -56,13 +56,13 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CalibrationExemplars(AdCPBaseModel):
-    pass_: Annotated[
-        list[artifact.Artifact] | None,
-        Field(alias=&#39;pass&#39;, description=&#39;Artifacts that pass the content standards&#39;),
-    ] = None
     fail: Annotated[
         list[artifact.Artifact] | None,
         Field(description=&#39;Artifacts that fail the content standards&#39;),
+    ] = None
+    pass_: Annotated[
+        list[artifact.Artifact] | None,
+        Field(alias=&#39;pass&#39;, description=&#39;Artifacts that pass the content standards&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -116,17 +116,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ContentStandards(AdCPBaseModel):
-    standards_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this standards configuration&#39;)
-    ]
-    name: Annotated[
-        str | None, Field(description=&#39;Human-readable name for this standards configuration&#39;)
-    ] = None
-    countries_all: Annotated[
-        list[str] | None,
+    calibration_exemplars: Annotated[
+        CalibrationExemplars | None,
         Field(
-            description=&#39;ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).&#39;,
-            min_length=1,
+            description=&#39;Training/test set to calibrate policy interpretation. Provides concrete examples of pass/fail decisions.&#39;
         ),
     ] = None
     channels_any: Annotated[
@@ -136,6 +129,14 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    countries_all: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
     languages_any: Annotated[
         list[str] | None,
         Field(
@@ -143,16 +144,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    name: Annotated[
+        str | None, Field(description=&#39;Human-readable name for this standards configuration&#39;)
+    ] = None
     policy: Annotated[
         str | None,
         Field(
             description=&#39;Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.&#39;
-        ),
-    ] = None
-    calibration_exemplars: Annotated[
-        CalibrationExemplars | None,
-        Field(
-            description=&#39;Training/test set to calibrate policy interpretation. Provides concrete examples of pass/fail decisions.&#39;
         ),
     ] = None
     pricing_options: Annotated[
@@ -162,7 +160,9 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    standards_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this standards configuration&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

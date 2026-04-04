@@ -110,13 +110,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    countries_all: Annotated[
-        list[CountriesAllItem] | None,
-        Field(
-            description=&#39;Property must have feature data for ALL listed countries (ISO codes). When omitted, no country restriction is applied.&#39;,
-            min_length=1,
-        ),
-    ] = None
     channels_any: Annotated[
         list[channels.MediaChannel] | None,
         Field(
@@ -124,9 +117,16 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    property_types: Annotated[
-        list[property_type.PropertyType] | None,
-        Field(description=&#39;Filter to these property types&#39;, min_length=1),
+    countries_all: Annotated[
+        list[CountriesAllItem] | None,
+        Field(
+            description=&#39;Property must have feature data for ALL listed countries (ISO codes). When omitted, no country restriction is applied.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    exclude_identifiers: Annotated[
+        list[identifier.Identifier] | None,
+        Field(description=&#39;Identifiers to always exclude from results&#39;, min_length=1),
     ] = None
     feature_requirements: Annotated[
         list[feature_requirement.FeatureRequirement] | None,
@@ -135,9 +135,9 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    exclude_identifiers: Annotated[
-        list[identifier.Identifier] | None,
-        Field(description=&#39;Identifiers to always exclude from results&#39;, min_length=1),
+    property_types: Annotated[
+        list[property_type.PropertyType] | None,
+        Field(description=&#39;Filter to these property types&#39;, min_length=1),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

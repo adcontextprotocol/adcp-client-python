@@ -134,14 +134,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    accessibility: Annotated[
+        Accessibility | None,
+        Field(description=&#39;Self-declared accessibility properties for this opaque creative&#39;),
+    ] = None
     content: Annotated[str, Field(description=&#39;JavaScript content&#39;)]
     module_type: Annotated[
         javascript_module_type.JavascriptModuleType | None,
         Field(description=&#39;JavaScript module type&#39;),
-    ] = None
-    accessibility: Annotated[
-        Accessibility | None,
-        Field(description=&#39;Self-declared accessibility properties for this opaque creative&#39;),
     ] = None
     provenance: Annotated[
         provenance_1.Provenance | None,

@@ -56,8 +56,8 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Dimensions(AdCPBaseModel):
-    width: Annotated[float, Field(ge=0.0)]
-    height: Annotated[float, Field(ge=0.0)]</code></pre>
+    height: Annotated[float, Field(ge=0.0)]
+    width: Annotated[float, Field(ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -110,6 +110,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Embedding(AdCPBaseModel):
+    csp_policy: Annotated[
+        str | None, Field(description=&#39;Content Security Policy requirements for embedding&#39;)
+    ] = None
     recommended_sandbox: Annotated[
         str | None,
         Field(
@@ -121,9 +124,6 @@ validated to form a valid model.</p>
     ] = None
     supports_fullscreen: Annotated[
         bool | None, Field(description=&#39;Whether this output supports fullscreen mode&#39;)
-    ] = None
-    csp_policy: Annotated[
-        str | None, Field(description=&#39;Content Security Policy requirements for embedding&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -251,9 +251,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    render_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
-    ]
+    dimensions: Annotated[
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+    ] = None
+    embedding: Annotated[
+        Embedding | None,
+        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
+    ] = None
     output_format: Annotated[
         Literal[&#39;url&#39;], Field(description=&#39;Discriminator indicating preview_url is provided&#39;)
     ]
@@ -263,19 +267,15 @@ validated to form a valid model.</p>
             description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
         ),
     ]
+    render_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+    ]
     role: Annotated[
         str,
         Field(
             description=&#34;Semantic role of this rendered piece. Use &#39;primary&#39; for main content, &#39;companion&#39; for associated banners, descriptive strings for device variants or custom roles.&#34;
         ),
-    ]
-    dimensions: Annotated[
-        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
-    ] = None
-    embedding: Annotated[
-        Embedding | None,
-        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
-    ] = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -347,9 +347,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    render_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
-    ]
+    dimensions: Annotated[
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+    ] = None
+    embedding: Annotated[
+        Embedding | None, Field(description=&#39;Optional security and embedding metadata&#39;)
+    ] = None
     output_format: Annotated[
         Literal[&#39;html&#39;], Field(description=&#39;Discriminator indicating preview_html is provided&#39;)
     ]
@@ -359,18 +362,15 @@ validated to form a valid model.</p>
             description=&#39;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#39;
         ),
     ]
+    render_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+    ]
     role: Annotated[
         str,
         Field(
             description=&#34;Semantic role of this rendered piece. Use &#39;primary&#39; for main content, &#39;companion&#39; for associated banners, descriptive strings for device variants or custom roles.&#34;
         ),
-    ]
-    dimensions: Annotated[
-        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
-    ] = None
-    embedding: Annotated[
-        Embedding | None, Field(description=&#39;Optional security and embedding metadata&#39;)
-    ] = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -442,19 +442,17 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    render_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
-    ]
+    dimensions: Annotated[
+        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
+    ] = None
+    embedding: Annotated[
+        Embedding | None,
+        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
+    ] = None
     output_format: Annotated[
         Literal[&#39;both&#39;],
         Field(
             description=&#39;Discriminator indicating both preview_url and preview_html are provided&#39;
-        ),
-    ]
-    preview_url: Annotated[
-        AnyUrl,
-        Field(
-            description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
         ),
     ]
     preview_html: Annotated[
@@ -463,19 +461,21 @@ validated to form a valid model.</p>
             description=&#39;Raw HTML for this rendered piece. Can be embedded directly in the page without iframe. Security warning: Only use with trusted creative agents as this bypasses iframe sandboxing.&#39;
         ),
     ]
+    preview_url: Annotated[
+        AnyUrl,
+        Field(
+            description=&#39;URL to an HTML page that renders this piece. Can be embedded in an iframe.&#39;
+        ),
+    ]
+    render_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this rendered piece within the variant&#39;)
+    ]
     role: Annotated[
         str,
         Field(
             description=&#34;Semantic role of this rendered piece. Use &#39;primary&#39; for main content, &#39;companion&#39; for associated banners, descriptive strings for device variants or custom roles.&#34;
         ),
-    ]
-    dimensions: Annotated[
-        Dimensions | None, Field(description=&#39;Dimensions for this rendered piece&#39;)
-    ] = None
-    embedding: Annotated[
-        Embedding | None,
-        Field(description=&#39;Optional security and embedding metadata for safe iframe integration&#39;),
-    ] = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

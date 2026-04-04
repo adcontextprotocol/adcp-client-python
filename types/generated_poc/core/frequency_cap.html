@@ -59,19 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    suppress: Annotated[
-        duration.Duration | None,
-        Field(
-            description=&#39;Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {&#34;interval&#34;: 60, &#34;unit&#34;: &#34;minutes&#34;} for a 1-hour cooldown). Preferred over suppress_minutes.&#39;
-        ),
-    ] = None
-    suppress_minutes: Annotated[
-        float | None,
-        Field(
-            description=&#39;Deprecated — use suppress instead. Cooldown period in minutes between consecutive exposures to the same entity (e.g. 60 for a 1-hour cooldown).&#39;,
-            ge=0.0,
-        ),
-    ] = None
     max_impressions: Annotated[
         int | None,
         Field(
@@ -83,6 +70,19 @@ el.replaceWith(d);
         reach_unit.ReachUnit | None,
         Field(
             description=&#39;Entity granularity for impression counting. Required when max_impressions is set.&#39;
+        ),
+    ] = None
+    suppress: Annotated[
+        duration.Duration | None,
+        Field(
+            description=&#39;Cooldown period between consecutive exposures to the same entity. Prevents back-to-back ad delivery (e.g. {&#34;interval&#34;: 60, &#34;unit&#34;: &#34;minutes&#34;} for a 1-hour cooldown). Preferred over suppress_minutes.&#39;
+        ),
+    ] = None
+    suppress_minutes: Annotated[
+        float | None,
+        Field(
+            description=&#39;Deprecated — use suppress instead. Cooldown period in minutes between consecutive exposures to the same entity (e.g. 60 for a 1-hour cooldown).&#39;,
+            ge=0.0,
         ),
     ] = None
     window: Annotated[

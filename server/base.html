@@ -550,7 +550,73 @@ el.replaceWith(d);
 
         Override this in GovernanceHandler subclasses.
         &#34;&#34;&#34;
-        return self._not_supported(&#34;delete_property_list&#34;)</code></pre>
+        return self._not_supported(&#34;delete_property_list&#34;)
+
+    # ========================================================================
+    # V3 TMP Operations
+    # ========================================================================
+
+    async def context_match(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Match ad context to buyer packages.
+
+        Override this to provide TMP context matching.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;context_match&#34;)
+
+    async def identity_match(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Match user identity for package eligibility.
+
+        Override this to provide TMP identity matching.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;identity_match&#34;)
+
+    # ========================================================================
+    # V3 Brand Rights Operations
+    # ========================================================================
+
+    async def get_brand_identity(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Get brand identity information.
+
+        Override this in BrandHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;get_brand_identity&#34;)
+
+    async def get_rights(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Get available rights for licensing.
+
+        Override this in BrandHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;get_rights&#34;)
+
+    async def acquire_rights(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Acquire rights for brand content usage.
+
+        Override this in BrandHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;acquire_rights&#34;)
+
+    # ========================================================================
+    # V3 Compliance Operations
+    # ========================================================================
+
+    async def comply_test_controller(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Compliance test controller (sandbox only).
+
+        Override this in ComplianceHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;comply_test_controller&#34;)</code></pre>
 </details>
 <div class="desc"><p>Base class for ADCP operation handlers.</p>
 <p>Subclass this to implement ADCP operations. All operations have default
@@ -566,12 +632,35 @@ only the operations your agent supports.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
+<li><a title="adcp.server.brand.BrandHandler" href="brand.html#adcp.server.brand.BrandHandler">BrandHandler</a></li>
+<li><a title="adcp.server.compliance.ComplianceHandler" href="compliance.html#adcp.server.compliance.ComplianceHandler">ComplianceHandler</a></li>
 <li><a title="adcp.server.content_standards.ContentStandardsHandler" href="content_standards.html#adcp.server.content_standards.ContentStandardsHandler">ContentStandardsHandler</a></li>
 <li><a title="adcp.server.governance.GovernanceHandler" href="governance.html#adcp.server.governance.GovernanceHandler">GovernanceHandler</a></li>
 <li><a title="adcp.server.sponsored_intelligence.SponsoredIntelligenceHandler" href="sponsored_intelligence.html#adcp.server.sponsored_intelligence.SponsoredIntelligenceHandler">SponsoredIntelligenceHandler</a></li>
+<li><a title="adcp.server.tmp.TmpHandler" href="tmp.html#adcp.server.tmp.TmpHandler">TmpHandler</a></li>
 </ul>
 <h3>Methods</h3>
 <dl>
+<dt id="adcp.server.base.ADCPHandler.acquire_rights"><code class="name flex">
+<span>async def <span class="ident">acquire_rights</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def acquire_rights(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Acquire rights for brand content usage.
+
+    Override this in BrandHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;acquire_rights&#34;)</code></pre>
+</details>
+<div class="desc"><p>Acquire rights for brand content usage.</p>
+<p>Override this in BrandHandler subclasses.</p></div>
+</dd>
 <dt id="adcp.server.base.ADCPHandler.activate_signal"><code class="name flex">
 <span>async def <span class="ident">activate_signal</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
@@ -651,6 +740,46 @@ only the operations your agent supports.</p>
 </details>
 <div class="desc"><p>Check an action against campaign governance.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
+</dd>
+<dt id="adcp.server.base.ADCPHandler.comply_test_controller"><code class="name flex">
+<span>async def <span class="ident">comply_test_controller</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def comply_test_controller(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Compliance test controller (sandbox only).
+
+    Override this in ComplianceHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;comply_test_controller&#34;)</code></pre>
+</details>
+<div class="desc"><p>Compliance test controller (sandbox only).</p>
+<p>Override this in ComplianceHandler subclasses.</p></div>
+</dd>
+<dt id="adcp.server.base.ADCPHandler.context_match"><code class="name flex">
+<span>async def <span class="ident">context_match</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def context_match(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Match ad context to buyer packages.
+
+    Override this to provide TMP context matching.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;context_match&#34;)</code></pre>
+</details>
+<div class="desc"><p>Match ad context to buyer packages.</p>
+<p>Override this to provide TMP context matching.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.create_content_standards"><code class="name flex">
 <span>async def <span class="ident">create_content_standards</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
@@ -771,6 +900,26 @@ only the operations your agent supports.</p>
 </details>
 <div class="desc"><p>Get ADCP capabilities.</p>
 <p>Override this to advertise your agent's capabilities.</p></div>
+</dd>
+<dt id="adcp.server.base.ADCPHandler.get_brand_identity"><code class="name flex">
+<span>async def <span class="ident">get_brand_identity</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_brand_identity(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Get brand identity information.
+
+    Override this in BrandHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;get_brand_identity&#34;)</code></pre>
+</details>
+<div class="desc"><p>Get brand identity information.</p>
+<p>Override this in BrandHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_content_standards"><code class="name flex">
 <span>async def <span class="ident">get_content_standards</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
@@ -950,6 +1099,26 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Get a property list with optional resolution.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
+<dt id="adcp.server.base.ADCPHandler.get_rights"><code class="name flex">
+<span>async def <span class="ident">get_rights</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_rights(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Get available rights for licensing.
+
+    Override this in BrandHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;get_rights&#34;)</code></pre>
+</details>
+<div class="desc"><p>Get available rights for licensing.</p>
+<p>Override this in BrandHandler subclasses.</p></div>
+</dd>
 <dt id="adcp.server.base.ADCPHandler.get_signals"><code class="name flex">
 <span>async def <span class="ident">get_signals</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
@@ -967,6 +1136,26 @@ only the operations your agent supports.</p>
 </details>
 <div class="desc"><p>Get available signals.</p>
 <p>Override this to provide signal catalog.</p></div>
+</dd>
+<dt id="adcp.server.base.ADCPHandler.identity_match"><code class="name flex">
+<span>async def <span class="ident">identity_match</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def identity_match(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Match user identity for package eligibility.
+
+    Override this to provide TMP identity matching.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;identity_match&#34;)</code></pre>
+</details>
+<div class="desc"><p>Match user identity for package eligibility.</p>
+<p>Override this to provide TMP identity matching.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.list_accounts"><code class="name flex">
 <span>async def <span class="ident">list_accounts</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
@@ -1556,16 +1745,20 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li>
 <h4><code><a title="adcp.server.base.ADCPHandler" href="#adcp.server.base.ADCPHandler">ADCPHandler</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.server.base.ADCPHandler.acquire_rights" href="#adcp.server.base.ADCPHandler.acquire_rights">acquire_rights</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.activate_signal" href="#adcp.server.base.ADCPHandler.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.build_creative" href="#adcp.server.base.ADCPHandler.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.calibrate_content" href="#adcp.server.base.ADCPHandler.calibrate_content">calibrate_content</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.check_governance" href="#adcp.server.base.ADCPHandler.check_governance">check_governance</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.comply_test_controller" href="#adcp.server.base.ADCPHandler.comply_test_controller">comply_test_controller</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.context_match" href="#adcp.server.base.ADCPHandler.context_match">context_match</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_content_standards" href="#adcp.server.base.ADCPHandler.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_media_buy" href="#adcp.server.base.ADCPHandler.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_property_list" href="#adcp.server.base.ADCPHandler.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.delete_property_list" href="#adcp.server.base.ADCPHandler.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_account_financials" href="#adcp.server.base.ADCPHandler.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_adcp_capabilities" href="#adcp.server.base.ADCPHandler.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.get_brand_identity" href="#adcp.server.base.ADCPHandler.get_brand_identity">get_brand_identity</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_content_standards" href="#adcp.server.base.ADCPHandler.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_delivery" href="#adcp.server.base.ADCPHandler.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_features" href="#adcp.server.base.ADCPHandler.get_creative_features">get_creative_features</a></code></li>
@@ -1575,7 +1768,9 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.get_plan_audit_logs" href="#adcp.server.base.ADCPHandler.get_plan_audit_logs">get_plan_audit_logs</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_products" href="#adcp.server.base.ADCPHandler.get_products">get_products</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_property_list" href="#adcp.server.base.ADCPHandler.get_property_list">get_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.get_rights" href="#adcp.server.base.ADCPHandler.get_rights">get_rights</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_signals" href="#adcp.server.base.ADCPHandler.get_signals">get_signals</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.identity_match" href="#adcp.server.base.ADCPHandler.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_accounts" href="#adcp.server.base.ADCPHandler.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_content_standards" href="#adcp.server.base.ADCPHandler.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creative_formats" href="#adcp.server.base.ADCPHandler.list_creative_formats">list_creative_formats</a></code></li>

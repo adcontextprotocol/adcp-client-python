@@ -59,10 +59,10 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    artifact_id: Annotated[str, Field(description=&#39;Artifact identifier within the property&#39;)]
     property_id: Annotated[
         identifier.Identifier, Field(description=&#39;Property where the artifact appears&#39;)
-    ]
-    artifact_id: Annotated[str, Field(description=&#39;Artifact identifier within the property&#39;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -115,19 +115,19 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CreativeVariant(DeliveryMetrics):
-    variant_id: Annotated[str, Field(description=&#39;Platform-assigned identifier for this variant&#39;)]
+    generation_context: Annotated[
+        GenerationContext | None,
+        Field(
+            description=&#39;Input signals that triggered generation of this variant (Tier 3). Describes why the platform created this specific variant. Platforms should provide summarized or anonymized signals rather than raw user input. For web contexts, may include page topic or URL. For conversational contexts, an anonymized content signal. For search, query category or intent. When the content context is managed through AdCP content standards, reference the artifact directly via the artifact field.&#39;
+        ),
+    ] = None
     manifest: Annotated[
         creative_manifest.CreativeManifest | None,
         Field(
             description=&#39;The rendered creative manifest for this variant — the actual output that was served, not the input assets. Contains format_id and the resolved assets (specific headline, image, video, etc. the platform selected or generated). For Tier 2, shows which asset combination was picked. For Tier 3, contains the generated assets which may differ entirely from the input brand identity. Pass to preview_creative to re-render.&#39;
         ),
     ] = None
-    generation_context: Annotated[
-        GenerationContext | None,
-        Field(
-            description=&#39;Input signals that triggered generation of this variant (Tier 3). Describes why the platform created this specific variant. Platforms should provide summarized or anonymized signals rather than raw user input. For web contexts, may include page topic or URL. For conversational contexts, an anonymized content signal. For search, query category or intent. When the content context is managed through AdCP content standards, reference the artifact directly via the artifact field.&#39;
-        ),
-    ] = None</code></pre>
+    variant_id: Annotated[str, Field(description=&#39;Platform-assigned identifier for this variant&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -188,16 +188,16 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context_type: Annotated[
-        str | None,
-        Field(
-            description=&#34;Type of context that triggered generation (e.g., &#39;web_page&#39;, &#39;conversational&#39;, &#39;search&#39;, &#39;app&#39;, &#39;dooh&#39;)&#34;
-        ),
-    ] = None
     artifact: Annotated[
         Artifact | None,
         Field(
             description=&#39;Reference to the content-standards artifact that provided the generation context. Links this variant to the specific piece of content (article, video, podcast segment, etc.) where the ad was placed.&#39;
+        ),
+    ] = None
+    context_type: Annotated[
+        str | None,
+        Field(
+            description=&#34;Type of context that triggered generation (e.g., &#39;web_page&#39;, &#39;conversational&#39;, &#39;search&#39;, &#39;app&#39;, &#39;dooh&#39;)&#34;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None</code></pre>

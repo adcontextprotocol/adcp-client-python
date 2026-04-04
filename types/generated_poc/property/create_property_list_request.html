@@ -59,20 +59,12 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]
-    description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
-        None
-    )
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
         Field(
             description=&#34;Array of property sources to evaluate. Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers). If omitted, queries the agent&#39;s entire property database.&#34;,
             min_length=1,
         ),
-    ] = None
-    filters: Annotated[
-        property_list_filters.PropertyListFilters | None,
-        Field(description=&#39;Dynamic filters to apply when resolving the list&#39;),
     ] = None
     brand: Annotated[
         brand_ref.BrandReference | None,
@@ -81,7 +73,23 @@ el.replaceWith(d);
         ),
     ] = None
     context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
+        None
+    )
+    ext: ext_1.ExtensionObject | None = None
+    filters: Annotated[
+        property_list_filters.PropertyListFilters | None,
+        Field(description=&#39;Dynamic filters to apply when resolving the list&#39;),
+    ] = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated unique key for this request. Prevents duplicate property list creation on retries. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+        ),
+    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -121,6 +129,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.property.property_list_filters.PropertyListFilters" href="property_list_filters.html#adcp.types.generated_poc.property.property_list_filters.PropertyListFilters">PropertyListFilters</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -168,6 +180,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.description" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.ext" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.filters" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.filters">filters</a></code></li>
+<li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.idempotency_key" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.model_config" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.name" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.name">name</a></code></li>
 </ul>

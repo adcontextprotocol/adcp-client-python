@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.property_registry API documentation</title>
+<meta name="description" content="PropertyRegistry — local authorization cache backed by the AAO registry …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.property_registry</code></h1>
+</header>
+<section id="section-intro">
+<p>PropertyRegistry — local authorization cache backed by the AAO registry.</p>
+<p>Provides instant, no-network queries for property/agent authorization
+relationships, with optional background sync via the change feed.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.property_registry.PropertyRegistry"><code class="flex name class">
+<span>class <span class="ident">PropertyRegistry</span></span>
+<span>(</span><span>client: RegistryClient,<br>*,<br>auth_token: str | None = None,<br>poll_interval: float = 60.0,<br>cursor_store: CursorStore | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PropertyRegistry:
+    &#34;&#34;&#34;Local cache of property/agent authorization relationships.
+
+    Queries are synchronous dict lookups — no network calls.
+    Background sync is opt-in via ``auth_token``.
+
+    Args:
+        client: RegistryClient for API calls.
+        auth_token: Bearer token for change feed access.
+            If omitted, background sync is disabled (load-only mode).
+        poll_interval: Seconds between feed polls (default 60).
+        cursor_store: Optional CursorStore for feed cursor persistence.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        client: RegistryClient,
+        *,
+        auth_token: str | None = None,
+        poll_interval: float = 60.0,
+        cursor_store: CursorStore | None = None,
+    ) -&gt; None:
+        self._client = client
+        self._auth_token = auth_token
+        self._poll_interval = poll_interval
+        self._cursor_store = cursor_store
+        self._domain_to_agents: dict[str, set[str]] = {}
+        self._agent_to_domains: dict[str, set[str]] = {}
+        self._loaded = False
+        self._sync: RegistrySync | None = None
+        self._task: asyncio.Task[None] | None = None
+
+    # ------------------------------------------------------------------
+    # Queries (synchronous, no network)
+    # ------------------------------------------------------------------
+
+    def is_authorized(self, agent_url: str, domain: str) -&gt; bool:
+        &#34;&#34;&#34;Check if an agent is authorized for a domain.&#34;&#34;&#34;
+        return agent_url in self._domain_to_agents.get(domain, set())
+
+    def get_domains(self, agent_url: str) -&gt; frozenset[str]:
+        &#34;&#34;&#34;Get all domains authorized for an agent.&#34;&#34;&#34;
+        return frozenset(self._agent_to_domains.get(agent_url, set()))
+
+    def get_agents(self, domain: str) -&gt; frozenset[str]:
+        &#34;&#34;&#34;Get all agents authorized for a domain.&#34;&#34;&#34;
+        return frozenset(self._domain_to_agents.get(domain, set()))
+
+    @property
+    def agent_count(self) -&gt; int:
+        &#34;&#34;&#34;Number of agents in the index.&#34;&#34;&#34;
+        return len(self._agent_to_domains)
+
+    @property
+    def domain_count(self) -&gt; int:
+        &#34;&#34;&#34;Number of domains in the index.&#34;&#34;&#34;
+        return len(self._domain_to_agents)
+
+    @property
+    def loaded(self) -&gt; bool:
+        &#34;&#34;&#34;Whether initial data has been loaded.&#34;&#34;&#34;
+        return self._loaded
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+
+    async def load(self) -&gt; None:
+        &#34;&#34;&#34;Fetch initial state from the registry API.
+
+        Calls ``list_agents()`` and builds the bidirectional
+        authorization index from each agent&#39;s ``publisher_domains``.
+        &#34;&#34;&#34;
+        agents = await self._client.list_agents(properties=True)
+        domain_to_agents: dict[str, set[str]] = {}
+        agent_to_domains: dict[str, set[str]] = {}
+
+        for agent in agents:
+            domains = agent.publisher_domains or []
+            if domains:
+                agent_to_domains[agent.url] = set(domains)
+                for domain in domains:
+                    domain_to_agents.setdefault(domain, set()).add(agent.url)
+
+        self._domain_to_agents = domain_to_agents
+        self._agent_to_domains = agent_to_domains
+        self._loaded = True
+        logger.info(
+            &#34;PropertyRegistry loaded: %d agents, %d domains&#34;,
+            len(agent_to_domains),
+            len(domain_to_agents),
+        )
+
+    async def start(self) -&gt; None:
+        &#34;&#34;&#34;Load initial state and start background sync.
+
+        If ``auth_token`` was not provided, only loads initial state
+        without starting the polling loop.
+        &#34;&#34;&#34;
+        if not self._loaded:
+            await self.load()
+
+        if self._auth_token is None:
+            logger.info(
+                &#34;PropertyRegistry: no auth_token, background sync disabled&#34;
+            )
+            return
+
+        self._sync = RegistrySync(
+            self._client,
+            auth_token=self._auth_token,
+            poll_interval=self._poll_interval,
+            cursor_store=self._cursor_store,
+            types=&#34;authorization.*,agent.*,property.*&#34;,
+        )
+        self._sync.on_all(self._handle_event)
+        self._task = asyncio.create_task(self._sync.start())
+
+    async def stop(self) -&gt; None:
+        &#34;&#34;&#34;Stop background sync.&#34;&#34;&#34;
+        if self._sync is not None:
+            await self._sync.stop()
+        if self._task is not None:
+            await self._task
+            self._task = None
+        self._sync = None
+
+    async def __aenter__(self) -&gt; PropertyRegistry:
+        await self.start()
+        return self
+
+    async def __aexit__(self, *args: object) -&gt; None:
+        await self.stop()
+
+    async def refresh(self) -&gt; None:
+        &#34;&#34;&#34;Force a full reload from the API.&#34;&#34;&#34;
+        self._domain_to_agents.clear()
+        self._agent_to_domains.clear()
+        self._loaded = False
+        await self.load()
+
+    # ------------------------------------------------------------------
+    # Event handling
+    #
+    # Trust model: events are fetched over HTTPS from the registry API
+    # using a Bearer token. The events are not cryptographically signed.
+    # A compromised transport or registry could inject forged events.
+    # ------------------------------------------------------------------
+
+    async def _handle_event(self, event: FeedEvent) -&gt; None:
+        &#34;&#34;&#34;Route feed events to the appropriate handler.&#34;&#34;&#34;
+        et = event.event_type
+        if et.startswith(&#34;authorization.&#34;):
+            self._apply_authorization(event)
+        elif et == &#34;agent.deleted&#34;:
+            self._remove_agent(event.entity_id)
+        elif et in (&#34;agent.created&#34;, &#34;agent.updated&#34;):
+            await self._refresh_agent(event.payload.get(&#34;url&#34;, event.entity_id))
+        elif et == &#34;property.deleted&#34;:
+            self._remove_domain(event.entity_id)
+        # Unknown event types: ignore silently (forward compatible)
+
+    _ADD_TYPES = {&#34;authorization.created&#34;, &#34;authorization.granted&#34;}
+    _REMOVE_TYPES = {&#34;authorization.revoked&#34;, &#34;authorization.deleted&#34;}
+
+    def _apply_authorization(self, event: FeedEvent) -&gt; None:
+        &#34;&#34;&#34;Add or remove an authorization edge.&#34;&#34;&#34;
+        agent_url = event.payload.get(&#34;agent_url&#34;, &#34;&#34;)
+        domain = event.payload.get(&#34;domain&#34;, &#34;&#34;)
+        if not agent_url or not domain:
+            return
+
+        if event.event_type in self._ADD_TYPES:
+            self._domain_to_agents.setdefault(domain, set()).add(agent_url)
+            self._agent_to_domains.setdefault(agent_url, set()).add(domain)
+        elif event.event_type in self._REMOVE_TYPES:
+            self._domain_to_agents.get(domain, set()).discard(agent_url)
+            self._agent_to_domains.get(agent_url, set()).discard(domain)
+
+    def _remove_agent(self, agent_url: str) -&gt; None:
+        &#34;&#34;&#34;Remove all authorization edges for an agent.&#34;&#34;&#34;
+        domains = self._agent_to_domains.pop(agent_url, set())
+        for domain in domains:
+            agents = self._domain_to_agents.get(domain)
+            if agents is not None:
+                agents.discard(agent_url)
+                if not agents:
+                    del self._domain_to_agents[domain]
+
+    def _remove_domain(self, domain: str) -&gt; None:
+        &#34;&#34;&#34;Remove all authorization edges for a domain.&#34;&#34;&#34;
+        agents = self._domain_to_agents.pop(domain, set())
+        for agent_url in agents:
+            domains = self._agent_to_domains.get(agent_url)
+            if domains is not None:
+                domains.discard(domain)
+                if not domains:
+                    del self._agent_to_domains[agent_url]
+
+    async def _refresh_agent(self, agent_url: str) -&gt; None:
+        &#34;&#34;&#34;Re-fetch a single agent&#39;s domains and update indexes.&#34;&#34;&#34;
+        try:
+            data = await self._client.get_agent_domains(agent_url)
+            new_domains = {
+                p[&#34;domain&#34;]
+                for p in data.get(&#34;properties&#34;, [])
+                if &#34;domain&#34; in p
+            }
+        except Exception as exc:
+            logger.warning(&#34;Failed to refresh agent %s: %s&#34;, agent_url, exc)
+            return
+
+        # Remove old edges
+        old_domains = self._agent_to_domains.get(agent_url, set())
+        for d in old_domains:
+            s = self._domain_to_agents.get(d)
+            if s is not None:
+                s.discard(agent_url)
+                if not s:
+                    del self._domain_to_agents[d]
+
+        # Add new edges
+        if new_domains:
+            self._agent_to_domains[agent_url] = new_domains
+            for d in new_domains:
+                self._domain_to_agents.setdefault(d, set()).add(agent_url)
+        else:
+            self._agent_to_domains.pop(agent_url, None)</code></pre>
+</details>
+<div class="desc"><p>Local cache of property/agent authorization relationships.</p>
+<p>Queries are synchronous dict lookups — no network calls.
+Background sync is opt-in via <code>auth_token</code>.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>client</code></strong></dt>
+<dd>RegistryClient for API calls.</dd>
+<dt><strong><code>auth_token</code></strong></dt>
+<dd>Bearer token for change feed access.
+If omitted, background sync is disabled (load-only mode).</dd>
+<dt><strong><code>poll_interval</code></strong></dt>
+<dd>Seconds between feed polls (default 60).</dd>
+<dt><strong><code>cursor_store</code></strong></dt>
+<dd>Optional CursorStore for feed cursor persistence.</dd>
+</dl></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.property_registry.PropertyRegistry.agent_count"><code class="name">prop <span class="ident">agent_count</span> : int</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def agent_count(self) -&gt; int:
+    &#34;&#34;&#34;Number of agents in the index.&#34;&#34;&#34;
+    return len(self._agent_to_domains)</code></pre>
+</details>
+<div class="desc"><p>Number of agents in the index.</p></div>
+</dd>
+<dt id="adcp.property_registry.PropertyRegistry.domain_count"><code class="name">prop <span class="ident">domain_count</span> : int</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def domain_count(self) -&gt; int:
+    &#34;&#34;&#34;Number of domains in the index.&#34;&#34;&#34;
+    return len(self._domain_to_agents)</code></pre>
+</details>
+<div class="desc"><p>Number of domains in the index.</p></div>
+</dd>
+<dt id="adcp.property_registry.PropertyRegistry.loaded"><code class="name">prop <span class="ident">loaded</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def loaded(self) -&gt; bool:
+    &#34;&#34;&#34;Whether initial data has been loaded.&#34;&#34;&#34;
+    return self._loaded</code></pre>
+</details>
+<div class="desc"><p>Whether initial data has been loaded.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.property_registry.PropertyRegistry.get_agents"><code class="name flex">
+<span>def <span class="ident">get_agents</span></span>(<span>self, domain: str) ‑> frozenset[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_agents(self, domain: str) -&gt; frozenset[str]:
+    &#34;&#34;&#34;Get all agents authorized for a domain.&#34;&#34;&#34;
+    return frozenset(self._domain_to_agents.get(domain, set()))</code></pre>
+</details>
+<div class="desc"><p>Get all agents authorized for a domain.</p></div>
+</dd>
+<dt id="adcp.property_registry.PropertyRegistry.get_domains"><code class="name flex">
+<span>def <span class="ident">get_domains</span></span>(<span>self, agent_url: str) ‑> frozenset[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_domains(self, agent_url: str) -&gt; frozenset[str]:
+    &#34;&#34;&#34;Get all domains authorized for an agent.&#34;&#34;&#34;
+    return frozenset(self._agent_to_domains.get(agent_url, set()))</code></pre>
+</details>
+<div class="desc"><p>Get all domains authorized for an agent.</p></div>
+</dd>
+<dt id="adcp.property_registry.PropertyRegistry.is_authorized"><code class="name flex">
+<span>def <span class="ident">is_authorized</span></span>(<span>self, agent_url: str, domain: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_authorized(self, agent_url: str, domain: str) -&gt; bool:
+    &#34;&#34;&#34;Check if an agent is authorized for a domain.&#34;&#34;&#34;
+    return agent_url in self._domain_to_agents.get(domain, set())</code></pre>
+</details>
+<div class="desc"><p>Check if an agent is authorized for a domain.</p></div>
+</dd>
+<dt id="adcp.property_registry.PropertyRegistry.load"><code class="name flex">
+<span>async def <span class="ident">load</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def load(self) -&gt; None:
+    &#34;&#34;&#34;Fetch initial state from the registry API.
+
+    Calls ``list_agents()`` and builds the bidirectional
+    authorization index from each agent&#39;s ``publisher_domains``.
+    &#34;&#34;&#34;
+    agents = await self._client.list_agents(properties=True)
+    domain_to_agents: dict[str, set[str]] = {}
+    agent_to_domains: dict[str, set[str]] = {}
+
+    for agent in agents:
+        domains = agent.publisher_domains or []
+        if domains:
+            agent_to_domains[agent.url] = set(domains)
+            for domain in domains:
+                domain_to_agents.setdefault(domain, set()).add(agent.url)
+
+    self._domain_to_agents = domain_to_agents
+    self._agent_to_domains = agent_to_domains
+    self._loaded = True
+    logger.info(
+        &#34;PropertyRegistry loaded: %d agents, %d domains&#34;,
+        len(agent_to_domains),
+        len(domain_to_agents),
+    )</code></pre>
+</details>
+<div class="desc"><p>Fetch initial state from the registry API.</p>
+<p>Calls <code>list_agents()</code> and builds the bidirectional
+authorization index from each agent's <code>publisher_domains</code>.</p></div>
+</dd>
+<dt id="adcp.property_registry.PropertyRegistry.refresh"><code class="name flex">
+<span>async def <span class="ident">refresh</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def refresh(self) -&gt; None:
+    &#34;&#34;&#34;Force a full reload from the API.&#34;&#34;&#34;
+    self._domain_to_agents.clear()
+    self._agent_to_domains.clear()
+    self._loaded = False
+    await self.load()</code></pre>
+</details>
+<div class="desc"><p>Force a full reload from the API.</p></div>
+</dd>
+<dt id="adcp.property_registry.PropertyRegistry.start"><code class="name flex">
+<span>async def <span class="ident">start</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def start(self) -&gt; None:
+    &#34;&#34;&#34;Load initial state and start background sync.
+
+    If ``auth_token`` was not provided, only loads initial state
+    without starting the polling loop.
+    &#34;&#34;&#34;
+    if not self._loaded:
+        await self.load()
+
+    if self._auth_token is None:
+        logger.info(
+            &#34;PropertyRegistry: no auth_token, background sync disabled&#34;
+        )
+        return
+
+    self._sync = RegistrySync(
+        self._client,
+        auth_token=self._auth_token,
+        poll_interval=self._poll_interval,
+        cursor_store=self._cursor_store,
+        types=&#34;authorization.*,agent.*,property.*&#34;,
+    )
+    self._sync.on_all(self._handle_event)
+    self._task = asyncio.create_task(self._sync.start())</code></pre>
+</details>
+<div class="desc"><p>Load initial state and start background sync.</p>
+<p>If <code>auth_token</code> was not provided, only loads initial state
+without starting the polling loop.</p></div>
+</dd>
+<dt id="adcp.property_registry.PropertyRegistry.stop"><code class="name flex">
+<span>async def <span class="ident">stop</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def stop(self) -&gt; None:
+    &#34;&#34;&#34;Stop background sync.&#34;&#34;&#34;
+    if self._sync is not None:
+        await self._sync.stop()
+    if self._task is not None:
+        await self._task
+        self._task = None
+    self._sync = None</code></pre>
+</details>
+<div class="desc"><p>Stop background sync.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.property_registry.PropertyRegistry" href="#adcp.property_registry.PropertyRegistry">PropertyRegistry</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.property_registry.PropertyRegistry.agent_count" href="#adcp.property_registry.PropertyRegistry.agent_count">agent_count</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.domain_count" href="#adcp.property_registry.PropertyRegistry.domain_count">domain_count</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.get_agents" href="#adcp.property_registry.PropertyRegistry.get_agents">get_agents</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.get_domains" href="#adcp.property_registry.PropertyRegistry.get_domains">get_domains</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.is_authorized" href="#adcp.property_registry.PropertyRegistry.is_authorized">is_authorized</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.load" href="#adcp.property_registry.PropertyRegistry.load">load</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.loaded" href="#adcp.property_registry.PropertyRegistry.loaded">loaded</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.refresh" href="#adcp.property_registry.PropertyRegistry.refresh">refresh</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.start" href="#adcp.property_registry.PropertyRegistry.start">start</a></code></li>
+<li><code><a title="adcp.property_registry.PropertyRegistry.stop" href="#adcp.property_registry.PropertyRegistry.stop">stop</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

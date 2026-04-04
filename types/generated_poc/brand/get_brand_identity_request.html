@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class FieldModel(Enum):
     description = &#39;description&#39;
-    industry = &#39;industry&#39;
+    industries = &#39;industries&#39;
     keller_type = &#39;keller_type&#39;
     logos = &#39;logos&#39;
     colors = &#39;colors&#39;
@@ -126,7 +126,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.industry"><code class="name">var <span class="ident">industry</span></code></dt>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.industries"><code class="name">var <span class="ident">industries</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -174,6 +174,8 @@ attributes &ndash; see the documentation for details.</p></div>
         extra=&#39;allow&#39;,
     )
     brand_id: Annotated[str, Field(description=&#39;Brand identifier from brand.json brands array&#39;)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     fields: Annotated[
         list[FieldModel] | None,
         Field(
@@ -186,9 +188,7 @@ attributes &ndash; see the documentation for details.</p></div>
         Field(
             description=&#34;Intended use case, so the agent can tailor the response. A &#39;voice_synthesis&#39; use case returns voice configs; a &#39;likeness&#39; use case returns high-res photos and appearance guidelines.&#34;
         ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -265,7 +265,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.colors" href="#adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.colors">colors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.description" href="#adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.fonts" href="#adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.fonts">fonts</a></code></li>
-<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.industry" href="#adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.industry">industry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.industries" href="#adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.industries">industries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.keller_type" href="#adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.keller_type">keller_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.logos" href="#adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.logos">logos</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.rights" href="#adcp.types.generated_poc.brand.get_brand_identity_request.FieldModel.rights">rights</a></code></li>

@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.enums.advertiser_industry API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.enums.advertiser_industry</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry"><code class="flex name class">
+<span>class <span class="ident">AdvertiserIndustry</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdvertiserIndustry(Enum):
+    automotive = &#39;automotive&#39;
+    automotive_electric_vehicles = &#39;automotive.electric_vehicles&#39;
+    automotive_parts_accessories = &#39;automotive.parts_accessories&#39;
+    automotive_luxury = &#39;automotive.luxury&#39;
+    beauty_cosmetics = &#39;beauty_cosmetics&#39;
+    beauty_cosmetics_skincare = &#39;beauty_cosmetics.skincare&#39;
+    beauty_cosmetics_fragrance = &#39;beauty_cosmetics.fragrance&#39;
+    beauty_cosmetics_haircare = &#39;beauty_cosmetics.haircare&#39;
+    cannabis = &#39;cannabis&#39;
+    cpg = &#39;cpg&#39;
+    cpg_personal_care = &#39;cpg.personal_care&#39;
+    cpg_household = &#39;cpg.household&#39;
+    dating = &#39;dating&#39;
+    education = &#39;education&#39;
+    education_higher_education = &#39;education.higher_education&#39;
+    education_online_learning = &#39;education.online_learning&#39;
+    education_k12 = &#39;education.k12&#39;
+    energy_utilities = &#39;energy_utilities&#39;
+    energy_utilities_renewable = &#39;energy_utilities.renewable&#39;
+    fashion_apparel = &#39;fashion_apparel&#39;
+    fashion_apparel_luxury = &#39;fashion_apparel.luxury&#39;
+    fashion_apparel_sportswear = &#39;fashion_apparel.sportswear&#39;
+    finance = &#39;finance&#39;
+    finance_banking = &#39;finance.banking&#39;
+    finance_insurance = &#39;finance.insurance&#39;
+    finance_investment = &#39;finance.investment&#39;
+    finance_cryptocurrency = &#39;finance.cryptocurrency&#39;
+    food_beverage = &#39;food_beverage&#39;
+    food_beverage_alcohol = &#39;food_beverage.alcohol&#39;
+    food_beverage_restaurants = &#39;food_beverage.restaurants&#39;
+    food_beverage_packaged_goods = &#39;food_beverage.packaged_goods&#39;
+    gambling_betting = &#39;gambling_betting&#39;
+    gambling_betting_sports_betting = &#39;gambling_betting.sports_betting&#39;
+    gambling_betting_casino = &#39;gambling_betting.casino&#39;
+    gaming = &#39;gaming&#39;
+    gaming_mobile = &#39;gaming.mobile&#39;
+    gaming_console_pc = &#39;gaming.console_pc&#39;
+    gaming_esports = &#39;gaming.esports&#39;
+    government_nonprofit = &#39;government_nonprofit&#39;
+    government_nonprofit_political = &#39;government_nonprofit.political&#39;
+    government_nonprofit_charity = &#39;government_nonprofit.charity&#39;
+    healthcare = &#39;healthcare&#39;
+    healthcare_pharmaceutical = &#39;healthcare.pharmaceutical&#39;
+    healthcare_medical_devices = &#39;healthcare.medical_devices&#39;
+    healthcare_wellness = &#39;healthcare.wellness&#39;
+    home_garden = &#39;home_garden&#39;
+    home_garden_furniture = &#39;home_garden.furniture&#39;
+    home_garden_home_improvement = &#39;home_garden.home_improvement&#39;
+    media_entertainment = &#39;media_entertainment&#39;
+    media_entertainment_podcasts = &#39;media_entertainment.podcasts&#39;
+    media_entertainment_music = &#39;media_entertainment.music&#39;
+    media_entertainment_film_tv = &#39;media_entertainment.film_tv&#39;
+    media_entertainment_publishing = &#39;media_entertainment.publishing&#39;
+    media_entertainment_live_events = &#39;media_entertainment.live_events&#39;
+    pets = &#39;pets&#39;
+    professional_services = &#39;professional_services&#39;
+    professional_services_legal = &#39;professional_services.legal&#39;
+    professional_services_consulting = &#39;professional_services.consulting&#39;
+    real_estate = &#39;real_estate&#39;
+    real_estate_residential = &#39;real_estate.residential&#39;
+    real_estate_commercial = &#39;real_estate.commercial&#39;
+    recruitment_hr = &#39;recruitment_hr&#39;
+    retail = &#39;retail&#39;
+    retail_ecommerce = &#39;retail.ecommerce&#39;
+    retail_department_stores = &#39;retail.department_stores&#39;
+    sports_fitness = &#39;sports_fitness&#39;
+    sports_fitness_equipment = &#39;sports_fitness.equipment&#39;
+    sports_fitness_teams_leagues = &#39;sports_fitness.teams_leagues&#39;
+    technology = &#39;technology&#39;
+    technology_software = &#39;technology.software&#39;
+    technology_hardware = &#39;technology.hardware&#39;
+    technology_ai_ml = &#39;technology.ai_ml&#39;
+    telecom = &#39;telecom&#39;
+    telecom_mobile_carriers = &#39;telecom.mobile_carriers&#39;
+    telecom_internet_providers = &#39;telecom.internet_providers&#39;
+    transportation_logistics = &#39;transportation_logistics&#39;
+    travel_hospitality = &#39;travel_hospitality&#39;
+    travel_hospitality_airlines = &#39;travel_hospitality.airlines&#39;
+    travel_hospitality_hotels = &#39;travel_hospitality.hotels&#39;
+    travel_hospitality_cruise = &#39;travel_hospitality.cruise&#39;
+    travel_hospitality_tourism = &#39;travel_hospitality.tourism&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive"><code class="name">var <span class="ident">automotive</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_electric_vehicles"><code class="name">var <span class="ident">automotive_electric_vehicles</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_luxury"><code class="name">var <span class="ident">automotive_luxury</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_parts_accessories"><code class="name">var <span class="ident">automotive_parts_accessories</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics"><code class="name">var <span class="ident">beauty_cosmetics</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_fragrance"><code class="name">var <span class="ident">beauty_cosmetics_fragrance</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_haircare"><code class="name">var <span class="ident">beauty_cosmetics_haircare</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_skincare"><code class="name">var <span class="ident">beauty_cosmetics_skincare</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cannabis"><code class="name">var <span class="ident">cannabis</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg"><code class="name">var <span class="ident">cpg</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg_household"><code class="name">var <span class="ident">cpg_household</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg_personal_care"><code class="name">var <span class="ident">cpg_personal_care</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.dating"><code class="name">var <span class="ident">dating</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education"><code class="name">var <span class="ident">education</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_higher_education"><code class="name">var <span class="ident">education_higher_education</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_k12"><code class="name">var <span class="ident">education_k12</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_online_learning"><code class="name">var <span class="ident">education_online_learning</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.energy_utilities"><code class="name">var <span class="ident">energy_utilities</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.energy_utilities_renewable"><code class="name">var <span class="ident">energy_utilities_renewable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel"><code class="name">var <span class="ident">fashion_apparel</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel_luxury"><code class="name">var <span class="ident">fashion_apparel_luxury</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel_sportswear"><code class="name">var <span class="ident">fashion_apparel_sportswear</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance"><code class="name">var <span class="ident">finance</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_banking"><code class="name">var <span class="ident">finance_banking</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_cryptocurrency"><code class="name">var <span class="ident">finance_cryptocurrency</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_insurance"><code class="name">var <span class="ident">finance_insurance</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_investment"><code class="name">var <span class="ident">finance_investment</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage"><code class="name">var <span class="ident">food_beverage</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_alcohol"><code class="name">var <span class="ident">food_beverage_alcohol</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_packaged_goods"><code class="name">var <span class="ident">food_beverage_packaged_goods</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_restaurants"><code class="name">var <span class="ident">food_beverage_restaurants</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting"><code class="name">var <span class="ident">gambling_betting</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting_casino"><code class="name">var <span class="ident">gambling_betting_casino</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting_sports_betting"><code class="name">var <span class="ident">gambling_betting_sports_betting</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming"><code class="name">var <span class="ident">gaming</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_console_pc"><code class="name">var <span class="ident">gaming_console_pc</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_esports"><code class="name">var <span class="ident">gaming_esports</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_mobile"><code class="name">var <span class="ident">gaming_mobile</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit"><code class="name">var <span class="ident">government_nonprofit</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit_charity"><code class="name">var <span class="ident">government_nonprofit_charity</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit_political"><code class="name">var <span class="ident">government_nonprofit_political</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare"><code class="name">var <span class="ident">healthcare</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_medical_devices"><code class="name">var <span class="ident">healthcare_medical_devices</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_pharmaceutical"><code class="name">var <span class="ident">healthcare_pharmaceutical</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_wellness"><code class="name">var <span class="ident">healthcare_wellness</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden"><code class="name">var <span class="ident">home_garden</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden_furniture"><code class="name">var <span class="ident">home_garden_furniture</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden_home_improvement"><code class="name">var <span class="ident">home_garden_home_improvement</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment"><code class="name">var <span class="ident">media_entertainment</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_film_tv"><code class="name">var <span class="ident">media_entertainment_film_tv</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_live_events"><code class="name">var <span class="ident">media_entertainment_live_events</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_music"><code class="name">var <span class="ident">media_entertainment_music</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_podcasts"><code class="name">var <span class="ident">media_entertainment_podcasts</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_publishing"><code class="name">var <span class="ident">media_entertainment_publishing</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.pets"><code class="name">var <span class="ident">pets</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services"><code class="name">var <span class="ident">professional_services</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services_consulting"><code class="name">var <span class="ident">professional_services_consulting</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services_legal"><code class="name">var <span class="ident">professional_services_legal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate"><code class="name">var <span class="ident">real_estate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate_commercial"><code class="name">var <span class="ident">real_estate_commercial</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate_residential"><code class="name">var <span class="ident">real_estate_residential</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.recruitment_hr"><code class="name">var <span class="ident">recruitment_hr</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail"><code class="name">var <span class="ident">retail</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail_department_stores"><code class="name">var <span class="ident">retail_department_stores</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail_ecommerce"><code class="name">var <span class="ident">retail_ecommerce</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness"><code class="name">var <span class="ident">sports_fitness</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness_equipment"><code class="name">var <span class="ident">sports_fitness_equipment</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness_teams_leagues"><code class="name">var <span class="ident">sports_fitness_teams_leagues</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology"><code class="name">var <span class="ident">technology</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_ai_ml"><code class="name">var <span class="ident">technology_ai_ml</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_hardware"><code class="name">var <span class="ident">technology_hardware</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_software"><code class="name">var <span class="ident">technology_software</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom"><code class="name">var <span class="ident">telecom</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom_internet_providers"><code class="name">var <span class="ident">telecom_internet_providers</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom_mobile_carriers"><code class="name">var <span class="ident">telecom_mobile_carriers</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.transportation_logistics"><code class="name">var <span class="ident">transportation_logistics</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality"><code class="name">var <span class="ident">travel_hospitality</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_airlines"><code class="name">var <span class="ident">travel_hospitality_airlines</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_cruise"><code class="name">var <span class="ident">travel_hospitality_cruise</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_hotels"><code class="name">var <span class="ident">travel_hospitality_hotels</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_tourism"><code class="name">var <span class="ident">travel_hospitality_tourism</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.enums" href="index.html">adcp.types.generated_poc.enums</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry">AdvertiserIndustry</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive">automotive</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_electric_vehicles" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_electric_vehicles">automotive_electric_vehicles</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_luxury" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_luxury">automotive_luxury</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_parts_accessories" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.automotive_parts_accessories">automotive_parts_accessories</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics">beauty_cosmetics</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_fragrance" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_fragrance">beauty_cosmetics_fragrance</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_haircare" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_haircare">beauty_cosmetics_haircare</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_skincare" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.beauty_cosmetics_skincare">beauty_cosmetics_skincare</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cannabis" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cannabis">cannabis</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg">cpg</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg_household" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg_household">cpg_household</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg_personal_care" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.cpg_personal_care">cpg_personal_care</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.dating" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.dating">dating</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education">education</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_higher_education" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_higher_education">education_higher_education</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_k12" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_k12">education_k12</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_online_learning" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.education_online_learning">education_online_learning</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.energy_utilities" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.energy_utilities">energy_utilities</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.energy_utilities_renewable" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.energy_utilities_renewable">energy_utilities_renewable</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel">fashion_apparel</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel_luxury" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel_luxury">fashion_apparel_luxury</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel_sportswear" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.fashion_apparel_sportswear">fashion_apparel_sportswear</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance">finance</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_banking" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_banking">finance_banking</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_cryptocurrency" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_cryptocurrency">finance_cryptocurrency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_insurance" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_insurance">finance_insurance</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_investment" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.finance_investment">finance_investment</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage">food_beverage</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_alcohol" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_alcohol">food_beverage_alcohol</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_packaged_goods" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_packaged_goods">food_beverage_packaged_goods</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_restaurants" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.food_beverage_restaurants">food_beverage_restaurants</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting">gambling_betting</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting_casino" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting_casino">gambling_betting_casino</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting_sports_betting" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gambling_betting_sports_betting">gambling_betting_sports_betting</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming">gaming</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_console_pc" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_console_pc">gaming_console_pc</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_esports" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_esports">gaming_esports</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_mobile" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.gaming_mobile">gaming_mobile</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit">government_nonprofit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit_charity" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit_charity">government_nonprofit_charity</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit_political" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.government_nonprofit_political">government_nonprofit_political</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare">healthcare</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_medical_devices" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_medical_devices">healthcare_medical_devices</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_pharmaceutical" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_pharmaceutical">healthcare_pharmaceutical</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_wellness" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.healthcare_wellness">healthcare_wellness</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden">home_garden</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden_furniture" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden_furniture">home_garden_furniture</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden_home_improvement" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.home_garden_home_improvement">home_garden_home_improvement</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment">media_entertainment</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_film_tv" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_film_tv">media_entertainment_film_tv</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_live_events" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_live_events">media_entertainment_live_events</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_music" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_music">media_entertainment_music</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_podcasts" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_podcasts">media_entertainment_podcasts</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_publishing" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.media_entertainment_publishing">media_entertainment_publishing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.pets" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.pets">pets</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services">professional_services</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services_consulting" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services_consulting">professional_services_consulting</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services_legal" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.professional_services_legal">professional_services_legal</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate">real_estate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate_commercial" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate_commercial">real_estate_commercial</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate_residential" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.real_estate_residential">real_estate_residential</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.recruitment_hr" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.recruitment_hr">recruitment_hr</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail">retail</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail_department_stores" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail_department_stores">retail_department_stores</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail_ecommerce" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.retail_ecommerce">retail_ecommerce</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness">sports_fitness</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness_equipment" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness_equipment">sports_fitness_equipment</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness_teams_leagues" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.sports_fitness_teams_leagues">sports_fitness_teams_leagues</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology">technology</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_ai_ml" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_ai_ml">technology_ai_ml</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_hardware" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_hardware">technology_hardware</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_software" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.technology_software">technology_software</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom">telecom</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom_internet_providers" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom_internet_providers">telecom_internet_providers</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom_mobile_carriers" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.telecom_mobile_carriers">telecom_mobile_carriers</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.transportation_logistics" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.transportation_logistics">transportation_logistics</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality">travel_hospitality</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_airlines" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_airlines">travel_hospitality_airlines</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_cruise" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_cruise">travel_hospitality_cruise</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_hotels" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_hotels">travel_hospitality_hotels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_tourism" href="#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry.travel_hospitality_tourism">travel_hospitality_tourism</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

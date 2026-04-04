@@ -63,17 +63,18 @@ el.replaceWith(d);
         catalog_type_1.CatalogType,
         Field(description=&#39;The catalog type this requirement applies to&#39;),
     ]
-    required: Annotated[
-        bool | None,
+    feed_formats: Annotated[
+        list[feed_format.FeedFormat] | None,
         Field(
-            description=&#39;Whether this catalog type must be present. When true, creatives using this format must reference a synced catalog of this type.&#39;
+            description=&#39;Accepted feed formats for this catalog type. When specified, the synced catalog must use one of these formats. When omitted, any format is accepted.&#39;,
+            min_length=1,
         ),
-    ] = True
-    min_items: Annotated[
-        int | None,
+    ] = None
+    field_bindings: Annotated[
+        list[catalog_field_binding.CatalogFieldBinding] | None,
         Field(
-            description=&#39;Minimum number of items the catalog must contain for this format to render properly (e.g., a carousel might require at least 3 products)&#39;,
-            ge=1,
+            description=&#39;Explicit mappings from format template slots to catalog item fields or typed asset pools. Optional — creative agents can infer mappings without them, but bindings make the relationship self-describing and enable validation. Covers scalar fields (asset_id → catalog_field), asset pools (asset_id → asset_group_id on the catalog item), and repeatable groups that iterate over catalog items.&#39;,
+            min_length=1,
         ),
     ] = None
     max_items: Annotated[
@@ -83,18 +84,11 @@ el.replaceWith(d);
             ge=1,
         ),
     ] = None
-    required_fields: Annotated[
-        list[str] | None,
+    min_items: Annotated[
+        int | None,
         Field(
-            description=&#34;Fields that must be present and non-empty on every item in the catalog. Field names are catalog-type-specific (e.g., &#39;title&#39;, &#39;price&#39;, &#39;image_url&#39; for product catalogs; &#39;store_id&#39;, &#39;quantity&#39; for inventory feeds).&#34;,
-            min_length=1,
-        ),
-    ] = None
-    feed_formats: Annotated[
-        list[feed_format.FeedFormat] | None,
-        Field(
-            description=&#39;Accepted feed formats for this catalog type. When specified, the synced catalog must use one of these formats. When omitted, any format is accepted.&#39;,
-            min_length=1,
+            description=&#39;Minimum number of items the catalog must contain for this format to render properly (e.g., a carousel might require at least 3 products)&#39;,
+            ge=1,
         ),
     ] = None
     offering_asset_constraints: Annotated[
@@ -104,10 +98,16 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    field_bindings: Annotated[
-        list[catalog_field_binding.CatalogFieldBinding] | None,
+    required: Annotated[
+        bool | None,
         Field(
-            description=&#39;Explicit mappings from format template slots to catalog item fields or typed asset pools. Optional — creative agents can infer mappings without them, but bindings make the relationship self-describing and enable validation. Covers scalar fields (asset_id → catalog_field), asset pools (asset_id → asset_group_id on the catalog item), and repeatable groups that iterate over catalog items.&#39;,
+            description=&#39;Whether this catalog type must be present. When true, creatives using this format must reference a synced catalog of this type.&#39;
+        ),
+    ] = True
+    required_fields: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Fields that must be present and non-empty on every item in the catalog. Field names are catalog-type-specific (e.g., &#39;title&#39;, &#39;price&#39;, &#39;image_url&#39; for product catalogs; &#39;store_id&#39;, &#39;quantity&#39; for inventory feeds).&#34;,
             min_length=1,
         ),
     ] = None</code></pre>

@@ -59,29 +59,53 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    media_buy_id: Annotated[
-        str | None, Field(description=&#34;Publisher&#39;s ID of the media buy to update&#34;)
+    canceled: Annotated[
+        Literal[True],
+        Field(
+            description=&#39;Cancel the entire media buy. Cancellation is irreversible — canceled media buys cannot be reactivated. Sellers MAY reject with NOT_CANCELLABLE if the media buy cannot be canceled in its current state.&#39;
+        ),
+    ] = True
+    cancellation_reason: Annotated[
+        str | None,
+        Field(
+            description=&#39;Reason for cancellation. Sellers SHOULD store this and return it in subsequent get_media_buys responses.&#39;,
+            max_length=500,
+        ),
     ] = None
-    buyer_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s reference for the media buy to update&#34;)
+    context: context_1.ContextObject | None = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+        ),
+    ] = None
+    invoice_recipient: Annotated[
+        business_entity.BusinessEntity | None,
+        Field(
+            description=&#34;Update who receives the invoice for this buy. When provided, the seller invoices this entity instead of the account&#39;s default billing_entity. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request.&#34;
+        ),
+    ] = None
+    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s ID of the media buy to update&#34;)]
+    new_packages: Annotated[
+        list[package_request.PackageRequest] | None,
+        Field(
+            description=&#39;New packages to add to this media buy. Uses the same schema as create_media_buy packages. Sellers that support mid-flight package additions advertise add_packages in valid_actions. Sellers that do not support this MUST reject with UNSUPPORTED_FEATURE.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    packages: Annotated[
+        list[package_update.PackageUpdate] | None,
+        Field(description=&#39;Package-specific updates for existing packages&#39;, min_length=1),
     ] = None
     paused: Annotated[
         bool | None,
         Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
-    ] = None
-    start_time: start_timing.StartTiming | None = None
-    end_time: Annotated[
-        AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
-    ] = None
-    packages: Annotated[
-        list[package_update.PackageUpdate] | None,
-        Field(description=&#39;Package-specific updates&#39;, min_length=1),
-    ] = None
-    reporting_webhook: Annotated[
-        reporting_webhook_1.ReportingWebhook | None,
-        Field(
-            description=&#39;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#39;
-        ),
     ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
@@ -89,16 +113,20 @@ el.replaceWith(d);
             description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#39;
         ),
     ] = None
-    idempotency_key: Annotated[
-        str | None,
+    reporting_webhook: Annotated[
+        reporting_webhook_1.ReportingWebhook | None,
         Field(
-            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once.&#39;,
-            max_length=255,
-            min_length=8,
+            description=&#39;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#39;
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    revision: Annotated[
+        int | None,
+        Field(
+            description=&#34;Expected current revision for optimistic concurrency. When provided, sellers MUST reject the update with CONFLICT if the media buy&#39;s current revision does not match. Obtain from get_media_buys or the most recent update response.&#34;,
+            ge=1,
+        ),
+    ] = None
+    start_time: start_timing.StartTiming | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -117,7 +145,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.canceled"><code class="name">var <span class="ident">canceled</span> : Literal[True]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.cancellation_reason"><code class="name">var <span class="ident">cancellation_reason</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -137,11 +169,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.invoice_recipient"><code class="name">var <span class="ident">invoice_recipient</span> : <a title="adcp.types.generated_poc.core.business_entity.BusinessEntity" href="../core/business_entity.html#adcp.types.generated_poc.core.business_entity.BusinessEntity">BusinessEntity</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.new_packages"><code class="name">var <span class="ident">new_packages</span> : list[<a title="adcp.types.generated_poc.media_buy.package_request.PackageRequest" href="package_request.html#adcp.types.generated_poc.media_buy.package_request.PackageRequest">PackageRequest</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -158,6 +198,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.reporting_webhook"><code class="name">var <span class="ident">reporting_webhook</span> : <a title="adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook" href="../core/reporting_webhook.html#adcp.types.generated_poc.core.reporting_webhook.ReportingWebhook">ReportingWebhook</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.revision"><code class="name">var <span class="ident">revision</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -195,17 +239,21 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest">UpdateMediaBuyRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.buyer_ref" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.canceled" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.canceled">canceled</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.cancellation_reason" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.cancellation_reason">cancellation_reason</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.context" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.end_time" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.end_time">end_time</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.ext" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.idempotency_key" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.invoice_recipient" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.invoice_recipient">invoice_recipient</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.media_buy_id" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.model_config" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.new_packages" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.new_packages">new_packages</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.packages" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.packages">packages</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.paused" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.paused">paused</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.push_notification_config" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.push_notification_config">push_notification_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.reporting_webhook" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.reporting_webhook">reporting_webhook</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.revision" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.revision">revision</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.start_time" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.start_time">start_time</a></code></li>
 </ul>
 </li>

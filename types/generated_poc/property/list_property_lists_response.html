@@ -59,12 +59,12 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    ext: ext_1.ExtensionObject | None = None
     lists: Annotated[
         list[property_list.PropertyList],
         Field(description=&#39;Array of property lists (metadata only, not resolved properties)&#39;),
     ]
-    pagination: pagination_response.PaginationResponse | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    pagination: pagination_response.PaginationResponse | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

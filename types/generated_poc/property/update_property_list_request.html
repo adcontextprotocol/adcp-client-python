@@ -59,18 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    list_id: Annotated[str, Field(description=&#39;ID of the property list to update&#39;)]
-    name: Annotated[str | None, Field(description=&#39;New name for the list&#39;)] = None
-    description: Annotated[str | None, Field(description=&#39;New description&#39;)] = None
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
         Field(
             description=&#39;Complete replacement for the base properties list (not a patch). Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers).&#39;
         ),
-    ] = None
-    filters: Annotated[
-        property_list_filters.PropertyListFilters | None,
-        Field(description=&#39;Complete replacement for the filters (not a patch)&#39;),
     ] = None
     brand: Annotated[
         brand_ref.BrandReference | None,
@@ -78,14 +71,29 @@ el.replaceWith(d);
             description=&#39;Update brand reference. Resolved to full brand identity at execution time.&#39;
         ),
     ] = None
+    context: context_1.ContextObject | None = None
+    description: Annotated[str | None, Field(description=&#39;New description&#39;)] = None
+    ext: ext_1.ExtensionObject | None = None
+    filters: Annotated[
+        property_list_filters.PropertyListFilters | None,
+        Field(description=&#39;Complete replacement for the filters (not a patch)&#39;),
+    ] = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated unique key for at-most-once execution. If a request with the same key has already been processed, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+        ),
+    ] = None
+    list_id: Annotated[str, Field(description=&#39;ID of the property list to update&#39;)]
+    name: Annotated[str | None, Field(description=&#39;New name for the list&#39;)] = None
     webhook_url: Annotated[
         AnyUrl | None,
         Field(
             description=&#39;Update the webhook URL for list change notifications (set to empty string to remove)&#39;
         ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -125,6 +133,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.property.property_list_filters.PropertyListFilters" href="property_list_filters.html#adcp.types.generated_poc.property.property_list_filters.PropertyListFilters">PropertyListFilters</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -180,6 +192,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.description" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.ext" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.filters" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.filters">filters</a></code></li>
+<li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.idempotency_key" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.list_id" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.list_id">list_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.model_config" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.name" href="#adcp.types.generated_poc.property.update_property_list_request.UpdatePropertyListRequest.name">name</a></code></li>

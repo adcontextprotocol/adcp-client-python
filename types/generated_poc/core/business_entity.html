@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.core.business_entity API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.business_entity</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.core.business_entity.Address"><code class="flex name class">
+<span>class <span class="ident">Address</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Address(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    city: Annotated[str, Field(max_length=100)]
+    country: Annotated[
+        str, Field(description=&#39;ISO 3166-1 alpha-2 country code&#39;, pattern=&#39;^[A-Z]{2}$&#39;)
+    ]
+    postal_code: Annotated[str, Field(max_length=20)]
+    region: Annotated[
+        str | None, Field(description=&#39;State, province, or region&#39;, max_length=100)
+    ] = None
+    street: Annotated[
+        str, Field(description=&#39;Street address including building number&#39;, max_length=200)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.business_entity.Address.city"><code class="name">var <span class="ident">city</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Address.country"><code class="name">var <span class="ident">country</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Address.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Address.postal_code"><code class="name">var <span class="ident">postal_code</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Address.region"><code class="name">var <span class="ident">region</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Address.street"><code class="name">var <span class="ident">street</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Bank"><code class="flex name class">
+<span>class <span class="ident">Bank</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Bank(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    account_holder: Annotated[str, Field(description=&#39;Name on the bank account&#39;, max_length=200)]
+    account_number: Annotated[
+        str | None, Field(description=&#39;Bank account number for non-SEPA markets&#39;, max_length=30)
+    ] = None
+    bic: Annotated[
+        str | None,
+        Field(
+            description=&#39;Bank Identifier Code / SWIFT code (SEPA markets)&#39;,
+            pattern=&#39;^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$&#39;,
+        ),
+    ] = None
+    iban: Annotated[
+        str | None,
+        Field(
+            description=&#39;International Bank Account Number (SEPA markets)&#39;,
+            pattern=&#39;^[A-Z]{2}[0-9]{2}[A-Z0-9]{4,30}$&#39;,
+        ),
+    ] = None
+    routing_number: Annotated[
+        str | None,
+        Field(
+            description=&#39;Bank routing number for non-SEPA markets (e.g., US ABA routing number, Canadian transit/institution number)&#39;,
+            max_length=30,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.business_entity.Bank.account_holder"><code class="name">var <span class="ident">account_holder</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Bank.account_number"><code class="name">var <span class="ident">account_number</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Bank.bic"><code class="name">var <span class="ident">bic</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Bank.iban"><code class="name">var <span class="ident">iban</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Bank.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Bank.routing_number"><code class="name">var <span class="ident">routing_number</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity"><code class="flex name class">
+<span>class <span class="ident">BusinessEntity</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BusinessEntity(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    address: Annotated[
+        Address | None, Field(description=&#39;Postal address for invoicing and legal correspondence&#39;)
+    ] = None
+    bank: Annotated[
+        Bank | None,
+        Field(
+            description=&#39;Bank account details for payment processing. Write-only: included in requests to provide payment coordinates, but MUST NOT be echoed in responses. Sellers store these details and confirm receipt without returning them.&#39;
+        ),
+    ] = None
+    contacts: Annotated[
+        list[Contact] | None,
+        Field(
+            description=&#39;Contacts for billing, legal, and operational matters. Contains personal data subject to GDPR and equivalent regulations. Implementations MUST use this data only for invoicing and account management.&#39;,
+            max_length=10,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    legal_name: Annotated[
+        str, Field(description=&#39;Registered legal name of the business entity&#39;, max_length=200)
+    ]
+    registration_number: Annotated[
+        str | None,
+        Field(
+            description=&#39;Company registration number (e.g., HRB 12345 for German Handelsregister)&#39;,
+            max_length=50,
+        ),
+    ] = None
+    tax_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Tax identification number for jurisdictions that do not use VAT (e.g., US EIN)&#39;,
+            max_length=30,
+        ),
+    ] = None
+    vat_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;VAT identification number (e.g., DE123456789 for Germany, FR12345678901 for France). Required for B2B invoicing in the EU. Must be normalized: no spaces, dots, or dashes.&#39;,
+            pattern=&#39;^[A-Z]{2}[A-Z0-9]{2,13}$&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.address"><code class="name">var <span class="ident">address</span> : <a title="adcp.types.generated_poc.core.business_entity.Address" href="#adcp.types.generated_poc.core.business_entity.Address">Address</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.bank"><code class="name">var <span class="ident">bank</span> : <a title="adcp.types.generated_poc.core.business_entity.Bank" href="#adcp.types.generated_poc.core.business_entity.Bank">Bank</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.contacts"><code class="name">var <span class="ident">contacts</span> : list[<a title="adcp.types.generated_poc.core.business_entity.Contact" href="#adcp.types.generated_poc.core.business_entity.Contact">Contact</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.legal_name"><code class="name">var <span class="ident">legal_name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.registration_number"><code class="name">var <span class="ident">registration_number</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.tax_id"><code class="name">var <span class="ident">tax_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.BusinessEntity.vat_id"><code class="name">var <span class="ident">vat_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Contact"><code class="flex name class">
+<span>class <span class="ident">Contact</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Contact(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    email: Annotated[EmailStr | None, Field(max_length=254)] = None
+    name: Annotated[str | None, Field(description=&#39;Full name of the contact&#39;, max_length=200)] = (
+        None
+    )
+    phone: Annotated[str | None, Field(max_length=30)] = None
+    role: Annotated[
+        Role, Field(description=&#34;Contact&#39;s functional role in the business relationship&#34;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.business_entity.Contact.email"><code class="name">var <span class="ident">email</span> : pydantic.networks.EmailStr | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Contact.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Contact.name"><code class="name">var <span class="ident">name</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Contact.phone"><code class="name">var <span class="ident">phone</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Contact.role"><code class="name">var <span class="ident">role</span> : <a title="adcp.types.generated_poc.core.business_entity.Role" href="#adcp.types.generated_poc.core.business_entity.Role">Role</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Role"><code class="flex name class">
+<span>class <span class="ident">Role</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Role(Enum):
+    billing = &#39;billing&#39;
+    legal = &#39;legal&#39;
+    creative = &#39;creative&#39;
+    general = &#39;general&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.business_entity.Role.billing"><code class="name">var <span class="ident">billing</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Role.creative"><code class="name">var <span class="ident">creative</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Role.general"><code class="name">var <span class="ident">general</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.business_entity.Role.legal"><code class="name">var <span class="ident">legal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.business_entity.Address" href="#adcp.types.generated_poc.core.business_entity.Address">Address</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Address.city" href="#adcp.types.generated_poc.core.business_entity.Address.city">city</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Address.country" href="#adcp.types.generated_poc.core.business_entity.Address.country">country</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Address.model_config" href="#adcp.types.generated_poc.core.business_entity.Address.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Address.postal_code" href="#adcp.types.generated_poc.core.business_entity.Address.postal_code">postal_code</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Address.region" href="#adcp.types.generated_poc.core.business_entity.Address.region">region</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Address.street" href="#adcp.types.generated_poc.core.business_entity.Address.street">street</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.business_entity.Bank" href="#adcp.types.generated_poc.core.business_entity.Bank">Bank</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Bank.account_holder" href="#adcp.types.generated_poc.core.business_entity.Bank.account_holder">account_holder</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Bank.account_number" href="#adcp.types.generated_poc.core.business_entity.Bank.account_number">account_number</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Bank.bic" href="#adcp.types.generated_poc.core.business_entity.Bank.bic">bic</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Bank.iban" href="#adcp.types.generated_poc.core.business_entity.Bank.iban">iban</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Bank.model_config" href="#adcp.types.generated_poc.core.business_entity.Bank.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Bank.routing_number" href="#adcp.types.generated_poc.core.business_entity.Bank.routing_number">routing_number</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity">BusinessEntity</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.address" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.address">address</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.bank" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.bank">bank</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.contacts" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.contacts">contacts</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.ext" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.legal_name" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.legal_name">legal_name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.model_config" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.registration_number" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.registration_number">registration_number</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.tax_id" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.tax_id">tax_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.BusinessEntity.vat_id" href="#adcp.types.generated_poc.core.business_entity.BusinessEntity.vat_id">vat_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.business_entity.Contact" href="#adcp.types.generated_poc.core.business_entity.Contact">Contact</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Contact.email" href="#adcp.types.generated_poc.core.business_entity.Contact.email">email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Contact.model_config" href="#adcp.types.generated_poc.core.business_entity.Contact.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Contact.name" href="#adcp.types.generated_poc.core.business_entity.Contact.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Contact.phone" href="#adcp.types.generated_poc.core.business_entity.Contact.phone">phone</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Contact.role" href="#adcp.types.generated_poc.core.business_entity.Contact.role">role</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.business_entity.Role" href="#adcp.types.generated_poc.core.business_entity.Role">Role</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Role.billing" href="#adcp.types.generated_poc.core.business_entity.Role.billing">billing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Role.creative" href="#adcp.types.generated_poc.core.business_entity.Role.creative">creative</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Role.general" href="#adcp.types.generated_poc.core.business_entity.Role.general">general</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.business_entity.Role.legal" href="#adcp.types.generated_poc.core.business_entity.Role.legal">legal</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

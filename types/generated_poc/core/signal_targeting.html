@@ -124,13 +124,13 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
-    value_type: Annotated[Literal[&#39;binary&#39;], Field(description=&#39;Discriminator for binary signals&#39;)]
     value: Annotated[
         bool,
         Field(
             description=&#39;Whether to include (true) or exclude (false) users matching this signal&#39;
         ),
-    ]</code></pre>
+    ]
+    value_type: Annotated[Literal[&#39;binary&#39;], Field(description=&#39;Discriminator for binary signals&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -260,22 +260,22 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
-    value_type: Annotated[
-        Literal[&#39;numeric&#39;], Field(description=&#39;Discriminator for numeric signals&#39;)
-    ]
+    max_value: Annotated[
+        float | None,
+        Field(
+            description=&#34;Maximum value (inclusive). Omit for no maximum. Must be &gt;= min_value when both are provided. Should be &lt;= signal&#39;s range.max if defined.&#34;
+        ),
+    ] = None
     min_value: Annotated[
         float | None,
         Field(
             description=&#34;Minimum value (inclusive). Omit for no minimum. Must be &lt;= max_value when both are provided. Should be &gt;= signal&#39;s range.min if defined.&#34;
         ),
     ] = None
-    max_value: Annotated[
-        float | None,
-        Field(
-            description=&#34;Maximum value (inclusive). Omit for no maximum. Must be &gt;= min_value when both are provided. Should be &lt;= signal&#39;s range.max if defined.&#34;
-        ),
-    ] = None</code></pre>
+    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
+    value_type: Annotated[
+        Literal[&#39;numeric&#39;], Field(description=&#39;Discriminator for numeric signals&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

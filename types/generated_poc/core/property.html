@@ -124,6 +124,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    identifiers: Annotated[
+        list[Identifier], Field(description=&#39;Array of identifiers for this property&#39;, min_length=1)
+    ]
+    name: Annotated[str, Field(description=&#39;Human-readable property name&#39;)]
     property_id: Annotated[
         property_id_1.PropertyId | None,
         Field(
@@ -133,14 +137,10 @@ validated to form a valid model.</p>
     property_type: Annotated[
         property_type_1.PropertyType, Field(description=&#39;Type of advertising property&#39;)
     ]
-    name: Annotated[str, Field(description=&#39;Human-readable property name&#39;)]
-    identifiers: Annotated[
-        list[Identifier], Field(description=&#39;Array of identifiers for this property&#39;, min_length=1)
-    ]
-    tags: Annotated[
-        list[property_tag.PropertyTag] | None,
+    publisher_domain: Annotated[
+        str | None,
         Field(
-            description=&#39;Tags for categorization and grouping (e.g., network membership, content categories)&#39;
+            description=&#39;Domain where adagents.json should be checked for authorization validation. Optional in adagents.json (file location implies domain).&#39;
         ),
     ] = None
     supported_channels: Annotated[
@@ -149,10 +149,10 @@ validated to form a valid model.</p>
             description=&#34;Advertising channels this property supports (e.g., [&#39;display&#39;, &#39;olv&#39;, &#39;social&#39;]). Publishers declare which channels their inventory aligns with. Properties may support multiple channels. See the Media Channel Taxonomy for definitions.&#34;
         ),
     ] = None
-    publisher_domain: Annotated[
-        str | None,
+    tags: Annotated[
+        list[property_tag.PropertyTag] | None,
         Field(
-            description=&#39;Domain where adagents.json should be checked for authorization validation. Optional in adagents.json (file location implies domain).&#39;
+            description=&#39;Tags for categorization and grouping (e.g., network membership, content categories)&#39;
         ),
     ] = None</code></pre>
 </details>

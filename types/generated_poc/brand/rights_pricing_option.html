@@ -143,15 +143,25 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    pricing_option_id: Annotated[
-        str,
-        Field(
-            description=&#39;Unique identifier for this pricing option. Referenced in acquire_rights and report_usage.&#39;
-        ),
-    ]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    description: Annotated[
+        str | None, Field(description=&#39;Human-readable description of this pricing option&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    impression_cap: Annotated[
+        int | None,
+        Field(description=&#39;Maximum impressions included in this pricing option per period&#39;, ge=1),
+    ] = None
     model: Annotated[
         pricing_model.PricingModel, Field(description=&#39;Pricing model (cpm, flat_rate, etc.)&#39;)
     ]
+    overage_cpm: Annotated[
+        float | None,
+        Field(description=&#39;CPM rate applied to impressions exceeding the impression_cap&#39;, ge=0.0),
+    ] = None
+    period: Annotated[
+        Period | None, Field(description=&#39;Billing period for flat_rate and time-based models&#39;)
+    ] = None
     price: Annotated[
         float,
         Field(
@@ -159,29 +169,19 @@ attributes &ndash; see the documentation for details.</p></div>
             ge=0.0,
         ),
     ]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    pricing_option_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this pricing option. Referenced in acquire_rights and report_usage.&#39;
+        ),
+    ]
     uses: Annotated[
         list[right_use.RightUse],
         Field(
             description=&#39;Which rights uses this pricing option covers. A single option can bundle multiple uses (e.g., likeness + voice).&#39;,
             min_length=1,
         ),
-    ]
-    period: Annotated[
-        Period | None, Field(description=&#39;Billing period for flat_rate and time-based models&#39;)
-    ] = None
-    impression_cap: Annotated[
-        int | None,
-        Field(description=&#39;Maximum impressions included in this pricing option per period&#39;, ge=1),
-    ] = None
-    overage_cpm: Annotated[
-        float | None,
-        Field(description=&#39;CPM rate applied to impressions exceeding the impression_cap&#39;, ge=0.0),
-    ] = None
-    description: Annotated[
-        str | None, Field(description=&#39;Human-readable description of this pricing option&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

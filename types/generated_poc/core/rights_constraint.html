@@ -228,8 +228,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class RightsAgent(AdCPBaseModel):
-    url: Annotated[AnyUrl, Field(description=&#39;MCP endpoint URL of the rights agent&#39;)]
-    id: Annotated[str, Field(description=&#39;Agent identifier&#39;)]</code></pre>
+    id: Annotated[str, Field(description=&#39;Agent identifier&#39;)]
+    url: Annotated[AnyUrl, Field(description=&#39;MCP endpoint URL of the rights agent&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -285,23 +285,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    rights_id: Annotated[
-        str, Field(description=&#39;Rights grant identifier from the acquire_rights response&#39;)
-    ]
-    rights_agent: Annotated[RightsAgent, Field(description=&#39;The agent that granted these rights&#39;)]
-    valid_from: Annotated[
-        AwareDatetime | None, Field(description=&#39;Start of the rights validity period&#39;)
-    ] = None
-    valid_until: Annotated[
-        AwareDatetime | None,
+    approval_status: Annotated[
+        ApprovalStatus | None,
         Field(
-            description=&#39;End of the rights validity period. Creative should not be served after this time.&#39;
+            description=&#39;Approval status from the rights holder at manifest creation time (snapshot, not a live value)&#39;
         ),
     ] = None
-    uses: Annotated[
-        list[right_use.RightUse],
-        Field(description=&#39;Rights uses covered by this constraint&#39;, min_length=1),
-    ]
     countries: Annotated[
         list[Country] | None,
         Field(
@@ -314,6 +303,7 @@ validated to form a valid model.</p>
             description=&#39;Countries excluded from rights availability (ISO 3166-1 alpha-2). Use when the grant is worldwide except specific markets.&#39;
         ),
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     impression_cap: Annotated[
         int | None,
         Field(
@@ -327,10 +317,21 @@ validated to form a valid model.</p>
             description=&#39;Type of rights (talent, music, etc.). Helps identify constraints when a creative combines multiple rights types.&#39;
         ),
     ] = None
-    approval_status: Annotated[
-        ApprovalStatus | None,
+    rights_agent: Annotated[RightsAgent, Field(description=&#39;The agent that granted these rights&#39;)]
+    rights_id: Annotated[
+        str, Field(description=&#39;Rights grant identifier from the acquire_rights response&#39;)
+    ]
+    uses: Annotated[
+        list[right_use.RightUse],
+        Field(description=&#39;Rights uses covered by this constraint&#39;, min_length=1),
+    ]
+    valid_from: Annotated[
+        AwareDatetime | None, Field(description=&#39;Start of the rights validity period&#39;)
+    ] = None
+    valid_until: Annotated[
+        AwareDatetime | None,
         Field(
-            description=&#39;Approval status from the rights holder at manifest creation time (snapshot, not a live value)&#39;
+            description=&#39;End of the rights validity period. Creative should not be served after this time.&#39;
         ),
     ] = None
     verification_url: Annotated[
@@ -338,8 +339,7 @@ validated to form a valid model.</p>
         Field(
             description=&#39;URL where downstream supply chain participants can verify this rights grant is active. Returns HTTP 200 with the current grant status, or 404 if revoked. Enables SSPs and verification vendors to confirm rights before serving.&#39;
         ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

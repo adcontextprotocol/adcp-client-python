@@ -59,16 +59,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    min_length: Annotated[int | None, Field(description=&#39;Minimum character length&#39;, ge=0)] = None
-    max_length: Annotated[int | None, Field(description=&#39;Maximum character length&#39;, ge=1)] = None
-    min_lines: Annotated[int | None, Field(description=&#39;Minimum number of lines&#39;, ge=1)] = None
-    max_lines: Annotated[int | None, Field(description=&#39;Maximum number of lines&#39;, ge=1)] = None
     character_pattern: Annotated[
         str | None,
         Field(
             description=&#34;Regex pattern defining allowed characters (e.g., &#39;^[a-zA-Z0-9 .,!?-]+$&#39;)&#34;
         ),
     ] = None
+    max_length: Annotated[int | None, Field(description=&#39;Maximum character length&#39;, ge=1)] = None
+    max_lines: Annotated[int | None, Field(description=&#39;Maximum number of lines&#39;, ge=1)] = None
+    min_length: Annotated[int | None, Field(description=&#39;Minimum character length&#39;, ge=0)] = None
+    min_lines: Annotated[int | None, Field(description=&#39;Minimum number of lines&#39;, ge=1)] = None
     prohibited_terms: Annotated[
         list[str] | None, Field(description=&#39;List of prohibited words or phrases&#39;)
     ] = None</code></pre>

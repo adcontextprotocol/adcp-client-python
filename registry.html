@@ -107,6 +107,90 @@ el.replaceWith(d);
     async def __aexit__(self, *args: Any) -&gt; None:
         await self.close()
 
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+        auth_token: str | None = None,
+        operation: str = &#34;Registry request&#34;,
+        allow_404: bool = False,
+        expected_status: int | set[int] = 200,
+    ) -&gt; httpx.Response | None:
+        &#34;&#34;&#34;Execute a registry API request with standard error handling.
+
+        Returns None if allow_404=True and the server returns 404.
+        Raises RegistryError for all other non-expected status codes.
+        &#34;&#34;&#34;
+        client = await self._get_client()
+        headers: dict[str, str] = {&#34;User-Agent&#34;: self._user_agent}
+        if auth_token is not None:
+            headers[&#34;Authorization&#34;] = f&#34;Bearer {auth_token}&#34;
+
+        expected = {expected_status} if isinstance(expected_status, int) else expected_status
+
+        try:
+            if method == &#34;GET&#34;:
+                response = await client.get(
+                    f&#34;{self._base_url}{path}&#34;,
+                    params=params,
+                    headers=headers,
+                    timeout=self._timeout,
+                )
+            else:
+                response = await client.post(
+                    f&#34;{self._base_url}{path}&#34;,
+                    json=json_body,
+                    headers=headers,
+                    timeout=self._timeout,
+                )
+
+            if allow_404 and response.status_code == 404:
+                return None
+            if response.status_code not in expected:
+                raise RegistryError(
+                    f&#34;{operation} failed: HTTP {response.status_code}&#34;,
+                    status_code=response.status_code,
+                )
+            return response
+        except RegistryError:
+            raise
+        except httpx.TimeoutException as e:
+            raise RegistryError(
+                f&#34;{operation} timed out after {self._timeout}s&#34;
+            ) from e
+        except httpx.HTTPError as e:
+            raise RegistryError(f&#34;{operation} failed: {e}&#34;) from e
+
+    async def _request_ok(
+        self,
+        method: str,
+        path: str,
+        **kwargs: Any,
+    ) -&gt; httpx.Response:
+        &#34;&#34;&#34;Like _request but guarantees a non-None response.
+
+        Use for endpoints that never return 404-as-None.
+        &#34;&#34;&#34;
+        resp = await self._request(method, path, **kwargs)
+        if resp is None:
+            raise RegistryError(
+                f&#34;{kwargs.get(&#39;operation&#39;, &#39;Request&#39;)} failed: unexpected empty response&#34;
+            )
+        return resp
+
+    @staticmethod
+    def _parse(model_cls: type[_T], data: Any, operation: str) -&gt; _T:
+        &#34;&#34;&#34;Validate data against a Pydantic model, wrapping errors.&#34;&#34;&#34;
+        try:
+            return model_cls.model_validate(data)
+        except (ValidationError, ValueError) as e:
+            raise RegistryError(
+                f&#34;{operation} failed: invalid response: {e}&#34;
+            ) from e
+
     async def lookup_brand(self, domain: str) -&gt; ResolvedBrand | None:
         &#34;&#34;&#34;Resolve a domain to its brand identity.
 
@@ -747,7 +831,529 @@ el.replaceWith(d);
                 f&#34;Policy save timed out after {self._timeout}s&#34;
             ) from e
         except httpx.HTTPError as e:
-            raise RegistryError(f&#34;Policy save failed: {e}&#34;) from e</code></pre>
+            raise RegistryError(f&#34;Policy save failed: {e}&#34;) from e
+
+    # ========================================================================
+    # Brand Registry Operations
+    # ========================================================================
+
+    async def get_brand_json(
+        self, domain: str, *, fresh: bool = False
+    ) -&gt; dict[str, Any] | None:
+        &#34;&#34;&#34;Fetch raw brand.json for a domain.&#34;&#34;&#34;
+        params: dict[str, Any] = {&#34;domain&#34;: domain}
+        if fresh:
+            params[&#34;fresh&#34;] = &#34;true&#34;
+        resp = await self._request(
+            &#34;GET&#34;, &#34;/api/brands/brand-json&#34;,
+            params=params, allow_404=True,
+            operation=&#34;Brand JSON fetch&#34;,
+        )
+        if resp is None:
+            return None
+        return cast(dict[str, Any], resp.json())
+
+    async def save_brand(
+        self,
+        domain: str,
+        brand_name: str,
+        *,
+        auth_token: str,
+        brand_manifest: dict[str, Any] | None = None,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Save or update a brand in the registry (auth required).&#34;&#34;&#34;
+        body: dict[str, Any] = {&#34;domain&#34;: domain, &#34;brand_name&#34;: brand_name}
+        if brand_manifest is not None:
+            body[&#34;brand_manifest&#34;] = brand_manifest
+        resp = await self._request_ok(
+            &#34;POST&#34;, &#34;/api/brands/save&#34;,
+            json_body=body, auth_token=auth_token,
+            operation=&#34;Brand save&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def list_brands(
+        self,
+        search: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -&gt; list[BrandRegistryItem]:
+        &#34;&#34;&#34;List brands in the registry.&#34;&#34;&#34;
+        params: dict[str, Any] = {&#34;limit&#34;: limit, &#34;offset&#34;: offset}
+        if search is not None:
+            params[&#34;search&#34;] = search
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/brands/registry&#34;,
+            params=params, operation=&#34;Brand list&#34;,
+        )
+
+        data = resp.json()
+        return [self._parse(BrandRegistryItem, b, &#34;Brand list&#34;) for b in data.get(&#34;brands&#34;, [])]
+
+    async def brand_history(
+        self,
+        domain: str,
+        limit: int = 20,
+        offset: int = 0,
+    ) -&gt; BrandActivity | None:
+        &#34;&#34;&#34;Get edit history for a brand.&#34;&#34;&#34;
+        resp = await self._request(
+            &#34;GET&#34;, &#34;/api/brands/history&#34;,
+            params={&#34;domain&#34;: domain, &#34;limit&#34;: limit, &#34;offset&#34;: offset},
+            allow_404=True, operation=&#34;Brand history&#34;,
+        )
+        if resp is None:
+            return None
+        return self._parse(BrandActivity, resp.json(), &#34;Brand history&#34;)
+
+    async def enrich_brand(self, domain: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Enrich brand data using Brandfetch.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/brands/enrich&#34;,
+            params={&#34;domain&#34;: domain}, operation=&#34;Brand enrich&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    # ========================================================================
+    # Property Registry Operations
+    # ========================================================================
+
+    async def list_properties(
+        self,
+        search: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -&gt; list[PropertyRegistryItem]:
+        &#34;&#34;&#34;List properties in the registry.&#34;&#34;&#34;
+        params: dict[str, Any] = {&#34;limit&#34;: limit, &#34;offset&#34;: offset}
+        if search is not None:
+            params[&#34;search&#34;] = search
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/properties/registry&#34;,
+            params=params, operation=&#34;Property list&#34;,
+        )
+
+        data = resp.json()
+        return [
+            self._parse(PropertyRegistryItem, p, &#34;Property list&#34;)
+            for p in data.get(&#34;properties&#34;, [])
+        ]
+
+    async def validate_property(self, domain: str) -&gt; ValidationResult:
+        &#34;&#34;&#34;Validate a domain&#39;s adagents.json configuration.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/properties/validate&#34;,
+            params={&#34;domain&#34;: domain}, operation=&#34;Property validate&#34;,
+        )
+
+        return self._parse(ValidationResult, resp.json(), &#34;Property validate&#34;)
+
+    async def save_property(
+        self,
+        publisher_domain: str,
+        authorized_agents: list[dict[str, Any]],
+        *,
+        auth_token: str,
+        properties: list[dict[str, Any]] | None = None,
+        contact: dict[str, str] | None = None,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Save or update a hosted property (auth required).&#34;&#34;&#34;
+        body: dict[str, Any] = {
+            &#34;publisher_domain&#34;: publisher_domain,
+            &#34;authorized_agents&#34;: authorized_agents,
+        }
+        if properties is not None:
+            body[&#34;properties&#34;] = properties
+        if contact is not None:
+            body[&#34;contact&#34;] = contact
+        resp = await self._request_ok(
+            &#34;POST&#34;, &#34;/api/properties/save&#34;,
+            json_body=body, auth_token=auth_token,
+            operation=&#34;Property save&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def property_history(
+        self,
+        domain: str,
+        limit: int = 20,
+        offset: int = 0,
+    ) -&gt; PropertyActivity | None:
+        &#34;&#34;&#34;Get edit history for a property.&#34;&#34;&#34;
+        resp = await self._request(
+            &#34;GET&#34;, &#34;/api/properties/history&#34;,
+            params={&#34;domain&#34;: domain, &#34;limit&#34;: limit, &#34;offset&#34;: offset},
+            allow_404=True, operation=&#34;Property history&#34;,
+        )
+        if resp is None:
+            return None
+        return self._parse(PropertyActivity, resp.json(), &#34;Property history&#34;)
+
+    async def check_property_list(
+        self, domains: list[str]
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Check publisher domains against the registry.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;POST&#34;, &#34;/api/properties/check&#34;,
+            json_body={&#34;domains&#34;: domains}, operation=&#34;Property check&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def get_property_check_report(
+        self, report_id: str
+    ) -&gt; dict[str, Any] | None:
+        &#34;&#34;&#34;Retrieve a property check report by ID.&#34;&#34;&#34;
+        resp = await self._request(
+            &#34;GET&#34;, f&#34;/api/properties/check/{url_quote(report_id, safe=&#39;&#39;)}&#34;,
+            allow_404=True, operation=&#34;Property check report&#34;,
+        )
+        if resp is None:
+            return None
+        return cast(dict[str, Any], resp.json())
+
+    # ========================================================================
+    # Agent Discovery
+    # ========================================================================
+
+    async def list_agents(
+        self,
+        *,
+        type: str | None = None,
+        health: bool = False,
+        capabilities: bool = False,
+        properties: bool = False,
+        compliance: bool = False,
+    ) -&gt; list[FederatedAgentWithDetails]:
+        &#34;&#34;&#34;List registered and discovered agents.&#34;&#34;&#34;
+        params: dict[str, Any] = {}
+        if type is not None:
+            params[&#34;type&#34;] = type
+        if health:
+            params[&#34;health&#34;] = &#34;true&#34;
+        if capabilities:
+            params[&#34;capabilities&#34;] = &#34;true&#34;
+        if properties:
+            params[&#34;properties&#34;] = &#34;true&#34;
+        if compliance:
+            params[&#34;compliance&#34;] = &#34;true&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/registry/agents&#34;,
+            params=params, operation=&#34;Agent list&#34;,
+        )
+
+        data = resp.json()
+        return [
+            self._parse(FederatedAgentWithDetails, a, &#34;Agent list&#34;)
+            for a in data.get(&#34;agents&#34;, [])
+        ]
+
+    async def list_publishers(self) -&gt; list[FederatedPublisher]:
+        &#34;&#34;&#34;List publishers in the registry.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/registry/publishers&#34;,
+            operation=&#34;Publisher list&#34;,
+        )
+
+        data = resp.json()
+        return [
+            self._parse(FederatedPublisher, p, &#34;Publisher list&#34;)
+            for p in data.get(&#34;publishers&#34;, [])
+        ]
+
+    async def get_registry_stats(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Get aggregate registry statistics.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/registry/stats&#34;,
+            operation=&#34;Registry stats&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def search_agents(
+        self,
+        *,
+        auth_token: str,
+        channels: str | None = None,
+        property_types: str | None = None,
+        markets: str | None = None,
+        categories: str | None = None,
+        tags: str | None = None,
+        delivery_types: str | None = None,
+        has_tmp: bool | None = None,
+        min_properties: int | None = None,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Search agents by inventory profile (auth required).&#34;&#34;&#34;
+        params: dict[str, Any] = {&#34;limit&#34;: limit}
+        for key, val in [
+            (&#34;channels&#34;, channels),
+            (&#34;property_types&#34;, property_types),
+            (&#34;markets&#34;, markets),
+            (&#34;categories&#34;, categories),
+            (&#34;tags&#34;, tags),
+            (&#34;delivery_types&#34;, delivery_types),
+            (&#34;cursor&#34;, cursor),
+        ]:
+            if val is not None:
+                params[key] = val
+        if has_tmp is not None:
+            params[&#34;has_tmp&#34;] = str(has_tmp).lower()
+        if min_properties is not None:
+            params[&#34;min_properties&#34;] = min_properties
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/registry/agents/search&#34;,
+            params=params, auth_token=auth_token,
+            operation=&#34;Agent search&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def request_crawl(
+        self, domain: str, *, auth_token: str
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Request a domain re-crawl (auth required).&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;POST&#34;, &#34;/api/registry/crawl-request&#34;,
+            json_body={&#34;domain&#34;: domain}, auth_token=auth_token,
+            operation=&#34;Crawl request&#34;,
+            expected_status={200, 202},
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    # ========================================================================
+    # Lookups &amp; Authorization
+    # ========================================================================
+
+    async def lookup_domain(self, domain: str) -&gt; DomainLookupResult:
+        &#34;&#34;&#34;Find all agents authorized for a publisher domain.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, f&#34;/api/registry/lookup/domain/{url_quote(domain, safe=&#39;&#39;)}&#34;,
+            operation=&#34;Domain lookup&#34;,
+        )
+
+        return self._parse(DomainLookupResult, resp.json(), &#34;Domain lookup&#34;)
+
+    async def lookup_property_identifier(
+        self, type: str, value: str
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Find agents holding a specific property identifier.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/registry/lookup/property&#34;,
+            params={&#34;type&#34;: type, &#34;value&#34;: value},
+            operation=&#34;Property identifier lookup&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def get_agent_domains(self, agent_url: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Get all publisher domains and identifiers for an agent.&#34;&#34;&#34;
+        encoded = url_quote(agent_url, safe=&#34;&#34;)
+        resp = await self._request_ok(
+            &#34;GET&#34;, f&#34;/api/registry/lookup/agent/{encoded}/domains&#34;,
+            operation=&#34;Agent domains lookup&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def validate_product_authorization(
+        self,
+        agent_url: str,
+        publisher_properties: list[dict[str, Any]],
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Check whether an agent is authorized to sell products.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;POST&#34;, &#34;/api/registry/validate/product-authorization&#34;,
+            json_body={
+                &#34;agent_url&#34;: agent_url,
+                &#34;publisher_properties&#34;: publisher_properties,
+            },
+            operation=&#34;Product authorization&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def expand_product_identifiers(
+        self,
+        agent_url: str,
+        publisher_properties: list[dict[str, Any]],
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Expand publisher_properties selectors into concrete identifiers.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;POST&#34;, &#34;/api/registry/expand/product-identifiers&#34;,
+            json_body={
+                &#34;agent_url&#34;: agent_url,
+                &#34;publisher_properties&#34;: publisher_properties,
+            },
+            operation=&#34;Expand product identifiers&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def validate_property_authorization(
+        self,
+        agent_url: str,
+        identifier_type: str,
+        identifier_value: str,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Quick check if a property identifier is authorized for an agent.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/registry/validate/property-authorization&#34;,
+            params={
+                &#34;agent_url&#34;: agent_url,
+                &#34;identifier_type&#34;: identifier_type,
+                &#34;identifier_value&#34;: identifier_value,
+            },
+            operation=&#34;Property authorization&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    # ========================================================================
+    # Validation Tools
+    # ========================================================================
+
+    async def validate_adagents(self, domain: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Validate a domain&#39;s adagents.json via the registry API.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;POST&#34;, &#34;/api/adagents/validate&#34;,
+            json_body={&#34;domain&#34;: domain}, operation=&#34;Adagents validate&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def create_adagents(
+        self,
+        authorized_agents: list[dict[str, Any]],
+        *,
+        include_schema: bool = False,
+        include_timestamp: bool = False,
+        properties: list[Any] | None = None,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Generate a valid adagents.json from authorized agents.&#34;&#34;&#34;
+        body: dict[str, Any] = {&#34;authorized_agents&#34;: authorized_agents}
+        if include_schema:
+            body[&#34;include_schema&#34;] = True
+        if include_timestamp:
+            body[&#34;include_timestamp&#34;] = True
+        if properties is not None:
+            body[&#34;properties&#34;] = properties
+        resp = await self._request_ok(
+            &#34;POST&#34;, &#34;/api/adagents/create&#34;,
+            json_body=body, operation=&#34;Adagents create&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    # ========================================================================
+    # Search
+    # ========================================================================
+
+    async def api_discovery(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Get API discovery info (links to entry points and docs).&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api&#34;, operation=&#34;API discovery&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def search(self, q: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Search across brands, publishers, and properties.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/search&#34;,
+            params={&#34;q&#34;: q}, operation=&#34;Search&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def lookup_manifest_ref(
+        self, domain: str, *, type: str | None = None
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Find the best manifest reference for a domain.&#34;&#34;&#34;
+        params: dict[str, Any] = {&#34;domain&#34;: domain}
+        if type is not None:
+            params[&#34;type&#34;] = type
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/manifest-refs/lookup&#34;,
+            params=params, operation=&#34;Manifest ref lookup&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    # ========================================================================
+    # Agent Probing
+    # ========================================================================
+
+    async def discover_agent(self, url: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Probe an agent URL to discover its capabilities.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/public/discover-agent&#34;,
+            params={&#34;url&#34;: url}, operation=&#34;Agent discovery&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def get_agent_formats(self, url: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Fetch creative formats from an agent.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/public/agent-formats&#34;,
+            params={&#34;url&#34;: url}, operation=&#34;Agent formats&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def get_agent_products(self, url: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Fetch products from a sales agent.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/public/agent-products&#34;,
+            params={&#34;url&#34;: url}, operation=&#34;Agent products&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    async def validate_publisher(self, domain: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Validate a publisher domain&#39;s adagents.json and return stats.&#34;&#34;&#34;
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/public/validate-publisher&#34;,
+            params={&#34;domain&#34;: domain}, operation=&#34;Publisher validation&#34;,
+        )
+
+        return cast(dict[str, Any], resp.json())
+
+    # ========================================================================
+    # Change Feed
+    # ========================================================================
+
+    async def get_feed(
+        self,
+        *,
+        auth_token: str,
+        cursor: str | None = None,
+        types: str | None = None,
+        limit: int = 100,
+    ) -&gt; FeedPage:
+        &#34;&#34;&#34;Poll the registry change feed (auth required).
+
+        Returns a FeedPage with events, cursor, and has_more.
+        Pass cursor from previous response to resume.
+        &#34;&#34;&#34;
+        params: dict[str, Any] = {&#34;limit&#34;: limit}
+        if cursor is not None:
+            params[&#34;cursor&#34;] = cursor
+        if types is not None:
+            params[&#34;types&#34;] = types
+        resp = await self._request_ok(
+            &#34;GET&#34;, &#34;/api/registry/feed&#34;,
+            params=params, auth_token=auth_token,
+            operation=&#34;Feed poll&#34;,
+        )
+
+        return self._parse(FeedPage, resp.json(), &#34;Feed poll&#34;)</code></pre>
 </details>
 <div class="desc"><p>Client for the AdCP registry API.</p>
 <p>Provides brand, property, and member lookups against the central AdCP registry.</p>
@@ -765,6 +1371,71 @@ If provided, caller is responsible for client lifecycle.</dd>
 </dl></div>
 <h3>Methods</h3>
 <dl>
+<dt id="adcp.registry.RegistryClient.api_discovery"><code class="name flex">
+<span>async def <span class="ident">api_discovery</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def api_discovery(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Get API discovery info (links to entry points and docs).&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api&#34;, operation=&#34;API discovery&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Get API discovery info (links to entry points and docs).</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.brand_history"><code class="name flex">
+<span>async def <span class="ident">brand_history</span></span>(<span>self, domain: str, limit: int = 20, offset: int = 0) ‑> <a title="adcp.types.registry.BrandActivity" href="types/registry.html#adcp.types.registry.BrandActivity">BrandActivity</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def brand_history(
+    self,
+    domain: str,
+    limit: int = 20,
+    offset: int = 0,
+) -&gt; BrandActivity | None:
+    &#34;&#34;&#34;Get edit history for a brand.&#34;&#34;&#34;
+    resp = await self._request(
+        &#34;GET&#34;, &#34;/api/brands/history&#34;,
+        params={&#34;domain&#34;: domain, &#34;limit&#34;: limit, &#34;offset&#34;: offset},
+        allow_404=True, operation=&#34;Brand history&#34;,
+    )
+    if resp is None:
+        return None
+    return self._parse(BrandActivity, resp.json(), &#34;Brand history&#34;)</code></pre>
+</details>
+<div class="desc"><p>Get edit history for a brand.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.check_property_list"><code class="name flex">
+<span>async def <span class="ident">check_property_list</span></span>(<span>self, domains: list[str]) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def check_property_list(
+    self, domains: list[str]
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Check publisher domains against the registry.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;POST&#34;, &#34;/api/properties/check&#34;,
+        json_body={&#34;domains&#34;: domains}, operation=&#34;Property check&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Check publisher domains against the registry.</p></div>
+</dd>
 <dt id="adcp.registry.RegistryClient.close"><code class="name flex">
 <span>async def <span class="ident">close</span></span>(<span>self) ‑> None</span>
 </code></dt>
@@ -780,6 +1451,226 @@ If provided, caller is responsible for client lifecycle.</dd>
         self._owned_client = None</code></pre>
 </details>
 <div class="desc"><p>Close owned HTTP client. No-op if using external client.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.create_adagents"><code class="name flex">
+<span>async def <span class="ident">create_adagents</span></span>(<span>self,<br>authorized_agents: list[dict[str, Any]],<br>*,<br>include_schema: bool = False,<br>include_timestamp: bool = False,<br>properties: list[Any] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_adagents(
+    self,
+    authorized_agents: list[dict[str, Any]],
+    *,
+    include_schema: bool = False,
+    include_timestamp: bool = False,
+    properties: list[Any] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Generate a valid adagents.json from authorized agents.&#34;&#34;&#34;
+    body: dict[str, Any] = {&#34;authorized_agents&#34;: authorized_agents}
+    if include_schema:
+        body[&#34;include_schema&#34;] = True
+    if include_timestamp:
+        body[&#34;include_timestamp&#34;] = True
+    if properties is not None:
+        body[&#34;properties&#34;] = properties
+    resp = await self._request_ok(
+        &#34;POST&#34;, &#34;/api/adagents/create&#34;,
+        json_body=body, operation=&#34;Adagents create&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Generate a valid adagents.json from authorized agents.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.discover_agent"><code class="name flex">
+<span>async def <span class="ident">discover_agent</span></span>(<span>self, url: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def discover_agent(self, url: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Probe an agent URL to discover its capabilities.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/public/discover-agent&#34;,
+        params={&#34;url&#34;: url}, operation=&#34;Agent discovery&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Probe an agent URL to discover its capabilities.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.enrich_brand"><code class="name flex">
+<span>async def <span class="ident">enrich_brand</span></span>(<span>self, domain: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def enrich_brand(self, domain: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Enrich brand data using Brandfetch.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/brands/enrich&#34;,
+        params={&#34;domain&#34;: domain}, operation=&#34;Brand enrich&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Enrich brand data using Brandfetch.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.expand_product_identifiers"><code class="name flex">
+<span>async def <span class="ident">expand_product_identifiers</span></span>(<span>self, agent_url: str, publisher_properties: list[dict[str, Any]]) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def expand_product_identifiers(
+    self,
+    agent_url: str,
+    publisher_properties: list[dict[str, Any]],
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Expand publisher_properties selectors into concrete identifiers.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;POST&#34;, &#34;/api/registry/expand/product-identifiers&#34;,
+        json_body={
+            &#34;agent_url&#34;: agent_url,
+            &#34;publisher_properties&#34;: publisher_properties,
+        },
+        operation=&#34;Expand product identifiers&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Expand publisher_properties selectors into concrete identifiers.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.get_agent_domains"><code class="name flex">
+<span>async def <span class="ident">get_agent_domains</span></span>(<span>self, agent_url: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_agent_domains(self, agent_url: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Get all publisher domains and identifiers for an agent.&#34;&#34;&#34;
+    encoded = url_quote(agent_url, safe=&#34;&#34;)
+    resp = await self._request_ok(
+        &#34;GET&#34;, f&#34;/api/registry/lookup/agent/{encoded}/domains&#34;,
+        operation=&#34;Agent domains lookup&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Get all publisher domains and identifiers for an agent.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.get_agent_formats"><code class="name flex">
+<span>async def <span class="ident">get_agent_formats</span></span>(<span>self, url: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_agent_formats(self, url: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Fetch creative formats from an agent.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/public/agent-formats&#34;,
+        params={&#34;url&#34;: url}, operation=&#34;Agent formats&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Fetch creative formats from an agent.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.get_agent_products"><code class="name flex">
+<span>async def <span class="ident">get_agent_products</span></span>(<span>self, url: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_agent_products(self, url: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Fetch products from a sales agent.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/public/agent-products&#34;,
+        params={&#34;url&#34;: url}, operation=&#34;Agent products&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Fetch products from a sales agent.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.get_brand_json"><code class="name flex">
+<span>async def <span class="ident">get_brand_json</span></span>(<span>self, domain: str, *, fresh: bool = False) ‑> dict[str, typing.Any] | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_brand_json(
+    self, domain: str, *, fresh: bool = False
+) -&gt; dict[str, Any] | None:
+    &#34;&#34;&#34;Fetch raw brand.json for a domain.&#34;&#34;&#34;
+    params: dict[str, Any] = {&#34;domain&#34;: domain}
+    if fresh:
+        params[&#34;fresh&#34;] = &#34;true&#34;
+    resp = await self._request(
+        &#34;GET&#34;, &#34;/api/brands/brand-json&#34;,
+        params=params, allow_404=True,
+        operation=&#34;Brand JSON fetch&#34;,
+    )
+    if resp is None:
+        return None
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Fetch raw brand.json for a domain.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.get_feed"><code class="name flex">
+<span>async def <span class="ident">get_feed</span></span>(<span>self,<br>*,<br>auth_token: str,<br>cursor: str | None = None,<br>types: str | None = None,<br>limit: int = 100) ‑> <a title="adcp.types.registry.FeedPage" href="types/registry.html#adcp.types.registry.FeedPage">FeedPage</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_feed(
+    self,
+    *,
+    auth_token: str,
+    cursor: str | None = None,
+    types: str | None = None,
+    limit: int = 100,
+) -&gt; FeedPage:
+    &#34;&#34;&#34;Poll the registry change feed (auth required).
+
+    Returns a FeedPage with events, cursor, and has_more.
+    Pass cursor from previous response to resume.
+    &#34;&#34;&#34;
+    params: dict[str, Any] = {&#34;limit&#34;: limit}
+    if cursor is not None:
+        params[&#34;cursor&#34;] = cursor
+    if types is not None:
+        params[&#34;types&#34;] = types
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/registry/feed&#34;,
+        params=params, auth_token=auth_token,
+        operation=&#34;Feed poll&#34;,
+    )
+
+    return self._parse(FeedPage, resp.json(), &#34;Feed poll&#34;)</code></pre>
+</details>
+<div class="desc"><p>Poll the registry change feed (auth required).</p>
+<p>Returns a FeedPage with events, cursor, and has_more.
+Pass cursor from previous response to resume.</p></div>
 </dd>
 <dt id="adcp.registry.RegistryClient.get_member"><code class="name flex">
 <span>async def <span class="ident">get_member</span></span>(<span>self, slug: str) ‑> <a title="adcp.types.core.Member" href="types/core.html#adcp.types.core.Member">Member</a> | None</span>
@@ -846,6 +1737,117 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dt><code>ValueError</code></dt>
 <dd>If slug contains path-traversal characters.</dd>
 </dl></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.get_property_check_report"><code class="name flex">
+<span>async def <span class="ident">get_property_check_report</span></span>(<span>self, report_id: str) ‑> dict[str, typing.Any] | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_property_check_report(
+    self, report_id: str
+) -&gt; dict[str, Any] | None:
+    &#34;&#34;&#34;Retrieve a property check report by ID.&#34;&#34;&#34;
+    resp = await self._request(
+        &#34;GET&#34;, f&#34;/api/properties/check/{url_quote(report_id, safe=&#39;&#39;)}&#34;,
+        allow_404=True, operation=&#34;Property check report&#34;,
+    )
+    if resp is None:
+        return None
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Retrieve a property check report by ID.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.get_registry_stats"><code class="name flex">
+<span>async def <span class="ident">get_registry_stats</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_registry_stats(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Get aggregate registry statistics.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/registry/stats&#34;,
+        operation=&#34;Registry stats&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Get aggregate registry statistics.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.list_agents"><code class="name flex">
+<span>async def <span class="ident">list_agents</span></span>(<span>self,<br>*,<br>type: str | None = None,<br>health: bool = False,<br>capabilities: bool = False,<br>properties: bool = False,<br>compliance: bool = False) ‑> list[<a title="adcp.types.registry.FederatedAgentWithDetails" href="types/registry.html#adcp.types.registry.FederatedAgentWithDetails">FederatedAgentWithDetails</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_agents(
+    self,
+    *,
+    type: str | None = None,
+    health: bool = False,
+    capabilities: bool = False,
+    properties: bool = False,
+    compliance: bool = False,
+) -&gt; list[FederatedAgentWithDetails]:
+    &#34;&#34;&#34;List registered and discovered agents.&#34;&#34;&#34;
+    params: dict[str, Any] = {}
+    if type is not None:
+        params[&#34;type&#34;] = type
+    if health:
+        params[&#34;health&#34;] = &#34;true&#34;
+    if capabilities:
+        params[&#34;capabilities&#34;] = &#34;true&#34;
+    if properties:
+        params[&#34;properties&#34;] = &#34;true&#34;
+    if compliance:
+        params[&#34;compliance&#34;] = &#34;true&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/registry/agents&#34;,
+        params=params, operation=&#34;Agent list&#34;,
+    )
+
+    data = resp.json()
+    return [
+        self._parse(FederatedAgentWithDetails, a, &#34;Agent list&#34;)
+        for a in data.get(&#34;agents&#34;, [])
+    ]</code></pre>
+</details>
+<div class="desc"><p>List registered and discovered agents.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.list_brands"><code class="name flex">
+<span>async def <span class="ident">list_brands</span></span>(<span>self, search: str | None = None, limit: int = 100, offset: int = 0) ‑> list[<a title="adcp.types.registry.BrandRegistryItem" href="types/registry.html#adcp.types.registry.BrandRegistryItem">BrandRegistryItem</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_brands(
+    self,
+    search: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -&gt; list[BrandRegistryItem]:
+    &#34;&#34;&#34;List brands in the registry.&#34;&#34;&#34;
+    params: dict[str, Any] = {&#34;limit&#34;: limit, &#34;offset&#34;: offset}
+    if search is not None:
+        params[&#34;search&#34;] = search
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/brands/registry&#34;,
+        params=params, operation=&#34;Brand list&#34;,
+    )
+
+    data = resp.json()
+    return [self._parse(BrandRegistryItem, b, &#34;Brand list&#34;) for b in data.get(&#34;brands&#34;, [])]</code></pre>
+</details>
+<div class="desc"><p>List brands in the registry.</p></div>
 </dd>
 <dt id="adcp.registry.RegistryClient.list_members"><code class="name flex">
 <span>async def <span class="ident">list_members</span></span>(<span>self, limit: int = 100) ‑> list[<a title="adcp.types.core.Member" href="types/core.html#adcp.types.core.Member">Member</a>]</span>
@@ -1011,6 +2013,60 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dd>On HTTP or parsing errors.</dd>
 </dl></div>
 </dd>
+<dt id="adcp.registry.RegistryClient.list_properties"><code class="name flex">
+<span>async def <span class="ident">list_properties</span></span>(<span>self, search: str | None = None, limit: int = 100, offset: int = 0) ‑> list[<a title="adcp.types.registry.PropertyRegistryItem" href="types/registry.html#adcp.types.registry.PropertyRegistryItem">PropertyRegistryItem</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_properties(
+    self,
+    search: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -&gt; list[PropertyRegistryItem]:
+    &#34;&#34;&#34;List properties in the registry.&#34;&#34;&#34;
+    params: dict[str, Any] = {&#34;limit&#34;: limit, &#34;offset&#34;: offset}
+    if search is not None:
+        params[&#34;search&#34;] = search
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/properties/registry&#34;,
+        params=params, operation=&#34;Property list&#34;,
+    )
+
+    data = resp.json()
+    return [
+        self._parse(PropertyRegistryItem, p, &#34;Property list&#34;)
+        for p in data.get(&#34;properties&#34;, [])
+    ]</code></pre>
+</details>
+<div class="desc"><p>List properties in the registry.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.list_publishers"><code class="name flex">
+<span>async def <span class="ident">list_publishers</span></span>(<span>self) ‑> list[<a title="adcp.types.registry.FederatedPublisher" href="types/registry.html#adcp.types.registry.FederatedPublisher">FederatedPublisher</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_publishers(self) -&gt; list[FederatedPublisher]:
+    &#34;&#34;&#34;List publishers in the registry.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/registry/publishers&#34;,
+        operation=&#34;Publisher list&#34;,
+    )
+
+    data = resp.json()
+    return [
+        self._parse(FederatedPublisher, p, &#34;Publisher list&#34;)
+        for p in data.get(&#34;publishers&#34;, [])
+    ]</code></pre>
+</details>
+<div class="desc"><p>List publishers in the registry.</p></div>
+</dd>
 <dt id="adcp.registry.RegistryClient.lookup_brand"><code class="name flex">
 <span>async def <span class="ident">lookup_brand</span></span>(<span>self, domain: str) ‑> <a title="adcp.types.core.ResolvedBrand" href="types/core.html#adcp.types.core.ResolvedBrand">ResolvedBrand</a> | None</span>
 </code></dt>
@@ -1136,6 +2192,49 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dd>On HTTP or parsing errors.</dd>
 </dl></div>
 </dd>
+<dt id="adcp.registry.RegistryClient.lookup_domain"><code class="name flex">
+<span>async def <span class="ident">lookup_domain</span></span>(<span>self, domain: str) ‑> <a title="adcp.types.registry.DomainLookupResult" href="types/registry.html#adcp.types.registry.DomainLookupResult">DomainLookupResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def lookup_domain(self, domain: str) -&gt; DomainLookupResult:
+    &#34;&#34;&#34;Find all agents authorized for a publisher domain.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, f&#34;/api/registry/lookup/domain/{url_quote(domain, safe=&#39;&#39;)}&#34;,
+        operation=&#34;Domain lookup&#34;,
+    )
+
+    return self._parse(DomainLookupResult, resp.json(), &#34;Domain lookup&#34;)</code></pre>
+</details>
+<div class="desc"><p>Find all agents authorized for a publisher domain.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.lookup_manifest_ref"><code class="name flex">
+<span>async def <span class="ident">lookup_manifest_ref</span></span>(<span>self, domain: str, *, type: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def lookup_manifest_ref(
+    self, domain: str, *, type: str | None = None
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Find the best manifest reference for a domain.&#34;&#34;&#34;
+    params: dict[str, Any] = {&#34;domain&#34;: domain}
+    if type is not None:
+        params[&#34;type&#34;] = type
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/manifest-refs/lookup&#34;,
+        params=params, operation=&#34;Manifest ref lookup&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Find the best manifest reference for a domain.</p></div>
+</dd>
 <dt id="adcp.registry.RegistryClient.lookup_properties"><code class="name flex">
 <span>async def <span class="ident">lookup_properties</span></span>(<span>self, domains: list[str]) ‑> dict[str, <a title="adcp.types.core.ResolvedProperty" href="types/core.html#adcp.types.core.ResolvedProperty">ResolvedProperty</a> | None]</span>
 </code></dt>
@@ -1251,6 +2350,28 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dd>On HTTP or parsing errors.</dd>
 </dl></div>
 </dd>
+<dt id="adcp.registry.RegistryClient.lookup_property_identifier"><code class="name flex">
+<span>async def <span class="ident">lookup_property_identifier</span></span>(<span>self, type: str, value: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def lookup_property_identifier(
+    self, type: str, value: str
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Find agents holding a specific property identifier.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/registry/lookup/property&#34;,
+        params={&#34;type&#34;: type, &#34;value&#34;: value},
+        operation=&#34;Property identifier lookup&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Find agents holding a specific property identifier.</p></div>
+</dd>
 <dt id="adcp.registry.RegistryClient.policy_history"><code class="name flex">
 <span>async def <span class="ident">policy_history</span></span>(<span>self, policy_id: str, limit: int = 20, offset: int = 0) ‑> <a title="adcp.types.core.PolicyHistory" href="types/core.html#adcp.types.core.PolicyHistory">PolicyHistory</a> | None</span>
 </code></dt>
@@ -1327,6 +2448,55 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dt><code>RegistryError</code></dt>
 <dd>On HTTP or parsing errors.</dd>
 </dl></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.property_history"><code class="name flex">
+<span>async def <span class="ident">property_history</span></span>(<span>self, domain: str, limit: int = 20, offset: int = 0) ‑> <a title="adcp.types.registry.PropertyActivity" href="types/registry.html#adcp.types.registry.PropertyActivity">PropertyActivity</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def property_history(
+    self,
+    domain: str,
+    limit: int = 20,
+    offset: int = 0,
+) -&gt; PropertyActivity | None:
+    &#34;&#34;&#34;Get edit history for a property.&#34;&#34;&#34;
+    resp = await self._request(
+        &#34;GET&#34;, &#34;/api/properties/history&#34;,
+        params={&#34;domain&#34;: domain, &#34;limit&#34;: limit, &#34;offset&#34;: offset},
+        allow_404=True, operation=&#34;Property history&#34;,
+    )
+    if resp is None:
+        return None
+    return self._parse(PropertyActivity, resp.json(), &#34;Property history&#34;)</code></pre>
+</details>
+<div class="desc"><p>Get edit history for a property.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.request_crawl"><code class="name flex">
+<span>async def <span class="ident">request_crawl</span></span>(<span>self, domain: str, *, auth_token: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def request_crawl(
+    self, domain: str, *, auth_token: str
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Request a domain re-crawl (auth required).&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;POST&#34;, &#34;/api/registry/crawl-request&#34;,
+        json_body={&#34;domain&#34;: domain}, auth_token=auth_token,
+        operation=&#34;Crawl request&#34;,
+        expected_status={200, 202},
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Request a domain re-crawl (auth required).</p></div>
 </dd>
 <dt id="adcp.registry.RegistryClient.resolve_policies"><code class="name flex">
 <span>async def <span class="ident">resolve_policies</span></span>(<span>self, policy_ids: list[str]) ‑> dict[str, <a title="adcp.types.core.Policy" href="types/core.html#adcp.types.core.Policy">Policy</a> | None]</span>
@@ -1457,6 +2627,36 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dt><code>RegistryError</code></dt>
 <dd>On HTTP or parsing errors.</dd>
 </dl></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.save_brand"><code class="name flex">
+<span>async def <span class="ident">save_brand</span></span>(<span>self,<br>domain: str,<br>brand_name: str,<br>*,<br>auth_token: str,<br>brand_manifest: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def save_brand(
+    self,
+    domain: str,
+    brand_name: str,
+    *,
+    auth_token: str,
+    brand_manifest: dict[str, Any] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Save or update a brand in the registry (auth required).&#34;&#34;&#34;
+    body: dict[str, Any] = {&#34;domain&#34;: domain, &#34;brand_name&#34;: brand_name}
+    if brand_manifest is not None:
+        body[&#34;brand_manifest&#34;] = brand_manifest
+    resp = await self._request_ok(
+        &#34;POST&#34;, &#34;/api/brands/save&#34;,
+        json_body=body, auth_token=auth_token,
+        operation=&#34;Brand save&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Save or update a brand in the registry (auth required).</p></div>
 </dd>
 <dt id="adcp.registry.RegistryClient.save_policy"><code class="name flex">
 <span>async def <span class="ident">save_policy</span></span>(<span>self,<br>policy_id: str,<br>version: str,<br>name: str,<br>category: str,<br>enforcement: str,<br>policy: str,<br>*,<br>auth_token: str,<br>description: str | None = None,<br>jurisdictions: list[str] | None = None,<br>region_aliases: dict[str, list[str]] | None = None,<br>verticals: list[str] | None = None,<br>channels: list[str] | None = None,<br>effective_date: str | None = None,<br>sunset_date: str | None = None,<br>governance_domains: list[str] | None = None,<br>source_url: str | None = None,<br>source_name: str | None = None,<br>guidance: str | None = None,<br>exemplars: dict[str, Any] | None = None,<br>ext: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
@@ -1628,6 +2828,224 @@ If provided, caller is responsible for client lifecycle.</dd>
 <dd>On HTTP or parsing errors (400, 401, 409, 429).</dd>
 </dl></div>
 </dd>
+<dt id="adcp.registry.RegistryClient.save_property"><code class="name flex">
+<span>async def <span class="ident">save_property</span></span>(<span>self,<br>publisher_domain: str,<br>authorized_agents: list[dict[str, Any]],<br>*,<br>auth_token: str,<br>properties: list[dict[str, Any]] | None = None,<br>contact: dict[str, str] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def save_property(
+    self,
+    publisher_domain: str,
+    authorized_agents: list[dict[str, Any]],
+    *,
+    auth_token: str,
+    properties: list[dict[str, Any]] | None = None,
+    contact: dict[str, str] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Save or update a hosted property (auth required).&#34;&#34;&#34;
+    body: dict[str, Any] = {
+        &#34;publisher_domain&#34;: publisher_domain,
+        &#34;authorized_agents&#34;: authorized_agents,
+    }
+    if properties is not None:
+        body[&#34;properties&#34;] = properties
+    if contact is not None:
+        body[&#34;contact&#34;] = contact
+    resp = await self._request_ok(
+        &#34;POST&#34;, &#34;/api/properties/save&#34;,
+        json_body=body, auth_token=auth_token,
+        operation=&#34;Property save&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Save or update a hosted property (auth required).</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.search"><code class="name flex">
+<span>async def <span class="ident">search</span></span>(<span>self, q: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def search(self, q: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Search across brands, publishers, and properties.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/search&#34;,
+        params={&#34;q&#34;: q}, operation=&#34;Search&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Search across brands, publishers, and properties.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.search_agents"><code class="name flex">
+<span>async def <span class="ident">search_agents</span></span>(<span>self,<br>*,<br>auth_token: str,<br>channels: str | None = None,<br>property_types: str | None = None,<br>markets: str | None = None,<br>categories: str | None = None,<br>tags: str | None = None,<br>delivery_types: str | None = None,<br>has_tmp: bool | None = None,<br>min_properties: int | None = None,<br>cursor: str | None = None,<br>limit: int = 50) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def search_agents(
+    self,
+    *,
+    auth_token: str,
+    channels: str | None = None,
+    property_types: str | None = None,
+    markets: str | None = None,
+    categories: str | None = None,
+    tags: str | None = None,
+    delivery_types: str | None = None,
+    has_tmp: bool | None = None,
+    min_properties: int | None = None,
+    cursor: str | None = None,
+    limit: int = 50,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Search agents by inventory profile (auth required).&#34;&#34;&#34;
+    params: dict[str, Any] = {&#34;limit&#34;: limit}
+    for key, val in [
+        (&#34;channels&#34;, channels),
+        (&#34;property_types&#34;, property_types),
+        (&#34;markets&#34;, markets),
+        (&#34;categories&#34;, categories),
+        (&#34;tags&#34;, tags),
+        (&#34;delivery_types&#34;, delivery_types),
+        (&#34;cursor&#34;, cursor),
+    ]:
+        if val is not None:
+            params[key] = val
+    if has_tmp is not None:
+        params[&#34;has_tmp&#34;] = str(has_tmp).lower()
+    if min_properties is not None:
+        params[&#34;min_properties&#34;] = min_properties
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/registry/agents/search&#34;,
+        params=params, auth_token=auth_token,
+        operation=&#34;Agent search&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Search agents by inventory profile (auth required).</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.validate_adagents"><code class="name flex">
+<span>async def <span class="ident">validate_adagents</span></span>(<span>self, domain: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def validate_adagents(self, domain: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Validate a domain&#39;s adagents.json via the registry API.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;POST&#34;, &#34;/api/adagents/validate&#34;,
+        json_body={&#34;domain&#34;: domain}, operation=&#34;Adagents validate&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Validate a domain's adagents.json via the registry API.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.validate_product_authorization"><code class="name flex">
+<span>async def <span class="ident">validate_product_authorization</span></span>(<span>self, agent_url: str, publisher_properties: list[dict[str, Any]]) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def validate_product_authorization(
+    self,
+    agent_url: str,
+    publisher_properties: list[dict[str, Any]],
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Check whether an agent is authorized to sell products.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;POST&#34;, &#34;/api/registry/validate/product-authorization&#34;,
+        json_body={
+            &#34;agent_url&#34;: agent_url,
+            &#34;publisher_properties&#34;: publisher_properties,
+        },
+        operation=&#34;Product authorization&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Check whether an agent is authorized to sell products.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.validate_property"><code class="name flex">
+<span>async def <span class="ident">validate_property</span></span>(<span>self, domain: str) ‑> <a title="adcp.types.registry.ValidationResult" href="types/registry.html#adcp.types.registry.ValidationResult">ValidationResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def validate_property(self, domain: str) -&gt; ValidationResult:
+    &#34;&#34;&#34;Validate a domain&#39;s adagents.json configuration.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/properties/validate&#34;,
+        params={&#34;domain&#34;: domain}, operation=&#34;Property validate&#34;,
+    )
+
+    return self._parse(ValidationResult, resp.json(), &#34;Property validate&#34;)</code></pre>
+</details>
+<div class="desc"><p>Validate a domain's adagents.json configuration.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.validate_property_authorization"><code class="name flex">
+<span>async def <span class="ident">validate_property_authorization</span></span>(<span>self, agent_url: str, identifier_type: str, identifier_value: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def validate_property_authorization(
+    self,
+    agent_url: str,
+    identifier_type: str,
+    identifier_value: str,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Quick check if a property identifier is authorized for an agent.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/registry/validate/property-authorization&#34;,
+        params={
+            &#34;agent_url&#34;: agent_url,
+            &#34;identifier_type&#34;: identifier_type,
+            &#34;identifier_value&#34;: identifier_value,
+        },
+        operation=&#34;Property authorization&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Quick check if a property identifier is authorized for an agent.</p></div>
+</dd>
+<dt id="adcp.registry.RegistryClient.validate_publisher"><code class="name flex">
+<span>async def <span class="ident">validate_publisher</span></span>(<span>self, domain: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def validate_publisher(self, domain: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Validate a publisher domain&#39;s adagents.json and return stats.&#34;&#34;&#34;
+    resp = await self._request_ok(
+        &#34;GET&#34;, &#34;/api/public/validate-publisher&#34;,
+        params={&#34;domain&#34;: domain}, operation=&#34;Publisher validation&#34;,
+    )
+
+    return cast(dict[str, Any], resp.json())</code></pre>
+</details>
+<div class="desc"><p>Validate a publisher domain's adagents.json and return stats.</p></div>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -1647,19 +3065,51 @@ If provided, caller is responsible for client lifecycle.</dd>
 <ul>
 <li>
 <h4><code><a title="adcp.registry.RegistryClient" href="#adcp.registry.RegistryClient">RegistryClient</a></code></h4>
-<ul class="two-column">
+<ul class="">
+<li><code><a title="adcp.registry.RegistryClient.api_discovery" href="#adcp.registry.RegistryClient.api_discovery">api_discovery</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.brand_history" href="#adcp.registry.RegistryClient.brand_history">brand_history</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.check_property_list" href="#adcp.registry.RegistryClient.check_property_list">check_property_list</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.close" href="#adcp.registry.RegistryClient.close">close</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.create_adagents" href="#adcp.registry.RegistryClient.create_adagents">create_adagents</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.discover_agent" href="#adcp.registry.RegistryClient.discover_agent">discover_agent</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.enrich_brand" href="#adcp.registry.RegistryClient.enrich_brand">enrich_brand</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.expand_product_identifiers" href="#adcp.registry.RegistryClient.expand_product_identifiers">expand_product_identifiers</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.get_agent_domains" href="#adcp.registry.RegistryClient.get_agent_domains">get_agent_domains</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.get_agent_formats" href="#adcp.registry.RegistryClient.get_agent_formats">get_agent_formats</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.get_agent_products" href="#adcp.registry.RegistryClient.get_agent_products">get_agent_products</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.get_brand_json" href="#adcp.registry.RegistryClient.get_brand_json">get_brand_json</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.get_feed" href="#adcp.registry.RegistryClient.get_feed">get_feed</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.get_member" href="#adcp.registry.RegistryClient.get_member">get_member</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.get_property_check_report" href="#adcp.registry.RegistryClient.get_property_check_report">get_property_check_report</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.get_registry_stats" href="#adcp.registry.RegistryClient.get_registry_stats">get_registry_stats</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.list_agents" href="#adcp.registry.RegistryClient.list_agents">list_agents</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.list_brands" href="#adcp.registry.RegistryClient.list_brands">list_brands</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.list_members" href="#adcp.registry.RegistryClient.list_members">list_members</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.list_policies" href="#adcp.registry.RegistryClient.list_policies">list_policies</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.list_properties" href="#adcp.registry.RegistryClient.list_properties">list_properties</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.list_publishers" href="#adcp.registry.RegistryClient.list_publishers">list_publishers</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_brand" href="#adcp.registry.RegistryClient.lookup_brand">lookup_brand</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_brands" href="#adcp.registry.RegistryClient.lookup_brands">lookup_brands</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.lookup_domain" href="#adcp.registry.RegistryClient.lookup_domain">lookup_domain</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.lookup_manifest_ref" href="#adcp.registry.RegistryClient.lookup_manifest_ref">lookup_manifest_ref</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_properties" href="#adcp.registry.RegistryClient.lookup_properties">lookup_properties</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.lookup_property" href="#adcp.registry.RegistryClient.lookup_property">lookup_property</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.lookup_property_identifier" href="#adcp.registry.RegistryClient.lookup_property_identifier">lookup_property_identifier</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.policy_history" href="#adcp.registry.RegistryClient.policy_history">policy_history</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.property_history" href="#adcp.registry.RegistryClient.property_history">property_history</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.request_crawl" href="#adcp.registry.RegistryClient.request_crawl">request_crawl</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.resolve_policies" href="#adcp.registry.RegistryClient.resolve_policies">resolve_policies</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.resolve_policy" href="#adcp.registry.RegistryClient.resolve_policy">resolve_policy</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.save_brand" href="#adcp.registry.RegistryClient.save_brand">save_brand</a></code></li>
 <li><code><a title="adcp.registry.RegistryClient.save_policy" href="#adcp.registry.RegistryClient.save_policy">save_policy</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.save_property" href="#adcp.registry.RegistryClient.save_property">save_property</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.search" href="#adcp.registry.RegistryClient.search">search</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.search_agents" href="#adcp.registry.RegistryClient.search_agents">search_agents</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.validate_adagents" href="#adcp.registry.RegistryClient.validate_adagents">validate_adagents</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.validate_product_authorization" href="#adcp.registry.RegistryClient.validate_product_authorization">validate_product_authorization</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.validate_property" href="#adcp.registry.RegistryClient.validate_property">validate_property</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.validate_property_authorization" href="#adcp.registry.RegistryClient.validate_property_authorization">validate_property_authorization</a></code></li>
+<li><code><a title="adcp.registry.RegistryClient.validate_publisher" href="#adcp.registry.RegistryClient.validate_publisher">validate_publisher</a></code></li>
 </ul>
 </li>
 </ul>

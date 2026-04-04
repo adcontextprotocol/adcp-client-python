@@ -110,11 +110,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Credit(AdCPBaseModel):
-    credit_limit: Annotated[float, Field(description=&#39;Maximum outstanding balance allowed&#39;, ge=0.0)]
     available_credit: Annotated[
         float,
         Field(description=&#39;Remaining credit available (credit_limit minus outstanding balance)&#39;),
     ]
+    credit_limit: Annotated[float, Field(description=&#39;Maximum outstanding balance allowed&#39;, ge=0.0)]
     utilization_percent: Annotated[
         float | None,
         Field(description=&#39;Credit utilization as a percentage (0-100)&#39;, ge=0.0, le=100.0),
@@ -182,6 +182,16 @@ validated to form a valid model.</p>
         account_ref.AccountReference,
         Field(description=&#39;Account reference, echoed from the request&#39;),
     ]
+    balance: Annotated[
+        Balance | None, Field(description=&#39;Prepay balance. Present for prepay accounts.&#39;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    credit: Annotated[
+        Credit | None,
+        Field(
+            description=&#39;Credit status. Present for credit-based accounts (payment_terms like net_30).&#39;
+        ),
+    ] = None
     currency: Annotated[
         str,
         Field(
@@ -189,27 +199,10 @@ validated to form a valid model.</p>
             pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
-    period: Annotated[
-        date_range.DateRange,
-        Field(
-            description=&#39;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#39;
-        ),
-    ]
-    timezone: Annotated[
-        str,
-        Field(
-            description=&#34;IANA timezone of the seller&#39;s billing day boundaries (e.g., &#39;America/New_York&#39;). All dates in this response — period, invoice periods, due dates — are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day.&#34;
-        ),
-    ]
-    spend: Annotated[Spend | None, Field(description=&#39;Spend summary for the period&#39;)] = None
-    credit: Annotated[
-        Credit | None,
-        Field(
-            description=&#39;Credit status. Present for credit-based accounts (payment_terms like net_30).&#39;
-        ),
-    ] = None
-    balance: Annotated[
-        Balance | None, Field(description=&#39;Prepay balance. Present for prepay accounts.&#39;)
+    ext: ext_1.ExtensionObject | None = None
+    invoices: Annotated[
+        list[Invoice] | None,
+        Field(description=&#39;Recent invoices. Sellers may limit the number returned.&#39;),
     ] = None
     payment_status: Annotated[
         PaymentStatus | None,
@@ -220,12 +213,19 @@ validated to form a valid model.</p>
     payment_terms: Annotated[
         PaymentTerms | None, Field(description=&#39;Payment terms in effect for this account&#39;)
     ] = None
-    invoices: Annotated[
-        list[Invoice] | None,
-        Field(description=&#39;Recent invoices. Sellers may limit the number returned.&#39;),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    period: Annotated[
+        date_range.DateRange,
+        Field(
+            description=&#39;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#39;
+        ),
+    ]
+    spend: Annotated[Spend | None, Field(description=&#39;Spend summary for the period&#39;)] = None
+    timezone: Annotated[
+        str,
+        Field(
+            description=&#34;IANA timezone of the seller&#39;s billing day boundaries (e.g., &#39;America/New_York&#39;). All dates in this response — period, invoice periods, due dates — are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day.&#34;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -321,8 +321,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
     context: context_1.ContextObject | None = None
+    errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -380,17 +380,17 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Invoice(AdCPBaseModel):
-    invoice_id: Annotated[str, Field(description=&#39;Seller-assigned invoice identifier&#39;)]
-    period: Annotated[
-        date_range.DateRange | None, Field(description=&#39;Billing period covered by this invoice&#39;)
-    ] = None
     amount: Annotated[float, Field(description=&#39;Invoice total in currency&#39;, ge=0.0)]
-    status: Annotated[Status, Field(description=&#39;Invoice status&#39;)]
     due_date: Annotated[date_aliased | None, Field(description=&#39;Payment due date&#39;)] = None
+    invoice_id: Annotated[str, Field(description=&#39;Seller-assigned invoice identifier&#39;)]
     paid_date: Annotated[
         date_aliased | None,
         Field(description=&#34;Date payment was received. Present when status is &#39;paid&#39;.&#34;),
-    ] = None</code></pre>
+    ] = None
+    period: Annotated[
+        date_range.DateRange | None, Field(description=&#39;Billing period covered by this invoice&#39;)
+    ] = None
+    status: Annotated[Status, Field(description=&#39;Invoice status&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -666,12 +666,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Spend(AdCPBaseModel):
-    total_spend: Annotated[
-        float, Field(description=&#39;Total spend in the period, in currency&#39;, ge=0.0)
-    ]
     media_buy_count: Annotated[
         int | None, Field(description=&#39;Number of active media buys in the period&#39;, ge=0)
-    ] = None</code></pre>
+    ] = None
+    total_spend: Annotated[
+        float, Field(description=&#39;Total spend in the period, in currency&#39;, ge=0.0)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

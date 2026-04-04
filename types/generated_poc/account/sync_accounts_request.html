@@ -59,6 +59,18 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    billing: Annotated[
+        Billing,
+        Field(
+            description=&#39;Who should be invoiced. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing across brands. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The seller must either accept this billing model or reject the request.&#39;
+        ),
+    ]
+    billing_entity: Annotated[
+        business_entity.BusinessEntity | None,
+        Field(
+            description=&#39;Business entity details for the party responsible for payment. The agent provides this so the seller has the legal name, tax IDs, address, and bank details needed for formal B2B invoicing.&#39;
+        ),
+    ] = None
     brand: Annotated[
         brand_ref.BrandReference,
         Field(
@@ -72,12 +84,6 @@ el.replaceWith(d);
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ]
-    billing: Annotated[
-        Billing,
-        Field(
-            description=&#39;Who should be invoiced. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing across brands. The seller must either accept this billing model or reject the request.&#39;
-        ),
-    ]
     payment_terms: Annotated[
         PaymentTerms | None,
         Field(
@@ -88,13 +94,6 @@ el.replaceWith(d);
         bool | None,
         Field(
             description=&#39;When true, provision this as a sandbox account with no real platform calls or billing. Only applicable to implicit accounts (require_operator_auth: false). For explicit accounts, sandbox accounts are pre-existing test accounts discovered via list_accounts.&#39;
-        ),
-    ] = None
-    governance_agents: Annotated[
-        list[GovernanceAgent] | None,
-        Field(
-            description=&#39;Governance agent endpoints for this account. When present, the seller MUST call these agents for governance approval before confirming media buy requests. Each agent can be scoped to specific validation categories. The seller routes check_governance calls to the appropriate agent based on the action being validated. All applicable agents must approve for the action to proceed (unanimous approval).&#39;,
-            min_length=1,
         ),
     ] = None</code></pre>
 </details>
@@ -119,11 +118,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
+<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.billing_entity"><code class="name">var <span class="ident">billing_entity</span> : <a title="adcp.types.generated_poc.core.business_entity.BusinessEntity" href="../core/business_entity.html#adcp.types.generated_poc.core.business_entity.BusinessEntity">BusinessEntity</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.governance_agents"><code class="name">var <span class="ident">governance_agents</span> : list[<a title="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent" href="#adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent">GovernanceAgent</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -155,65 +154,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Authentication"><code class="flex name class">
-<span>class <span class="ident">Authentication</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Authentication(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    schemes: Annotated[list[auth_scheme.AuthenticationScheme], Field(max_length=1, min_length=1)]
-    credentials: Annotated[
-        str, Field(description=&#39;Authentication credential (e.g., Bearer token).&#39;, min_length=32)
-    ]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Authentication.credentials"><code class="name">var <span class="ident">credentials</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Authentication.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.Authentication.schemes"><code class="name">var <span class="ident">schemes</span> : list[<a title="adcp.types.generated_poc.enums.auth_scheme.AuthenticationScheme" href="../enums/auth_scheme.html#adcp.types.generated_poc.enums.auth_scheme.AuthenticationScheme">AuthenticationScheme</a>]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_request.Billing"><code class="flex name class">
 <span>class <span class="ident">Billing</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -225,7 +165,8 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Billing(Enum):
     operator = &#39;operator&#39;
-    agent = &#39;agent&#39;</code></pre>
+    agent = &#39;agent&#39;
+    advertiser = &#39;advertiser&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -268,6 +209,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.account.sync_accounts_request.Billing.advertiser"><code class="name">var <span class="ident">advertiser</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_request.Billing.agent"><code class="name">var <span class="ident">agent</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -277,76 +222,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 </dl>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent"><code class="flex name class">
-<span>class <span class="ident">GovernanceAgent</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class GovernanceAgent(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    url: Annotated[AnyUrl, Field(description=&#39;Governance agent endpoint URL.&#39;)]
-    authentication: Annotated[
-        Authentication,
-        Field(description=&#39;Authentication the seller presents when calling this governance agent.&#39;),
-    ]
-    categories: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Governance categories this agent handles (e.g., [&#39;budget_authority&#39;, &#39;strategic_alignment&#39;]). When omitted, the agent handles all categories.&#34;
-        ),
-    ] = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.account.sync_accounts_request.Authentication" href="#adcp.types.generated_poc.account.sync_accounts_request.Authentication">Authentication</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.categories"><code class="name">var <span class="ident">categories</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
 </dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_request.PaymentTerms"><code class="flex name class">
 <span>class <span class="ident">PaymentTerms</span></span>
@@ -448,6 +323,7 @@ attributes &ndash; see the documentation for details.</p></div>
     accounts: Annotated[
         list[Account], Field(description=&#39;Advertiser accounts to sync&#39;, max_length=1000)
     ]
+    context: context_1.ContextObject | None = None
     delete_missing: Annotated[
         bool | None,
         Field(
@@ -460,14 +336,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;When true, preview what would change without applying. Returns what would be created/updated/deactivated.&#39;
         ),
     ] = False
+    ext: ext_1.ExtensionObject | None = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
             description=&#39;Webhook for async notifications when account status changes (e.g., pending_approval transitions to active).&#39;
         ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -545,8 +420,8 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account" href="#adcp.types.generated_poc.account.sync_accounts_request.Account">Account</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.billing" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.billing">billing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.billing_entity" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.billing_entity">billing_entity</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.brand" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.brand">brand</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.governance_agents" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.governance_agents">governance_agents</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.model_config" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.operator" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.operator">operator</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.payment_terms" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.payment_terms">payment_terms</a></code></li>
@@ -554,27 +429,11 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Authentication" href="#adcp.types.generated_poc.account.sync_accounts_request.Authentication">Authentication</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Authentication.credentials" href="#adcp.types.generated_poc.account.sync_accounts_request.Authentication.credentials">credentials</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Authentication.model_config" href="#adcp.types.generated_poc.account.sync_accounts_request.Authentication.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Authentication.schemes" href="#adcp.types.generated_poc.account.sync_accounts_request.Authentication.schemes">schemes</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Billing" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing">Billing</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Billing.advertiser" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing.advertiser">advertiser</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Billing.agent" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing.agent">agent</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Billing.operator" href="#adcp.types.generated_poc.account.sync_accounts_request.Billing.operator">operator</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent" href="#adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent">GovernanceAgent</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.authentication" href="#adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.authentication">authentication</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.categories" href="#adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.categories">categories</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.model_config" href="#adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.url" href="#adcp.types.generated_poc.account.sync_accounts_request.GovernanceAgent.url">url</a></code></li>
 </ul>
 </li>
 <li>

@@ -120,18 +120,31 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    session_id: Annotated[
-        str, Field(description=&#39;Unique session identifier for subsequent messages&#39;)
-    ]
-    response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s initial response&#34;)] = None
+    errors: Annotated[
+        list[error.Error] | None, Field(description=&#39;Errors during session initiation&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
     negotiated_capabilities: Annotated[
         si_capabilities.SiCapabilities | None,
         Field(description=&#39;Intersection of brand and host capabilities for this session&#39;),
     ] = None
-    errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Errors during session initiation&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s initial response&#34;)] = None
+    session_id: Annotated[
+        str, Field(description=&#39;Unique session identifier for subsequent messages&#39;)
+    ]
+    session_status: Annotated[
+        si_session_status.SiSessionStatus,
+        Field(
+            description=&#39;Current session lifecycle state. Returned in initiation, message, and termination responses.&#39;
+        ),
+    ]
+    session_ttl_seconds: Annotated[
+        int | None,
+        Field(
+            description=&#39;Session inactivity timeout in seconds. After this duration without a message, the brand agent may terminate the session. Hosts SHOULD warn users before timeout when possible.&#39;,
+            ge=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -171,6 +184,14 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_id"><code class="name">var <span class="ident">session_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_status"><code class="name">var <span class="ident">session_status</span> : <a title="adcp.types.generated_poc.enums.si_session_status.SiSessionStatus" href="../enums/si_session_status.html#adcp.types.generated_poc.enums.si_session_status.SiSessionStatus">SiSessionStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_ttl_seconds"><code class="name">var <span class="ident">session_ttl_seconds</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -218,6 +239,8 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.negotiated_capabilities" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.negotiated_capabilities">negotiated_capabilities</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.response" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.response">response</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_id" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_id">session_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_status" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_status">session_status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_ttl_seconds" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.session_ttl_seconds">session_ttl_seconds</a></code></li>
 </ul>
 </li>
 </ul>

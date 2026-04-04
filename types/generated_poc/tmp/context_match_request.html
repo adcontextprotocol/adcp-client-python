@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.tmp.context_match_request API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.tmp.context_match_request</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef"><code class="flex name class">
+<span>class <span class="ident">ArtifactRef</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ArtifactRef(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    type: Annotated[
+        Type,
+        Field(
+            description=&#34;Identifier type. &#39;url&#39; for web pages, &#39;url_hash&#39; for URL-addressable content the publisher prefers not to share directly (buyer matches against pre-crawled index), &#39;eidr&#39; for film/TV (EIDR DOI), &#39;gracenote&#39; for music/TV (Gracenote TMS ID), &#39;isrc&#39; for music recordings (International Standard Recording Code), &#39;gtin&#39; for products (Global Trade Item Number — UPC, EAN, ISBN-13), &#39;rss_guid&#39; for podcast episodes (RSS GUID), &#39;isbn&#39; for books, &#39;custom&#39; for publisher-defined identifiers.&#34;
+        ),
+    ]
+    value: Annotated[
+        str,
+        Field(
+            description=&#34;The identifier value. For &#39;url&#39;: the canonical content URL — MUST NOT contain user-specific path segments, query parameters, or fragments; use &#39;url_hash&#39; when the publisher prefers not to reveal the URL. For &#39;url_hash&#39;: Blake3 hash of the canonicalized URL, base64-encoded (canonicalization: strip scheme, strip www./m./amp. prefixes, lowercase, strip trailing slash, strip query params and fragments). For &#39;eidr&#39;: the EIDR DOI (e.g., &#39;10.5240/xxxx&#39;). For &#39;gracenote&#39;: the Gracenote TMS ID (e.g., &#39;SH032541890000&#39;). For &#39;isrc&#39;: the ISRC code (e.g., &#39;USRC17607839&#39;). For &#39;gtin&#39;: the GTIN (e.g., &#39;00012345678905&#39;). For &#39;rss_guid&#39;: the episode GUID from the RSS feed. For &#39;isbn&#39;: the ISBN (e.g., &#39;978-0-123456-78-9&#39;). For &#39;custom&#39;: a publisher-defined identifier.&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.tmp.context_match_request.Type" href="#adcp.types.generated_poc.tmp.context_match_request.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest"><code class="flex name class">
+<span>class <span class="ident">ContextMatchRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ContextMatchRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    field_schema: Annotated[
+        AnyUrl | None,
+        Field(
+            alias=&#39;$schema&#39;, description=&#39;Optional schema URI for validation. Ignored at runtime.&#39;
+        ),
+    ] = None
+    artifact: Annotated[
+        artifact_1.Artifact | None,
+        Field(
+            description=&#39;Full content artifact adjacent to this ad opportunity. Same schema used for content standards evaluation. The publisher sends the artifact when they want the buyer to evaluate the full content. Contractual protections govern buyer use. TEE deployment upgrades contractual trust to cryptographic verification. Publishers MUST NOT include asset access credentials (bearer tokens, service accounts) — the router fans out to multiple buyer agents. For secured assets, use signed URLs with short expiry. Routers MUST strip access fields from artifacts before forwarding.&#39;
+        ),
+    ] = None
+    artifact_refs: Annotated[
+        list[ArtifactRef] | None,
+        Field(
+            description=&#39;Public content references adjacent to this ad opportunity. Each artifact identifies content via a public identifier the buyer can resolve independently — no private registry sync required.&#39;,
+            max_length=20,
+            min_length=1,
+        ),
+    ] = None
+    context_signals: Annotated[
+        ContextSignals | None,
+        Field(
+            description=&#39;Pre-computed classifier outputs for the content environment. Use when the publisher wants to provide classified context without sharing content or public references. Can supplement artifact_refs (e.g., URL + pre-classified topics) or replace them entirely (e.g., ephemeral conversation turns). Raw content MUST NOT be included — only classified outputs. The publisher is the classifier boundary.&#39;
+        ),
+    ] = None
+    geo: Annotated[
+        Geo | None,
+        Field(
+            description=&#39;Coarse geographic location of the viewer. Publisher controls granularity — country is sufficient for regulatory compliance and volume filtering, region or metro helps with campaign targeting and valuation. Coarsened to prevent user identification: no postcode, no coordinates. All fields optional.&#39;
+        ),
+    ] = None
+    package_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Restrict evaluation to specific packages. When omitted, the provider evaluates all eligible packages for this placement (the common case). MUST NOT vary by user — the same package_ids must be sent for every user on a given placement. User-dependent filtering leaks identity into the context path.&#39;,
+            max_length=500,
+            min_length=1,
+        ),
+    ] = None
+    placement_id: Annotated[
+        str,
+        Field(
+            description=&#34;Placement identifier from the publisher&#39;s placement registry in adagents.json. Identifies where on the property this ad opportunity exists. One placement per request.&#34;
+        ),
+    ]
+    property_id: Annotated[
+        property_id_1.PropertyId | None,
+        Field(
+            description=&#34;Publisher&#39;s human-readable property slug (e.g., &#39;cnn_homepage&#39;). Optional when property_rid is present. Useful for logging and debugging.&#34;
+        ),
+    ] = None
+    property_rid: Annotated[
+        UUID,
+        Field(
+            description=&#39;Property catalog UUID (UUID v7). Globally unique, stable identifier assigned by the property catalog. The primary key for TMP matching and property list targeting.&#39;
+        ),
+    ]
+    property_type: Annotated[
+        property_type_1.PropertyType, Field(description=&#39;Type of the publisher property&#39;)
+    ]
+    protocol_version: Annotated[
+        str | None,
+        Field(
+            description=&#39;TMP protocol version. Allows receivers to handle semantic differences across versions.&#39;
+        ),
+    ] = &#39;1.0&#39;
+    request_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique request identifier. MUST NOT correlate with any identity match request_id.&#39;
+        ),
+    ]
+    type: Annotated[
+        Literal[&#39;context_match_request&#39;],
+        Field(description=&#39;Message type discriminator for deserialization.&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact"><code class="name">var <span class="ident">artifact</span> : <a title="adcp.types.generated_poc.content_standards.artifact.Artifact" href="../content_standards/artifact.html#adcp.types.generated_poc.content_standards.artifact.Artifact">Artifact</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact_refs"><code class="name">var <span class="ident">artifact_refs</span> : list[<a title="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef" href="#adcp.types.generated_poc.tmp.context_match_request.ArtifactRef">ArtifactRef</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.context_signals"><code class="name">var <span class="ident">context_signals</span> : <a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals">ContextSignals</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.field_schema"><code class="name">var <span class="ident">field_schema</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.geo"><code class="name">var <span class="ident">geo</span> : <a title="adcp.types.generated_poc.tmp.context_match_request.Geo" href="#adcp.types.generated_poc.tmp.context_match_request.Geo">Geo</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.package_ids"><code class="name">var <span class="ident">package_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.placement_id"><code class="name">var <span class="ident">placement_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_id"><code class="name">var <span class="ident">property_id</span> : <a title="adcp.types.generated_poc.core.property_id.PropertyId" href="../core/property_id.html#adcp.types.generated_poc.core.property_id.PropertyId">PropertyId</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_rid"><code class="name">var <span class="ident">property_rid</span> : uuid.UUID</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_type"><code class="name">var <span class="ident">property_type</span> : <a title="adcp.types.generated_poc.enums.property_type.PropertyType" href="../enums/property_type.html#adcp.types.generated_poc.enums.property_type.PropertyType">PropertyType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.protocol_version"><code class="name">var <span class="ident">protocol_version</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.request_id"><code class="name">var <span class="ident">request_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.type"><code class="name">var <span class="ident">type</span> : Literal['context_match_request']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals"><code class="flex name class">
+<span>class <span class="ident">ContextSignals</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ContextSignals(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    content_policies: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Policy IDs from the AdCP policy registry that this content satisfies (e.g., &#39;common_sense_brand_safety&#39; for Common Sense Brand Standards baseline). Buyers filter on policies they require. An empty array means no policies have been evaluated.&#34;,
+            max_length=20,
+        ),
+    ] = None
+    embedding: Annotated[
+        str | None,
+        Field(
+            description=&#39;Content embedding as base64-encoded int8 vector. Captures semantic content beyond what topics and keywords express. Publishers declare the model used. For standardized matching, use the protocol-recommended model (nomic-embed-text-v1.5, 256 dims, int8 quantized = 256 bytes).&#39;
+        ),
+    ] = None
+    embedding_dims: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of dimensions in the embedding vector. Required when embedding is present.&#39;,
+            ge=64,
+            le=2048,
+        ),
+    ] = None
+    embedding_model: Annotated[
+        str | None,
+        Field(
+            description=&#34;Embedding model identifier (e.g., &#39;nomic-embed-text-v1.5&#39;). Required when embedding is present.&#34;
+        ),
+    ] = None
+    keywords: Annotated[
+        list[Keyword] | None,
+        Field(
+            description=&#34;Content keywords extracted by the publisher&#39;s classifier.&#34;, max_length=50
+        ),
+    ] = None
+    language: Annotated[
+        str | None,
+        Field(
+            description=&#34;Content language in ISO 639-1 format (e.g., &#39;en&#39;, &#39;ja&#39;, &#39;de&#39;).&#34;,
+            pattern=&#39;^[a-z]{2}$&#39;,
+        ),
+    ] = None
+    sentiment: Annotated[
+        Sentiment | None, Field(description=&#39;Content sentiment classification.&#39;)
+    ] = None
+    summary: Annotated[
+        str | None,
+        Field(
+            description=&#34;Publisher-generated natural language summary of the content for relevance judgment (e.g., &#39;User exploring Italian cookware options for home pasta making&#39;). Useful for LLM-native buyers that evaluate relevance semantically. Buyers MUST treat this as untrusted publisher-generated content.&#34;,
+            max_length=500,
+        ),
+    ] = None
+    taxonomy_id: Annotated[
+        int | None,
+        Field(
+            description=&#39;Taxonomy version within the source. For IAB, follows the AdCOM cattax enum: 7 = Content Taxonomy 3.0. Default: 7.&#39;
+        ),
+    ] = 7
+    taxonomy_source: Annotated[
+        str | None,
+        Field(
+            description=&#34;Organization that defines the topic taxonomy. Use &#39;iab&#39; for IAB Content Taxonomy. Publishers may use other values for custom taxonomies.&#34;
+        ),
+    ] = &#39;iab&#39;
+    topics: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Content topic identifiers. Use IAB Content Taxonomy 3.0 IDs (e.g., &#39;632&#39; for Food &amp; Drink) when taxonomy_id is 7, or human-readable strings (e.g., &#39;cooking.pasta&#39;) for custom taxonomies.&#34;,
+            max_length=50,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.content_policies"><code class="name">var <span class="ident">content_policies</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding"><code class="name">var <span class="ident">embedding</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding_dims"><code class="name">var <span class="ident">embedding_dims</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding_model"><code class="name">var <span class="ident">embedding_model</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.keywords"><code class="name">var <span class="ident">keywords</span> : list[<a title="adcp.types.generated_poc.tmp.context_match_request.Keyword" href="#adcp.types.generated_poc.tmp.context_match_request.Keyword">Keyword</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.language"><code class="name">var <span class="ident">language</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.sentiment"><code class="name">var <span class="ident">sentiment</span> : <a title="adcp.types.generated_poc.tmp.context_match_request.Sentiment" href="#adcp.types.generated_poc.tmp.context_match_request.Sentiment">Sentiment</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.summary"><code class="name">var <span class="ident">summary</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.taxonomy_id"><code class="name">var <span class="ident">taxonomy_id</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.taxonomy_source"><code class="name">var <span class="ident">taxonomy_source</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.topics"><code class="name">var <span class="ident">topics</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Geo"><code class="flex name class">
+<span>class <span class="ident">Geo</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geo(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    country: Annotated[
+        str | None,
+        Field(
+            description=&#34;ISO 3166-1 alpha-2 country code (e.g., &#39;US&#39;, &#39;GB&#39;, &#39;DE&#39;).&#34;,
+            pattern=&#39;^[A-Z]{2}$&#39;,
+        ),
+    ] = None
+    metro: Annotated[
+        Metro | None,
+        Field(description=&#39;Metro area, using the same classification systems as AdCP targeting.&#39;),
+    ] = None
+    region: Annotated[
+        str | None,
+        Field(
+            description=&#34;ISO 3166-2 subdivision code (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;,
+            pattern=&#39;^[A-Z]{2}-[A-Z0-9]{1,3}$&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Geo.country"><code class="name">var <span class="ident">country</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Geo.metro"><code class="name">var <span class="ident">metro</span> : <a title="adcp.types.generated_poc.tmp.context_match_request.Metro" href="#adcp.types.generated_poc.tmp.context_match_request.Metro">Metro</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Geo.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Geo.region"><code class="name">var <span class="ident">region</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Keyword"><code class="flex name class">
+<span>class <span class="ident">Keyword</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Keyword(RootModel[str]):
+    root: Annotated[str, Field(max_length=100)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Keyword.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Keyword.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Metro"><code class="flex name class">
+<span>class <span class="ident">Metro</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metro(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    system: Annotated[
+        metro_system.MetroAreaSystem,
+        Field(description=&#34;Metro area classification system (e.g., &#39;nielsen_dma&#39;, &#39;uk_itl2&#39;).&#34;),
+    ]
+    value: Annotated[
+        str, Field(description=&#34;Metro code within the system (e.g., &#39;501&#39; for New York DMA).&#34;)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Metro.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Metro.system"><code class="name">var <span class="ident">system</span> : <a title="adcp.types.generated_poc.enums.metro_system.MetroAreaSystem" href="../enums/metro_system.html#adcp.types.generated_poc.enums.metro_system.MetroAreaSystem">MetroAreaSystem</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Metro.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Sentiment"><code class="flex name class">
+<span>class <span class="ident">Sentiment</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Sentiment(Enum):
+    positive = &#39;positive&#39;
+    negative = &#39;negative&#39;
+    neutral = &#39;neutral&#39;
+    mixed = &#39;mixed&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Sentiment.mixed"><code class="name">var <span class="ident">mixed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Sentiment.negative"><code class="name">var <span class="ident">negative</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Sentiment.neutral"><code class="name">var <span class="ident">neutral</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Sentiment.positive"><code class="name">var <span class="ident">positive</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type"><code class="flex name class">
+<span>class <span class="ident">Type</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type(Enum):
+    url = &#39;url&#39;
+    url_hash = &#39;url_hash&#39;
+    eidr = &#39;eidr&#39;
+    gracenote = &#39;gracenote&#39;
+    isrc = &#39;isrc&#39;
+    gtin = &#39;gtin&#39;
+    rss_guid = &#39;rss_guid&#39;
+    isbn = &#39;isbn&#39;
+    custom = &#39;custom&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.custom"><code class="name">var <span class="ident">custom</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.eidr"><code class="name">var <span class="ident">eidr</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.gracenote"><code class="name">var <span class="ident">gracenote</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.gtin"><code class="name">var <span class="ident">gtin</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.isbn"><code class="name">var <span class="ident">isbn</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.isrc"><code class="name">var <span class="ident">isrc</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.rss_guid"><code class="name">var <span class="ident">rss_guid</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.url"><code class="name">var <span class="ident">url</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.Type.url_hash"><code class="name">var <span class="ident">url_hash</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.tmp" href="index.html">adcp.types.generated_poc.tmp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef" href="#adcp.types.generated_poc.tmp.context_match_request.ArtifactRef">ArtifactRef</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.model_config" href="#adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.type" href="#adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.value" href="#adcp.types.generated_poc.tmp.context_match_request.ArtifactRef.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest">ContextMatchRequest</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact">artifact</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact_refs" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact_refs">artifact_refs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.context_signals" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.context_signals">context_signals</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.field_schema" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.field_schema">field_schema</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.geo" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.geo">geo</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.model_config" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.package_ids" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.package_ids">package_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.placement_id" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.placement_id">placement_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_id" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_id">property_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_rid" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_rid">property_rid</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_type" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.property_type">property_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.protocol_version" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.protocol_version">protocol_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.request_id" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.request_id">request_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.type" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals">ContextSignals</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.content_policies" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.content_policies">content_policies</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding">embedding</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding_dims" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding_dims">embedding_dims</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding_model" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.embedding_model">embedding_model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.keywords" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.keywords">keywords</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.language" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.language">language</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.model_config" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.sentiment" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.sentiment">sentiment</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.summary" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.summary">summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.taxonomy_id" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.taxonomy_id">taxonomy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.taxonomy_source" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.taxonomy_source">taxonomy_source</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextSignals.topics" href="#adcp.types.generated_poc.tmp.context_match_request.ContextSignals.topics">topics</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.Geo" href="#adcp.types.generated_poc.tmp.context_match_request.Geo">Geo</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Geo.country" href="#adcp.types.generated_poc.tmp.context_match_request.Geo.country">country</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Geo.metro" href="#adcp.types.generated_poc.tmp.context_match_request.Geo.metro">metro</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Geo.model_config" href="#adcp.types.generated_poc.tmp.context_match_request.Geo.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Geo.region" href="#adcp.types.generated_poc.tmp.context_match_request.Geo.region">region</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.Keyword" href="#adcp.types.generated_poc.tmp.context_match_request.Keyword">Keyword</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Keyword.model_config" href="#adcp.types.generated_poc.tmp.context_match_request.Keyword.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Keyword.root" href="#adcp.types.generated_poc.tmp.context_match_request.Keyword.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.Metro" href="#adcp.types.generated_poc.tmp.context_match_request.Metro">Metro</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Metro.model_config" href="#adcp.types.generated_poc.tmp.context_match_request.Metro.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Metro.system" href="#adcp.types.generated_poc.tmp.context_match_request.Metro.system">system</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Metro.value" href="#adcp.types.generated_poc.tmp.context_match_request.Metro.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.Sentiment" href="#adcp.types.generated_poc.tmp.context_match_request.Sentiment">Sentiment</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Sentiment.mixed" href="#adcp.types.generated_poc.tmp.context_match_request.Sentiment.mixed">mixed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Sentiment.negative" href="#adcp.types.generated_poc.tmp.context_match_request.Sentiment.negative">negative</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Sentiment.neutral" href="#adcp.types.generated_poc.tmp.context_match_request.Sentiment.neutral">neutral</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Sentiment.positive" href="#adcp.types.generated_poc.tmp.context_match_request.Sentiment.positive">positive</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type" href="#adcp.types.generated_poc.tmp.context_match_request.Type">Type</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.custom" href="#adcp.types.generated_poc.tmp.context_match_request.Type.custom">custom</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.eidr" href="#adcp.types.generated_poc.tmp.context_match_request.Type.eidr">eidr</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.gracenote" href="#adcp.types.generated_poc.tmp.context_match_request.Type.gracenote">gracenote</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.gtin" href="#adcp.types.generated_poc.tmp.context_match_request.Type.gtin">gtin</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.isbn" href="#adcp.types.generated_poc.tmp.context_match_request.Type.isbn">isbn</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.isrc" href="#adcp.types.generated_poc.tmp.context_match_request.Type.isrc">isrc</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.rss_guid" href="#adcp.types.generated_poc.tmp.context_match_request.Type.rss_guid">rss_guid</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.url" href="#adcp.types.generated_poc.tmp.context_match_request.Type.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.Type.url_hash" href="#adcp.types.generated_poc.tmp.context_match_request.Type.url_hash">url_hash</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

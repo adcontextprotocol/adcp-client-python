@@ -59,10 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    pricing_option_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
-    ]
-    pricing_model: Annotated[Literal[&#39;cpv&#39;], Field(description=&#39;Cost per view at threshold&#39;)]
     currency: Annotated[
         str,
         Field(
@@ -71,6 +67,12 @@ el.replaceWith(d);
             pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
+    eligible_adjustments: Annotated[
+        list[adjustment_kind.PriceAdjustmentKind] | None,
+        Field(
+            description=&#39;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#39;
+        ),
+    ] = None
     fixed_price: Annotated[
         float | None,
         Field(
@@ -91,20 +93,30 @@ el.replaceWith(d);
             description=&#34;When true, bid_price is interpreted as the buyer&#39;s maximum willingness to pay (ceiling) rather than an exact price. Sellers may optimize actual clearing prices between floor_price and bid_price based on delivery pacing. When false or absent, bid_price (if provided) is the exact bid/price to honor.&#34;
         ),
     ] = False
-    price_guidance: Annotated[
-        price_guidance_1.PriceGuidance | None,
-        Field(description=&#39;Optional pricing guidance for auction-based bidding&#39;),
-    ] = None
-    parameters: Annotated[
-        Parameters, Field(description=&#39;CPV-specific parameters defining the view threshold&#39;)
-    ]
     min_spend_per_package: Annotated[
         float | None,
         Field(
             description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
             ge=0.0,
         ),
-    ] = None</code></pre>
+    ] = None
+    parameters: Annotated[
+        Parameters, Field(description=&#39;CPV-specific parameters defining the view threshold&#39;)
+    ]
+    price_breakdown: Annotated[
+        price_breakdown_1.PriceBreakdown | None,
+        Field(
+            description=&#39;Breakdown of how fixed_price was derived from the list (rate card) price. Only meaningful when fixed_price is present.&#39;
+        ),
+    ] = None
+    price_guidance: Annotated[
+        price_guidance_1.PriceGuidance | None,
+        Field(description=&#39;Optional pricing guidance for auction-based bidding&#39;),
+    ] = None
+    pricing_model: Annotated[Literal[&#39;cpv&#39;], Field(description=&#39;Cost per view at threshold&#39;)]
+    pricing_option_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -124,6 +136,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.eligible_adjustments"><code class="name">var <span class="ident">eligible_adjustments</span> : list[<a title="adcp.types.generated_poc.enums.adjustment_kind.PriceAdjustmentKind" href="../enums/adjustment_kind.html#adcp.types.generated_poc.enums.adjustment_kind.PriceAdjustmentKind">PriceAdjustmentKind</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -148,6 +164,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.parameters"><code class="name">var <span class="ident">parameters</span> : <a title="adcp.types.generated_poc.pricing_options.cpv_option.Parameters" href="#adcp.types.generated_poc.pricing_options.cpv_option.Parameters">Parameters</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.price_breakdown"><code class="name">var <span class="ident">price_breakdown</span> : <a title="adcp.types.generated_poc.pricing_options.price_breakdown.PriceBreakdown" href="price_breakdown.html#adcp.types.generated_poc.pricing_options.price_breakdown.PriceBreakdown">PriceBreakdown</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -356,12 +376,14 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption">CpvPricingOption</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.currency" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.eligible_adjustments" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.eligible_adjustments">eligible_adjustments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.fixed_price" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.fixed_price">fixed_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.floor_price" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.floor_price">floor_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.max_bid" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.max_bid">max_bid</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.min_spend_per_package" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.min_spend_per_package">min_spend_per_package</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.model_config" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.parameters" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.parameters">parameters</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.price_breakdown" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.price_breakdown">price_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.price_guidance" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.price_guidance">price_guidance</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.pricing_model" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.pricing_model">pricing_model</a></code></li>
 <li><code><a title="adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.pricing_option_id" href="#adcp.types.generated_poc.pricing_options.cpv_option.CpvPricingOption.pricing_option_id">pricing_option_id</a></code></li>

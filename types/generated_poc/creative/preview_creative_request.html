@@ -59,24 +59,24 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    name: Annotated[
-        str,
+    context_description: Annotated[
+        str | None,
         Field(
-            description=&#34;Human-readable name for this input set (e.g., &#39;Sunny morning on mobile&#39;, &#39;Evening podcast ad&#39;, &#39;Desktop dark mode&#39;)&#34;
+            description=&#34;Natural language description of the context for AI-generated content (e.g., &#39;User just searched for running shoes&#39;, &#39;Podcast discussing weather patterns&#39;, &#39;Article about electric vehicles&#39;)&#34;
         ),
-    ]
+    ] = None
     macros: Annotated[
         dict[str, str] | None,
         Field(
             description=&#34;Macro values to use for this preview. Supports all universal macros from the format&#39;s supported_macros list. See docs/creative/universal-macros.md for available macros.&#34;
         ),
     ] = None
-    context_description: Annotated[
-        str | None,
+    name: Annotated[
+        str,
         Field(
-            description=&#34;Natural language description of the context for AI-generated content (e.g., &#39;User just searched for running shoes&#39;, &#39;Podcast discussing weather patterns&#39;, &#39;Article about electric vehicles&#39;)&#34;
+            description=&#34;Human-readable name for this input set (e.g., &#39;Sunny morning on mobile&#39;, &#39;Evening podcast ad&#39;, &#39;Desktop dark mode&#39;)&#34;
         ),
-    ] = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -136,14 +136,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    name: Annotated[str, Field(description=&#39;Human-readable name for this input set&#39;)]
-    macros: Annotated[
-        dict[str, str] | None, Field(description=&#39;Macro values to use for this preview&#39;)
-    ] = None
     context_description: Annotated[
         str | None,
         Field(description=&#39;Natural language description of the context for AI-generated content&#39;),
-    ] = None</code></pre>
+    ] = None
+    macros: Annotated[
+        dict[str, str] | None, Field(description=&#39;Macro values to use for this preview&#39;)
+    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name for this input set&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -203,20 +203,18 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    request_type: Annotated[
-        Literal[&#39;single&#39;],
-        Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
+    context: context_1.ContextObject | None = None
+    creative_manifest: Annotated[
+        creative_manifest_1.CreativeManifest,
+        Field(description=&#39;Complete creative manifest with all required assets for the format.&#39;),
     ]
+    ext: ext_1.ExtensionObject | None = None
     format_id: Annotated[
         format_id_1.FormatId | None,
         Field(
             description=&#39;Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted.&#39;
         ),
     ] = None
-    creative_manifest: Annotated[
-        creative_manifest_1.CreativeManifest,
-        Field(description=&#39;Complete creative manifest with all required assets for the format.&#39;),
-    ]
     inputs: Annotated[
         list[Input] | None,
         Field(
@@ -224,13 +222,11 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    template_id: Annotated[
-        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
-    ] = None
-    quality: Annotated[
-        creative_quality.CreativeQuality | None,
+    item_limit: Annotated[
+        int | None,
         Field(
-            description=&#34;Render quality for the preview. &#39;draft&#39; produces fast, lower-fidelity renderings for rapid iteration. &#39;production&#39; produces full-quality renderings for final review. If omitted, the creative agent uses its own default.&#34;
+            description=&#34;Maximum number of catalog items to render in the preview. For catalog-driven generative formats, caps how many items are rendered per preview variant. When item_limit exceeds the format&#39;s max_items, the creative agent SHOULD use the lesser of the two. Ignored when the manifest contains no catalog assets. Creative agents SHOULD default to a reasonable sample when omitted and the catalog is large.&#34;,
+            ge=1,
         ),
     ] = None
     output_format: Annotated[
@@ -239,15 +235,19 @@ validated to form a valid model.</p>
             description=&#34;Output format for previews. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding). Default: &#39;url&#39; for backward compatibility.&#34;
         ),
     ] = preview_output_format.PreviewOutputFormat.url
-    item_limit: Annotated[
-        int | None,
+    quality: Annotated[
+        creative_quality.CreativeQuality | None,
         Field(
-            description=&#34;Maximum number of catalog items to render in the preview. For catalog-driven generative formats, caps how many items are rendered per preview variant. When item_limit exceeds the format&#39;s max_items, the creative agent SHOULD use the lesser of the two. Ignored when the manifest contains no catalog assets. Creative agents SHOULD default to a reasonable sample when omitted and the catalog is large.&#34;,
-            ge=1,
+            description=&#34;Render quality for the preview. &#39;draft&#39; produces fast, lower-fidelity renderings for rapid iteration. &#39;production&#39; produces full-quality renderings for final review. If omitted, the creative agent uses its own default.&#34;
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    request_type: Annotated[
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview request&#39;),
+    ]
+    template_id: Annotated[
+        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -335,6 +335,20 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    output_format: Annotated[
+        preview_output_format.PreviewOutputFormat | None,
+        Field(
+            description=&#34;Default output format for all requests in this batch. Individual requests can override this. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
+        ),
+    ] = preview_output_format.PreviewOutputFormat.url
+    quality: Annotated[
+        creative_quality.CreativeQuality | None,
+        Field(
+            description=&#34;Default render quality for all requests in this batch. Individual requests can override this. &#39;draft&#39; produces fast, lower-fidelity renderings. &#39;production&#39; produces full-quality renderings.&#34;
+        ),
+    ] = None
     request_type: Annotated[
         Literal[&#39;batch&#39;],
         Field(description=&#39;Discriminator indicating this is a batch preview request&#39;),
@@ -346,21 +360,7 @@ validated to form a valid model.</p>
             max_length=50,
             min_length=1,
         ),
-    ]
-    quality: Annotated[
-        creative_quality.CreativeQuality | None,
-        Field(
-            description=&#34;Default render quality for all requests in this batch. Individual requests can override this. &#39;draft&#39; produces fast, lower-fidelity renderings. &#39;production&#39; produces full-quality renderings.&#34;
-        ),
-    ] = None
-    output_format: Annotated[
-        preview_output_format.PreviewOutputFormat | None,
-        Field(
-            description=&#34;Default output format for all requests in this batch. Individual requests can override this. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
-        ),
-    ] = preview_output_format.PreviewOutputFormat.url
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -432,6 +432,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
+    creative_id: Annotated[str | None, Field(description=&#39;Creative identifier for context&#39;)] = None
+    ext: ext_1.ExtensionObject | None = None
+    output_format: Annotated[
+        preview_output_format.PreviewOutputFormat | None,
+        Field(
+            description=&#34;Output format for the preview. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
+        ),
+    ] = preview_output_format.PreviewOutputFormat.url
     request_type: Annotated[
         Literal[&#39;variant&#39;],
         Field(description=&#39;Discriminator indicating this is a variant preview request&#39;),
@@ -441,16 +450,7 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Platform-assigned variant identifier from get_creative_delivery response&#39;
         ),
-    ]
-    creative_id: Annotated[str | None, Field(description=&#39;Creative identifier for context&#39;)] = None
-    output_format: Annotated[
-        preview_output_format.PreviewOutputFormat | None,
-        Field(
-            description=&#34;Output format for the preview. &#39;url&#39; returns preview_url (iframe-embeddable URL), &#39;html&#39; returns preview_html (raw HTML for direct embedding).&#34;
-        ),
-    ] = preview_output_format.PreviewOutputFormat.url
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -522,30 +522,25 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    creative_manifest: Annotated[
+        creative_manifest_1.CreativeManifest,
+        Field(description=&#39;Complete creative manifest with all required assets.&#39;),
+    ]
     format_id: Annotated[
         format_id_1.FormatId | None,
         Field(
             description=&#39;Format identifier for rendering the preview. Optional — defaults to creative_manifest_1.format_id if omitted.&#39;
         ),
     ] = None
-    creative_manifest: Annotated[
-        creative_manifest_1.CreativeManifest,
-        Field(description=&#39;Complete creative manifest with all required assets.&#39;),
-    ]
     inputs: Annotated[
         list[Input4] | None,
         Field(
             description=&#39;Array of input sets for generating multiple preview variants&#39;, min_length=1
         ),
     ] = None
-    template_id: Annotated[
-        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
-    ] = None
-    quality: Annotated[
-        creative_quality.CreativeQuality | None,
-        Field(
-            description=&#34;Render quality for this preview. &#39;draft&#39; produces fast, lower-fidelity renderings. &#39;production&#39; produces full-quality renderings. Overrides any batch-level default.&#34;
-        ),
+    item_limit: Annotated[
+        int | None,
+        Field(description=&#39;Maximum number of catalog items to render in this preview.&#39;, ge=1),
     ] = None
     output_format: Annotated[
         preview_output_format.PreviewOutputFormat | None,
@@ -553,9 +548,14 @@ validated to form a valid model.</p>
             description=&#34;Output format for this preview. &#39;url&#39; returns preview_url, &#39;html&#39; returns preview_html.&#34;
         ),
     ] = preview_output_format.PreviewOutputFormat.url
-    item_limit: Annotated[
-        int | None,
-        Field(description=&#39;Maximum number of catalog items to render in this preview.&#39;, ge=1),
+    quality: Annotated[
+        creative_quality.CreativeQuality | None,
+        Field(
+            description=&#34;Render quality for this preview. &#39;draft&#39; produces fast, lower-fidelity renderings. &#39;production&#39; produces full-quality renderings. Overrides any batch-level default.&#34;
+        ),
+    ] = None
+    template_id: Annotated[
+        str | None, Field(description=&#39;Specific template ID for custom format rendering&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -59,18 +59,18 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    min: Annotated[int, Field(description=&#39;Minimum age required&#39;, ge=13, le=99)]
-    verification_required: Annotated[
-        bool | None,
-        Field(description=&#39;Whether verified age (not inferred) is required for compliance&#39;),
-    ] = False
     accepted_methods: Annotated[
         list[age_verification_method.AgeVerificationMethod] | None,
         Field(
             description=&#39;Accepted verification methods. If omitted, any method the platform supports is acceptable.&#39;,
             min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    min: Annotated[int, Field(description=&#39;Minimum age required&#39;, ge=13, le=99)]
+    verification_required: Annotated[
+        bool | None,
+        Field(description=&#39;Whether verified age (not inferred) is required for compliance&#39;),
+    ] = False</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -501,6 +501,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    ext: ext_1.ExtensionObject | None = None
+    geometry: Annotated[
+        Geometry | None,
+        Field(
+            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
+        ),
+    ] = None
+    label: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
+        ),
+    ] = None
     lat: Annotated[
         float,
         Field(
@@ -517,37 +530,24 @@ validated to form a valid model.</p>
             le=180.0,
         ),
     ]
-    label: Annotated[
-        str | None,
-        Field(
-            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
-        ),
-    ] = None
-    travel_time: Annotated[
-        TravelTime,
-        Field(
-            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
-        ),
-    ]
-    transport_mode: Annotated[
-        transport_mode_1.TransportMode,
-        Field(
-            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
-        ),
-    ]
     radius: Annotated[
         Radius | None,
         Field(
             description=&#39;Simple radius from the point. The platform draws a circle of this distance around the coordinates.&#39;
         ),
     ] = None
-    geometry: Annotated[
-        Geometry | None,
+    transport_mode: Annotated[
+        transport_mode_1.TransportMode,
         Field(
-            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
+            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]
+    travel_time: Annotated[
+        TravelTime,
+        Field(
+            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -614,8 +614,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2"><code class="flex name class">
-<span>class <span class="ident">GeoProximity2</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5"><code class="flex name class">
+<span>class <span class="ident">GeoProximity5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -623,10 +623,23 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GeoProximity2(AdCPBaseModel):
+<pre><code class="python">class GeoProximity5(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    ext: ext_1.ExtensionObject | None = None
+    geometry: Annotated[
+        Geometry5 | None,
+        Field(
+            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
+        ),
+    ] = None
+    label: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
+        ),
+    ] = None
     lat: Annotated[
         float,
         Field(
@@ -643,37 +656,24 @@ validated to form a valid model.</p>
             le=180.0,
         ),
     ]
-    label: Annotated[
-        str | None,
-        Field(
-            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
-        ),
-    ] = None
-    travel_time: Annotated[
-        TravelTime2 | None,
-        Field(
-            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
-        ),
-    ] = None
-    transport_mode: Annotated[
-        transport_mode_1.TransportMode | None,
-        Field(
-            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
-        ),
-    ] = None
     radius: Annotated[
         Radius,
         Field(
             description=&#39;Simple radius from the point. The platform draws a circle of this distance around the coordinates.&#39;
         ),
     ]
-    geometry: Annotated[
-        Geometry2 | None,
+    transport_mode: Annotated[
+        transport_mode_1.TransportMode | None,
         Field(
-            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
+            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    travel_time: Annotated[
+        TravelTime5 | None,
+        Field(
+            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -692,39 +692,39 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry2" href="#adcp.types.generated_poc.core.targeting.Geometry2">Geometry2</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.lat"><code class="name">var <span class="ident">lat</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.lat"><code class="name">var <span class="ident">lat</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.lng"><code class="name">var <span class="ident">lng</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.lng"><code class="name">var <span class="ident">lng</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.targeting.Radius" href="#adcp.types.generated_poc.core.targeting.Radius">Radius</a></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.targeting.Radius" href="#adcp.types.generated_poc.core.targeting.Radius">Radius</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity2.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime2" href="#adcp.types.generated_poc.core.targeting.TravelTime2">TravelTime2</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity5.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -740,8 +740,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3"><code class="flex name class">
-<span>class <span class="ident">GeoProximity3</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6"><code class="flex name class">
+<span>class <span class="ident">GeoProximity6</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -749,10 +749,23 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GeoProximity3(AdCPBaseModel):
+<pre><code class="python">class GeoProximity6(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    ext: ext_1.ExtensionObject | None = None
+    geometry: Annotated[
+        Geometry6,
+        Field(
+            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
+        ),
+    ]
+    label: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
+        ),
+    ] = None
     lat: Annotated[
         float | None,
         Field(
@@ -769,16 +782,10 @@ validated to form a valid model.</p>
             le=180.0,
         ),
     ] = None
-    label: Annotated[
-        str | None,
+    radius: Annotated[
+        Radius | None,
         Field(
-            description=&#34;Human-readable label for this entry (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;, &#39;Primary trade area&#39;).&#34;
-        ),
-    ] = None
-    travel_time: Annotated[
-        TravelTime3 | None,
-        Field(
-            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
+            description=&#39;Simple radius from the point. The platform draws a circle of this distance around the coordinates.&#39;
         ),
     ] = None
     transport_mode: Annotated[
@@ -787,19 +794,12 @@ validated to form a valid model.</p>
             description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
     ] = None
-    radius: Annotated[
-        Radius | None,
+    travel_time: Annotated[
+        TravelTime6 | None,
         Field(
-            description=&#39;Simple radius from the point. The platform draws a circle of this distance around the coordinates.&#39;
+            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks.&#39;
         ),
-    ] = None
-    geometry: Annotated[
-        Geometry3,
-        Field(
-            description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary. Use when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom boundaries. When geometry is provided, lat/lng are not required.&#39;
-        ),
-    ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -818,39 +818,39 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry3" href="#adcp.types.generated_poc.core.targeting.Geometry3">Geometry3</a></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.targeting.Geometry6" href="#adcp.types.generated_poc.core.targeting.Geometry6">Geometry6</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.lat"><code class="name">var <span class="ident">lat</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.lat"><code class="name">var <span class="ident">lat</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.lng"><code class="name">var <span class="ident">lng</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.lng"><code class="name">var <span class="ident">lng</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.targeting.Radius" href="#adcp.types.generated_poc.core.targeting.Radius">Radius</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.targeting.Radius" href="#adcp.types.generated_poc.core.targeting.Radius">Radius</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.GeoProximity3.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime3" href="#adcp.types.generated_poc.core.targeting.TravelTime3">TravelTime3</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.GeoProximity6.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.targeting.TravelTime6" href="#adcp.types.generated_poc.core.targeting.TravelTime6">TravelTime6</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -982,13 +982,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type.&#39;)]
     coordinates: Annotated[
         list[Any],
         Field(
             description=&#39;GeoJSON coordinates array. For Polygon: array of linear rings. For MultiPolygon: array of polygons.&#39;
         ),
-    ]</code></pre>
+    ]
+    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type.&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1007,8 +1007,8 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.targeting.Geometry2" href="#adcp.types.generated_poc.core.targeting.Geometry2">Geometry2</a></li>
-<li><a title="adcp.types.generated_poc.core.targeting.Geometry3" href="#adcp.types.generated_poc.core.targeting.Geometry3">Geometry3</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.Geometry6" href="#adcp.types.generated_poc.core.targeting.Geometry6">Geometry6</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -1036,8 +1036,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.Geometry2"><code class="flex name class">
-<span>class <span class="ident">Geometry2</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry5"><code class="flex name class">
+<span>class <span class="ident">Geometry5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1045,7 +1045,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Geometry2(Geometry):
+<pre><code class="python">class Geometry5(Geometry):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1066,7 +1066,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.Geometry2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1082,8 +1082,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.Geometry3"><code class="flex name class">
-<span>class <span class="ident">Geometry3</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry6"><code class="flex name class">
+<span>class <span class="ident">Geometry6</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1091,7 +1091,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Geometry3(Geometry):
+<pre><code class="python">class Geometry6(Geometry):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1112,7 +1112,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.Geometry3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.Geometry6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1141,20 +1141,20 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    keyword: Annotated[str, Field(description=&#39;The keyword to target&#39;, min_length=1)]
-    match_type: Annotated[
-        MatchType,
-        Field(
-            description=&#39;Match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly&#39;
-        ),
-    ]
     bid_price: Annotated[
         float | None,
         Field(
             description=&#34;Per-keyword bid price, denominated in the same currency as the package&#39;s pricing option. Overrides the package-level bid_price for this keyword. Inherits the max_bid interpretation from the pricing option: when max_bid is true, this is the keyword&#39;s bid ceiling; when false, this is the exact bid. If omitted, the package bid_price applies.&#34;,
             ge=0.0,
         ),
-    ] = None</code></pre>
+    ] = None
+    keyword: Annotated[str, Field(description=&#39;The keyword to target&#39;, min_length=1)]
+    match_type: Annotated[
+        MatchType,
+        Field(
+            description=&#39;Match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1391,8 +1391,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    value: Annotated[float, Field(description=&#39;Radius distance.&#39;, gt=0.0)]
-    unit: Annotated[distance_unit.DistanceUnit, Field(description=&#39;Distance unit.&#39;)]</code></pre>
+    unit: Annotated[distance_unit.DistanceUnit, Field(description=&#39;Distance unit.&#39;)]
+    value: Annotated[float, Field(description=&#39;Radius distance.&#39;, gt=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1451,17 +1451,17 @@ validated to form a valid model.</p>
     catalog_id: Annotated[
         str, Field(description=&#39;Synced store-type catalog ID from sync_catalogs.&#39;)
     ]
-    store_ids: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Filter to specific stores within the catalog. Omit to target all stores.&#39;,
-            min_length=1,
-        ),
-    ] = None
     catchment_ids: Annotated[
         list[str] | None,
         Field(
             description=&#34;Catchment zone IDs to target (e.g., &#39;walk&#39;, &#39;drive&#39;). Omit to target all catchment zones.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    store_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter to specific stores within the catalog. Omit to target all stores.&#39;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -1524,6 +1524,69 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    age_restriction: Annotated[
+        AgeRestriction | None,
+        Field(
+            description=&#39;Age restriction for compliance. Use for legal requirements (alcohol, gambling), not audience targeting.&#39;
+        ),
+    ] = None
+    audience_exclude: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    audience_include: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Not for lookalike expansion — express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    axe_exclude_segment: Annotated[
+        str | None,
+        Field(
+            deprecated=True,
+            description=&#39;Deprecated: Use TMP provider fields instead. AXE segment ID to exclude from targeting.&#39;,
+        ),
+    ] = None
+    axe_include_segment: Annotated[
+        str | None,
+        Field(
+            deprecated=True,
+            description=&#39;Deprecated: Use TMP provider fields instead. AXE segment ID to include for targeting.&#39;,
+        ),
+    ] = None
+    daypart_targets: Annotated[
+        list[daypart_target.DaypartTarget] | None,
+        Field(
+            description=&#39;Restrict delivery to specific time windows. Each entry specifies days of week and an hour range.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    device_platform: Annotated[
+        list[device_platform_1.DevicePlatform] | None,
+        Field(
+            description=&#39;Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    device_type: Annotated[
+        list[device_type_1.DeviceType] | None,
+        Field(
+            description=&#39;Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    device_type_exclude: Annotated[
+        list[device_type_1.DeviceType] | None,
+        Field(
+            description=&#39;Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    frequency_cap: frequency_cap_1.FrequencyCap | None = None
     geo_countries: Annotated[
         list[GeoCountry] | None,
         Field(
@@ -1535,20 +1598,6 @@ validated to form a valid model.</p>
         list[GeoCountriesExcludeItem] | None,
         Field(
             description=&#34;Exclude specific countries from delivery. ISO 3166-1 alpha-2 codes (e.g., &#39;US&#39;, &#39;GB&#39;, &#39;DE&#39;).&#34;,
-            min_length=1,
-        ),
-    ] = None
-    geo_regions: Annotated[
-        list[GeoRegion] | None,
-        Field(
-            description=&#34;Restrict delivery to specific regions/states. ISO 3166-2 subdivision codes (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;,
-            min_length=1,
-        ),
-    ] = None
-    geo_regions_exclude: Annotated[
-        list[GeoRegionsExcludeItem] | None,
-        Field(
-            description=&#34;Exclude specific regions/states from delivery. ISO 3166-2 subdivision codes (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;,
             min_length=1,
         ),
     ] = None
@@ -1580,85 +1629,24 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    daypart_targets: Annotated[
-        list[daypart_target.DaypartTarget] | None,
-        Field(
-            description=&#39;Restrict delivery to specific time windows. Each entry specifies days of week and an hour range.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    axe_include_segment: Annotated[
-        str | None, Field(description=&#39;AXE segment ID to include for targeting&#39;)
-    ] = None
-    axe_exclude_segment: Annotated[
-        str | None, Field(description=&#39;AXE segment ID to exclude from targeting&#39;)
-    ] = None
-    audience_include: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Not for lookalike expansion — express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    audience_exclude: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    frequency_cap: frequency_cap_1.FrequencyCap | None = None
-    property_list: Annotated[
-        property_list_ref.PropertyListReference | None,
-        Field(
-            description=&#34;Reference to a property list for targeting specific properties within this product. The package runs on the intersection of the product&#39;s publisher_properties and this list. Sellers SHOULD return a validation error if the product has property_targeting_allowed: false.&#34;
-        ),
-    ] = None
-    age_restriction: Annotated[
-        AgeRestriction | None,
-        Field(
-            description=&#39;Age restriction for compliance. Use for legal requirements (alcohol, gambling), not audience targeting.&#39;
-        ),
-    ] = None
-    device_platform: Annotated[
-        list[device_platform_1.DevicePlatform] | None,
-        Field(
-            description=&#39;Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    device_type: Annotated[
-        list[device_type_1.DeviceType] | None,
-        Field(
-            description=&#39;Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).&#39;,
-            min_length=1,
-        ),
-    ] = None
-    device_type_exclude: Annotated[
-        list[device_type_1.DeviceType] | None,
-        Field(
-            description=&#39;Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).&#39;,
-            min_length=1,
-        ),
-    ] = None
-    store_catchments: Annotated[
-        list[StoreCatchment] | None,
-        Field(
-            description=&#39;Target users within store catchment areas from a synced store catalog. Each entry references a store-type catalog and optionally narrows to specific stores or catchment zones.&#39;,
-            min_length=1,
-        ),
-    ] = None
     geo_proximity: Annotated[
-        list[GeoProximity | GeoProximity2 | GeoProximity3] | None,
+        list[GeoProximity | GeoProximity5 | GeoProximity6] | None,
         Field(
             description=&#39;Target users within travel time, distance, or a custom boundary around arbitrary geographic points. Multiple entries use OR semantics — a user within range of any listed point is eligible. For campaigns targeting 10+ locations, consider using store_catchments with a location catalog instead. Seller must declare support in get_adcp_capabilities.&#39;,
             min_length=1,
         ),
     ] = None
-    language: Annotated[
-        list[LanguageItem] | None,
+    geo_regions: Annotated[
+        list[GeoRegion] | None,
         Field(
-            description=&#34;Restrict to users with specific language preferences. ISO 639-1 codes (e.g., &#39;en&#39;, &#39;es&#39;, &#39;fr&#39;).&#34;,
+            description=&#34;Restrict delivery to specific regions/states. ISO 3166-2 subdivision codes (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    geo_regions_exclude: Annotated[
+        list[GeoRegionsExcludeItem] | None,
+        Field(
+            description=&#34;Exclude specific regions/states from delivery. ISO 3166-2 subdivision codes (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;,
             min_length=1,
         ),
     ] = None
@@ -1669,10 +1657,30 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    language: Annotated[
+        list[LanguageItem] | None,
+        Field(
+            description=&#34;Restrict to users with specific language preferences. ISO 639-1 codes (e.g., &#39;en&#39;, &#39;es&#39;, &#39;fr&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
     negative_keywords: Annotated[
         list[NegativeKeyword] | None,
         Field(
             description=&#39;Keywords to exclude from delivery. Queries matching these keywords will not trigger the ad. Each negative keyword is identified by the tuple (keyword, match_type). Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    property_list: Annotated[
+        property_list_ref.PropertyListReference | None,
+        Field(
+            description=&#34;Reference to a property list for targeting specific properties within this product. The package runs on the intersection of the product&#39;s publisher_properties and this list. Sellers SHOULD return a validation error if the product has property_targeting_allowed: false.&#34;
+        ),
+    ] = None
+    store_catchments: Annotated[
+        list[StoreCatchment] | None,
+        Field(
+            description=&#39;Target users within store catchment areas from a synced store catalog. Each entry references a store-type catalog and optionally narrows to specific stores or catchment zones.&#39;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -1703,14 +1711,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.audience_include"><code class="name">var <span class="ident">audience_include</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_exclude_segment"><code class="name">var <span class="ident">axe_exclude_segment</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_include_segment"><code class="name">var <span class="ident">axe_include_segment</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1758,7 +1758,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_proximity"><code class="name">var <span class="ident">geo_proximity</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoProximity" href="#adcp.types.generated_poc.core.targeting.GeoProximity">GeoProximity</a> | <a title="adcp.types.generated_poc.core.targeting.GeoProximity2" href="#adcp.types.generated_poc.core.targeting.GeoProximity2">GeoProximity2</a> | <a title="adcp.types.generated_poc.core.targeting.GeoProximity3" href="#adcp.types.generated_poc.core.targeting.GeoProximity3">GeoProximity3</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.geo_proximity"><code class="name">var <span class="ident">geo_proximity</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoProximity" href="#adcp.types.generated_poc.core.targeting.GeoProximity">GeoProximity</a> | <a title="adcp.types.generated_poc.core.targeting.GeoProximity5" href="#adcp.types.generated_poc.core.targeting.GeoProximity5">GeoProximity5</a> | <a title="adcp.types.generated_poc.core.targeting.GeoProximity6" href="#adcp.types.generated_poc.core.targeting.GeoProximity6">GeoProximity6</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1795,6 +1795,67 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 </dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_exclude_segment"><code class="name">var <span class="ident">axe_exclude_segment</span> : str | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.targeting.TargetingOverlay.axe_include_segment"><code class="name">var <span class="ident">axe_include_segment</span> : str | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
+</dd>
+</dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
 <li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
@@ -1819,8 +1880,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    value: Annotated[float, Field(description=&#39;Travel time limit.&#39;, ge=1.0)]
-    unit: Annotated[Unit, Field(description=&#39;Time unit.&#39;)]</code></pre>
+    unit: Annotated[Unit, Field(description=&#39;Time unit.&#39;)]
+    value: Annotated[float, Field(description=&#39;Travel time limit.&#39;, ge=1.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1839,8 +1900,8 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.targeting.TravelTime2" href="#adcp.types.generated_poc.core.targeting.TravelTime2">TravelTime2</a></li>
-<li><a title="adcp.types.generated_poc.core.targeting.TravelTime3" href="#adcp.types.generated_poc.core.targeting.TravelTime3">TravelTime3</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a></li>
+<li><a title="adcp.types.generated_poc.core.targeting.TravelTime6" href="#adcp.types.generated_poc.core.targeting.TravelTime6">TravelTime6</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -1868,8 +1929,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TravelTime2"><code class="flex name class">
-<span>class <span class="ident">TravelTime2</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime5"><code class="flex name class">
+<span>class <span class="ident">TravelTime5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1877,7 +1938,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class TravelTime2(TravelTime):
+<pre><code class="python">class TravelTime5(TravelTime):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1898,7 +1959,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.TravelTime2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1914,8 +1975,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.targeting.TravelTime3"><code class="flex name class">
-<span>class <span class="ident">TravelTime3</span></span>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime6"><code class="flex name class">
+<span>class <span class="ident">TravelTime6</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1923,7 +1984,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class TravelTime3(TravelTime):
+<pre><code class="python">class TravelTime6(TravelTime):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1944,7 +2005,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.targeting.TravelTime3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.targeting.TravelTime6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2172,31 +2233,31 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2" href="#adcp.types.generated_poc.core.targeting.GeoProximity2">GeoProximity2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5" href="#adcp.types.generated_poc.core.targeting.GeoProximity5">GeoProximity5</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.ext" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.geometry" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.geometry">geometry</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.label" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.label">label</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.lat" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.lat">lat</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.lng" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.lng">lng</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.model_config" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.radius" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.radius">radius</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.transport_mode" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.transport_mode">transport_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity2.travel_time" href="#adcp.types.generated_poc.core.targeting.GeoProximity2.travel_time">travel_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.ext" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.geometry" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.geometry">geometry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.label" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.lat" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.lat">lat</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.lng" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.lng">lng</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.model_config" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.radius" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.radius">radius</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.transport_mode" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.transport_mode">transport_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity5.travel_time" href="#adcp.types.generated_poc.core.targeting.GeoProximity5.travel_time">travel_time</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3" href="#adcp.types.generated_poc.core.targeting.GeoProximity3">GeoProximity3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6" href="#adcp.types.generated_poc.core.targeting.GeoProximity6">GeoProximity6</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.ext" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.geometry" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.geometry">geometry</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.label" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.label">label</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.lat" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.lat">lat</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.lng" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.lng">lng</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.model_config" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.radius" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.radius">radius</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.transport_mode" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.transport_mode">transport_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity3.travel_time" href="#adcp.types.generated_poc.core.targeting.GeoProximity3.travel_time">travel_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.ext" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.geometry" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.geometry">geometry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.label" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.lat" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.lat">lat</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.lng" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.lng">lng</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.model_config" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.radius" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.radius">radius</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.transport_mode" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.transport_mode">transport_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.GeoProximity6.travel_time" href="#adcp.types.generated_poc.core.targeting.GeoProximity6.travel_time">travel_time</a></code></li>
 </ul>
 </li>
 <li>
@@ -2221,15 +2282,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry2" href="#adcp.types.generated_poc.core.targeting.Geometry2">Geometry2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry5" href="#adcp.types.generated_poc.core.targeting.Geometry5">Geometry5</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry2.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry5.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry5.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry3" href="#adcp.types.generated_poc.core.targeting.Geometry3">Geometry3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.Geometry6" href="#adcp.types.generated_poc.core.targeting.Geometry6">Geometry6</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry3.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.Geometry6.model_config" href="#adcp.types.generated_poc.core.targeting.Geometry6.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -2320,15 +2381,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime2" href="#adcp.types.generated_poc.core.targeting.TravelTime2">TravelTime2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime5" href="#adcp.types.generated_poc.core.targeting.TravelTime5">TravelTime5</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime2.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime5.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime5.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime3" href="#adcp.types.generated_poc.core.targeting.TravelTime3">TravelTime3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.targeting.TravelTime6" href="#adcp.types.generated_poc.core.targeting.TravelTime6">TravelTime6</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime3.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.targeting.TravelTime6.model_config" href="#adcp.types.generated_poc.core.targeting.TravelTime6.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

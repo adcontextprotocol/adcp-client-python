@@ -59,40 +59,40 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    url: Annotated[AnyUrl, Field(description=&#39;URL to the audio asset&#39;)]
-    duration_ms: Annotated[
-        int | None, Field(description=&#39;Audio duration in milliseconds&#39;, ge=0)
+    bit_depth: Annotated[BitDepth | None, Field(description=&#39;Bit depth&#39;)] = None
+    bitrate_kbps: Annotated[
+        int | None, Field(description=&#39;Bitrate in kilobits per second&#39;, ge=1)
     ] = None
-    file_size_bytes: Annotated[int | None, Field(description=&#39;File size in bytes&#39;, ge=1)] = None
-    container_format: Annotated[
-        str | None,
-        Field(description=&#39;Audio container/file format (mp3, m4a, aac, wav, ogg, flac, etc.)&#39;),
-    ] = None
+    channels: Annotated[Channels | None, Field(description=&#39;Channel configuration&#39;)] = None
     codec: Annotated[
         str | None,
         Field(
             description=&#39;Audio codec used (aac, aac_lc, he_aac, pcm, mp3, vorbis, opus, flac, ac3, eac3, etc.)&#39;
         ),
     ] = None
-    sampling_rate_hz: Annotated[
-        int | None, Field(description=&#39;Sampling rate in Hz (e.g., 44100, 48000, 96000)&#39;)
+    container_format: Annotated[
+        str | None,
+        Field(description=&#39;Audio container/file format (mp3, m4a, aac, wav, ogg, flac, etc.)&#39;),
     ] = None
-    channels: Annotated[Channels | None, Field(description=&#39;Channel configuration&#39;)] = None
-    bit_depth: Annotated[BitDepth | None, Field(description=&#39;Bit depth&#39;)] = None
-    bitrate_kbps: Annotated[
-        int | None, Field(description=&#39;Bitrate in kilobits per second&#39;, ge=1)
+    duration_ms: Annotated[
+        int | None, Field(description=&#39;Audio duration in milliseconds&#39;, ge=0)
     ] = None
+    file_size_bytes: Annotated[int | None, Field(description=&#39;File size in bytes&#39;, ge=1)] = None
     loudness_lufs: Annotated[float | None, Field(description=&#39;Integrated loudness in LUFS&#39;)] = None
-    true_peak_dbfs: Annotated[float | None, Field(description=&#39;True peak level in dBFS&#39;)] = None
-    transcript_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
-    ] = None
     provenance: Annotated[
         provenance_1.Provenance | None,
         Field(
             description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    sampling_rate_hz: Annotated[
+        int | None, Field(description=&#39;Sampling rate in Hz (e.g., 44100, 48000, 96000)&#39;)
+    ] = None
+    transcript_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
+    ] = None
+    true_peak_dbfs: Annotated[float | None, Field(description=&#39;True peak level in dBFS&#39;)] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL to the audio asset&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -69,6 +69,7 @@ el.replaceWith(d);
         asset_content_type.AssetContentType,
         Field(description=&#39;The content type of all items in this group.&#39;),
     ]
+    ext: ext_1.ExtensionObject | None = None
     items: Annotated[
         list[
             text_asset.TextAsset
@@ -88,8 +89,7 @@ el.replaceWith(d);
             description=&#39;The assets in this group. Each item should match the structure for the declared asset_type. Note: JSON Schema validation accepts any valid asset structure here; enforcement that items match asset_type is the responsibility of the consuming agent.&#39;,
             min_length=1,
         ),
-    ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

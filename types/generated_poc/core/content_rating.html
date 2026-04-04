@@ -59,11 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    system: Annotated[
-        content_rating_system.ContentRatingSystem, Field(description=&#39;Rating system used&#39;)
-    ]
     rating: Annotated[
         str, Field(description=&#34;Rating value within the system (e.g., &#39;TV-PG&#39;, &#39;R&#39;, &#39;explicit&#39;)&#34;)
+    ]
+    system: Annotated[
+        content_rating_system.ContentRatingSystem, Field(description=&#39;Rating system used&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

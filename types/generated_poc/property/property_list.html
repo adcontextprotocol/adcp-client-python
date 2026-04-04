@@ -59,33 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    list_id: Annotated[str, Field(description=&#39;Unique identifier for this property list&#39;)]
-    name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]
-    description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
-        None
-    )
-    principal: Annotated[
-        str | None, Field(description=&#39;Principal identity that owns this list&#39;)
-    ] = None
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
         Field(
             description=&#34;Array of property sources to evaluate. Each entry is a discriminated union: publisher_tags (publisher_domain + tags), publisher_ids (publisher_domain + property_ids), or identifiers (direct identifiers). If omitted, queries the agent&#39;s entire property database.&#34;
         ),
     ] = None
-    filters: Annotated[
-        property_list_filters.PropertyListFilters | None,
-        Field(description=&#39;Dynamic filters applied when resolving the list&#39;),
-    ] = None
     brand: Annotated[
         brand_ref.BrandReference | None,
         Field(
             description=&#39;Brand reference used to automatically apply appropriate rules. Resolved to full brand identity at execution time.&#39;
         ),
-    ] = None
-    webhook_url: Annotated[
-        AnyUrl | None,
-        Field(description=&#39;URL to receive notifications when the resolved list changes&#39;),
     ] = None
     cache_duration_hours: Annotated[
         int | None,
@@ -97,12 +81,28 @@ el.replaceWith(d);
     created_at: Annotated[AwareDatetime | None, Field(description=&#39;When the list was created&#39;)] = (
         None
     )
-    updated_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When the list was last modified&#39;)
+    description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
+        None
+    )
+    filters: Annotated[
+        property_list_filters.PropertyListFilters | None,
+        Field(description=&#39;Dynamic filters applied when resolving the list&#39;),
+    ] = None
+    list_id: Annotated[str, Field(description=&#39;Unique identifier for this property list&#39;)]
+    name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]
+    principal: Annotated[
+        str | None, Field(description=&#39;Principal identity that owns this list&#39;)
     ] = None
     property_count: Annotated[
         int | None,
         Field(description=&#39;Number of properties in the resolved list (at time of last resolution)&#39;),
+    ] = None
+    updated_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When the list was last modified&#39;)
+    ] = None
+    webhook_url: Annotated[
+        AnyUrl | None,
+        Field(description=&#39;URL to receive notifications when the resolved list changes&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

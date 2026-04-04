@@ -42,8 +42,7 @@ while maintaining type safety. It allows developers to use natural Python
 patterns (strings for enums, dicts for models) without explicit type construction.</p>
 <h2 id="examples">Examples</h2>
 <h1 id="with-coercion-these-are-equivalent">With coercion, these are equivalent:</h1>
-<p>ListCreativeFormatsRequest(type="video")
-ListCreativeFormatsRequest(type=FormatCategory.video)</p>
+<p>ListCreativeFormatsRequest(type="video")</p>
 <h1 id="dict-coercion-for-context">Dict coercion for context:</h1>
 <p>ListCreativeFormatsRequest(context={"key": "value"})
 ListCreativeFormatsRequest(context=ContextObject(key="value"))</p>
@@ -156,8 +155,8 @@ PackageRequest(creatives=[extended])  # No cast needed!
         from typing import Annotated
 
         type: Annotated[
-            FormatCategory | None,
-            BeforeValidator(coerce_to_enum(FormatCategory))
+            SomeEnum | None,
+            BeforeValidator(coerce_to_enum(SomeEnum))
         ] = None
         ```
     &#34;&#34;&#34;
@@ -193,8 +192,8 @@ type-checker friendly.</p>
 from typing import Annotated
 
 type: Annotated[
-    FormatCategory | None,
-    BeforeValidator(coerce_to_enum(FormatCategory))
+    SomeEnum | None,
+    BeforeValidator(coerce_to_enum(SomeEnum))
 ] = None
 </code></pre></div>
 </dd>

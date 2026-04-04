@@ -59,11 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    conversation_summary: Annotated[
-        str | None, Field(description=&#39;Summary of the conversation leading to purchase&#39;)
-    ] = None
     applied_offers: Annotated[
         list[str] | None, Field(description=&#39;Offer IDs that were applied during the conversation&#39;)
+    ] = None
+    conversation_summary: Annotated[
+        str | None, Field(description=&#39;Summary of the conversation leading to purchase&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -120,18 +120,18 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    type: Annotated[
-        Type | None,
-        Field(
-            description=&#39;Type of handoff: transaction (ready for ACP checkout) or complete (conversation done)&#39;
-        ),
+    context_for_checkout: Annotated[
+        ContextForCheckout | None, Field(description=&#39;Context to pass to ACP for seamless checkout&#39;)
     ] = None
     intent: Annotated[
         Intent | None,
         Field(description=&#39;For transaction handoffs: what the user wants to purchase&#39;),
     ] = None
-    context_for_checkout: Annotated[
-        ContextForCheckout | None, Field(description=&#39;Context to pass to ACP for seamless checkout&#39;)
+    type: Annotated[
+        Type | None,
+        Field(
+            description=&#39;Type of handoff: transaction (ready for ACP checkout) or complete (conversation done)&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -195,10 +195,10 @@ validated to form a valid model.</p>
     action: Annotated[str | None, Field(description=&#34;The commerce action (e.g., &#39;purchase&#39;)&#34;)] = (
         None
     )
+    price: Annotated[Price | None, Field(description=&#39;Price information&#39;)] = None
     product: Annotated[dict[str, Any] | None, Field(description=&#39;Product details for checkout&#39;)] = (
         None
-    )
-    price: Annotated[Price | None, Field(description=&#39;Price information&#39;)] = None</code></pre>
+    )</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -399,75 +399,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus"><code class="flex name class">
-<span>class <span class="ident">SessionStatus</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class SessionStatus(Enum):
-    active = &#39;active&#39;
-    pending_handoff = &#39;pending_handoff&#39;
-    complete = &#39;complete&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.active"><code class="name">var <span class="ident">active</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.complete"><code class="name">var <span class="ident">complete</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.pending_handoff"><code class="name">var <span class="ident">pending_handoff</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse"><code class="flex name class">
 <span>class <span class="ident">SiSendMessageResponse</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -481,20 +412,25 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    session_id: Annotated[str, Field(description=&#39;Session identifier&#39;)]
-    response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s response&#34;)] = None
+    errors: list[error.Error] | None = None
+    ext: ext_1.ExtensionObject | None = None
+    handoff: Annotated[
+        Handoff | None, Field(description=&#39;Handoff request when session_status is pending_handoff&#39;)
+    ] = None
     mcp_resource_uri: Annotated[
         str | None,
         Field(
             description=&#39;MCP resource URI for hosts with MCP Apps support (e.g., ui://si/session-abc123)&#39;
         ),
     ] = None
-    session_status: Annotated[SessionStatus, Field(description=&#39;Current session status&#39;)]
-    handoff: Annotated[
-        Handoff | None, Field(description=&#39;Handoff request when session_status is pending_handoff&#39;)
-    ] = None
-    errors: list[error.Error] | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s response&#34;)] = None
+    session_id: Annotated[str, Field(description=&#39;Session identifier&#39;)]
+    session_status: Annotated[
+        si_session_status.SiSessionStatus,
+        Field(
+            description=&#39;Current session status. On a successful response, one of: active, pending_handoff, or complete. Terminated sessions return error codes (SESSION_NOT_FOUND or SESSION_TERMINATED) instead of a success response.&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -541,7 +477,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_status"><code class="name">var <span class="ident">session_status</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus">SessionStatus</a></code></dt>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_status"><code class="name">var <span class="ident">session_status</span> : <a title="adcp.types.generated_poc.enums.si_session_status.SiSessionStatus" href="../enums/si_session_status.html#adcp.types.generated_poc.enums.si_session_status.SiSessionStatus">SiSessionStatus</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -677,14 +613,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.model_config" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.surface" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.surface">surface</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.ui_elements" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.ui_elements">ui_elements</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus">SessionStatus</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.active" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.active">active</a></code></li>
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.complete" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.complete">complete</a></code></li>
-<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.pending_handoff" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SessionStatus.pending_handoff">pending_handoff</a></code></li>
 </ul>
 </li>
 <li>

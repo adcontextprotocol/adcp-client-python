@@ -59,39 +59,12 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
     account: Annotated[
         account_1.Account | None, Field(description=&#39;Account that owns this creative&#39;)
     ] = None
     action: Annotated[
         creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
     ]
-    platform_id: Annotated[
-        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
-    ] = None
-    changes: Annotated[
-        list[str] | None,
-        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
-    ] = None
-    errors: Annotated[
-        list[str] | None,
-        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
-    ] = None
-    warnings: Annotated[
-        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
-    ] = None
-    preview_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
-        ),
-    ] = None
-    expires_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
-        ),
-    ] = None
     assigned_to: Annotated[
         list[str] | None,
         Field(
@@ -103,6 +76,33 @@ el.replaceWith(d);
         Field(
             description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
         ),
+    ] = None
+    changes: Annotated[
+        list[str] | None,
+        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
+    ] = None
+    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
+    errors: Annotated[
+        list[str] | None,
+        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
+        ),
+    ] = None
+    platform_id: Annotated[
+        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
+    ] = None
+    preview_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
+        ),
+    ] = None
+    warnings: Annotated[
+        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -195,21 +195,21 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
-    ] = None
+    context: context_1.ContextObject | None = None
     creatives: Annotated[
         list[Creative],
         Field(
             description=&#34;Results for each creative processed. Items with action=&#39;failed&#39; indicate per-item validation/processing failures, not operation-level failures.&#34;
         ),
     ]
+    dry_run: Annotated[
+        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -277,6 +277,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
@@ -284,7 +285,6 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

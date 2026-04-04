@@ -127,24 +127,24 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    event: Annotated[Literal[&#39;property_list_changed&#39;], Field(description=&#39;The event type&#39;)]
-    list_id: Annotated[str, Field(description=&#39;ID of the property list that changed&#39;)]
-    list_name: Annotated[str | None, Field(description=&#39;Name of the property list&#39;)] = None
-    change_summary: Annotated[
-        ChangeSummary | None, Field(description=&#39;Summary of changes to the resolved list&#39;)
-    ] = None
-    resolved_at: Annotated[AwareDatetime, Field(description=&#39;When the list was re-resolved&#39;)]
     cache_valid_until: Annotated[
         AwareDatetime | None,
         Field(description=&#39;When the consumer should refresh from the governance agent&#39;),
     ] = None
+    change_summary: Annotated[
+        ChangeSummary | None, Field(description=&#39;Summary of changes to the resolved list&#39;)
+    ] = None
+    event: Annotated[Literal[&#39;property_list_changed&#39;], Field(description=&#39;The event type&#39;)]
+    ext: ext_1.ExtensionObject | None = None
+    list_id: Annotated[str, Field(description=&#39;ID of the property list that changed&#39;)]
+    list_name: Annotated[str | None, Field(description=&#39;Name of the property list&#39;)] = None
+    resolved_at: Annotated[AwareDatetime, Field(description=&#39;When the list was re-resolved&#39;)]
     signature: Annotated[
         str,
         Field(
             description=&#34;Cryptographic signature of the webhook payload, signed with the agent&#39;s private key. Recipients MUST verify this signature.&#34;
         ),
-    ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

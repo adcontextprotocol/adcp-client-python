@@ -59,13 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    url: Annotated[AnyUrl, Field(description=&#39;URL reference&#39;)]
-    url_type: Annotated[
-        url_asset_type.UrlAssetType | None,
-        Field(
-            description=&#34;Type of URL asset: &#39;clickthrough&#39; for user click destination (landing page), &#39;tracker_pixel&#39; for impression/event tracking via HTTP request (fires GET, expects pixel/204 response), &#39;tracker_script&#39; for measurement SDKs that must load as &lt;script&gt; tag (OMID verification, native event trackers using method:2)&#34;
-        ),
-    ] = None
     description: Annotated[
         str | None, Field(description=&#39;Description of what this URL points to&#39;)
     ] = None
@@ -73,6 +66,13 @@ el.replaceWith(d);
         provenance_1.Provenance | None,
         Field(
             description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
+        ),
+    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;URL reference&#39;)]
+    url_type: Annotated[
+        url_asset_type.UrlAssetType | None,
+        Field(
+            description=&#34;Type of URL asset: &#39;clickthrough&#39; for user click destination (landing page), &#39;tracker_pixel&#39; for impression/event tracking via HTTP request (fires GET, expects pixel/204 response), &#39;tracker_script&#39; for measurement SDKs that must load as &lt;script&gt; tag (OMID verification, native event trackers using method:2)&#34;
         ),
     ] = None</code></pre>
 </details>

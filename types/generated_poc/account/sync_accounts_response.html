@@ -59,12 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    brand: Annotated[
-        brand_ref.BrandReference, Field(description=&#39;Brand reference, echoed from the request&#39;)
-    ]
-    operator: Annotated[str, Field(description=&#39;Operator domain, echoed from request&#39;)]
-    name: Annotated[
-        str | None, Field(description=&#39;Human-readable account name assigned by the seller&#39;)
+    account_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Seller-assigned account identifier. Use this in subsequent create_media_buy and other account-scoped operations.&#39;
+        ),
+    ] = None
+    account_scope: Annotated[
+        AccountScope | None,
+        Field(
+            description=&#34;How the seller scoped this account. operator: shared across all brands for this operator. brand: shared across all operators for this brand. operator_brand: dedicated to this operator+brand pair. agent: the agent&#39;s default account.&#34;
+        ),
     ] = None
     action: Annotated[
         Action,
@@ -72,20 +77,39 @@ el.replaceWith(d);
             description=&#39;Action taken for this account. created: new account provisioned. updated: existing account modified. unchanged: no changes needed. failed: could not process (see errors).&#39;
         ),
     ]
-    status: Annotated[
-        Status,
-        Field(
-            description=&#39;Account status. active: ready for use. pending_approval: seller reviewing (credit, legal). rejected: seller declined the account request. payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: was active, now terminated.&#39;
-        ),
-    ]
     billing: Annotated[
         Billing | None,
         Field(description=&#39;Who is invoiced on this account. Matches the requested billing model.&#39;),
     ] = None
-    account_scope: Annotated[
-        AccountScope | None,
+    billing_entity: Annotated[
+        business_entity.BusinessEntity | None,
         Field(
-            description=&#34;How the seller scoped this account. operator: shared across all brands for this operator. brand: shared across all operators for this brand. operator_brand: dedicated to this operator+brand pair. agent: the agent&#39;s default account.&#34;
+            description=&#39;Business entity details for the party responsible for payment, echoed from the request. Sellers MAY add fields the agent omitted (e.g., filling in registration_number from a credit check), but MUST NOT return data from a different entity. Bank details are omitted (write-only).&#39;
+        ),
+    ] = None
+    brand: Annotated[
+        brand_ref.BrandReference, Field(description=&#39;Brand reference, echoed from the request&#39;)
+    ]
+    credit_limit: CreditLimit | None = None
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(description=&#34;Per-account errors (only present when action is &#39;failed&#39;)&#34;),
+    ] = None
+    name: Annotated[
+        str | None, Field(description=&#39;Human-readable account name assigned by the seller&#39;)
+    ] = None
+    operator: Annotated[str, Field(description=&#39;Operator domain, echoed from request&#39;)]
+    payment_terms: Annotated[
+        PaymentTerms | None,
+        Field(
+            description=&#39;Payment terms agreed for this account. When the account is active, these are the binding terms for all invoices on this account.&#39;
+        ),
+    ] = None
+    rate_card: Annotated[str | None, Field(description=&#39;Rate card applied to this account&#39;)] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this is a sandbox account, echoed from the request. Only present for implicit accounts.&#39;
         ),
     ] = None
     setup: Annotated[
@@ -94,26 +118,14 @@ el.replaceWith(d);
             description=&#39;Setup information for pending accounts. Provides the agent (or human) with next steps to complete account activation.&#39;
         ),
     ] = None
-    rate_card: Annotated[str | None, Field(description=&#39;Rate card applied to this account&#39;)] = None
-    payment_terms: Annotated[
-        PaymentTerms | None,
+    status: Annotated[
+        Status,
         Field(
-            description=&#39;Payment terms agreed for this account. When the account is active, these are the binding terms for all invoices on this account.&#39;
+            description=&#39;Account status. active: ready for use. pending_approval: seller reviewing (credit, legal). rejected: seller declined the account request. payment_required: credit limit reached or funds depleted. suspended: was active, now paused. closed: was active, now terminated.&#39;
         ),
-    ] = None
-    credit_limit: CreditLimit | None = None
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(description=&#34;Per-account errors (only present when action is &#39;failed&#39;)&#34;),
-    ] = None
+    ]
     warnings: Annotated[
         list[str] | None, Field(description=&#39;Non-fatal warnings about this account&#39;)
-    ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether this is a sandbox account, echoed from the request. Only present for implicit accounts.&#39;
-        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -133,6 +145,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.account_scope"><code class="name">var <span class="ident">account_scope</span> : <a title="adcp.types.generated_poc.account.sync_accounts_response.AccountScope" href="#adcp.types.generated_poc.account.sync_accounts_response.AccountScope">AccountScope</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -142,6 +158,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.billing"><code class="name">var <span class="ident">billing</span> : <a title="adcp.types.generated_poc.account.sync_accounts_response.Billing" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing">Billing</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.Account.billing_entity"><code class="name">var <span class="ident">billing_entity</span> : <a title="adcp.types.generated_poc.core.business_entity.BusinessEntity" href="../core/business_entity.html#adcp.types.generated_poc.core.business_entity.BusinessEntity">BusinessEntity</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -364,7 +384,8 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Billing(Enum):
     operator = &#39;operator&#39;
-    agent = &#39;agent&#39;</code></pre>
+    agent = &#39;agent&#39;
+    advertiser = &#39;advertiser&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -407,6 +428,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.account.sync_accounts_response.Billing.advertiser"><code class="name">var <span class="ident">advertiser</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_response.Billing.agent"><code class="name">var <span class="ident">agent</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -568,15 +593,15 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    expires_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this setup link expires&#39;)
+    ] = None
+    message: Annotated[str, Field(description=&#34;Human-readable description of what&#39;s needed&#34;)]
     url: Annotated[
         AnyUrl | None,
         Field(
             description=&#39;URL where the human can complete the required action (credit application, legal agreement, add funds)&#39;
         ),
-    ] = None
-    message: Annotated[str, Field(description=&#34;Human-readable description of what&#39;s needed&#34;)]
-    expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this setup link expires&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -721,11 +746,11 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    accounts: Annotated[list[Account], Field(description=&#39;Results for each account processed&#39;)]
+    context: context_1.ContextObject | None = None
     dry_run: Annotated[
         bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
     ] = None
-    accounts: Annotated[list[Account], Field(description=&#39;Results for each account processed&#39;)]
-    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -790,6 +815,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
@@ -797,7 +823,6 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -863,9 +888,11 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account" href="#adcp.types.generated_poc.account.sync_accounts_response.Account">Account</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.account_id" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.account_id">account_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.account_scope" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.account_scope">account_scope</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.action" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.action">action</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.billing" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.billing">billing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.billing_entity" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.billing_entity">billing_entity</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.brand" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.credit_limit" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.credit_limit">credit_limit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Account.errors" href="#adcp.types.generated_poc.account.sync_accounts_response.Account.errors">errors</a></code></li>
@@ -901,6 +928,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Billing" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing">Billing</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Billing.advertiser" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing.advertiser">advertiser</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Billing.agent" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing.agent">agent</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_response.Billing.operator" href="#adcp.types.generated_poc.account.sync_accounts_response.Billing.operator">operator</a></code></li>
 </ul>

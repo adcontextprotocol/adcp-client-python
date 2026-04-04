@@ -59,15 +59,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    has_more: Annotated[
-        bool, Field(description=&#39;Whether more results are available beyond this page&#39;)
-    ]
     cursor: Annotated[
         str | None,
         Field(
             description=&#39;Opaque cursor to pass in the next request to fetch the next page. Only present when has_more is true.&#39;
         ),
     ] = None
+    has_more: Annotated[
+        bool, Field(description=&#39;Whether more results are available beyond this page&#39;)
+    ]
     total_count: Annotated[
         int | None,
         Field(

@@ -59,13 +59,13 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    street: Annotated[str | None, Field(description=&#39;Street address.&#39;)] = None
     city: Annotated[str | None, Field(description=&#39;City name.&#39;)] = None
-    region: Annotated[str | None, Field(description=&#39;State, province, or region.&#39;)] = None
-    postal_code: Annotated[str | None, Field(description=&#39;Postal or ZIP code.&#39;)] = None
     country: Annotated[
         str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code.&#39;, pattern=&#39;^[A-Z]{2}$&#39;)
-    ] = None</code></pre>
+    ] = None
+    postal_code: Annotated[str | None, Field(description=&#39;Postal or ZIP code.&#39;)] = None
+    region: Annotated[str | None, Field(description=&#39;State, province, or region.&#39;)] = None
+    street: Annotated[str | None, Field(description=&#39;Street address.&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -133,8 +133,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    value: Annotated[float, Field(description=&#39;Area value.&#39;, ge=0.0)]
-    unit: Annotated[Unit, Field(description=&#39;Area unit.&#39;)]</code></pre>
+    unit: Annotated[Unit, Field(description=&#39;Area unit.&#39;)]
+    value: Annotated[float, Field(description=&#39;Area value.&#39;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -399,42 +399,8 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    listing_id: Annotated[str, Field(description=&#39;Unique identifier for this property listing.&#39;)]
-    title: Annotated[
-        str, Field(description=&#34;Listing title (e.g., &#39;Spacious 3BR Apartment in Jordaan&#39;).&#34;)
-    ]
     address: Annotated[Address, Field(description=&#39;Property address.&#39;)]
-    price: Annotated[
-        price_1.Price | None,
-        Field(description=&#34;Property price or rental rate. Use period &#39;month&#39; for rentals.&#34;),
-    ] = None
-    property_type: Annotated[PropertyType | None, Field(description=&#39;Type of property.&#39;)] = None
-    listing_type: Annotated[
-        ListingType | None, Field(description=&#39;Whether the property is for sale or rent.&#39;)
-    ] = None
-    bedrooms: Annotated[int | None, Field(description=&#39;Number of bedrooms.&#39;, ge=0)] = None
-    bathrooms: Annotated[
-        float | None,
-        Field(
-            description=&#39;Number of bathrooms (e.g., 2.5 for two full and one half bath).&#39;, ge=0.0
-        ),
-    ] = None
     area: Annotated[Area | None, Field(description=&#39;Property size.&#39;)] = None
-    description: Annotated[str | None, Field(description=&#39;Property description.&#39;)] = None
-    location: Annotated[
-        Location | None, Field(description=&#39;Geographic coordinates of the property.&#39;)
-    ] = None
-    image_url: Annotated[AnyUrl | None, Field(description=&#39;Primary property image URL.&#39;)] = None
-    url: Annotated[AnyUrl | None, Field(description=&#39;Listing page URL.&#39;)] = None
-    neighborhood: Annotated[str | None, Field(description=&#39;Neighborhood or area name.&#39;)] = None
-    year_built: Annotated[int | None, Field(description=&#39;Year the property was built.&#39;)] = None
-    tags: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Tags for filtering (e.g., &#39;garden&#39;, &#39;parking&#39;, &#39;renovated&#39;, &#39;waterfront&#39;).&#34;,
-            min_length=1,
-        ),
-    ] = None
     assets: Annotated[
         list[offering_asset_group.OfferingAssetGroup] | None,
         Field(
@@ -442,7 +408,41 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    bathrooms: Annotated[
+        float | None,
+        Field(
+            description=&#39;Number of bathrooms (e.g., 2.5 for two full and one half bath).&#39;, ge=0.0
+        ),
+    ] = None
+    bedrooms: Annotated[int | None, Field(description=&#39;Number of bedrooms.&#39;, ge=0)] = None
+    description: Annotated[str | None, Field(description=&#39;Property description.&#39;)] = None
+    ext: ext_1.ExtensionObject | None = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Primary property image URL.&#39;)] = None
+    listing_id: Annotated[str, Field(description=&#39;Unique identifier for this property listing.&#39;)]
+    listing_type: Annotated[
+        ListingType | None, Field(description=&#39;Whether the property is for sale or rent.&#39;)
+    ] = None
+    location: Annotated[
+        Location | None, Field(description=&#39;Geographic coordinates of the property.&#39;)
+    ] = None
+    neighborhood: Annotated[str | None, Field(description=&#39;Neighborhood or area name.&#39;)] = None
+    price: Annotated[
+        price_1.Price | None,
+        Field(description=&#34;Property price or rental rate. Use period &#39;month&#39; for rentals.&#34;),
+    ] = None
+    property_type: Annotated[PropertyType | None, Field(description=&#39;Type of property.&#39;)] = None
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Tags for filtering (e.g., &#39;garden&#39;, &#39;parking&#39;, &#39;renovated&#39;, &#39;waterfront&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    title: Annotated[
+        str, Field(description=&#34;Listing title (e.g., &#39;Spacious 3BR Apartment in Jordaan&#39;).&#34;)
+    ]
+    url: Annotated[AnyUrl | None, Field(description=&#39;Listing page URL.&#39;)] = None
+    year_built: Annotated[int | None, Field(description=&#39;Year the property was built.&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

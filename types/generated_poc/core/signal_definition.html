@@ -56,8 +56,8 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Range(AdCPBaseModel):
-    min: Annotated[float, Field(description=&#39;Minimum value&#39;)]
     max: Annotated[float, Field(description=&#39;Maximum value&#39;)]
+    min: Annotated[float, Field(description=&#39;Minimum value&#39;)]
     unit: Annotated[
         str | None, Field(description=&#34;Unit of measurement (e.g., &#39;score&#39;, &#39;dollars&#39;, &#39;years&#39;)&#34;)
     ] = None</code></pre>
@@ -120,6 +120,20 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    allowed_values: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;For categorical signals, the valid values users can be assigned&#39;,
+            min_length=1,
+        ),
+    ] = None
+    description: Annotated[
+        str | None,
+        Field(
+            description=&#34;Detailed description of what this signal represents and how it&#39;s derived&#34;,
+            max_length=2000,
+        ),
+    ] = None
     id: Annotated[
         str,
         Field(
@@ -130,31 +144,31 @@ validated to form a valid model.</p>
     name: Annotated[
         str, Field(description=&#39;Human-readable signal name&#39;, max_length=255, min_length=1)
     ]
-    description: Annotated[
-        str | None,
-        Field(
-            description=&#34;Detailed description of what this signal represents and how it&#39;s derived&#34;,
-            max_length=2000,
-        ),
-    ] = None
-    value_type: Annotated[
-        signal_value_type.SignalValueType,
-        Field(description=&#34;The data type of this signal&#39;s values&#34;),
-    ]
-    tags: Annotated[
-        list[Tag] | None,
-        Field(description=&#39;Tags for grouping and filtering signals within the catalog&#39;),
-    ] = None
-    allowed_values: Annotated[
+    policy_categories: Annotated[
         list[str] | None,
         Field(
-            description=&#39;For categorical signals, the valid values users can be assigned&#39;,
+            description=&#34;Policy categories this signal is sensitive for (e.g., a children&#39;s interest signal declares [&#39;children_directed&#39;]). Governance agents match these against a plan&#39;s policy_categories to flag sensitive data usage.&#34;,
             min_length=1,
         ),
     ] = None
     range: Annotated[
         Range | None, Field(description=&#39;For numeric signals, the valid value range&#39;)
-    ] = None</code></pre>
+    ] = None
+    restricted_attributes: Annotated[
+        list[restricted_attribute.RestrictedAttribute] | None,
+        Field(
+            description=&#34;Restricted attribute categories this signal touches. Data providers SHOULD declare these so governance agents can structurally match signals against a plan&#39;s restricted_attributes without relying on semantic inference from the signal name or description.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    tags: Annotated[
+        list[Tag] | None,
+        Field(description=&#39;Tags for grouping and filtering signals within the catalog&#39;),
+    ] = None
+    value_type: Annotated[
+        signal_value_type.SignalValueType,
+        Field(description=&#34;The data type of this signal&#39;s values&#34;),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -193,7 +207,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.signal_definition.SignalDefinition.policy_categories"><code class="name">var <span class="ident">policy_categories</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.signal_definition.SignalDefinition.range"><code class="name">var <span class="ident">range</span> : <a title="adcp.types.generated_poc.core.signal_definition.Range" href="#adcp.types.generated_poc.core.signal_definition.Range">Range</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.signal_definition.SignalDefinition.restricted_attributes"><code class="name">var <span class="ident">restricted_attributes</span> : list[<a title="adcp.types.generated_poc.enums.restricted_attribute.RestrictedAttribute" href="../enums/restricted_attribute.html#adcp.types.generated_poc.enums.restricted_attribute.RestrictedAttribute">RestrictedAttribute</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -294,13 +316,15 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition">SignalDefinition</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.allowed_values" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.allowed_values">allowed_values</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.description" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.id" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.id">id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.model_config" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.name" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.policy_categories" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.policy_categories">policy_categories</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.range" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.range">range</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.restricted_attributes" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.restricted_attributes">restricted_attributes</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.tags" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.tags">tags</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.signal_definition.SignalDefinition.value_type" href="#adcp.types.generated_poc.core.signal_definition.SignalDefinition.value_type">value_type</a></code></li>
 </ul>

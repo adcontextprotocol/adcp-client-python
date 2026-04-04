@@ -268,40 +268,40 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    min_width: Annotated[int | None, Field(description=&#39;Minimum width in pixels&#39;, ge=1)] = None
-    max_width: Annotated[int | None, Field(description=&#39;Maximum width in pixels&#39;, ge=1)] = None
-    min_height: Annotated[int | None, Field(description=&#39;Minimum height in pixels&#39;, ge=1)] = None
-    max_height: Annotated[int | None, Field(description=&#39;Maximum height in pixels&#39;, ge=1)] = None
     aspect_ratio: Annotated[
         str | None,
         Field(description=&#34;Required aspect ratio (e.g., &#39;16:9&#39;, &#39;9:16&#39;)&#34;, pattern=&#39;^\\d+:\\d+$&#39;),
     ] = None
-    min_duration_ms: Annotated[
-        int | None, Field(description=&#39;Minimum duration in milliseconds&#39;, ge=1)
-    ] = None
-    max_duration_ms: Annotated[
-        int | None, Field(description=&#39;Maximum duration in milliseconds&#39;, ge=1)
-    ] = None
-    containers: Annotated[
-        list[Container] | None, Field(description=&#39;Accepted video container formats&#39;)
+    audio_required: Annotated[
+        bool | None, Field(description=&#39;Whether the video must include an audio track&#39;)
     ] = None
     codecs: Annotated[list[Codec] | None, Field(description=&#39;Accepted video codecs&#39;)] = None
-    max_file_size_kb: Annotated[
-        int | None, Field(description=&#39;Maximum file size in kilobytes&#39;, ge=1)
-    ] = None
-    min_bitrate_kbps: Annotated[
-        int | None, Field(description=&#39;Minimum video bitrate in kilobits per second&#39;, ge=1)
-    ] = None
-    max_bitrate_kbps: Annotated[
-        int | None, Field(description=&#39;Maximum video bitrate in kilobits per second&#39;, ge=1)
+    containers: Annotated[
+        list[Container] | None, Field(description=&#39;Accepted video container formats&#39;)
     ] = None
     frame_rates: Annotated[
         list[FrameRate] | None,
         Field(description=&#39;Accepted frame rates in frames per second (e.g., [24, 30, 60])&#39;),
     ] = None
-    audio_required: Annotated[
-        bool | None, Field(description=&#39;Whether the video must include an audio track&#39;)
-    ] = None</code></pre>
+    max_bitrate_kbps: Annotated[
+        int | None, Field(description=&#39;Maximum video bitrate in kilobits per second&#39;, ge=1)
+    ] = None
+    max_duration_ms: Annotated[
+        int | None, Field(description=&#39;Maximum duration in milliseconds&#39;, ge=1)
+    ] = None
+    max_file_size_kb: Annotated[
+        int | None, Field(description=&#39;Maximum file size in kilobytes&#39;, ge=1)
+    ] = None
+    max_height: Annotated[int | None, Field(description=&#39;Maximum height in pixels&#39;, ge=1)] = None
+    max_width: Annotated[int | None, Field(description=&#39;Maximum width in pixels&#39;, ge=1)] = None
+    min_bitrate_kbps: Annotated[
+        int | None, Field(description=&#39;Minimum video bitrate in kilobits per second&#39;, ge=1)
+    ] = None
+    min_duration_ms: Annotated[
+        int | None, Field(description=&#39;Minimum duration in milliseconds&#39;, ge=1)
+    ] = None
+    min_height: Annotated[int | None, Field(description=&#39;Minimum height in pixels&#39;, ge=1)] = None
+    min_width: Annotated[int | None, Field(description=&#39;Minimum width in pixels&#39;, ge=1)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

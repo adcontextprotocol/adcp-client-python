@@ -46,6 +46,78 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.media_buy.Cancellation"><code class="flex name class">
+<span>class <span class="ident">Cancellation</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Cancellation(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    canceled_at: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this media buy was canceled.&#39;)
+    ]
+    canceled_by: Annotated[
+        canceled_by_1.CanceledBy,
+        Field(
+            description=&#34;Which party initiated the cancellation. &#39;buyer&#39; when canceled via update_media_buy; &#39;seller&#39; when the seller cancels (e.g., policy violation, inventory withdrawal).&#34;
+        ),
+    ]
+    reason: Annotated[
+        str | None,
+        Field(description=&#39;Reason provided when the media buy was canceled.&#39;, max_length=500),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.media_buy.Cancellation.canceled_at"><code class="name">var <span class="ident">canceled_at</span> : pydantic.types.AwareDatetime</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.media_buy.Cancellation.canceled_by"><code class="name">var <span class="ident">canceled_by</span> : <a title="adcp.types.generated_poc.enums.canceled_by.CanceledBy" href="../enums/canceled_by.html#adcp.types.generated_poc.enums.canceled_by.CanceledBy">CanceledBy</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.media_buy.Cancellation.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.media_buy.Cancellation.reason"><code class="name">var <span class="ident">reason</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.media_buy.MediaBuy"><code class="flex name class">
 <span>class <span class="ident">MediaBuy</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -59,41 +131,50 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    media_buy_id: Annotated[
-        str, Field(description=&#34;Publisher&#39;s unique identifier for the media buy&#34;)
-    ]
-    buyer_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer&#39;s reference identifier for this media buy. Sellers SHOULD deduplicate requests with the same buyer_ref and account, returning the existing media buy rather than creating a duplicate.&#34;
-        ),
-    ] = None
-    buyer_campaign_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer&#39;s campaign reference label. Groups related operations under a single campaign for CRM and ad server correlation.&#34;
-        ),
-    ] = None
     account: Annotated[
         account_1.Account | None, Field(description=&#39;Account billed for this media buy&#39;)
     ] = None
-    status: media_buy_status.MediaBuyStatus
+    cancellation: Annotated[
+        Cancellation | None,
+        Field(description=&#34;Cancellation metadata. Present only when status is &#39;canceled&#39;.&#34;),
+    ] = None
+    confirmed_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when the seller confirmed this media buy. A successful create_media_buy response constitutes order confirmation.&#39;
+        ),
+    ] = None
+    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
+    creative_deadline: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    invoice_recipient: Annotated[
+        business_entity.BusinessEntity | None,
+        Field(
+            description=&#34;Per-buy override for who receives the invoice. When provided, the seller invoices this entity instead of the account&#39;s default billing_entity. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request.&#34;
+        ),
+    ] = None
+    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s unique identifier for the media buy&#34;)]
+    packages: Annotated[
+        list[package.Package], Field(description=&#39;Array of packages within this media buy&#39;)
+    ]
     rejection_reason: Annotated[
         str | None,
         Field(
             description=&#34;Reason provided by the seller when status is &#39;rejected&#39;. Present only when status is &#39;rejected&#39;.&#34;
         ),
     ] = None
-    total_budget: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
-    packages: Annotated[
-        list[package.Package], Field(description=&#39;Array of packages within this media buy&#39;)
-    ]
-    creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+    revision: Annotated[
+        int | None,
+        Field(
+            description=&#39;Monotonically increasing revision number. Incremented on every state change or update. Callers MAY include this in update_media_buy requests for optimistic concurrency — sellers MUST reject with CONFLICT if the provided revision does not match the current value.&#39;,
+            ge=1,
+        ),
     ] = None
-    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
-    updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    status: media_buy_status.MediaBuyStatus
+    total_budget: Annotated[float, Field(description=&#39;Total budget amount&#39;, ge=0.0)]
+    updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -116,11 +197,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.cancellation"><code class="name">var <span class="ident">cancellation</span> : <a title="adcp.types.generated_poc.core.media_buy.Cancellation" href="#adcp.types.generated_poc.core.media_buy.Cancellation">Cancellation</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.confirmed_at"><code class="name">var <span class="ident">confirmed_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -133,6 +214,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.invoice_recipient"><code class="name">var <span class="ident">invoice_recipient</span> : <a title="adcp.types.generated_poc.core.business_entity.BusinessEntity" href="business_entity.html#adcp.types.generated_poc.core.business_entity.BusinessEntity">BusinessEntity</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -149,6 +234,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.rejection_reason"><code class="name">var <span class="ident">rejection_reason</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.media_buy.MediaBuy.revision"><code class="name">var <span class="ident">revision</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -192,18 +281,29 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.media_buy.Cancellation" href="#adcp.types.generated_poc.core.media_buy.Cancellation">Cancellation</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.media_buy.Cancellation.canceled_at" href="#adcp.types.generated_poc.core.media_buy.Cancellation.canceled_at">canceled_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.Cancellation.canceled_by" href="#adcp.types.generated_poc.core.media_buy.Cancellation.canceled_by">canceled_by</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.Cancellation.model_config" href="#adcp.types.generated_poc.core.media_buy.Cancellation.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.Cancellation.reason" href="#adcp.types.generated_poc.core.media_buy.Cancellation.reason">reason</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy" href="#adcp.types.generated_poc.core.media_buy.MediaBuy">MediaBuy</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.account" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.account">account</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_campaign_ref" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_ref" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.cancellation" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.cancellation">cancellation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.confirmed_at" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.confirmed_at">confirmed_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.created_at" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.created_at">created_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.creative_deadline" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.creative_deadline">creative_deadline</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.ext" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.invoice_recipient" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.invoice_recipient">invoice_recipient</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.media_buy_id" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.model_config" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.packages" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.packages">packages</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.rejection_reason" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.rejection_reason">rejection_reason</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.revision" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.revision">revision</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.status" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.total_budget" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.total_budget">total_budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.media_buy.MediaBuy.updated_at" href="#adcp.types.generated_poc.core.media_buy.MediaBuy.updated_at">updated_at</a></code></li>

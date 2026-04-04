@@ -207,25 +207,25 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    role: Annotated[
-        Role | None,
-        Field(
-            description=&#39;Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum.&#39;
-        ),
+    allowed_domains: Annotated[
+        list[str] | None, Field(description=&#39;List of allowed domains for the URL&#39;)
+    ] = None
+    macro_support: Annotated[
+        bool | None,
+        Field(description=&#39;Whether the URL supports macro substitution (e.g., ${CACHEBUSTER})&#39;),
+    ] = None
+    max_length: Annotated[
+        int | None, Field(description=&#39;Maximum URL length in characters&#39;, ge=1)
     ] = None
     protocols: Annotated[
         list[Protocol] | None,
         Field(description=&#39;Allowed URL protocols. HTTPS is recommended for all ad URLs.&#39;),
     ] = None
-    allowed_domains: Annotated[
-        list[str] | None, Field(description=&#39;List of allowed domains for the URL&#39;)
-    ] = None
-    max_length: Annotated[
-        int | None, Field(description=&#39;Maximum URL length in characters&#39;, ge=1)
-    ] = None
-    macro_support: Annotated[
-        bool | None,
-        Field(description=&#39;Whether the URL supports macro substitution (e.g., ${CACHEBUSTER})&#39;),
+    role: Annotated[
+        Role | None,
+        Field(
+            description=&#39;Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

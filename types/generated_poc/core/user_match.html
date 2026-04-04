@@ -116,23 +116,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    uids: Annotated[
-        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
-    ] = None
-    hashed_email: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of lowercase, trimmed email address. Buyer must normalize before hashing: lowercase, trim whitespace.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
-    hashed_phone: Annotated[
-        str | None,
-        Field(
-            description=&#39;SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Buyer must normalize to E.164 before hashing.&#39;,
-            pattern=&#39;^[a-f0-9]{64}$&#39;,
-        ),
-    ] = None
     click_id: Annotated[
         str | None,
         Field(description=&#39;Platform click identifier (fbclid, gclid, ttclid, ScCid, etc.)&#39;),
@@ -147,7 +130,24 @@ validated to form a valid model.</p>
     client_user_agent: Annotated[
         str | None, Field(description=&#39;Client user agent string for probabilistic matching&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    hashed_email: Annotated[
+        str | None,
+        Field(
+            description=&#39;SHA-256 hash of lowercase, trimmed email address. Buyer must normalize before hashing: lowercase, trim whitespace.&#39;,
+            pattern=&#39;^[a-f0-9]{64}$&#39;,
+        ),
+    ] = None
+    hashed_phone: Annotated[
+        str | None,
+        Field(
+            description=&#39;SHA-256 hash of E.164-formatted phone number (e.g. +12065551234). Buyer must normalize to E.164 before hashing.&#39;,
+            pattern=&#39;^[a-f0-9]{64}$&#39;,
+        ),
+    ] = None
+    uids: Annotated[
+        list[Uid] | None, Field(description=&#39;Universal ID values for user matching&#39;, min_length=1)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

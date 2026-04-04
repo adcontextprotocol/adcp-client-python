@@ -59,20 +59,28 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
     event_source_id: Annotated[
         str, Field(description=&#39;Event source configured on the account via sync_event_sources&#39;)
     ]
+    events: Annotated[
+        list[event.Event], Field(description=&#39;Events to log&#39;, max_length=10000, min_length=1)
+    ]
+    ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated unique key for this request. Prevents duplicate event logging on retries. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+        ),
+    ] = None
     test_event_code: Annotated[
         str | None,
         Field(
             description=&#34;Test event code for validation without affecting production data. Events with this code appear in the platform&#39;s test events UI.&#34;
         ),
-    ] = None
-    events: Annotated[
-        list[event.Event], Field(description=&#39;Events to log&#39;, max_length=10000, min_length=1)
-    ]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -104,6 +112,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -149,6 +161,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.event_source_id" href="#adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.event_source_id">event_source_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.events" href="#adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.events">events</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.ext" href="#adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.idempotency_key" href="#adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.model_config" href="#adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.test_event_code" href="#adcp.types.generated_poc.media_buy.log_event_request.LogEventRequest.test_event_code">test_event_code</a></code></li>
 </ul>

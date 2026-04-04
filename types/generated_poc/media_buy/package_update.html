@@ -59,15 +59,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    keyword: Annotated[str, Field(description=&#39;The keyword to target&#39;, min_length=1)]
-    match_type: Annotated[MatchType, Field(description=&#39;Match type for this keyword&#39;)]
     bid_price: Annotated[
         float | None,
         Field(
             description=&#34;Per-keyword bid price. Inherits currency and max_bid interpretation from the package&#39;s pricing option.&#34;,
             ge=0.0,
         ),
-    ] = None</code></pre>
+    ] = None
+    keyword: Annotated[str, Field(description=&#39;The keyword to target&#39;, min_length=1)]
+    match_type: Annotated[MatchType, Field(description=&#39;Match type for this keyword&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -367,11 +367,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    package_id: Annotated[str | None, Field(description=&#34;Publisher&#39;s ID of package to update&#34;)] = (
-        None
-    )
-    buyer_ref: Annotated[
-        str | None, Field(description=&#34;Buyer&#39;s reference for the package to update&#34;)
+    bid_price: Annotated[
+        float | None,
+        Field(
+            description=&#34;Updated bid price for auction-based pricing options. This is the exact bid/price to honor unless selected pricing_option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
+            ge=0.0,
+        ),
     ] = None
     budget: Annotated[
         float | None,
@@ -380,32 +381,14 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    pacing: pacing_1.Pacing | None = None
-    bid_price: Annotated[
-        float | None,
+    canceled: Annotated[
+        Literal[True],
         Field(
-            description=&#34;Updated bid price for auction-based pricing options. This is the exact bid/price to honor unless selected pricing_option has max_bid=true, in which case bid_price is the buyer&#39;s maximum willingness to pay (ceiling).&#34;,
-            ge=0.0,
+            description=&#39;Cancel this specific package. Cancellation is irreversible — canceled packages stop delivery and cannot be reactivated. Sellers MAY reject with NOT_CANCELLABLE.&#39;
         ),
-    ] = None
-    impressions: Annotated[
-        float | None, Field(description=&#39;Updated impression goal for this package&#39;, ge=0.0)
-    ] = None
-    start_time: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#34;Updated flight start date/time for this package in ISO 8601 format. Must fall within the media buy&#39;s date range.&#34;
-        ),
-    ] = None
-    end_time: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#34;Updated flight end date/time for this package in ISO 8601 format. Must fall within the media buy&#39;s date range.&#34;
-        ),
-    ] = None
-    paused: Annotated[
-        bool | None,
-        Field(description=&#39;Pause/resume specific package (true = paused, false = active)&#39;),
+    ] = True
+    cancellation_reason: Annotated[
+        str | None, Field(description=&#39;Reason for canceling this package.&#39;, max_length=500)
     ] = None
     catalogs: Annotated[
         list[catalog.Catalog] | None,
@@ -414,18 +397,30 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    optimization_goals: Annotated[
-        list[optimization_goal.OptimizationGoal] | None,
+    context: context_1.ContextObject | None = None
+    creative_assignments: Annotated[
+        list[creative_assignment.CreativeAssignment] | None,
         Field(
-            description=&#39;Replace all optimization goals for this package. Uses replacement semantics — omit to leave goals unchanged.&#39;,
+            description=&#39;Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.&#39;
+        ),
+    ] = None
+    creatives: Annotated[
+        list[creative_asset.CreativeAsset] | None,
+        Field(
+            description=&#39;Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.&#39;,
+            max_length=100,
             min_length=1,
         ),
     ] = None
-    targeting_overlay: Annotated[
-        targeting.TargetingOverlay | None,
+    end_time: Annotated[
+        AwareDatetime | None,
         Field(
-            description=&#39;Targeting overlay to apply to this package. Uses replacement semantics — the full overlay replaces the previous one. Omit to leave targeting unchanged. For keyword and negative keyword updates, prefer the incremental operations (keyword_targets_add, keyword_targets_remove, negative_keywords_add, negative_keywords_remove) which avoid replacing the full overlay. Sellers SHOULD return a validation error if targeting_overlay.keyword_targets is present in the same request as keyword_targets_add or keyword_targets_remove, and likewise for negative_keywords.&#39;
+            description=&#34;Updated flight end date/time for this package in ISO 8601 format. Must fall within the media buy&#39;s date range.&#34;
         ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    impressions: Annotated[
+        float | None, Field(description=&#39;Updated impression goal for this package&#39;, ge=0.0)
     ] = None
     keyword_targets_add: Annotated[
         list[KeywordTargetsAddItem] | None,
@@ -455,21 +450,31 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    creative_assignments: Annotated[
-        list[creative_assignment.CreativeAssignment] | None,
+    optimization_goals: Annotated[
+        list[optimization_goal.OptimizationGoal] | None,
         Field(
-            description=&#39;Replace creative assignments for this package with optional weights and placement targeting. Uses replacement semantics - omit to leave assignments unchanged.&#39;
-        ),
-    ] = None
-    creatives: Annotated[
-        list[creative_asset.CreativeAsset] | None,
-        Field(
-            description=&#39;Upload new creative assets and assign to this package (creatives will be added to library). Use creative_assignments instead for existing library creatives.&#39;,
-            max_length=100,
+            description=&#39;Replace all optimization goals for this package. Uses replacement semantics — omit to leave goals unchanged.&#39;,
             min_length=1,
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    pacing: pacing_1.Pacing | None = None
+    package_id: Annotated[str, Field(description=&#34;Seller&#39;s ID of package to update&#34;)]
+    paused: Annotated[
+        bool | None,
+        Field(description=&#39;Pause/resume specific package (true = paused, false = active)&#39;),
+    ] = None
+    start_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#34;Updated flight start date/time for this package in ISO 8601 format. Must fall within the media buy&#39;s date range.&#34;
+        ),
+    ] = None
+    targeting_overlay: Annotated[
+        targeting.TargetingOverlay | None,
+        Field(
+            description=&#39;Targeting overlay to apply to this package. Uses replacement semantics — the full overlay replaces the previous one. Omit to leave targeting unchanged. For keyword and negative keyword updates, prefer the incremental operations (keyword_targets_add, keyword_targets_remove, negative_keywords_add, negative_keywords_remove) which avoid replacing the full overlay. Sellers SHOULD return a validation error if targeting_overlay.keyword_targets is present in the same request as keyword_targets_add or keyword_targets_remove, and likewise for negative_keywords.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -496,11 +501,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.canceled"><code class="name">var <span class="ident">canceled</span> : Literal[True]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.cancellation_reason"><code class="name">var <span class="ident">cancellation_reason</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[<a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -552,7 +565,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.package_id"><code class="name">var <span class="ident">package_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.package_id"><code class="name">var <span class="ident">package_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -641,8 +654,10 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.bid_price" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.bid_price">bid_price</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.budget" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.budget">budget</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.buyer_ref" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.buyer_ref">buyer_ref</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.canceled" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.canceled">canceled</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.cancellation_reason" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.cancellation_reason">cancellation_reason</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.catalogs" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.catalogs">catalogs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.context" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.creative_assignments" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.creative_assignments">creative_assignments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.creatives" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.creatives">creatives</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.package_update.PackageUpdate.end_time" href="#adcp.types.generated_poc.media_buy.package_update.PackageUpdate.end_time">end_time</a></code></li>

@@ -59,16 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    proposal_id: Annotated[
-        str,
-        Field(
-            description=&#39;Unique identifier for this proposal. Used to execute it via create_media_buy.&#39;
-        ),
-    ]
-    name: Annotated[str, Field(description=&#39;Human-readable name for this media plan proposal&#39;)]
-    description: Annotated[
-        str | None, Field(description=&#39;Explanation of the proposal strategy and what it achieves&#39;)
-    ] = None
     allocations: Annotated[
         list[product_allocation.ProductAllocation],
         Field(
@@ -76,26 +66,57 @@ el.replaceWith(d);
             min_length=1,
         ),
     ]
+    brief_alignment: Annotated[
+        str | None,
+        Field(
+            description=&#39;Explanation of how this proposal aligns with the campaign brief&#39;,
+            max_length=2000,
+        ),
+    ] = None
+    description: Annotated[
+        str | None,
+        Field(
+            description=&#39;Explanation of the proposal strategy and what it achieves&#39;, max_length=2000
+        ),
+    ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;When this proposal expires and can no longer be executed. After expiration, referenced products or pricing may no longer be available.&#39;
+            description=&#39;When this proposal expires and can no longer be executed. For draft proposals, indicates when indicative pricing becomes stale. For committed proposals, indicates when the inventory hold lapses — the buyer must call create_media_buy before this time.&#39;
         ),
     ] = None
-    total_budget_guidance: Annotated[
-        TotalBudgetGuidance | None, Field(description=&#39;Optional budget guidance for this proposal&#39;)
-    ] = None
-    brief_alignment: Annotated[
-        str | None,
-        Field(description=&#39;Explanation of how this proposal aligns with the campaign brief&#39;),
-    ] = None
+    ext: ext_1.ExtensionObject | None = None
     forecast: Annotated[
         delivery_forecast.DeliveryForecast | None,
         Field(
             description=&#39;Aggregate forecasted delivery metrics for the entire proposal. When both proposal-level and allocation-level forecasts are present, the proposal-level forecast is authoritative for total delivery estimation.&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    insertion_order: Annotated[
+        insertion_order_1.InsertionOrder | None,
+        Field(
+            description=&#39;Formal insertion order attached to a committed proposal. Present when the seller requires a signed agreement before the media buy can proceed. The buyer references the io_id in io_acceptance on create_media_buy.&#39;
+        ),
+    ] = None
+    name: Annotated[
+        str, Field(description=&#39;Human-readable name for this media plan proposal&#39;, max_length=500)
+    ]
+    proposal_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this proposal. Used to execute it via create_media_buy.&#39;,
+            max_length=255,
+        ),
+    ]
+    proposal_status: Annotated[
+        proposal_status_1.ProposalStatus | None,
+        Field(
+            description=&#34;Lifecycle status of this proposal. When absent, the proposal is ready to buy (backward compatible). &#39;draft&#39; means indicative pricing — finalize via refine before purchasing. &#39;committed&#39; means firm pricing with inventory reserved until expires_at.&#34;
+        ),
+    ] = None
+    total_budget_guidance: Annotated[
+        TotalBudgetGuidance | None, Field(description=&#39;Optional budget guidance for this proposal&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -138,6 +159,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.proposal.Proposal.insertion_order"><code class="name">var <span class="ident">insertion_order</span> : <a title="adcp.types.generated_poc.core.insertion_order.InsertionOrder" href="insertion_order.html#adcp.types.generated_poc.core.insertion_order.InsertionOrder">InsertionOrder</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.proposal.Proposal.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -147,6 +172,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.proposal.Proposal.proposal_id"><code class="name">var <span class="ident">proposal_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.proposal.Proposal.proposal_status"><code class="name">var <span class="ident">proposal_status</span> : <a title="adcp.types.generated_poc.enums.proposal_status.ProposalStatus" href="../enums/proposal_status.html#adcp.types.generated_poc.enums.proposal_status.ProposalStatus">ProposalStatus</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -179,14 +208,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    min: Annotated[float | None, Field(description=&#39;Minimum recommended budget&#39;, ge=0.0)] = None
-    recommended: Annotated[
-        float | None, Field(description=&#39;Recommended budget for optimal performance&#39;, ge=0.0)
-    ] = None
+    currency: Annotated[str | None, Field(description=&#39;ISO 4217 currency code&#39;)] = None
     max: Annotated[
         float | None, Field(description=&#39;Maximum budget before diminishing returns&#39;, ge=0.0)
     ] = None
-    currency: Annotated[str | None, Field(description=&#39;ISO 4217 currency code&#39;)] = None</code></pre>
+    min: Annotated[float | None, Field(description=&#39;Minimum recommended budget&#39;, ge=0.0)] = None
+    recommended: Annotated[
+        float | None, Field(description=&#39;Recommended budget for optimal performance&#39;, ge=0.0)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -261,9 +290,11 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.expires_at" href="#adcp.types.generated_poc.core.proposal.Proposal.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.ext" href="#adcp.types.generated_poc.core.proposal.Proposal.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.forecast" href="#adcp.types.generated_poc.core.proposal.Proposal.forecast">forecast</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.insertion_order" href="#adcp.types.generated_poc.core.proposal.Proposal.insertion_order">insertion_order</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.model_config" href="#adcp.types.generated_poc.core.proposal.Proposal.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.name" href="#adcp.types.generated_poc.core.proposal.Proposal.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.proposal_id" href="#adcp.types.generated_poc.core.proposal.Proposal.proposal_id">proposal_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.proposal_status" href="#adcp.types.generated_poc.core.proposal.Proposal.proposal_status">proposal_status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.proposal.Proposal.total_budget_guidance" href="#adcp.types.generated_poc.core.proposal.Proposal.total_budget_guidance">total_budget_guidance</a></code></li>
 </ul>
 </li>

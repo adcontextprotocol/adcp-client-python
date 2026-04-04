@@ -65,22 +65,17 @@ el.replaceWith(d);
             description=&#34;Identifier for this catchment, used to reference specific catchment areas in targeting (e.g., &#39;walk&#39;, &#39;drive&#39;, &#39;primary&#39;).&#34;
         ),
     ]
+    ext: ext_1.ExtensionObject | None = None
+    geometry: Annotated[
+        Geometry | None,
+        Field(
+            description=&#39;Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types.&#39;
+        ),
+    ] = None
     label: Annotated[
         str | None,
         Field(
             description=&#34;Human-readable label for this catchment (e.g., &#39;15-min drive&#39;, &#39;1km walking radius&#39;).&#34;
-        ),
-    ] = None
-    travel_time: Annotated[
-        TravelTime | None,
-        Field(
-            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain.&#39;
-        ),
-    ] = None
-    transport_mode: Annotated[
-        transport_mode_1.TransportMode | None,
-        Field(
-            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
     ] = None
     radius: Annotated[
@@ -89,13 +84,18 @@ el.replaceWith(d);
             description=&#34;Simple radius from the store location. The platform draws a circle of this distance around the store&#39;s coordinates.&#34;
         ),
     ] = None
-    geometry: Annotated[
-        Geometry | None,
+    transport_mode: Annotated[
+        transport_mode_1.TransportMode | None,
         Field(
-            description=&#39;Pre-computed GeoJSON geometry defining the catchment boundary. Use this when the buyer has already calculated isochrones (via TravelTime, Mapbox, etc.) or has custom trade area boundaries. Supports Polygon and MultiPolygon types.&#39;
+            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    travel_time: Annotated[
+        TravelTime | None,
+        Field(
+            description=&#39;Travel time limit for isochrone calculation. The platform resolves this to a geographic boundary based on actual transportation networks, accounting for road connectivity, transit schedules, and terrain.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -171,13 +171,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type.&#39;)]
     coordinates: Annotated[
         list[Any],
         Field(
             description=&#39;GeoJSON coordinates array. For Polygon: array of linear rings. For MultiPolygon: array of polygons.&#39;
         ),
-    ]</code></pre>
+    ]
+    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type.&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -233,8 +233,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    value: Annotated[float, Field(description=&#39;Radius distance.&#39;, gt=0.0)]
-    unit: Annotated[distance_unit.DistanceUnit, Field(description=&#39;Distance unit.&#39;)]</code></pre>
+    unit: Annotated[distance_unit.DistanceUnit, Field(description=&#39;Distance unit.&#39;)]
+    value: Annotated[float, Field(description=&#39;Radius distance.&#39;, gt=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -290,8 +290,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    value: Annotated[float, Field(description=&#39;Travel time limit.&#39;, ge=1.0)]
-    unit: Annotated[Unit, Field(description=&#39;Time unit.&#39;)]</code></pre>
+    unit: Annotated[Unit, Field(description=&#39;Time unit.&#39;)]
+    value: Annotated[float, Field(description=&#39;Travel time limit.&#39;, ge=1.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

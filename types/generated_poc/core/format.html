@@ -56,18 +56,18 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Accessibility(AdCPBaseModel):
-    wcag_level: Annotated[
-        wcag_level_1.WcagLevel,
-        Field(
-            description=&#39;WCAG conformance level that this format achieves. For format-rendered creatives, the format guarantees this level. For opaque creatives, the format requires assets that self-certify to this level.&#39;
-        ),
-    ]
     requires_accessible_assets: Annotated[
         bool | None,
         Field(
             description=&#39;When true, all assets with x-accessibility fields must include those fields. For inspectable assets (image, video, audio), this means providing accessibility metadata like alt_text or captions. For opaque assets (HTML, JavaScript), this means providing self-declared accessibility properties.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    wcag_level: Annotated[
+        wcag_level_1.WcagLevel,
+        Field(
+            description=&#39;WCAG conformance level that this format achieves. For format-rendered creatives, the format guarantees this level. For opaque creatives, the format requires assets that self-certify to this level.&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -120,8 +120,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;image&#39;] = &#39;image&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: image_asset_requirements.ImageAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -180,8 +180,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets10(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;css&#39;] = &#39;css&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: css_asset_requirements.CssAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -240,8 +240,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets11(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;javascript&#39;] = &#39;javascript&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: javascript_asset_requirements.JavascriptAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -300,8 +300,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets12(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;vast&#39;] = &#39;vast&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: vast_asset_requirements.VastAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -360,8 +360,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets13(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;daast&#39;] = &#39;daast&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: daast_asset_requirements.DaastAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -420,8 +420,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets14(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;url&#39;] = &#39;url&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: url_asset_requirements.UrlAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -480,8 +480,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets15(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;webhook&#39;] = &#39;webhook&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: webhook_asset_requirements.WebhookAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -540,8 +540,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets16(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
-    asset_type: Literal[&#39;brief&#39;] = &#39;brief&#39;</code></pre>
+    asset_type: Literal[&#39;brief&#39;] = &#39;brief&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -595,8 +595,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets17(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;catalog&#39;] = &#39;catalog&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: catalog_requirements.CatalogRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -655,33 +655,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets18(AdCPBaseModel):
-    item_type: Annotated[
-        Literal[&#39;repeatable_group&#39;],
-        Field(description=&#39;Discriminator indicating this is a repeatable asset group&#39;),
-    ]
     asset_group_id: Annotated[
         str, Field(description=&#34;Identifier for this asset group (e.g., &#39;product&#39;, &#39;slide&#39;, &#39;card&#39;)&#34;)
     ]
-    required: Annotated[
-        bool,
-        Field(
-            description=&#39;Whether this asset group is required. If true, at least min_count repetitions must be provided.&#39;
-        ),
-    ]
-    min_count: Annotated[
-        int,
-        Field(
-            description=&#39;Minimum number of repetitions required (if group is required) or allowed (if optional)&#39;,
-            ge=0,
-        ),
-    ]
-    max_count: Annotated[int, Field(description=&#39;Maximum number of repetitions allowed&#39;, ge=1)]
-    selection_mode: Annotated[
-        SelectionMode | None,
-        Field(
-            description=&#34;How the platform uses repetitions of this group. &#39;sequential&#39; means all items display in order (carousels, playlists). &#39;optimize&#39; means the platform selects the best-performing combination from alternatives (asset group optimization like Meta Advantage+ or Google Pmax).&#34;
-        ),
-    ] = SelectionMode.sequential
     assets: Annotated[
         list[
             Assets19
@@ -698,7 +674,31 @@ validated to form a valid model.</p>
             | Assets30
         ],
         Field(description=&#39;Assets within each repetition of this group&#39;),
-    ]</code></pre>
+    ]
+    item_type: Annotated[
+        Literal[&#39;repeatable_group&#39;],
+        Field(description=&#39;Discriminator indicating this is a repeatable asset group&#39;),
+    ]
+    max_count: Annotated[int, Field(description=&#39;Maximum number of repetitions allowed&#39;, ge=1)]
+    min_count: Annotated[
+        int,
+        Field(
+            description=&#39;Minimum number of repetitions required (if group is required) or allowed (if optional)&#39;,
+            ge=0,
+        ),
+    ]
+    required: Annotated[
+        bool,
+        Field(
+            description=&#39;Whether this asset group is required. If true, at least min_count repetitions must be provided.&#39;
+        ),
+    ]
+    selection_mode: Annotated[
+        SelectionMode | None,
+        Field(
+            description=&#34;How the platform uses repetitions of this group. &#39;sequential&#39; means all items display in order (carousels, playlists). &#39;optimize&#39; means the platform selects the best-performing combination from alternatives (asset group optimization like Meta Advantage+ or Google Pmax).&#34;
+        ),
+    ] = SelectionMode.sequential</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1431,8 +1431,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets5(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;video&#39;] = &#39;video&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: video_asset_requirements.VideoAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1491,8 +1491,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets6(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;audio&#39;] = &#39;audio&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: audio_asset_requirements.AudioAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1551,8 +1551,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets7(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;text&#39;] = &#39;text&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: text_asset_requirements.TextAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1611,8 +1611,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets8(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;markdown&#39;] = &#39;markdown&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: markdown_asset_requirements.MarkdownAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1671,8 +1671,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Assets9(BaseIndividualAsset):
-    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     asset_type: Literal[&#39;html&#39;] = &#39;html&#39;
+    item_type: Literal[&#39;individual&#39;] = &#39;individual&#39;
     requirements: html_asset_requirements.HtmlAssetRequirements | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1738,16 +1738,16 @@ validated to form a valid model.</p>
             description=&#34;Descriptive label for this asset&#39;s purpose. For documentation and UI display only — manifests key assets by asset_id, not asset_role.&#34;
         ),
     ] = None
-    required: Annotated[
-        bool,
-        Field(description=&#39;Whether this asset is required within each repetition of the group&#39;),
-    ]
     overlays: Annotated[
         list[overlay.Overlay] | None,
         Field(
             description=&#34;Publisher-controlled elements rendered on top of buyer content at this asset&#39;s position (e.g., carousel navigation arrows, slide indicators). Creative agents should avoid placing critical content within overlay bounds.&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    required: Annotated[
+        bool,
+        Field(description=&#39;Whether this asset is required within each repetition of the group&#39;),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1823,10 +1823,6 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class BaseIndividualAsset(AdCPBaseModel):
-    item_type: Annotated[
-        Literal[&#39;individual&#39;],
-        Field(description=&#39;Discriminator indicating this is an individual asset&#39;),
-    ]
     asset_id: Annotated[
         str,
         Field(
@@ -1839,18 +1835,22 @@ validated to form a valid model.</p>
             description=&#34;Descriptive label for this asset&#39;s purpose (e.g., &#39;hero_image&#39;, &#39;logo&#39;, &#39;third_party_tracking&#39;). For documentation and UI display only — manifests key assets by asset_id, not asset_role.&#34;
         ),
     ] = None
-    required: Annotated[
-        bool,
-        Field(
-            description=&#39;Whether this asset is required (true) or optional (false). Required assets must be provided for a valid creative. Optional assets enhance the creative but are not mandatory.&#39;
-        ),
+    item_type: Annotated[
+        Literal[&#39;individual&#39;],
+        Field(description=&#39;Discriminator indicating this is an individual asset&#39;),
     ]
     overlays: Annotated[
         list[overlay.Overlay] | None,
         Field(
             description=&#34;Publisher-controlled elements rendered on top of buyer content at this asset&#39;s position (e.g., video player controls, publisher logos). Creative agents should avoid placing critical content (CTAs, logos, key copy) within overlay bounds.&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    required: Annotated[
+        bool,
+        Field(
+            description=&#39;Whether this asset is required (true) or optional (false). Required assets must be provided for a valid creative. Optional assets enhance the creative but are not mandatory.&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1932,29 +1932,43 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Dimensions(AdCPBaseModel):
-    width: Annotated[int | None, Field(description=&#39;Fixed width in pixels&#39;, ge=1)] = None
-    height: Annotated[int | None, Field(description=&#39;Fixed height in pixels&#39;, ge=1)] = None
-    min_width: Annotated[
-        int | None, Field(description=&#39;Minimum width in pixels for responsive renders&#39;, ge=1)
+    aspect_ratio: Annotated[
+        str | None,
+        Field(
+            description=&#34;Fixed aspect ratio constraint (e.g., &#39;16:9&#39;, &#39;4:3&#39;, &#39;1:1&#39;, &#39;1.91:1&#39;)&#34;,
+            pattern=&#39;^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$&#39;,
+        ),
     ] = None
-    min_height: Annotated[
-        int | None, Field(description=&#39;Minimum height in pixels for responsive renders&#39;, ge=1)
-    ] = None
-    max_width: Annotated[
-        int | None, Field(description=&#39;Maximum width in pixels for responsive renders&#39;, ge=1)
+    height: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fixed height. Interpretation depends on unit (default: pixels).&#39;, gt=0.0
+        ),
     ] = None
     max_height: Annotated[
-        int | None, Field(description=&#39;Maximum height in pixels for responsive renders&#39;, ge=1)
+        float | None, Field(description=&#39;Maximum height for responsive renders&#39;, gt=0.0)
+    ] = None
+    max_width: Annotated[
+        float | None, Field(description=&#39;Maximum width for responsive renders&#39;, gt=0.0)
+    ] = None
+    min_height: Annotated[
+        float | None, Field(description=&#39;Minimum height for responsive renders&#39;, gt=0.0)
+    ] = None
+    min_width: Annotated[
+        float | None, Field(description=&#39;Minimum width for responsive renders&#39;, gt=0.0)
     ] = None
     responsive: Annotated[
         Responsive | None, Field(description=&#39;Indicates which dimensions are responsive/fluid&#39;)
     ] = None
-    aspect_ratio: Annotated[
-        str | None,
+    unit: Annotated[
+        dimension_unit.DimensionUnit | None,
         Field(
-            description=&#34;Fixed aspect ratio constraint (e.g., &#39;16:9&#39;, &#39;4:3&#39;, &#39;1:1&#39;)&#34;,
-            pattern=&#39;^\\d+:\\d+$&#39;,
+            description=&#34;Unit of measurement for width/height values. Defaults to &#39;px&#39; when absent. Print formats use &#39;inches&#39; or &#39;cm&#39;.&#34;
         ),
+    ] = None
+    width: Annotated[
+        float | None,
+        Field(description=&#39;Fixed width. Interpretation depends on unit (default: pixels).&#39;, gt=0.0),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1982,23 +1996,23 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Dimensions.height"><code class="name">var <span class="ident">height</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Dimensions.height"><code class="name">var <span class="ident">height</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Dimensions.max_height"><code class="name">var <span class="ident">max_height</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Dimensions.max_height"><code class="name">var <span class="ident">max_height</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Dimensions.max_width"><code class="name">var <span class="ident">max_width</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Dimensions.max_width"><code class="name">var <span class="ident">max_width</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Dimensions.min_height"><code class="name">var <span class="ident">min_height</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Dimensions.min_height"><code class="name">var <span class="ident">min_height</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Dimensions.min_width"><code class="name">var <span class="ident">min_width</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Dimensions.min_width"><code class="name">var <span class="ident">min_width</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2010,7 +2024,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.format.Dimensions.width"><code class="name">var <span class="ident">width</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.format.Dimensions.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.enums.dimension_unit.DimensionUnit" href="../enums/dimension_unit.html#adcp.types.generated_poc.enums.dimension_unit.DimensionUnit">DimensionUnit</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.format.Dimensions.width"><code class="name">var <span class="ident">width</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2085,12 +2103,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    position: Annotated[
-        disclosure_position.DisclosurePosition, Field(description=&#39;The disclosure position&#39;)
-    ]
     persistence: Annotated[
         list[disclosure_persistence.DisclosurePersistence],
         Field(description=&#39;Persistence modes this position supports&#39;, min_length=1),
+    ]
+    position: Annotated[
+        disclosure_position.DisclosurePosition, Field(description=&#39;The disclosure position&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2147,40 +2165,16 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    format_id: Annotated[
-        format_id_1.FormatId,
-        Field(description=&#39;Structured format identifier with agent URL and format name&#39;),
-    ]
-    name: Annotated[str, Field(description=&#39;Human-readable format name&#39;)]
-    description: Annotated[
-        str | None,
-        Field(
-            description=&#39;Plain text explanation of what this format does and what assets it requires&#39;
-        ),
-    ] = None
-    example_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;Optional URL to showcase page with examples and interactive demos of this format&#39;
-        ),
-    ] = None
-    type: Annotated[
-        format_category.FormatCategory | None,
-        Field(
-            description=&#39;DEPRECATED: High-level category for this format. Use the assets array to understand creative requirements instead - it provides precise information about what asset types are needed.&#39;
-        ),
-    ] = None
     accepts_parameters: Annotated[
         list[format_id_parameter.FormatIdParameter] | None,
         Field(
             description=&#39;List of parameters this format accepts in format_id. Template formats define which parameters (dimensions, duration, etc.) can be specified when instantiating the format. Empty or omitted means this is a concrete format with fixed parameters.&#39;
         ),
     ] = None
-    renders: Annotated[
-        list[Renders | Renders1] | None,
+    accessibility: Annotated[
+        Accessibility | None,
         Field(
-            description=&#39;Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.&#39;,
-            min_length=1,
+            description=&#39;Accessibility posture of this format. Declares the WCAG conformance level that creatives produced by this format will meet.&#39;
         ),
     ] = None
     assets: Annotated[
@@ -2210,41 +2204,10 @@ validated to form a valid model.</p>
         dict[str, Any] | None,
         Field(description=&#39;Delivery method specifications (e.g., hosted, VAST, third-party tags)&#39;),
     ] = None
-    supported_macros: Annotated[
-        list[universal_macro.UniversalMacro | str] | None,
+    description: Annotated[
+        str | None,
         Field(
-            description=&#39;List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling. See docs/creative/universal-macros.mdx for full documentation.&#39;
-        ),
-    ] = None
-    input_format_ids: Annotated[
-        list[format_id_1.FormatId] | None,
-        Field(
-            description=&#39;Array of format IDs this format accepts as input creative manifests. When present, indicates this format can take existing creatives in these formats as input. Omit for formats that work from raw assets (images, text, etc.) rather than existing creatives.&#39;
-        ),
-    ] = None
-    output_format_ids: Annotated[
-        list[format_id_1.FormatId] | None,
-        Field(
-            description=&#39;Array of format IDs that this format can produce as output. When present, indicates this format can build creatives in these output formats (e.g., a multi-publisher template format might produce standard display formats across many publishers). Omit for formats that produce a single fixed output (the format itself).&#39;
-        ),
-    ] = None
-    format_card: Annotated[
-        FormatCard | None,
-        Field(
-            description=&#39;Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.&#39;
-        ),
-    ] = None
-    accessibility: Annotated[
-        Accessibility | None,
-        Field(
-            description=&#39;Accessibility posture of this format. Declares the WCAG conformance level that creatives produced by this format will meet.&#39;
-        ),
-    ] = None
-    supported_disclosure_positions: Annotated[
-        list[disclosure_position.DisclosurePosition] | None,
-        Field(
-            description=&#39;Disclosure positions this format can render. Buyers use this to determine whether a format can satisfy their compliance requirements before submitting a creative. When omitted, the format makes no disclosure rendering guarantees — creative agents SHOULD treat this as incompatible with briefs that require specific disclosure positions. Values correspond to positions on creative-brief.json required_disclosures.&#39;,
-            min_length=1,
+            description=&#39;Plain text explanation of what this format does and what assets it requires&#39;
         ),
     ] = None
     disclosure_capabilities: Annotated[
@@ -2254,10 +2217,46 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    example_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Optional URL to showcase page with examples and interactive demos of this format&#39;
+        ),
+    ] = None
+    format_card: Annotated[
+        FormatCard | None,
+        Field(
+            description=&#39;Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.&#39;
+        ),
+    ] = None
     format_card_detailed: Annotated[
         FormatCardDetailed | None,
         Field(
             description=&#39;Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.&#39;
+        ),
+    ] = None
+    format_id: Annotated[
+        format_id_1.FormatId,
+        Field(description=&#39;Structured format identifier with agent URL and format name&#39;),
+    ]
+    input_format_ids: Annotated[
+        list[format_id_1.FormatId] | None,
+        Field(
+            description=&#39;Array of format IDs this format accepts as input creative manifests. When present, indicates this format can take existing creatives in these formats as input. Omit for formats that work from raw assets (images, text, etc.) rather than existing creatives.&#39;
+        ),
+    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable format name&#39;)]
+    output_format_ids: Annotated[
+        list[format_id_1.FormatId] | None,
+        Field(
+            description=&#39;Array of format IDs that this format can produce as output. When present, indicates this format can build creatives in these output formats (e.g., a multi-publisher template format might produce standard display formats across many publishers). Omit for formats that produce a single fixed output (the format itself).&#39;
+        ),
+    ] = None
+    renders: Annotated[
+        list[Renders | Renders1] | None,
+        Field(
+            description=&#39;Specification of rendered pieces for this format. Most formats produce a single render. Companion ad formats (video + banner), adaptive formats, and multi-placement formats produce multiple renders. Each render specifies its role and dimensions.&#39;,
+            min_length=1,
         ),
     ] = None
     reported_metrics: Annotated[
@@ -2265,6 +2264,19 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Metrics this format can produce in delivery reporting. Buyers receive the intersection of format reported_metrics and product available_metrics. If omitted, the format defers entirely to product-level metric declarations.&#39;,
             min_length=1,
+        ),
+    ] = None
+    supported_disclosure_positions: Annotated[
+        list[disclosure_position.DisclosurePosition] | None,
+        Field(
+            description=&#39;Disclosure positions this format can render. Buyers use this to determine whether a format can satisfy their compliance requirements before submitting a creative. When omitted, the format makes no disclosure rendering guarantees — creative agents SHOULD treat this as incompatible with briefs that require specific disclosure positions. Values correspond to positions on creative-brief.json required_disclosures.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    supported_macros: Annotated[
+        list[universal_macro.UniversalMacro | str] | None,
+        Field(
+            description=&#39;List of universal macros supported by this format (e.g., MEDIA_BUY_ID, CACHEBUSTER, DEVICE_ID). Used for validation and developer tooling. See docs/creative/universal-macros.mdx for full documentation.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -2354,10 +2366,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.format.Format.supported_macros"><code class="name">var <span class="ident">supported_macros</span> : list[<a title="adcp.types.generated_poc.enums.universal_macro.UniversalMacro" href="../enums/universal_macro.html#adcp.types.generated_poc.enums.universal_macro.UniversalMacro">UniversalMacro</a> | str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.format.Format.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.enums.format_category.FormatCategory" href="../enums/format_category.html#adcp.types.generated_poc.enums.format_category.FormatCategory">FormatCategory</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2515,10 +2523,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Renders(AdCPBaseModel):
-    role: Annotated[
-        str,
+    dimensions: Annotated[
+        Dimensions,
         Field(
-            description=&#34;Semantic role of this rendered piece (e.g., &#39;primary&#39;, &#39;companion&#39;, &#39;mobile_variant&#39;)&#34;
+            description=&#39;Dimensions for this rendered piece. Defaults to pixels when unit is absent.&#39;
         ),
     ]
     parameters_from_format_id: Annotated[
@@ -2527,8 +2535,11 @@ validated to form a valid model.</p>
             description=&#39;When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.&#39;
         ),
     ] = None
-    dimensions: Annotated[
-        Dimensions, Field(description=&#39;Dimensions for this rendered piece (in pixels)&#39;)
+    role: Annotated[
+        str,
+        Field(
+            description=&#34;Semantic role of this rendered piece (e.g., &#39;primary&#39;, &#39;companion&#39;, &#39;mobile_variant&#39;)&#34;
+        ),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2586,21 +2597,24 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Renders1(AdCPBaseModel):
-    role: Annotated[
-        str,
+    dimensions: Annotated[
+        Dimensions1 | None,
         Field(
-            description=&#34;Semantic role of this rendered piece (e.g., &#39;primary&#39;, &#39;companion&#39;, &#39;mobile_variant&#39;)&#34;
+            description=&#39;Dimensions for this rendered piece. Defaults to pixels when unit is absent.&#39;
         ),
-    ]
+    ] = None
     parameters_from_format_id: Annotated[
         Literal[True],
         Field(
             description=&#39;When true, parameters for this render (dimensions and/or duration) are specified in the format_id. Used for template formats that accept parameters. Mutually exclusive with specifying dimensions object explicitly.&#39;
         ),
     ]
-    dimensions: Annotated[
-        Dimensions1 | None, Field(description=&#39;Dimensions for this rendered piece (in pixels)&#39;)
-    ] = None</code></pre>
+    role: Annotated[
+        str,
+        Field(
+            description=&#34;Semantic role of this rendered piece (e.g., &#39;primary&#39;, &#39;companion&#39;, &#39;mobile_variant&#39;)&#34;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2657,8 +2671,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Responsive(AdCPBaseModel):
-    width: bool
-    height: bool</code></pre>
+    height: bool
+    width: bool</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -3054,6 +3068,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.format.Dimensions.min_width" href="#adcp.types.generated_poc.core.format.Dimensions.min_width">min_width</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Dimensions.model_config" href="#adcp.types.generated_poc.core.format.Dimensions.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Dimensions.responsive" href="#adcp.types.generated_poc.core.format.Dimensions.responsive">responsive</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.format.Dimensions.unit" href="#adcp.types.generated_poc.core.format.Dimensions.unit">unit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Dimensions.width" href="#adcp.types.generated_poc.core.format.Dimensions.width">width</a></code></li>
 </ul>
 </li>
@@ -3092,7 +3107,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.reported_metrics" href="#adcp.types.generated_poc.core.format.Format.reported_metrics">reported_metrics</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.supported_disclosure_positions" href="#adcp.types.generated_poc.core.format.Format.supported_disclosure_positions">supported_disclosure_positions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.format.Format.supported_macros" href="#adcp.types.generated_poc.core.format.Format.supported_macros">supported_macros</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.format.Format.type" href="#adcp.types.generated_poc.core.format.Format.type">type</a></code></li>
 </ul>
 </li>
 <li>

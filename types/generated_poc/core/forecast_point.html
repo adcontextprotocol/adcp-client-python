@@ -60,16 +60,16 @@ el.replaceWith(d);
         extra=&#39;allow&#39;,
     )
     budget: Annotated[
-        float,
+        float | None,
         Field(
-            description=&#39;Budget amount for this forecast point. For allocation-level forecasts, this is the absolute budget for that allocation (not the percentage). For proposal-level forecasts, this is the total proposal budget.&#39;,
+            description=&#39;Budget amount for this forecast point. Required for spend curves; omit for availability forecasts where the metrics represent total available inventory. For allocation-level forecasts, this is the absolute budget for that allocation (not the percentage). For proposal-level forecasts, this is the total proposal budget. When omitted, use metrics.spend to express the estimated cost of the available inventory.&#39;,
             ge=0.0,
         ),
-    ]
+    ] = None
     metrics: Annotated[
         Metrics,
         Field(
-            description=&#39;Forecasted metric values at this budget level. Keys are forecastable-metric enum values for delivery/engagement or event-type enum values for outcomes. Values are ForecastRange objects (low/mid/high). Use { &#34;mid&#34;: value } for point estimates. Include spend when the platform predicts it will differ from budget. Additional keys beyond the documented properties are allowed for event-type values (purchase, lead, app_install, etc.).&#39;
+            description=&#39;Forecasted metric values. Keys are forecastable-metric enum values for delivery/engagement or event-type enum values for outcomes. Values are ForecastRange objects (low/mid/high). Use { &#34;mid&#34;: value } for point estimates. When budget is present, these are the expected metrics at that spend level. When budget is omitted, these represent total available inventory — use spend to express the estimated cost. Additional keys beyond the documented properties are allowed for event-type values (purchase, lead, app_install, etc.).&#39;
         ),
     ]</code></pre>
 </details>
@@ -90,7 +90,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.forecast_point.ForecastPoint.budget"><code class="name">var <span class="ident">budget</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.forecast_point.ForecastPoint.budget"><code class="name">var <span class="ident">budget</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -125,18 +125,18 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Metrics(AdCPBaseModel):
     audience_size: forecast_range.ForecastRange | None = None
-    reach: forecast_range.ForecastRange | None = None
-    frequency: forecast_range.ForecastRange | None = None
-    impressions: forecast_range.ForecastRange | None = None
     clicks: forecast_range.ForecastRange | None = None
-    spend: forecast_range.ForecastRange | None = None
-    views: forecast_range.ForecastRange | None = None
     completed_views: forecast_range.ForecastRange | None = None
-    grps: forecast_range.ForecastRange | None = None
     engagements: forecast_range.ForecastRange | None = None
     follows: forecast_range.ForecastRange | None = None
+    frequency: forecast_range.ForecastRange | None = None
+    grps: forecast_range.ForecastRange | None = None
+    impressions: forecast_range.ForecastRange | None = None
+    profile_visits: forecast_range.ForecastRange | None = None
+    reach: forecast_range.ForecastRange | None = None
     saves: forecast_range.ForecastRange | None = None
-    profile_visits: forecast_range.ForecastRange | None = None</code></pre>
+    spend: forecast_range.ForecastRange | None = None
+    views: forecast_range.ForecastRange | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

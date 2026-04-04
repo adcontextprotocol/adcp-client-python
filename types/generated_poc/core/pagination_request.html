@@ -59,13 +59,13 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    max_results: Annotated[
-        int | None, Field(description=&#39;Maximum number of items to return per page&#39;, ge=1, le=100)
-    ] = 50
     cursor: Annotated[
         str | None,
         Field(description=&#39;Opaque cursor from a previous response to fetch the next page&#39;),
-    ] = None</code></pre>
+    ] = None
+    max_results: Annotated[
+        int | None, Field(description=&#39;Maximum number of items to return per page&#39;, ge=1, le=100)
+    ] = 50</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

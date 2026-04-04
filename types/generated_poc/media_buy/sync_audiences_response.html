@@ -138,38 +138,38 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    audience_id: Annotated[
-        str, Field(description=&#34;Audience ID from the request (buyer&#39;s identifier)&#34;)
-    ]
-    name: Annotated[str | None, Field(description=&#39;Name of the audience&#39;)] = None
-    seller_id: Annotated[
-        str | None,
-        Field(description=&#39;Seller-assigned identifier for this audience in their ad platform&#39;),
-    ] = None
     action: Annotated[
         Action,
         Field(
             description=&#34;Action taken for this audience. &#39;status&#39; is present when action is created, updated, or unchanged. &#39;status&#39; is absent when action is deleted or failed.&#34;
         ),
     ]
-    status: Annotated[
-        Status | None,
+    audience_id: Annotated[
+        str, Field(description=&#34;Audience ID from the request (buyer&#39;s identifier)&#34;)
+    ]
+    effective_match_rate: Annotated[
+        float | None,
         Field(
-            description=&#34;Matching status. Present when action is created, updated, or unchanged; absent when action is deleted or failed. &#39;processing&#39;: platform is still matching members against its user base. &#39;ready&#39;: audience is available for targeting, matched_count is populated. &#39;too_small&#39;: matched audience is below the platform&#39;s minimum size — add more members and re-sync.&#34;
+            description=&#34;Deduplicated match rate across all identifier types (matched_count / total_uploaded_count after deduplication). A single number for reach estimation. Populated when status is &#39;ready&#39;.&#34;,
+            ge=0.0,
+            le=1.0,
         ),
     ] = None
-    uploaded_count: Annotated[
-        int | None,
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(description=&#34;Errors for this audience (only present when action=&#39;failed&#39;)&#34;),
+    ] = None
+    last_synced_at: Annotated[
+        AwareDatetime | None,
         Field(
-            description=&#39;Number of members submitted in this sync operation (delta, not cumulative). In discovery-only calls (no audiences array), this is 0.&#39;,
-            ge=0,
+            description=&#39;ISO 8601 timestamp of when the most recent sync operation was accepted by the platform. Useful for agents reasoning about audience freshness. Omitted if the seller does not track this.&#39;
         ),
     ] = None
-    total_uploaded_count: Annotated[
-        int | None,
+    match_breakdown: Annotated[
+        list[MatchBreakdownItem] | None,
         Field(
-            description=&#39;Cumulative number of members uploaded across all syncs for this audience. Compare with matched_count to calculate match rate (matched_count / total_uploaded_count). Populated when the seller tracks cumulative upload counts.&#39;,
-            ge=0,
+            description=&#39;Per-identifier-type match results. Shows which ID types are resolving and at what rate. Helps buyers decide which identifiers to prioritize. Populated when the seller can report per-type matching. Omitted when the seller only supports aggregate match counts.&#39;,
+            min_length=1,
         ),
     ] = None
     matched_count: Annotated[
@@ -179,12 +179,6 @@ attributes &ndash; see the documentation for details.</p></div>
             ge=0,
         ),
     ] = None
-    last_synced_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 timestamp of when the most recent sync operation was accepted by the platform. Useful for agents reasoning about audience freshness. Omitted if the seller does not track this.&#39;
-        ),
-    ] = None
     minimum_size: Annotated[
         int | None,
         Field(
@@ -192,9 +186,30 @@ attributes &ndash; see the documentation for details.</p></div>
             ge=1,
         ),
     ] = None
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(description=&#34;Errors for this audience (only present when action=&#39;failed&#39;)&#34;),
+    name: Annotated[str | None, Field(description=&#39;Name of the audience&#39;)] = None
+    seller_id: Annotated[
+        str | None,
+        Field(description=&#39;Seller-assigned identifier for this audience in their ad platform&#39;),
+    ] = None
+    status: Annotated[
+        Status | None,
+        Field(
+            description=&#34;Matching status. Present when action is created, updated, or unchanged; absent when action is deleted or failed. &#39;processing&#39;: platform is still matching members against its user base. &#39;ready&#39;: audience is available for targeting, matched_count is populated. &#39;too_small&#39;: matched audience is below the platform&#39;s minimum size — add more members and re-sync.&#34;
+        ),
+    ] = None
+    total_uploaded_count: Annotated[
+        int | None,
+        Field(
+            description=&#39;Cumulative number of members uploaded across all syncs for this audience. Compare with matched_count to calculate match rate (matched_count / total_uploaded_count). Populated when the seller tracks cumulative upload counts.&#39;,
+            ge=0,
+        ),
+    ] = None
+    uploaded_count: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of members submitted in this sync operation (delta, not cumulative). In discovery-only calls (no audiences array), this is 0.&#39;,
+            ge=0,
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -222,11 +237,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.effective_match_rate"><code class="name">var <span class="ident">effective_match_rate</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.last_synced_at"><code class="name">var <span class="ident">last_synced_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.match_breakdown"><code class="name">var <span class="ident">match_breakdown</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem">MatchBreakdownItem</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -259,6 +282,97 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.uploaded_count"><code class="name">var <span class="ident">uploaded_count</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem"><code class="flex name class">
+<span>class <span class="ident">MatchBreakdownItem</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MatchBreakdownItem(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    id_type: Annotated[
+        match_id_type.MatchIdType,
+        Field(
+            description=&#39;Identifier type. Combines hashed PII types (hashed_email, hashed_phone) with universal ID types (rampid, uid2, maid, etc.).&#39;
+        ),
+    ]
+    match_rate: Annotated[
+        float,
+        Field(
+            description=&#39;Match rate for this identifier type (matched / submitted). Server-authoritative — consumers should prefer this value over computing their own.&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ]
+    matched: Annotated[
+        int,
+        Field(
+            description=&#39;Cumulative number of members matched via this identifier type across all syncs.&#39;,
+            ge=0,
+        ),
+    ]
+    submitted: Annotated[
+        int,
+        Field(
+            description=&#39;Cumulative number of members submitted with this identifier type across all syncs (matches total_uploaded_count semantics, not uploaded_count). Compare with matched to calculate per-type match rate.&#39;,
+            ge=0,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.id_type"><code class="name">var <span class="ident">id_type</span> : <a title="adcp.types.generated_poc.enums.match_id_type.MatchIdType" href="../enums/match_id_type.html#adcp.types.generated_poc.enums.match_id_type.MatchIdType">MatchIdType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.match_rate"><code class="name">var <span class="ident">match_rate</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.matched"><code class="name">var <span class="ident">matched</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.submitted"><code class="name">var <span class="ident">submitted</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -359,12 +473,12 @@ attributes &ndash; see the documentation for details.</p></div>
     audiences: Annotated[
         list[Audience], Field(description=&#39;Results for each audience on the account&#39;)
     ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -428,11 +542,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(description=&#39;Operation-level errors that prevented processing&#39;, min_length=1),
     ]
-    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -510,8 +624,10 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.action" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.action">action</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.audience_id" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.audience_id">audience_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.effective_match_rate" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.effective_match_rate">effective_match_rate</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.errors" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.last_synced_at" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.last_synced_at">last_synced_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.match_breakdown" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.match_breakdown">match_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.matched_count" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.matched_count">matched_count</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.minimum_size" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.minimum_size">minimum_size</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.model_config" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.model_config">model_config</a></code></li>
@@ -520,6 +636,16 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.status" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.total_uploaded_count" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.total_uploaded_count">total_uploaded_count</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.uploaded_count" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.Audience.uploaded_count">uploaded_count</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem">MatchBreakdownItem</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.id_type" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.id_type">id_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.match_rate" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.match_rate">match_rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.matched" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.matched">matched</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.model_config" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.submitted" href="#adcp.types.generated_poc.media_buy.sync_audiences_response.MatchBreakdownItem.submitted">submitted</a></code></li>
 </ul>
 </li>
 <li>

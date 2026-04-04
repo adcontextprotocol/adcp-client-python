@@ -59,13 +59,13 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    high: Annotated[
+        float | None, Field(description=&#39;Optimistic (high-end) forecast value&#39;, ge=0.0)
+    ] = None
     low: Annotated[
         float | None, Field(description=&#39;Conservative (low-end) forecast value&#39;, ge=0.0)
     ] = None
-    mid: Annotated[float, Field(description=&#39;Expected (most likely) forecast value&#39;, ge=0.0)]
-    high: Annotated[
-        float | None, Field(description=&#39;Optimistic (high-end) forecast value&#39;, ge=0.0)
-    ] = None</code></pre>
+    mid: Annotated[float, Field(description=&#39;Expected (most likely) forecast value&#39;, ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -110,27 +110,27 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Record(AdCPBaseModel):
-    record_id: Annotated[str, Field(description=&#39;Unique identifier for this delivery record&#39;)]
-    media_buy_id: Annotated[
-        str | None,
-        Field(description=&#39;Media buy this record belongs to (when batching across multiple buys)&#39;),
-    ] = None
-    timestamp: Annotated[AwareDatetime | None, Field(description=&#39;When the delivery occurred&#39;)] = (
-        None
-    )
     artifact: Annotated[artifact_1.Artifact, Field(description=&#39;Artifact where ad was delivered&#39;)]
-    country: Annotated[
-        str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code where delivery occurred&#39;)
-    ] = None
-    channel: Annotated[
-        str | None, Field(description=&#39;Channel type (e.g., display, video, audio, social)&#39;)
-    ] = None
     brand_context: Annotated[
         BrandContext | None,
         Field(
             description=&#39;Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    channel: Annotated[
+        str | None, Field(description=&#39;Channel type (e.g., display, video, audio, social)&#39;)
+    ] = None
+    country: Annotated[
+        str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code where delivery occurred&#39;)
+    ] = None
+    media_buy_id: Annotated[
+        str | None,
+        Field(description=&#39;Media buy this record belongs to (when batching across multiple buys)&#39;),
+    ] = None
+    record_id: Annotated[str, Field(description=&#39;Unique identifier for this delivery record&#39;)]
+    timestamp: Annotated[AwareDatetime | None, Field(description=&#39;When the delivery occurred&#39;)] = (
+        None
+    )</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -203,13 +203,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ValidateContentDeliveryRequest(AdCPBaseModel):
-    standards_id: Annotated[str, Field(description=&#39;Standards configuration to validate against&#39;)]
-    records: Annotated[
-        list[Record],
-        Field(
-            description=&#39;Delivery records to validate (max 10,000)&#39;, max_length=10000, min_length=1
-        ),
-    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     feature_ids: Annotated[
         list[str] | None,
         Field(description=&#39;Specific features to evaluate (defaults to all)&#39;, min_length=1),
@@ -217,8 +212,13 @@ validated to form a valid model.</p>
     include_passed: Annotated[
         bool | None, Field(description=&#39;Include passed records in results&#39;)
     ] = True
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    records: Annotated[
+        list[Record],
+        Field(
+            description=&#39;Delivery records to validate (max 10,000)&#39;, max_length=10000, min_length=1
+        ),
+    ]
+    standards_id: Annotated[str, Field(description=&#39;Standards configuration to validate against&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

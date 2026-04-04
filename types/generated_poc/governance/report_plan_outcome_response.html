@@ -60,13 +60,13 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     category_id: Annotated[str, Field(description=&#39;Which validation category flagged the issue.&#39;)]
-    severity: Annotated[
-        escalation_severity.EscalationSeverity, Field(description=&#39;Finding severity.&#39;)
-    ]
-    explanation: Annotated[str, Field(description=&#39;Human-readable description of the issue.&#39;)]
     details: Annotated[
         dict[str, Any] | None, Field(description=&#39;Structured details for programmatic consumption.&#39;)
-    ] = None</code></pre>
+    ] = None
+    explanation: Annotated[str, Field(description=&#39;Human-readable description of the issue.&#39;)]
+    severity: Annotated[
+        escalation_severity.EscalationSeverity, Field(description=&#39;Finding severity.&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -130,11 +130,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    total_committed: Annotated[
-        float | None, Field(description=&#39;Total budget committed across all campaigns in the plan.&#39;)
-    ] = None
     budget_remaining: Annotated[
         float | None, Field(description=&#39;Authorized budget minus total committed.&#39;)
+    ] = None
+    total_committed: Annotated[
+        float | None, Field(description=&#39;Total budget committed across all campaigns in the plan.&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -191,13 +191,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    outcome_id: Annotated[str, Field(description=&#39;Unique identifier for this outcome record.&#39;)]
-    status: Annotated[
-        Status,
-        Field(
-            description=&#34;&#39;accepted&#39; means state updated with no issues. &#39;findings&#39; means issues were detected.&#34;
-        ),
-    ]
     committed_budget: Annotated[
         float | None,
         Field(
@@ -208,12 +201,19 @@ validated to form a valid model.</p>
         list[Finding] | None,
         Field(description=&#34;Issues detected. Present only when status is &#39;findings&#39;.&#34;),
     ] = None
+    outcome_id: Annotated[str, Field(description=&#39;Unique identifier for this outcome record.&#39;)]
     plan_summary: Annotated[
         PlanSummary | None,
         Field(
             description=&#34;Updated plan budget state. Present for &#39;completed&#39; and &#39;failed&#39; outcomes.&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    status: Annotated[
+        Status,
+        Field(
+            description=&#34;&#39;accepted&#39; means state updated with no issues. &#39;findings&#39; means issues were detected.&#34;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

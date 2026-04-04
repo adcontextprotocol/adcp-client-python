@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.compliance.comply_test_controller_request API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.compliance.comply_test_controller_request</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1"><code class="flex name class">
+<span>class <span class="ident">ComplyTestControllerRequest1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ComplyTestControllerRequest1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    scenario: Literal[&#39;list_scenarios&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.scenario"><code class="name">var <span class="ident">scenario</span> : Literal['list_scenarios']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2"><code class="flex name class">
+<span>class <span class="ident">ComplyTestControllerRequest2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ComplyTestControllerRequest2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    params: Params
+    scenario: Literal[&#39;force_creative_status&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.params"><code class="name">var <span class="ident">params</span> : <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params">Params</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.scenario"><code class="name">var <span class="ident">scenario</span> : Literal['force_creative_status']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3"><code class="flex name class">
+<span>class <span class="ident">ComplyTestControllerRequest3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ComplyTestControllerRequest3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    params: Params1
+    scenario: Literal[&#39;force_account_status&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.params"><code class="name">var <span class="ident">params</span> : <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params1">Params1</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.scenario"><code class="name">var <span class="ident">scenario</span> : Literal['force_account_status']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4"><code class="flex name class">
+<span>class <span class="ident">ComplyTestControllerRequest4</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ComplyTestControllerRequest4(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    params: Params2
+    scenario: Literal[&#39;force_media_buy_status&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.params"><code class="name">var <span class="ident">params</span> : <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params2">Params2</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.scenario"><code class="name">var <span class="ident">scenario</span> : Literal['force_media_buy_status']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5"><code class="flex name class">
+<span>class <span class="ident">ComplyTestControllerRequest5</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ComplyTestControllerRequest5(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    params: Params3
+    scenario: Literal[&#39;force_session_status&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.params"><code class="name">var <span class="ident">params</span> : <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params3">Params3</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.scenario"><code class="name">var <span class="ident">scenario</span> : Literal['force_session_status']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6"><code class="flex name class">
+<span>class <span class="ident">ComplyTestControllerRequest6</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ComplyTestControllerRequest6(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    params: Params4
+    scenario: Literal[&#39;simulate_delivery&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.params"><code class="name">var <span class="ident">params</span> : <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params4">Params4</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.scenario"><code class="name">var <span class="ident">scenario</span> : Literal['simulate_delivery']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7"><code class="flex name class">
+<span>class <span class="ident">ComplyTestControllerRequest7</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ComplyTestControllerRequest7(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    params: Params5 | Params6
+    scenario: Literal[&#39;simulate_budget_spend&#39;]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.params"><code class="name">var <span class="ident">params</span> : <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params5">Params5</a> | <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params6">Params6</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.scenario"><code class="name">var <span class="ident">scenario</span> : Literal['simulate_budget_spend']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params"><code class="flex name class">
+<span>class <span class="ident">Params</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Params(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    creative_id: Annotated[str, Field(description=&#39;Creative to transition&#39;)]
+    rejection_reason: Annotated[
+        str | None, Field(description=&#39;Reason for rejection. Required when status = rejected.&#39;)
+    ] = None
+    status: creative_status.CreativeStatus</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params.creative_id"><code class="name">var <span class="ident">creative_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params.rejection_reason"><code class="name">var <span class="ident">rejection_reason</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.creative_status.CreativeStatus" href="../enums/creative_status.html#adcp.types.generated_poc.enums.creative_status.CreativeStatus">CreativeStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1"><code class="flex name class">
+<span>class <span class="ident">Params1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Params1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account_id: Annotated[str, Field(description=&#39;Account to transition&#39;)]
+    status: account_status.AccountStatus</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.account_id"><code class="name">var <span class="ident">account_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.account_status.AccountStatus" href="../enums/account_status.html#adcp.types.generated_poc.enums.account_status.AccountStatus">AccountStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2"><code class="flex name class">
+<span>class <span class="ident">Params2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Params2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    media_buy_id: Annotated[str, Field(description=&#39;Media buy to transition&#39;)]
+    rejection_reason: Annotated[
+        str | None, Field(description=&#39;Reason for rejection. Required when status = rejected.&#39;)
+    ] = None
+    status: media_buy_status.MediaBuyStatus</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.rejection_reason"><code class="name">var <span class="ident">rejection_reason</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus" href="../enums/media_buy_status.html#adcp.types.generated_poc.enums.media_buy_status.MediaBuyStatus">MediaBuyStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3"><code class="flex name class">
+<span>class <span class="ident">Params3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Params3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    session_id: Annotated[str, Field(description=&#39;Session to transition&#39;)]
+    status: Annotated[
+        Status,
+        Field(
+            description=&#39;Target terminal status. Only terminal statuses are valid — active and pending_handoff are session-internal transitions.&#39;
+        ),
+    ]
+    termination_reason: Annotated[
+        str | None,
+        Field(
+            description=&#39;Reason for termination (e.g., session_timeout, host_terminated, policy_violation). Required when status = terminated.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.session_id"><code class="name">var <span class="ident">session_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Status" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Status">Status</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.termination_reason"><code class="name">var <span class="ident">termination_reason</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4"><code class="flex name class">
+<span>class <span class="ident">Params4</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Params4(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    clicks: Annotated[int | None, Field(description=&#39;Clicks to simulate&#39;, ge=0)] = None
+    conversions: Annotated[int | None, Field(description=&#39;Conversions to simulate&#39;, ge=0)] = None
+    impressions: Annotated[int | None, Field(description=&#39;Impressions to simulate&#39;, ge=0)] = None
+    media_buy_id: Annotated[str, Field(description=&#39;Media buy to add delivery to&#39;)]
+    reported_spend: Annotated[
+        ReportedSpend | None,
+        Field(description=&#39;Spend as reported in delivery data. Does not affect budget.&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.clicks"><code class="name">var <span class="ident">clicks</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.conversions"><code class="name">var <span class="ident">conversions</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.impressions"><code class="name">var <span class="ident">impressions</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.reported_spend"><code class="name">var <span class="ident">reported_spend</span> : <a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend">ReportedSpend</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5"><code class="flex name class">
+<span>class <span class="ident">Params5</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Params5(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account_id: Annotated[str, Field(description=&#39;Account (for account-level budget)&#39;)]
+    media_buy_id: Annotated[str | None, Field(description=&#39;Media buy (for buy-level budget)&#39;)] = (
+        None
+    )
+    spend_percentage: Annotated[
+        float, Field(description=&#39;Spend to this percentage of budget (0–100)&#39;, ge=0.0, le=100.0)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.account_id"><code class="name">var <span class="ident">account_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.spend_percentage"><code class="name">var <span class="ident">spend_percentage</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6"><code class="flex name class">
+<span>class <span class="ident">Params6</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Params6(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    account_id: Annotated[str | None, Field(description=&#39;Account (for account-level budget)&#39;)] = (
+        None
+    )
+    media_buy_id: Annotated[str, Field(description=&#39;Media buy (for buy-level budget)&#39;)]
+    spend_percentage: Annotated[
+        float, Field(description=&#39;Spend to this percentage of budget (0–100)&#39;, ge=0.0, le=100.0)
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.account_id"><code class="name">var <span class="ident">account_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.spend_percentage"><code class="name">var <span class="ident">spend_percentage</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend"><code class="flex name class">
+<span>class <span class="ident">ReportedSpend</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ReportedSpend(AdCPBaseModel):
+    amount: Annotated[float, Field(ge=0.0)]
+    currency: Annotated[str, Field(pattern=&#39;^[A-Z]{3}$&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Status"><code class="flex name class">
+<span>class <span class="ident">Status</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status(Enum):
+    complete = &#39;complete&#39;
+    terminated = &#39;terminated&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Status.complete"><code class="name">var <span class="ident">complete</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.compliance.comply_test_controller_request.Status.terminated"><code class="name">var <span class="ident">terminated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.compliance" href="index.html">adcp.types.generated_poc.compliance</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1">ComplyTestControllerRequest1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.context" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.ext" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.scenario" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest1.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2">ComplyTestControllerRequest2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.context" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.ext" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.params" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.params">params</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.scenario" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest2.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3">ComplyTestControllerRequest3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.context" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.ext" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.params" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.params">params</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.scenario" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest3.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4">ComplyTestControllerRequest4</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.context" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.ext" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.params" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.params">params</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.scenario" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest4.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5">ComplyTestControllerRequest5</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.context" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.ext" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.params" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.params">params</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.scenario" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest5.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6">ComplyTestControllerRequest6</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.context" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.ext" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.params" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.params">params</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.scenario" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest6.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7">ComplyTestControllerRequest7</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.context" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.ext" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.params" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.params">params</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.scenario" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ComplyTestControllerRequest7.scenario">scenario</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params">Params</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params.creative_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params.creative_id">creative_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params.rejection_reason" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params.rejection_reason">rejection_reason</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params.status" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params1">Params1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.account_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.status" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params1.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params2">Params2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.media_buy_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.rejection_reason" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.rejection_reason">rejection_reason</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.status" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params2.status">status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params3">Params3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.session_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.session_id">session_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.status" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.status">status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.termination_reason" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params3.termination_reason">termination_reason</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params4">Params4</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.clicks" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.clicks">clicks</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.conversions" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.conversions">conversions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.impressions" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.impressions">impressions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.media_buy_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.reported_spend" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params4.reported_spend">reported_spend</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params5">Params5</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.account_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.media_buy_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.spend_percentage" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params5.spend_percentage">spend_percentage</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params6">Params6</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.account_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.media_buy_id" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.media_buy_id">media_buy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.spend_percentage" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Params6.spend_percentage">spend_percentage</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend">ReportedSpend</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.amount" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.currency" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.model_config" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.ReportedSpend.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Status" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Status">Status</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Status.complete" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Status.complete">complete</a></code></li>
+<li><code><a title="adcp.types.generated_poc.compliance.comply_test_controller_request.Status.terminated" href="#adcp.types.generated_poc.compliance.comply_test_controller_request.Status.terminated">terminated</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

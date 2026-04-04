@@ -61,19 +61,19 @@ el.replaceWith(d);
     )
     creative_id: Annotated[str, Field(description=&#39;ID of the creative to assign&#39;)]
     package_id: Annotated[str, Field(description=&#39;ID of the package to assign the creative to&#39;)]
+    placement_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Restrict this creative to specific placements within the package. When omitted, the creative is eligible for all placements.&#39;,
+            min_length=1,
+        ),
+    ] = None
     weight: Annotated[
         float | None,
         Field(
             description=&#39;Relative delivery weight (0-100). When multiple creatives are assigned to the same package, weights determine impression distribution proportionally. When omitted, the creative receives equal rotation with other unweighted creatives. A weight of 0 means the creative is assigned but paused (receives no delivery).&#39;,
             ge=0.0,
             le=100.0,
-        ),
-    ] = None
-    placement_ids: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Restrict this creative to specific placements within the package. When omitted, the creative is eligible for all placements.&#39;,
-            min_length=1,
         ),
     ] = None</code></pre>
 </details>
@@ -142,14 +142,14 @@ validated to form a valid model.</p>
     account: Annotated[
         account_ref.AccountReference, Field(description=&#39;Account that owns these creatives.&#39;)
     ]
-    creatives: Annotated[
-        list[creative_asset.CreativeAsset],
+    assignments: Annotated[
+        list[Assignment] | None,
         Field(
-            description=&#39;Array of creative assets to sync (create or update)&#39;,
-            max_length=100,
+            description=&#39;Optional bulk assignment of creatives to packages. Each entry maps one creative to one package with optional weight and placement targeting. Standalone creative agents that do not manage media buys ignore this field.&#39;,
             min_length=1,
         ),
-    ]
+    ] = None
+    context: context_1.ContextObject | None = None
     creative_ids: Annotated[
         list[str] | None,
         Field(
@@ -158,21 +158,14 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    assignments: Annotated[
-        list[Assignment] | None,
+    creatives: Annotated[
+        list[creative_asset.CreativeAsset],
         Field(
-            description=&#39;Optional bulk assignment of creatives to packages. Each entry maps one creative to one package with optional weight and placement targeting. Standalone creative agents that do not manage media buys ignore this field.&#39;,
+            description=&#39;Array of creative assets to sync (create or update)&#39;,
+            max_length=100,
             min_length=1,
         ),
-    ] = None
-    idempotency_key: Annotated[
-        str | None,
-        Field(
-            description=&#39;Client-generated idempotency key for safe retries. If a sync fails without a response, resending with the same idempotency_key guarantees at-most-once execution.&#39;,
-            max_length=255,
-            min_length=8,
-        ),
-    ] = None
+    ]
     delete_missing: Annotated[
         bool | None,
         Field(
@@ -185,20 +178,27 @@ validated to form a valid model.</p>
             description=&#39;When true, preview changes without applying them. Returns what would be created/updated/deleted.&#39;
         ),
     ] = False
-    validation_mode: Annotated[
-        validation_mode_1.ValidationMode | None,
+    ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
         Field(
-            description=&#34;Validation strictness. &#39;strict&#39; fails entire sync on any validation error. &#39;lenient&#39; processes valid creatives and reports errors.&#34;
+            description=&#39;Client-generated idempotency key for safe retries. If a sync fails without a response, resending with the same idempotency_key guarantees at-most-once execution. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
         ),
-    ] = validation_mode_1.ValidationMode.strict
+    ] = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
             description=&#39;Optional webhook configuration for async sync notifications. The agent will send a webhook when sync completes if the operation takes longer than immediate response time (typically for large bulk operations or manual approval/HITL).&#39;
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    validation_mode: Annotated[
+        validation_mode_1.ValidationMode | None,
+        Field(
+            description=&#34;Validation strictness. &#39;strict&#39; fails entire sync on any validation error. &#39;lenient&#39; processes valid creatives and reports errors.&#34;
+        ),
+    ] = validation_mode_1.ValidationMode.strict</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -196,10 +196,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    model: Literal[&#39;cpm&#39;]
     cpm: Annotated[float, Field(description=&#39;Cost per thousand impressions&#39;, ge=0.0)]
     currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    model: Literal[&#39;cpm&#39;]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -263,10 +263,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    model: Literal[&#39;percent_of_media&#39;]
-    percent: Annotated[
-        float, Field(description=&#39;Percentage of media spend, e.g. 15 = 15%&#39;, ge=0.0, le=100.0)
+    currency: Annotated[
+        str,
+        Field(description=&#39;ISO 4217 currency code for the resulting charge&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
     ]
+    ext: ext_1.ExtensionObject | None = None
     max_cpm: Annotated[
         float | None,
         Field(
@@ -274,11 +275,10 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    currency: Annotated[
-        str,
-        Field(description=&#39;ISO 4217 currency code for the resulting charge&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
-    ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    model: Literal[&#39;percent_of_media&#39;]
+    percent: Annotated[
+        float, Field(description=&#39;Percentage of media spend, e.g. 15 = 15%&#39;, ge=0.0, le=100.0)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -346,11 +346,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    model: Literal[&#39;flat_fee&#39;]
     amount: Annotated[float, Field(description=&#39;Fixed charge for the billing period&#39;, ge=0.0)]
-    period: Annotated[Period, Field(description=&#39;Billing period for the flat fee.&#39;)]
     currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    model: Literal[&#39;flat_fee&#39;]
+    period: Annotated[Period, Field(description=&#39;Billing period for the flat fee.&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

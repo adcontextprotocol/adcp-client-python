@@ -59,24 +59,24 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    variable_id: Annotated[str, Field(description=&#39;Variable identifier on the creative platform&#39;)]
-    name: Annotated[str, Field(description=&#39;Human-readable variable name&#39;)]
-    variable_type: Annotated[
-        VariableType,
-        Field(
-            description=&#39;Data type of the variable. Each type represents a semantic content slot: text (headlines, body copy), image/video/audio (media URLs), url (clickthrough or tracking URLs), number (prices, counts), boolean (conditional flags like show_discount or is_raining), color (hex color values), date (ISO 8601 date-time for countdowns and offer expirations).&#39;
-        ),
-    ]
     default_value: Annotated[
         str | None,
         Field(
             description=&#39;Default value used when no dynamic value is provided at serve time. All types are string-encoded: text/image/video/audio/url as literal strings, number as decimal (e.g., &#34;42.99&#34;), boolean as &#34;true&#34;/&#34;false&#34;, color as &#34;#RRGGBB&#34;, date as ISO 8601 (e.g., &#34;2026-12-25T00:00:00Z&#34;).&#39;
         ),
     ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable variable name&#39;)]
     required: Annotated[
         bool | None,
         Field(description=&#39;Whether this variable must have a value for the creative to serve&#39;),
-    ] = False</code></pre>
+    ] = False
+    variable_id: Annotated[str, Field(description=&#39;Variable identifier on the creative platform&#39;)]
+    variable_type: Annotated[
+        VariableType,
+        Field(
+            description=&#39;Data type of the variable. Each type represents a semantic content slot: text (headlines, body copy), image/video/audio (media URLs), url (clickthrough or tracking URLs), number (prices, counts), boolean (conditional flags like show_discount or is_raining), color (hex color values), date (ISO 8601 date-time for countdowns and offer expirations).&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

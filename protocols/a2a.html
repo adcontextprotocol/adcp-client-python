@@ -756,7 +756,43 @@ el.replaceWith(d);
 
     async def delete_property_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Delete a property list.&#34;&#34;&#34;
-        return await self._call_a2a_tool(&#34;delete_property_list&#34;, params)</code></pre>
+        return await self._call_a2a_tool(&#34;delete_property_list&#34;, params)
+
+    # ========================================================================
+    # V3 Protocol Methods - TMP
+    # ========================================================================
+
+    async def context_match(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Match ad context to buyer packages.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;context_match&#34;, params)
+
+    async def identity_match(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Match user identity for package eligibility.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;identity_match&#34;, params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Brand Rights
+    # ========================================================================
+
+    async def get_brand_identity(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get brand identity information.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_brand_identity&#34;, params)
+
+    async def get_rights(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get available rights for licensing.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;get_rights&#34;, params)
+
+    async def acquire_rights(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Acquire rights for brand content usage.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;acquire_rights&#34;, params)
+
+    # ========================================================================
+    # V3 Protocol Methods - Compliance
+    # ========================================================================
+
+    async def comply_test_controller(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Compliance test controller (sandbox only).&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;comply_test_controller&#34;, params)</code></pre>
 </details>
 <div class="desc"><p>Adapter for A2A protocol using official a2a-sdk client.</p>
 <p>Initialize A2A adapter with official A2A client.</p></div>
@@ -956,16 +992,20 @@ el.replaceWith(d);
 <ul class="hlist">
 <li><code><b><a title="adcp.protocols.base.ProtocolAdapter" href="base.html#adcp.protocols.base.ProtocolAdapter">ProtocolAdapter</a></b></code>:
 <ul class="hlist">
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.acquire_rights" href="base.html#adcp.protocols.base.ProtocolAdapter.acquire_rights">acquire_rights</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.activate_signal" href="base.html#adcp.protocols.base.ProtocolAdapter.activate_signal">activate_signal</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.build_creative" href="base.html#adcp.protocols.base.ProtocolAdapter.build_creative">build_creative</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.calibrate_content" href="base.html#adcp.protocols.base.ProtocolAdapter.calibrate_content">calibrate_content</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.check_governance" href="base.html#adcp.protocols.base.ProtocolAdapter.check_governance">check_governance</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.comply_test_controller" href="base.html#adcp.protocols.base.ProtocolAdapter.comply_test_controller">comply_test_controller</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.context_match" href="base.html#adcp.protocols.base.ProtocolAdapter.context_match">context_match</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.create_property_list">create_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.delete_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_account_financials" href="base.html#adcp.protocols.base.ProtocolAdapter.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities" href="base.html#adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_brand_identity" href="base.html#adcp.protocols.base.ProtocolAdapter.get_brand_identity">get_brand_identity</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_features" href="base.html#adcp.protocols.base.ProtocolAdapter.get_creative_features">get_creative_features</a></code></li>
@@ -975,7 +1015,9 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_plan_audit_logs" href="base.html#adcp.protocols.base.ProtocolAdapter.get_plan_audit_logs">get_plan_audit_logs</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_products" href="base.html#adcp.protocols.base.ProtocolAdapter.get_products">get_products</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.get_property_list">get_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_rights" href="base.html#adcp.protocols.base.ProtocolAdapter.get_rights">get_rights</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="base.html#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.identity_match" href="base.html#adcp.protocols.base.ProtocolAdapter.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_accounts" href="base.html#adcp.protocols.base.ProtocolAdapter.list_accounts">list_accounts</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creative_formats" href="base.html#adcp.protocols.base.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>

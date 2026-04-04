@@ -62,9 +62,6 @@ el.replaceWith(d);
     country: Annotated[
         bool | None, Field(description=&#39;Supports country-level geo breakdown (ISO 3166-1 alpha-2)&#39;)
     ] = None
-    region: Annotated[
-        bool | None, Field(description=&#39;Supports region/state-level geo breakdown (ISO 3166-2)&#39;)
-    ] = None
     metro: Annotated[
         dict[metro_system.MetroAreaSystem, bool] | None,
         Field(
@@ -76,6 +73,9 @@ el.replaceWith(d);
         Field(
             description=&#39;Postal area breakdown support. Keys are postal-system enum values; true means supported.&#39;
         ),
+    ] = None
+    region: Annotated[
+        bool | None, Field(description=&#39;Supports region/state-level geo breakdown (ISO 3166-2)&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -59,42 +59,42 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    confidence: Annotated[
+        float | None, Field(description=&#39;Confidence score for this value (0-1)&#39;, ge=0.0, le=1.0)
+    ] = None
+    details: Annotated[
+        dict[str, Any] | None,
+        Field(description=&#39;Additional vendor-specific details about this evaluation&#39;),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When this evaluation expires and should be refreshed&#39;),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
     feature_id: Annotated[
         str,
         Field(
             description=&#34;The feature that was evaluated (e.g., &#39;auto_redirect&#39;, &#39;brand_consistency&#39;). Features prefixed with &#39;registry:&#39; reference standardized policies from the shared policy registry (e.g., &#39;registry:eu_ai_act_article_50&#39;). Unprefixed feature IDs are agent-defined.&#34;
         ),
     ]
-    value: Annotated[
-        bool | float | str,
-        Field(
-            description=&#39;The feature value. Type depends on feature definition: boolean for binary, number for quantitative, string for categorical.&#39;
-        ),
-    ]
+    measured_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this feature was evaluated&#39;)
+    ] = None
+    methodology_version: Annotated[
+        str | None, Field(description=&#39;Version of the methodology used to evaluate this feature&#39;)
+    ] = None
     unit: Annotated[
         str | None,
         Field(
             description=&#34;Unit of measurement for quantitative values (e.g., &#39;percentage&#39;, &#39;score&#39;)&#34;
         ),
     ] = None
-    confidence: Annotated[
-        float | None, Field(description=&#39;Confidence score for this value (0-1)&#39;, ge=0.0, le=1.0)
-    ] = None
-    measured_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this feature was evaluated&#39;)
-    ] = None
-    expires_at: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;When this evaluation expires and should be refreshed&#39;),
-    ] = None
-    methodology_version: Annotated[
-        str | None, Field(description=&#39;Version of the methodology used to evaluate this feature&#39;)
-    ] = None
-    details: Annotated[
-        dict[str, Any] | None,
-        Field(description=&#39;Additional vendor-specific details about this evaluation&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    value: Annotated[
+        bool | float | str,
+        Field(
+            description=&#39;The feature value. Type depends on feature definition: boolean for binary, number for quantitative, string for categorical.&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

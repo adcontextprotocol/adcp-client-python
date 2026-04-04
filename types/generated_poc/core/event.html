@@ -59,6 +59,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    action_source: Annotated[
+        action_source_1.ActionSource | None, Field(description=&#39;Where the event originated&#39;)
+    ] = None
+    custom_data: Annotated[
+        event_custom_data.EventCustomData | None,
+        Field(description=&#39;Event-specific data (value, currency, items, etc.)&#39;),
+    ] = None
+    custom_event_name: Annotated[
+        str | None, Field(description=&#34;Name for custom events (used when event_type is &#39;custom&#39;)&#34;)
+    ] = None
     event_id: Annotated[
         str,
         Field(
@@ -67,31 +77,21 @@ el.replaceWith(d);
             min_length=1,
         ),
     ]
-    event_type: Annotated[event_type_1.EventType, Field(description=&#39;Standard event type&#39;)]
-    event_time: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when the event occurred&#39;)
-    ]
-    user_match: Annotated[
-        user_match_1.UserMatch | None,
-        Field(description=&#39;User identifiers for attribution matching&#39;),
-    ] = None
-    custom_data: Annotated[
-        event_custom_data.EventCustomData | None,
-        Field(description=&#39;Event-specific data (value, currency, items, etc.)&#39;),
-    ] = None
-    action_source: Annotated[
-        action_source_1.ActionSource | None, Field(description=&#39;Where the event originated&#39;)
-    ] = None
     event_source_url: Annotated[
         AnyUrl | None,
         Field(
             description=&#34;URL where the event occurred (required when action_source is &#39;website&#39;)&#34;
         ),
     ] = None
-    custom_event_name: Annotated[
-        str | None, Field(description=&#34;Name for custom events (used when event_type is &#39;custom&#39;)&#34;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    event_time: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when the event occurred&#39;)
+    ]
+    event_type: Annotated[event_type_1.EventType, Field(description=&#39;Standard event type&#39;)]
+    ext: ext_1.ExtensionObject | None = None
+    user_match: Annotated[
+        user_match_1.UserMatch | None,
+        Field(description=&#39;User identifiers for attribution matching&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

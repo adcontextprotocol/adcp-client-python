@@ -60,11 +60,8 @@ el.replaceWith(d);
         extra=&#39;allow&#39;,
     )
     expected_breaks: Annotated[
-        int, Field(description=&#39;Number of planned ad breaks in the episode&#39;, ge=0)
+        int, Field(description=&#39;Number of planned ad breaks in the installment&#39;, ge=0)
     ]
-    total_ad_seconds: Annotated[
-        int | None, Field(description=&#39;Total seconds of ad time across all breaks&#39;, ge=0)
-    ] = None
     max_ad_duration_seconds: Annotated[
         int | None,
         Field(
@@ -72,16 +69,19 @@ el.replaceWith(d);
             ge=1,
         ),
     ] = None
-    unplanned_breaks: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether ad breaks are dynamic and driven by live conditions (sports timeouts, election coverage). When false, all breaks are pre-defined.&#39;
-        ),
-    ] = None
     supported_formats: Annotated[
         list[str] | None,
         Field(
             description=&#34;Ad format types supported in breaks (e.g., &#39;video&#39;, &#39;audio&#39;, &#39;display&#39;)&#34;
+        ),
+    ] = None
+    total_ad_seconds: Annotated[
+        int | None, Field(description=&#39;Total seconds of ad time across all breaks&#39;, ge=0)
+    ] = None
+    unplanned_breaks: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether ad breaks are dynamic and driven by live conditions (sports timeouts, election coverage). When false, all breaks are pre-defined.&#39;
         ),
     ] = None</code></pre>
 </details>

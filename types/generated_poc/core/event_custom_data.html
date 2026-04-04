@@ -59,10 +59,10 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    brand: Annotated[str | None, Field(description=&#39;Brand name of this item&#39;)] = None
     id: Annotated[str, Field(description=&#39;Product or content identifier&#39;)]
-    quantity: Annotated[int | None, Field(description=&#39;Quantity of this item&#39;, ge=1)] = None
     price: Annotated[float | None, Field(description=&#39;Price per unit of this item&#39;, ge=0.0)] = None
-    brand: Annotated[str | None, Field(description=&#39;Brand name of this item&#39;)] = None</code></pre>
+    quantity: Annotated[int | None, Field(description=&#39;Quantity of this item&#39;, ge=1)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -126,40 +126,40 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    value: Annotated[
-        float | None,
-        Field(
-            description=&#39;Monetary value of the event (should be accompanied by currency)&#39;, ge=0.0
-        ),
+    content_category: Annotated[
+        str | None, Field(description=&#39;Category of the product or content&#39;)
     ] = None
-    currency: Annotated[
-        str | None, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)
-    ] = None
-    order_id: Annotated[str | None, Field(description=&#39;Unique order or transaction identifier&#39;)] = (
-        None
-    )
     content_ids: Annotated[
         list[str] | None,
         Field(
             description=&#34;Item identifiers for catalog attribution. Values are matched against catalog items using the identifier type declared by the catalog&#39;s content_id_type field (e.g., SKUs, GTINs, or vertical-specific IDs like job_id).&#34;
         ),
     ] = None
+    content_name: Annotated[str | None, Field(description=&#39;Name of the product or content&#39;)] = None
     content_type: Annotated[
         str | None,
         Field(
             description=&#34;Category of content associated with the event (e.g., &#39;product&#39;, &#39;job&#39;, &#39;hotel&#39;). Corresponds to the catalog type when used for catalog attribution.&#34;
         ),
     ] = None
-    content_name: Annotated[str | None, Field(description=&#39;Name of the product or content&#39;)] = None
-    content_category: Annotated[
-        str | None, Field(description=&#39;Category of the product or content&#39;)
-    ] = None
-    num_items: Annotated[int | None, Field(description=&#39;Number of items in the event&#39;, ge=0)] = None
-    search_string: Annotated[str | None, Field(description=&#39;Search query for search events&#39;)] = None
     contents: Annotated[
         list[Content] | None, Field(description=&#39;Per-item details for e-commerce events&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    currency: Annotated[
+        str | None, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    num_items: Annotated[int | None, Field(description=&#39;Number of items in the event&#39;, ge=0)] = None
+    order_id: Annotated[str | None, Field(description=&#39;Unique order or transaction identifier&#39;)] = (
+        None
+    )
+    search_string: Annotated[str | None, Field(description=&#39;Search query for search events&#39;)] = None
+    value: Annotated[
+        float | None,
+        Field(
+            description=&#39;Monetary value of the event (should be accompanied by currency)&#39;, ge=0.0
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

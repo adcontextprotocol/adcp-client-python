@@ -62,18 +62,18 @@ el.replaceWith(d);
     accepted: Annotated[
         int, Field(description=&#39;Number of usage records successfully stored.&#39;, ge=0)
     ]
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(
             description=&#34;Validation errors for individual records. The field property identifies which record failed (e.g., &#39;usage[1].pricing_option_id&#39;).&#34;
         ),
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, the account is a sandbox account and no billing occurred.&#39;),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

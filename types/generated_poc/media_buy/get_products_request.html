@@ -126,7 +126,8 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Action2(Enum):
     include = &#39;include&#39;
-    omit = &#39;omit&#39;</code></pre>
+    omit = &#39;omit&#39;
+    finalize = &#39;finalize&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -169,6 +170,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action2.finalize"><code class="name">var <span class="ident">finalize</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_products_request.Action2.include"><code class="name">var <span class="ident">include</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -279,12 +284,15 @@ attributes &ndash; see the documentation for details.</p></div>
     data_provider_signals = &#39;data_provider_signals&#39;
     max_optimization_goals = &#39;max_optimization_goals&#39;
     catalog_match = &#39;catalog_match&#39;
-    show_ids = &#39;show_ids&#39;
-    episodes = &#39;episodes&#39;
+    collections = &#39;collections&#39;
+    collection_targeting_allowed = &#39;collection_targeting_allowed&#39;
+    installments = &#39;installments&#39;
     brief_relevance = &#39;brief_relevance&#39;
     expires_at = &#39;expires_at&#39;
     product_card = &#39;product_card&#39;
-    product_card_detailed = &#39;product_card_detailed&#39;</code></pre>
+    product_card_detailed = &#39;product_card_detailed&#39;
+    enforced_policies = &#39;enforced_policies&#39;
+    trusted_match = &#39;trusted_match&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -343,6 +351,14 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.collection_targeting_allowed"><code class="name">var <span class="ident">collection_targeting_allowed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.collections"><code class="name">var <span class="ident">collections</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.conversion_tracking"><code class="name">var <span class="ident">conversion_tracking</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -367,7 +383,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.episodes"><code class="name">var <span class="ident">episodes</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.enforced_policies"><code class="name">var <span class="ident">enforced_policies</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -384,6 +400,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.format_ids"><code class="name">var <span class="ident">format_ids</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.installments"><code class="name">var <span class="ident">installments</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -431,14 +451,14 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.show_ids"><code class="name">var <span class="ident">show_ids</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Field1.trusted_match"><code class="name">var <span class="ident">trusted_match</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1"><code class="flex name class">
-<span>class <span class="ident">GetProductsRequest1</span></span>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest"><code class="flex name class">
+<span>class <span class="ident">GetProductsRequest</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -446,61 +466,42 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GetProductsRequest1(AdCPBaseModel):
+<pre><code class="python">class GetProductsRequest(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    buying_mode: Annotated[
-        Literal[&#39;brief&#39;],
+    account: Annotated[
+        account_ref.AccountReference | None,
         Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
+            description=&#34;Account for product lookup. Returns products with pricing specific to this account&#39;s rate card.&#34;
         ),
-    ]
+    ] = None
+    brand: Annotated[
+        brand_ref.BrandReference | None,
+        Field(
+            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
+        ),
+    ] = None
     brief: Annotated[
-        str,
+        str | None,
         Field(
             description=&#34;Natural language description of campaign requirements. Required when buying_mode is &#39;brief&#39;. Must not be provided when buying_mode is &#39;wholesale&#39; or &#39;refine&#39;.&#34;
         ),
-    ]
-    refine: Any | None = None
-    brand: Annotated[
-        brand_ref.BrandReference | None,
-        Field(
-            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
-        ),
     ] = None
+    buying_mode: Annotated[
+        BuyingMode,
+        Field(
+            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
+        ),
+    ]
     catalog: Annotated[
         catalog_1.Catalog | None,
         Field(
             description=&#39;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#39;
         ),
     ] = None
-    account: Annotated[
-        account_ref.AccountReference | None,
-        Field(
-            description=&#34;Account for product lookup. Returns products with pricing specific to this account&#39;s rate card.&#34;
-        ),
-    ] = None
-    buyer_campaign_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer&#39;s campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., &#39;NovaDrink_Meals_Q2&#39;).&#34;
-        ),
-    ] = None
-    preferred_delivery_types: Annotated[
-        list[delivery_type_1.DeliveryType] | None,
-        Field(
-            description=&#39;Delivery types the buyer prefers, in priority order. Unlike filters.delivery_type which excludes non-matching products, this signals preference for curation — the publisher may still include other delivery types when they match the brief well.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    filters: product_filters.ProductFilters | None = None
-    property_list: Annotated[
-        property_list_ref.PropertyListReference | None,
-        Field(
-            description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
-        ),
-    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     fields: Annotated[
         list[Field1] | None,
         Field(
@@ -508,164 +509,8 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    time_budget: Annotated[
-        duration.Duration | None,
-        Field(
-            description=&#39;Maximum time the buyer will commit to this request. The seller returns the best results achievable within this budget and does not start processes (human approvals, expensive external queries) that cannot complete in time. When omitted, the seller decides timing.&#39;
-        ),
-    ] = None
+    filters: product_filters.ProductFilters | None = None
     pagination: pagination_request.PaginationRequest | None = None
-    context: context_1.ContextObject | None = None
-    required_policies: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies.&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.brief"><code class="name">var <span class="ident">brief</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.buying_mode"><code class="name">var <span class="ident">buying_mode</span> : Literal['brief']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.fields"><code class="name">var <span class="ident">fields</span> : list[<a title="adcp.types.generated_poc.media_buy.get_products_request.Field1" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1">Field1</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.product_filters.ProductFilters" href="../core/product_filters.html#adcp.types.generated_poc.core.product_filters.ProductFilters">ProductFilters</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.preferred_delivery_types"><code class="name">var <span class="ident">preferred_delivery_types</span> : list[<a title="adcp.types.generated_poc.enums.delivery_type.DeliveryType" href="../enums/delivery_type.html#adcp.types.generated_poc.enums.delivery_type.DeliveryType">DeliveryType</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="../core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.refine"><code class="name">var <span class="ident">refine</span> : typing.Any | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.required_policies"><code class="name">var <span class="ident">required_policies</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.time_budget"><code class="name">var <span class="ident">time_budget</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="../core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2"><code class="flex name class">
-<span>class <span class="ident">GetProductsRequest2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class GetProductsRequest2(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    buying_mode: Annotated[
-        Literal[&#39;wholesale&#39;],
-        Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
-        ),
-    ]
-    brief: Any | None = None
-    refine: Any | None = None
-    brand: Annotated[
-        brand_ref.BrandReference | None,
-        Field(
-            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
-        ),
-    ] = None
-    catalog: Annotated[
-        catalog_1.Catalog | None,
-        Field(
-            description=&#39;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#39;
-        ),
-    ] = None
-    account: Annotated[
-        account_ref.AccountReference | None,
-        Field(
-            description=&#34;Account for product lookup. Returns products with pricing specific to this account&#39;s rate card.&#34;
-        ),
-    ] = None
-    buyer_campaign_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer&#39;s campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., &#39;NovaDrink_Meals_Q2&#39;).&#34;
-        ),
-    ] = None
     preferred_delivery_types: Annotated[
         list[delivery_type_1.DeliveryType] | None,
         Field(
@@ -673,203 +518,23 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    filters: product_filters.ProductFilters | None = None
     property_list: Annotated[
         property_list_ref.PropertyListReference | None,
         Field(
             description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
         ),
     ] = None
-    fields: Annotated[
-        list[Field1] | None,
-        Field(
-            description=&#39;Specific product fields to include in the response. When omitted, all fields are returned. Use for lightweight discovery calls where only a subset of product data is needed (e.g., just IDs and pricing for comparison). Required fields (product_id, name) are always included regardless of selection.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    time_budget: Annotated[
-        duration.Duration | None,
-        Field(
-            description=&#39;Maximum time the buyer will commit to this request. The seller returns the best results achievable within this budget and does not start processes (human approvals, expensive external queries) that cannot complete in time. When omitted, the seller decides timing.&#39;
-        ),
-    ] = None
-    pagination: pagination_request.PaginationRequest | None = None
-    context: context_1.ContextObject | None = None
-    required_policies: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies.&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.brief"><code class="name">var <span class="ident">brief</span> : typing.Any | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.buying_mode"><code class="name">var <span class="ident">buying_mode</span> : Literal['wholesale']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.fields"><code class="name">var <span class="ident">fields</span> : list[<a title="adcp.types.generated_poc.media_buy.get_products_request.Field1" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1">Field1</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.product_filters.ProductFilters" href="../core/product_filters.html#adcp.types.generated_poc.core.product_filters.ProductFilters">ProductFilters</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.preferred_delivery_types"><code class="name">var <span class="ident">preferred_delivery_types</span> : list[<a title="adcp.types.generated_poc.enums.delivery_type.DeliveryType" href="../enums/delivery_type.html#adcp.types.generated_poc.enums.delivery_type.DeliveryType">DeliveryType</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="../core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.refine"><code class="name">var <span class="ident">refine</span> : typing.Any | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.required_policies"><code class="name">var <span class="ident">required_policies</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.time_budget"><code class="name">var <span class="ident">time_budget</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="../core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3"><code class="flex name class">
-<span>class <span class="ident">GetProductsRequest3</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class GetProductsRequest3(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    buying_mode: Annotated[
-        Literal[&#39;refine&#39;],
-        Field(
-            description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
-        ),
-    ]
-    brief: Any | None = None
     refine: Annotated[
-        list[Refine | Refine1 | Refine2],
+        list[Refine | Refine1 | Refine2] | None,
         Field(
             description=&#34;Array of change requests for iterating on products and proposals from a previous get_products response. Each entry declares a scope (request, product, or proposal) and what the buyer is asking for. Only valid when buying_mode is &#39;refine&#39;. The seller responds to each entry via refinement_applied in the response, matched by position.&#34;,
             min_length=1,
         ),
-    ]
-    brand: Annotated[
-        brand_ref.BrandReference | None,
-        Field(
-            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
-        ),
     ] = None
-    catalog: Annotated[
-        catalog_1.Catalog | None,
+    required_policies: Annotated[
+        list[str] | None,
         Field(
-            description=&#39;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#39;
-        ),
-    ] = None
-    account: Annotated[
-        account_ref.AccountReference | None,
-        Field(
-            description=&#34;Account for product lookup. Returns products with pricing specific to this account&#39;s rate card.&#34;
-        ),
-    ] = None
-    buyer_campaign_ref: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer&#39;s campaign reference label. Groups related discovery and buy operations under a single campaign for CRM and ad server correlation (e.g., &#39;NovaDrink_Meals_Q2&#39;).&#34;
-        ),
-    ] = None
-    preferred_delivery_types: Annotated[
-        list[delivery_type_1.DeliveryType] | None,
-        Field(
-            description=&#39;Delivery types the buyer prefers, in priority order. Unlike filters.delivery_type which excludes non-matching products, this signals preference for curation — the publisher may still include other delivery types when they match the brief well.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    filters: product_filters.ProductFilters | None = None
-    property_list: Annotated[
-        property_list_ref.PropertyListReference | None,
-        Field(
-            description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
-        ),
-    ] = None
-    fields: Annotated[
-        list[Field1] | None,
-        Field(
-            description=&#39;Specific product fields to include in the response. When omitted, all fields are returned. Use for lightweight discovery calls where only a subset of product data is needed (e.g., just IDs and pricing for comparison). Required fields (product_id, name) are always included regardless of selection.&#39;,
-            min_length=1,
+            description=&#39;Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies.&#39;
         ),
     ] = None
     time_budget: Annotated[
@@ -877,16 +542,7 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Maximum time the buyer will commit to this request. The seller returns the best results achievable within this budget and does not start processes (human approvals, expensive external queries) that cannot complete in time. When omitted, the seller decides timing.&#39;
         ),
-    ] = None
-    pagination: pagination_request.PaginationRequest | None = None
-    context: context_1.ContextObject | None = None
-    required_policies: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies.&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -905,71 +561,67 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.brief"><code class="name">var <span class="ident">brief</span> : typing.Any | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief"><code class="name">var <span class="ident">brief</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.buying_mode"><code class="name">var <span class="ident">buying_mode</span> : <a title="adcp.types.generated_poc.media_buy.get_products_request.BuyingMode" href="#adcp.types.generated_poc.media_buy.get_products_request.BuyingMode">BuyingMode</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.buying_mode"><code class="name">var <span class="ident">buying_mode</span> : Literal['refine']</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.catalog"><code class="name">var <span class="ident">catalog</span> : <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.fields"><code class="name">var <span class="ident">fields</span> : list[<a title="adcp.types.generated_poc.media_buy.get_products_request.Field1" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1">Field1</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.fields"><code class="name">var <span class="ident">fields</span> : list[<a title="adcp.types.generated_poc.media_buy.get_products_request.Field1" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1">Field1</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.product_filters.ProductFilters" href="../core/product_filters.html#adcp.types.generated_poc.core.product_filters.ProductFilters">ProductFilters</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.filters"><code class="name">var <span class="ident">filters</span> : <a title="adcp.types.generated_poc.core.product_filters.ProductFilters" href="../core/product_filters.html#adcp.types.generated_poc.core.product_filters.ProductFilters">ProductFilters</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="../core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.preferred_delivery_types"><code class="name">var <span class="ident">preferred_delivery_types</span> : list[<a title="adcp.types.generated_poc.enums.delivery_type.DeliveryType" href="../enums/delivery_type.html#adcp.types.generated_poc.enums.delivery_type.DeliveryType">DeliveryType</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.preferred_delivery_types"><code class="name">var <span class="ident">preferred_delivery_types</span> : list[<a title="adcp.types.generated_poc.enums.delivery_type.DeliveryType" href="../enums/delivery_type.html#adcp.types.generated_poc.enums.delivery_type.DeliveryType">DeliveryType</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="../core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="../core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.refine"><code class="name">var <span class="ident">refine</span> : list[<a title="adcp.types.generated_poc.media_buy.get_products_request.Refine" href="#adcp.types.generated_poc.media_buy.get_products_request.Refine">Refine</a> | <a title="adcp.types.generated_poc.media_buy.get_products_request.Refine1" href="#adcp.types.generated_poc.media_buy.get_products_request.Refine1">Refine1</a> | <a title="adcp.types.generated_poc.media_buy.get_products_request.Refine2" href="#adcp.types.generated_poc.media_buy.get_products_request.Refine2">Refine2</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.refine"><code class="name">var <span class="ident">refine</span> : list[<a title="adcp.types.generated_poc.media_buy.get_products_request.Refine" href="#adcp.types.generated_poc.media_buy.get_products_request.Refine">Refine</a> | <a title="adcp.types.generated_poc.media_buy.get_products_request.Refine1" href="#adcp.types.generated_poc.media_buy.get_products_request.Refine1">Refine1</a> | <a title="adcp.types.generated_poc.media_buy.get_products_request.Refine2" href="#adcp.types.generated_poc.media_buy.get_products_request.Refine2">Refine2</a>]</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.required_policies"><code class="name">var <span class="ident">required_policies</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.required_policies"><code class="name">var <span class="ident">required_policies</span> : list[str] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.time_budget"><code class="name">var <span class="ident">time_budget</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="../core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.time_budget"><code class="name">var <span class="ident">time_budget</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="../core/duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -998,17 +650,17 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    scope: Annotated[
-        Literal[&#39;request&#39;],
-        Field(
-            description=&#39;Change scoped to the overall request — direction for the selection as a whole.&#39;
-        ),
-    ]
     ask: Annotated[
         str,
         Field(
             description=&#34;What the buyer is asking for at the request level (e.g., &#39;more video options and less display&#39;, &#39;suggest how to combine these products&#39;).&#34;,
             min_length=1,
+        ),
+    ]
+    scope: Annotated[
+        Literal[&#39;request&#39;],
+        Field(
+            description=&#39;Change scoped to the overall request — direction for the selection as a whole.&#39;
         ),
     ]</code></pre>
 </details>
@@ -1066,10 +718,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    scope: Annotated[Literal[&#39;product&#39;], Field(description=&#39;Change scoped to a specific product.&#39;)]
-    id: Annotated[
-        str, Field(description=&#39;Product ID from a previous get_products response.&#39;, min_length=1)
-    ]
     action: Annotated[
         Action,
         Field(
@@ -1082,7 +730,11 @@ validated to form a valid model.</p>
             description=&#34;What the buyer is asking for on this product. For &#39;include&#39;: specific changes to request (e.g., &#39;add 16:9 format&#39;). For &#39;more_like_this&#39;: what &#39;similar&#39; means (e.g., &#39;same audience but video format&#39;). Ignored when action is &#39;omit&#39;.&#34;,
             min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    id: Annotated[
+        str, Field(description=&#39;Product ID from a previous get_products response.&#39;, min_length=1)
+    ]
+    scope: Annotated[Literal[&#39;product&#39;], Field(description=&#39;Change scoped to a specific product.&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1146,16 +798,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    scope: Annotated[
-        Literal[&#39;proposal&#39;], Field(description=&#39;Change scoped to a specific proposal.&#39;)
-    ]
-    id: Annotated[
-        str, Field(description=&#39;Proposal ID from a previous get_products response.&#39;, min_length=1)
-    ]
     action: Annotated[
         Action2,
         Field(
-            description=&#34;&#39;include&#39;: return this proposal with updated allocations and pricing. &#39;omit&#39;: exclude this proposal from the response.&#34;
+            description=&#34;&#39;include&#39;: return this proposal with updated allocations and pricing. &#39;omit&#39;: exclude this proposal from the response. &#39;finalize&#39;: request firm pricing and inventory hold — transitions a draft proposal to committed with an expires_at hold window. May trigger seller-side approval (HITL). The buyer should not set a time_budget for finalize requests — they represent a commitment to wait for the result.&#34;
         ),
     ]
     ask: Annotated[
@@ -1164,7 +810,13 @@ validated to form a valid model.</p>
             description=&#34;What the buyer is asking for on this proposal (e.g., &#39;shift more budget toward video&#39;, &#39;reduce total by 10%&#39;). Ignored when action is &#39;omit&#39;.&#34;,
             min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    id: Annotated[
+        str, Field(description=&#39;Proposal ID from a previous get_products response.&#39;, min_length=1)
+    ]
+    scope: Annotated[
+        Literal[&#39;proposal&#39;], Field(description=&#39;Change scoped to a specific proposal.&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1241,6 +893,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action2" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2">Action2</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action2.finalize" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2.finalize">finalize</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action2.include" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2.include">include</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action2.omit" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2.omit">omit</a></code></li>
 </ul>
@@ -1260,17 +913,20 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.catalog_match" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.catalog_match">catalog_match</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.catalog_types" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.catalog_types">catalog_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.channels" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.channels">channels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.collection_targeting_allowed" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.collection_targeting_allowed">collection_targeting_allowed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.collections" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.collections">collections</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.conversion_tracking" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.conversion_tracking">conversion_tracking</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.creative_policy" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.creative_policy">creative_policy</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.data_provider_signals" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.data_provider_signals">data_provider_signals</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.delivery_measurement" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.delivery_measurement">delivery_measurement</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.delivery_type" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.delivery_type">delivery_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.description" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.description">description</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.episodes" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.episodes">episodes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.enforced_policies" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.enforced_policies">enforced_policies</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.exclusivity" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.exclusivity">exclusivity</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.expires_at" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.forecast" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.forecast">forecast</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.format_ids" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.format_ids">format_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.installments" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.installments">installments</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.max_optimization_goals" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.max_optimization_goals">max_optimization_goals</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.metric_optimization" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.metric_optimization">metric_optimization</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.name" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.name">name</a></code></li>
@@ -1282,73 +938,28 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.product_id" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.product_id">product_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.publisher_properties" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.publisher_properties">publisher_properties</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.reporting_capabilities" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.reporting_capabilities">reporting_capabilities</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.show_ids" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.show_ids">show_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Field1.trusted_match" href="#adcp.types.generated_poc.media_buy.get_products_request.Field1.trusted_match">trusted_match</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1">GetProductsRequest1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest">GetProductsRequest</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.account" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.account">account</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.brand" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.brand">brand</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.brief" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.brief">brief</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.buyer_campaign_ref" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.buying_mode" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.buying_mode">buying_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.catalog" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.catalog">catalog</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.context" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.fields" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.fields">fields</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.filters">filters</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.pagination" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.preferred_delivery_types" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.preferred_delivery_types">preferred_delivery_types</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.property_list">property_list</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.refine" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.refine">refine</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.required_policies" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.required_policies">required_policies</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.time_budget" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest1.time_budget">time_budget</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2">GetProductsRequest2</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.account" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.account">account</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.brand" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.brand">brand</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.brief" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.brief">brief</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.buyer_campaign_ref" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.buying_mode" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.buying_mode">buying_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.catalog" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.catalog">catalog</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.context" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.fields" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.fields">fields</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.filters">filters</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.pagination" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.preferred_delivery_types" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.preferred_delivery_types">preferred_delivery_types</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.property_list">property_list</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.refine" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.refine">refine</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.required_policies" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.required_policies">required_policies</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.time_budget" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest2.time_budget">time_budget</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3">GetProductsRequest3</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.account" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.account">account</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.brand" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.brand">brand</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.brief" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.brief">brief</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.buyer_campaign_ref" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.buying_mode" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.buying_mode">buying_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.catalog" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.catalog">catalog</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.context" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.context">context</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.fields" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.fields">fields</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.filters">filters</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.pagination" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.preferred_delivery_types" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.preferred_delivery_types">preferred_delivery_types</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.property_list">property_list</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.refine" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.refine">refine</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.required_policies" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.required_policies">required_policies</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.time_budget" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest3.time_budget">time_budget</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief">brief</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.buying_mode" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.buying_mode">buying_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.catalog">catalog</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.fields" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.fields">fields</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.filters">filters</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.preferred_delivery_types" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.preferred_delivery_types">preferred_delivery_types</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.property_list">property_list</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.refine" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.refine">refine</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.required_policies" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.required_policies">required_policies</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.time_budget" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.time_budget">time_budget</a></code></li>
 </ul>
 </li>
 <li>

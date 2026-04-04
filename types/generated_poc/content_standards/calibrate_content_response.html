@@ -56,20 +56,20 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CalibrateContentResponse1(AdCPBaseModel):
-    verdict: Annotated[
-        Verdict, Field(description=&#39;Overall pass/fail verdict for the content evaluation&#39;)
-    ]
     confidence: Annotated[
         float | None, Field(description=&#39;Model confidence in the verdict (0-1)&#39;, ge=0.0, le=1.0)
     ] = None
+    context: context_1.ContextObject | None = None
     explanation: Annotated[
         str | None, Field(description=&#39;Detailed natural language explanation of the decision&#39;)
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     features: Annotated[
         list[Feature] | None, Field(description=&#39;Per-feature breakdown with explanations&#39;)
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    verdict: Annotated[
+        Verdict, Field(description=&#39;Overall pass/fail verdict for the content evaluation&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -138,8 +138,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CalibrateContentResponse2(AdCPBaseModel):
-    errors: list[error.Error]
     context: context_1.ContextObject | None = None
+    errors: list[error.Error]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -197,17 +197,17 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Feature(AdCPBaseModel):
+    explanation: Annotated[
+        str | None,
+        Field(description=&#39;Human-readable explanation of why this feature passed or failed&#39;),
+    ] = None
     feature_id: Annotated[
         str,
         Field(
             description=&#39;Which feature was evaluated (e.g., brand_safety, brand_suitability, competitor_adjacency)&#39;
         ),
     ]
-    status: Annotated[Status, Field(description=&#39;Evaluation status for this feature&#39;)]
-    explanation: Annotated[
-        str | None,
-        Field(description=&#39;Human-readable explanation of why this feature passed or failed&#39;),
-    ] = None</code></pre>
+    status: Annotated[Status, Field(description=&#39;Evaluation status for this feature&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

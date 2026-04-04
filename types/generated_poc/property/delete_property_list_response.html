@@ -60,8 +60,8 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     deleted: Annotated[bool, Field(description=&#39;Whether the list was successfully deleted&#39;)]
-    list_id: Annotated[str, Field(description=&#39;ID of the deleted list&#39;)]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    list_id: Annotated[str, Field(description=&#39;ID of the deleted list&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

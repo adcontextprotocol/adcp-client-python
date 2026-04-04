@@ -56,14 +56,16 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class MediaBuyFeatures(AdCPBaseModel):
-    inline_creative_management: Annotated[
-        bool | None,
-        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
-    ] = None
-    property_list_filtering: Annotated[
+    audience_targeting: Annotated[
         bool | None,
         Field(
-            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
+            description=&#39;Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management&#39;
+        ),
+    ] = None
+    catalog_management: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
         ),
     ] = None
     content_standards: Annotated[
@@ -78,16 +80,14 @@ el.replaceWith(d);
             description=&#39;Supports sync_event_sources and log_event tasks for conversion event tracking&#39;
         ),
     ] = None
-    audience_targeting: Annotated[
+    inline_creative_management: Annotated[
         bool | None,
-        Field(
-            description=&#39;Supports sync_audiences task and audience_include/audience_exclude in targeting overlays for first-party CRM audience management&#39;
-        ),
+        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
     ] = None
-    catalog_management: Annotated[
+    property_list_filtering: Annotated[
         bool | None,
         Field(
-            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
+            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
         ),
     ] = None</code></pre>
 </details>

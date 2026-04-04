@@ -59,9 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    product_id: Annotated[
-        str, Field(description=&#39;ID of the product (must reference a product in the products array)&#39;)
-    ]
     allocation_percentage: Annotated[
         float,
         Field(
@@ -70,28 +67,11 @@ el.replaceWith(d);
             le=100.0,
         ),
     ]
-    pricing_option_id: Annotated[
-        str | None,
-        Field(description=&#34;Recommended pricing option ID from the product&#39;s pricing_options array&#34;),
-    ] = None
-    rationale: Annotated[
-        str | None,
-        Field(description=&#39;Explanation of why this product and allocation are recommended&#39;),
-    ] = None
-    sequence: Annotated[
-        int | None,
-        Field(description=&#39;Optional ordering hint for multi-line-item plans (1-based)&#39;, ge=1),
-    ] = None
-    tags: Annotated[
-        list[str] | None,
+    daypart_targets: Annotated[
+        list[daypart_target.DaypartTarget] | None,
         Field(
-            description=&#34;Categorical tags for this allocation (e.g., &#39;desktop&#39;, &#39;german&#39;, &#39;mobile&#39;) - useful for grouping/filtering allocations by dimension&#34;
-        ),
-    ] = None
-    start_time: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;Recommended flight start date/time for this allocation in ISO 8601 format. Allows publishers to propose per-flight scheduling within a proposal. When omitted, the allocation applies to the full campaign date range.&#39;
+            description=&#39;Recommended time windows for this allocation in spot-plan proposals.&#39;,
+            min_length=1,
         ),
     ] = None
     end_time: Annotated[
@@ -100,18 +80,38 @@ el.replaceWith(d);
             description=&#39;Recommended flight end date/time for this allocation in ISO 8601 format. Allows publishers to propose per-flight scheduling within a proposal. When omitted, the allocation applies to the full campaign date range.&#39;
         ),
     ] = None
-    daypart_targets: Annotated[
-        list[daypart_target.DaypartTarget] | None,
-        Field(
-            description=&#39;Recommended time windows for this allocation in spot-plan proposals.&#39;,
-            min_length=1,
-        ),
-    ] = None
+    ext: ext_1.ExtensionObject | None = None
     forecast: Annotated[
         delivery_forecast.DeliveryForecast | None,
         Field(description=&#39;Forecasted delivery metrics for this allocation&#39;),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    pricing_option_id: Annotated[
+        str | None,
+        Field(description=&#34;Recommended pricing option ID from the product&#39;s pricing_options array&#34;),
+    ] = None
+    product_id: Annotated[
+        str, Field(description=&#39;ID of the product (must reference a product in the products array)&#39;)
+    ]
+    rationale: Annotated[
+        str | None,
+        Field(description=&#39;Explanation of why this product and allocation are recommended&#39;),
+    ] = None
+    sequence: Annotated[
+        int | None,
+        Field(description=&#39;Optional ordering hint for multi-line-item plans (1-based)&#39;, ge=1),
+    ] = None
+    start_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;Recommended flight start date/time for this allocation in ISO 8601 format. Allows publishers to propose per-flight scheduling within a proposal. When omitted, the allocation applies to the full campaign date range.&#39;
+        ),
+    ] = None
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Categorical tags for this allocation (e.g., &#39;desktop&#39;, &#39;german&#39;, &#39;mobile&#39;) - useful for grouping/filtering allocations by dimension&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

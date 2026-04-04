@@ -56,15 +56,15 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CreativeAgent(AdCPBaseModel):
+    agent_name: Annotated[
+        str | None, Field(description=&#39;Human-readable name for the creative agent&#39;)
+    ] = None
     agent_url: Annotated[
         AnyUrl,
         Field(
             description=&#34;Base URL for the creative agent (e.g., &#39;https://reference.adcp.org&#39;, &#39;https://dco.example.com&#39;). Call list_creative_formats on this URL to get its formats.&#34;
         ),
     ]
-    agent_name: Annotated[
-        str | None, Field(description=&#39;Human-readable name for the creative agent&#39;)
-    ] = None
     capabilities: Annotated[
         list[creative_agent_capability.CreativeAgentCapability] | None,
         Field(description=&#39;Capabilities this creative agent provides&#39;),
@@ -128,12 +128,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    formats: Annotated[
-        list[format.Format],
-        Field(
-            description=&#34;Full format definitions for all formats this agent supports. Each format&#39;s authoritative source is indicated by its agent_url field.&#34;
-        ),
-    ]
+    context: context_1.ContextObject | None = None
     creative_agents: Annotated[
         list[CreativeAgent] | None,
         Field(
@@ -143,9 +138,14 @@ validated to form a valid model.</p>
     errors: Annotated[
         list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
     ] = None
-    pagination: pagination_response.PaginationResponse | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    formats: Annotated[
+        list[format.Format],
+        Field(
+            description=&#34;Full format definitions for all formats this agent supports. Each format&#39;s authoritative source is indicated by its agent_url field.&#34;
+        ),
+    ]
+    pagination: pagination_response.PaginationResponse | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

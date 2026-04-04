@@ -110,8 +110,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    scope: str | None = None
-    countries: list[Country] | None = None</code></pre>
+    countries: list[Country] | None = None
+    scope: str | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -251,18 +251,18 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    pricing_option_id: str
     amount: Annotated[float, Field(ge=0.0)]
     currency: Annotated[str, Field(pattern=&#39;^[A-Z]{3}$&#39;)]
-    period: Period | None = None
-    uses: list[right_use.RightUse]
-    impression_cap: Annotated[int | None, Field(ge=1)] = None
-    overage_cpm: Annotated[float | None, Field(ge=0.0)] = None
-    start_date: date_aliased | None = None
     end_date: date_aliased | None = None
     exclusivity: Annotated[
         Exclusivity | None, Field(description=&#39;Exclusivity terms if applicable&#39;)
-    ] = None</code></pre>
+    ] = None
+    impression_cap: Annotated[int | None, Field(ge=1)] = None
+    overage_cpm: Annotated[float | None, Field(ge=0.0)] = None
+    period: Period | None = None
+    pricing_option_id: str
+    start_date: date_aliased | None = None
+    uses: list[right_use.RightUse]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

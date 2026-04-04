@@ -56,13 +56,13 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Input(AdCPBaseModel):
-    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]
+    context_description: Annotated[
+        str | None, Field(description=&#39;Context description applied to this variant&#39;)
+    ] = None
     macros: Annotated[
         dict[str, str] | None, Field(description=&#39;Macro values applied to this variant&#39;)
     ] = None
-    context_description: Annotated[
-        str | None, Field(description=&#39;Context description applied to this variant&#39;)
-    ] = None</code></pre>
+    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -119,9 +119,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Input6(AdCPBaseModel):
-    name: str
+    context_description: str | None = None
     macros: dict[str, str] | None = None
-    context_description: str | None = None</code></pre>
+    name: str</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -178,18 +178,18 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Preview(AdCPBaseModel):
+    input: Annotated[
+        Input,
+        Field(
+            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
+        ),
+    ]
     preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview variant&#39;)]
     renders: Annotated[
         list[preview_render.PreviewRender],
         Field(
             description=&#39;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats (video + banner), multi-placement formats, and adaptive formats render as multiple pieces.&#39;,
             min_length=1,
-        ),
-    ]
-    input: Annotated[
-        Input,
-        Field(
-            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
         ),
     ]</code></pre>
 </details>
@@ -248,9 +248,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Preview5(AdCPBaseModel):
+    input: Input6
     preview_id: str
-    renders: Annotated[list[preview_render.PreviewRender], Field(min_length=1)]
-    input: Input6</code></pre>
+    renders: Annotated[list[preview_render.PreviewRender], Field(min_length=1)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -417,10 +417,17 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    response_type: Annotated[
-        Literal[&#39;single&#39;],
-        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
+    context: context_1.ContextObject | None = None
+    expires_at: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
     ]
+    ext: ext_1.ExtensionObject | None = None
+    interactive_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
+        ),
+    ] = None
     previews: Annotated[
         list[Preview],
         Field(
@@ -428,17 +435,10 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    interactive_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them, modify macro values, and test different scenarios.&#39;
-        ),
-    ] = None
-    expires_at: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
-    ]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    response_type: Annotated[
+        Literal[&#39;single&#39;],
+        Field(description=&#39;Discriminator indicating this is a single preview response&#39;),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -510,6 +510,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     response_type: Annotated[
         Literal[&#39;batch&#39;],
         Field(description=&#39;Discriminator indicating this is a batch preview response&#39;),
@@ -520,9 +522,7 @@ validated to form a valid model.</p>
             description=&#39;Array of preview results corresponding to each request in the same order. results[0] is the result for requests[0], results[1] for requests[1], etc. Order is guaranteed even when some requests fail. Each result contains either a successful preview response or an error.&#39;,
             min_length=1,
         ),
-    ]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -586,13 +586,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    response_type: Annotated[
-        Literal[&#39;variant&#39;],
-        Field(description=&#39;Discriminator indicating this is a variant preview response&#39;),
-    ]
-    variant_id: Annotated[str, Field(description=&#39;Platform-assigned variant identifier&#39;)]
+    context: context_1.ContextObject | None = None
     creative_id: Annotated[
         str | None, Field(description=&#39;Creative identifier this variant belongs to&#39;)
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    manifest: Annotated[
+        creative_manifest.CreativeManifest | None,
+        Field(
+            description=&#39;The rendered creative manifest for this variant — the actual output that was served, not the input assets&#39;
+        ),
     ] = None
     previews: Annotated[
         list[Preview7],
@@ -601,17 +607,11 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    manifest: Annotated[
-        creative_manifest.CreativeManifest | None,
-        Field(
-            description=&#39;The rendered creative manifest for this variant — the actual output that was served, not the input assets&#39;
-        ),
-    ] = None
-    expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp when preview links expire&#39;)
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    response_type: Annotated[
+        Literal[&#39;variant&#39;],
+        Field(description=&#39;Discriminator indicating this is a variant preview response&#39;),
+    ]
+    variant_id: Annotated[str, Field(description=&#39;Platform-assigned variant identifier&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -688,12 +688,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Response(AdCPBaseModel):
+    expires_at: Annotated[AwareDatetime, Field(description=&#39;When the preview URLs expire&#39;)]
+    interactive_url: AnyUrl | None = None
     previews: Annotated[
         list[Preview5],
         Field(description=&#39;Array of preview variants for this creative&#39;, min_length=1),
-    ]
-    interactive_url: AnyUrl | None = None
-    expires_at: Annotated[AwareDatetime, Field(description=&#39;When the preview URLs expire&#39;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -750,12 +750,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Response1(AdCPBaseModel):
+    expires_at: Annotated[AwareDatetime, Field(description=&#39;When the preview URLs expire&#39;)]
+    interactive_url: AnyUrl | None = None
     previews: Annotated[
         list[Preview6],
         Field(description=&#39;Array of preview variants for this creative&#39;, min_length=1),
-    ]
-    interactive_url: AnyUrl | None = None
-    expires_at: Annotated[AwareDatetime, Field(description=&#39;When the preview URLs expire&#39;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -812,17 +812,17 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Results(AdCPBaseModel):
-    success: Annotated[Literal[True], Field(description=&#39;Indicates this preview request succeeded&#39;)]
     creative_id: Annotated[
         str,
         Field(
             description=&#39;ID of the creative this result corresponds to. Enables correlation when processing batch results.&#39;
         ),
     ]
-    response: Annotated[Response, Field(description=&#39;Preview data for successful requests&#39;)]
     errors: Annotated[
         list[error.Error] | None, Field(description=&#39;Errors for failed requests&#39;, min_length=1)
-    ] = None</code></pre>
+    ] = None
+    response: Annotated[Response, Field(description=&#39;Preview data for successful requests&#39;)]
+    success: Annotated[Literal[True], Field(description=&#39;Indicates this preview request succeeded&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -883,19 +883,19 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Results1(AdCPBaseModel):
-    success: Annotated[Literal[False], Field(description=&#39;Indicates this preview request failed&#39;)]
     creative_id: Annotated[
         str,
         Field(
             description=&#39;ID of the creative this result corresponds to. Enables correlation when processing batch results.&#39;
         ),
     ]
+    errors: Annotated[
+        list[error.Error], Field(description=&#39;Errors for failed requests&#39;, min_length=1)
+    ]
     response: Annotated[
         Response1 | None, Field(description=&#39;Preview data for successful requests&#39;)
     ] = None
-    errors: Annotated[
-        list[error.Error], Field(description=&#39;Errors for failed requests&#39;, min_length=1)
-    ]</code></pre>
+    success: Annotated[Literal[False], Field(description=&#39;Indicates this preview request failed&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

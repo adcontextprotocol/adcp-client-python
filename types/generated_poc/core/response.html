@@ -59,14 +59,14 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    message: Annotated[str, Field(description=&#39;Human-readable summary&#39;)]
     context_id: Annotated[str | None, Field(description=&#39;Session continuity identifier&#39;)] = None
     data: Annotated[
         Any | None,
         Field(
             description=&#39;AdCP task-specific response data (see individual task response schemas)&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    message: Annotated[str, Field(description=&#39;Human-readable summary&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

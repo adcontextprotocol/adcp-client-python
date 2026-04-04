@@ -59,6 +59,13 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    completion_rate: Annotated[float | None, Field(description=&#39;Video completion rate (0-1).&#39;)] = (
+        None
+    )
+    cpm: Annotated[float | None, Field(description=&#39;Effective CPM for the period.&#39;)] = None
+    impressions: Annotated[
+        int | None, Field(description=&#39;Impressions delivered in the period.&#39;, ge=0)
+    ] = None
     media_buy_id: Annotated[str | None, Field(description=&#39;The media buy being reported on.&#39;)] = (
         None
     )
@@ -66,15 +73,8 @@ el.replaceWith(d);
         ReportingPeriod | None,
         Field(description=&#39;Start and end timestamps for the reporting window.&#39;),
     ] = None
-    impressions: Annotated[
-        int | None, Field(description=&#39;Impressions delivered in the period.&#39;, ge=0)
-    ] = None
     spend: Annotated[float | None, Field(description=&#39;Spend in the period.&#39;)] = None
-    cpm: Annotated[float | None, Field(description=&#39;Effective CPM for the period.&#39;)] = None
-    viewability_rate: Annotated[float | None, Field(description=&#39;Viewability rate (0-1).&#39;)] = None
-    completion_rate: Annotated[float | None, Field(description=&#39;Video completion rate (0-1).&#39;)] = (
-        None
-    )</code></pre>
+    viewability_rate: Annotated[float | None, Field(description=&#39;Viewability rate (0-1).&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -259,24 +259,40 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    plan_id: Annotated[str, Field(description=&#39;The plan this outcome is for.&#39;)]
     check_id: Annotated[
         str | None,
         Field(
             description=&#34;The check_id from check_governance. Links the outcome to the governance check that authorized it. Required for &#39;completed&#39; and &#39;failed&#39; outcomes.&#34;
         ),
     ] = None
-    buyer_campaign_ref: Annotated[str, Field(description=&#39;Campaign identifier.&#39;)]
-    outcome: Annotated[outcome_type.OutcomeType, Field(description=&#39;Outcome type.&#39;)]
-    seller_response: Annotated[
-        SellerResponse | None,
-        Field(description=&#34;The seller&#39;s full response. Required when outcome is &#39;completed&#39;.&#34;),
-    ] = None
     delivery: Annotated[
         Delivery | None, Field(description=&#34;Delivery metrics. Required when outcome is &#39;delivery&#39;.&#34;)
     ] = None
     error: Annotated[
         Error | None, Field(description=&#34;Error details. Required when outcome is &#39;failed&#39;.&#34;)
+    ] = None
+    governance_context: Annotated[
+        str,
+        Field(
+            description=&#39;Opaque governance context from the check_governance response that authorized this action. Enables the governance agent to correlate the outcome to the original check.&#39;,
+            max_length=4096,
+            min_length=1,
+            pattern=&#39;^[\\x20-\\x7E]+$&#39;,
+        ),
+    ]
+    idempotency_key: Annotated[
+        str | None,
+        Field(
+            description=&#39;Client-generated unique key for this request. Prevents duplicate outcome reports on retries. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+        ),
+    ] = None
+    outcome: Annotated[outcome_type.OutcomeType, Field(description=&#39;Outcome type.&#39;)]
+    plan_id: Annotated[str, Field(description=&#39;The plan this outcome is for.&#39;)]
+    seller_response: Annotated[
+        SellerResponse | None,
+        Field(description=&#34;The seller&#39;s full response. Required when outcome is &#39;completed&#39;.&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -296,10 +312,6 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.buyer_campaign_ref"><code class="name">var <span class="ident">buyer_campaign_ref</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.check_id"><code class="name">var <span class="ident">check_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -309,6 +321,14 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.error"><code class="name">var <span class="ident">error</span> : <a title="adcp.types.generated_poc.governance.report_plan_outcome_request.Error" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.Error">Error</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.governance_context"><code class="name">var <span class="ident">governance_context</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -353,8 +373,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    start: AwareDatetime
-    end: AwareDatetime</code></pre>
+    end: AwareDatetime
+    start: AwareDatetime</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -410,10 +430,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    media_buy_id: Annotated[str | None, Field(description=&#34;Seller&#39;s media buy identifier.&#34;)] = None
-    buyer_ref: Annotated[
-        str | None, Field(description=&#39;The buyer reference echoed back by the seller.&#39;)
-    ] = None
     committed_budget: Annotated[
         float | None,
         Field(
@@ -421,6 +437,10 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
+    creative_deadline: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 deadline for creative submission.&#39;)
+    ] = None
+    media_buy_id: Annotated[str | None, Field(description=&#34;Seller&#39;s media buy identifier.&#34;)] = None
     packages: Annotated[
         list[Package] | None,
         Field(description=&#39;Confirmed packages with actual budget and targeting.&#39;),
@@ -430,9 +450,6 @@ validated to form a valid model.</p>
         Field(
             description=&#34;What the seller said it will deliver. When seller-side governance is not configured, this is the governance agent&#39;s only view of the seller&#39;s delivery parameters.&#34;
         ),
-    ] = None
-    creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 deadline for creative submission.&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -452,10 +469,6 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.buyer_ref"><code class="name">var <span class="ident">buyer_ref</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.committed_budget"><code class="name">var <span class="ident">committed_budget</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -538,10 +551,11 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest">ReportPlanOutcomeRequest</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.buyer_campaign_ref" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.buyer_campaign_ref">buyer_campaign_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.check_id" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.check_id">check_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.delivery" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.delivery">delivery</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.error" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.error">error</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.governance_context" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.governance_context">governance_context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.idempotency_key" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.model_config" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.outcome" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.outcome">outcome</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.plan_id" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.ReportPlanOutcomeRequest.plan_id">plan_id</a></code></li>
@@ -559,7 +573,6 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse">SellerResponse</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.buyer_ref" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.buyer_ref">buyer_ref</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.committed_budget" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.committed_budget">committed_budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.creative_deadline" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.creative_deadline">creative_deadline</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.media_buy_id" href="#adcp.types.generated_poc.governance.report_plan_outcome_request.SellerResponse.media_buy_id">media_buy_id</a></code></li>

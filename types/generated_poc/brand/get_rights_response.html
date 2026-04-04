@@ -301,15 +301,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    rights: Annotated[
-        list[Right], Field(description=&#39;Matching rights with pricing options, ranked by relevance&#39;)
-    ]
+    context: context_1.ContextObject | None = None
     excluded: Annotated[
         list[ExcludedItem] | None,
         Field(description=&#39;Results that matched but were filtered out, with reasons&#39;),
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    rights: Annotated[
+        list[Right], Field(description=&#39;Matching rights with pricing options, ranked by relevance&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -373,8 +373,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    errors: Annotated[list[error.Error], Field(min_length=1)]
     context: context_1.ContextObject | None = None
+    errors: Annotated[list[error.Error], Field(min_length=1)]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -492,46 +492,46 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    rights_id: Annotated[
-        str, Field(description=&#39;Identifier for this rights offering. Referenced in acquire_rights.&#39;)
-    ]
-    brand_id: Annotated[str, Field(description=&#34;Brand identifier from the agent&#39;s roster&#34;)]
-    name: Annotated[str, Field(description=&#39;Display name of the rights subject&#39;)]
-    description: Annotated[str | None, Field(description=&#39;Description of the rights subject&#39;)] = (
-        None
-    )
-    right_type: right_type_1.RightType | None = None
-    match_score: Annotated[
-        float | None, Field(description=&#39;Relevance score from 0 to 1&#39;, ge=0.0, le=1.0)
-    ] = None
-    match_reasons: Annotated[
-        list[str] | None, Field(description=&#39;Human-readable reasons for the match&#39;)
-    ] = None
     available_uses: Annotated[
         list[right_use.RightUse], Field(description=&#39;Rights uses available for licensing&#39;)
     ]
+    brand_id: Annotated[str, Field(description=&#34;Brand identifier from the agent&#39;s roster&#34;)]
+    content_restrictions: Annotated[
+        list[str] | None, Field(description=&#39;Content restrictions or approval requirements&#39;)
+    ] = None
     countries: Annotated[
         list[Country] | None,
         Field(
             description=&#39;Countries where rights are available (ISO 3166-1 alpha-2). When both countries and excluded_countries are present, the effective set is countries minus excluded_countries. If neither is present, all countries are available.&#39;
         ),
     ] = None
+    description: Annotated[str | None, Field(description=&#39;Description of the rights subject&#39;)] = (
+        None
+    )
     excluded_countries: Annotated[
         list[ExcludedCountry] | None, Field(description=&#39;Countries excluded from availability&#39;)
     ] = None
     exclusivity_status: Annotated[
         ExclusivityStatus | None, Field(description=&#39;Current exclusivity availability&#39;)
     ] = None
+    match_reasons: Annotated[
+        list[str] | None, Field(description=&#39;Human-readable reasons for the match&#39;)
+    ] = None
+    match_score: Annotated[
+        float | None, Field(description=&#39;Relevance score from 0 to 1&#39;, ge=0.0, le=1.0)
+    ] = None
+    name: Annotated[str, Field(description=&#39;Display name of the rights subject&#39;)]
+    preview_assets: Annotated[
+        list[PreviewAsset] | None, Field(description=&#39;Preview-only assets for evaluation&#39;)
+    ] = None
     pricing_options: Annotated[
         list[rights_pricing_option.RightsPricingOption],
         Field(description=&#39;Available pricing options for these rights&#39;, min_length=1),
     ]
-    content_restrictions: Annotated[
-        list[str] | None, Field(description=&#39;Content restrictions or approval requirements&#39;)
-    ] = None
-    preview_assets: Annotated[
-        list[PreviewAsset] | None, Field(description=&#39;Preview-only assets for evaluation&#39;)
-    ] = None</code></pre>
+    right_type: right_type_1.RightType | None = None
+    rights_id: Annotated[
+        str, Field(description=&#39;Identifier for this rights offering. Referenced in acquire_rights.&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -59,20 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    signals: Annotated[list[Signal], Field(description=&#39;Array of matching signals&#39;)]
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(
             description=&#39;Task-specific errors and warnings (e.g., signal discovery or pricing issues)&#39;
         ),
     ] = None
+    ext: ext_1.ExtensionObject | None = None
     pagination: pagination_response.PaginationResponse | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    signals: Annotated[list[Signal], Field(description=&#39;Array of matching signals&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -144,8 +144,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    min: Annotated[float, Field(description=&#39;Minimum value (inclusive)&#39;)]
-    max: Annotated[float, Field(description=&#39;Maximum value (inclusive)&#39;)]</code></pre>
+    max: Annotated[float, Field(description=&#39;Maximum value (inclusive)&#39;)]
+    min: Annotated[float, Field(description=&#39;Minimum value (inclusive)&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -201,11 +201,31 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    signal_id: Annotated[
-        signal_id_1.SignalId | None,
+    categories: Annotated[
+        list[str] | None,
         Field(
-            description=&#34;Universal signal identifier referencing the data provider&#39;s catalog. Use this to verify authorization and look up signal definitions.&#34;
+            description=&#34;Valid values for categorical signals. Present when value_type is &#39;categorical&#39;. Buyers must use one of these values in SignalTargeting.values.&#34;
         ),
+    ] = None
+    coverage_percentage: Annotated[
+        float, Field(description=&#39;Percentage of audience coverage&#39;, ge=0.0, le=100.0)
+    ]
+    data_provider: Annotated[str, Field(description=&#39;Human-readable name of the data provider&#39;)]
+    deployments: Annotated[
+        list[deployment.Deployment], Field(description=&#39;Array of deployment targets&#39;)
+    ]
+    description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
+    name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
+    pricing_options: Annotated[
+        list[signal_pricing_option.SignalPricingOption],
+        Field(
+            description=&#39;Pricing options available for this signal. The buyer selects one and passes its pricing_option_id in report_usage for billing verification.&#39;,
+            min_length=1,
+        ),
+    ]
+    range: Annotated[
+        Range | None,
+        Field(description=&#34;Valid range for numeric signals. Present when value_type is &#39;numeric&#39;.&#34;),
     ] = None
     signal_agent_segment_id: Annotated[
         str,
@@ -213,40 +233,20 @@ validated to form a valid model.</p>
             description=&#34;Opaque identifier used for activation. This is the signals agent&#39;s internal segment ID.&#34;
         ),
     ]
-    name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
-    description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
-    value_type: Annotated[
-        signal_value_type.SignalValueType | None,
-        Field(description=&#34;The data type of this signal&#39;s values (binary, categorical, numeric)&#34;),
-    ] = None
-    categories: Annotated[
-        list[str] | None,
+    signal_id: Annotated[
+        signal_id_1.SignalId | None,
         Field(
-            description=&#34;Valid values for categorical signals. Present when value_type is &#39;categorical&#39;. Buyers must use one of these values in SignalTargeting.values.&#34;
+            description=&#34;Universal signal identifier referencing the data provider&#39;s catalog. Use this to verify authorization and look up signal definitions.&#34;
         ),
-    ] = None
-    range: Annotated[
-        Range | None,
-        Field(description=&#34;Valid range for numeric signals. Present when value_type is &#39;numeric&#39;.&#34;),
     ] = None
     signal_type: Annotated[
         signal_catalog_type.SignalCatalogType,
         Field(description=&#39;Catalog type of signal (marketplace, custom, owned)&#39;),
     ]
-    data_provider: Annotated[str, Field(description=&#39;Human-readable name of the data provider&#39;)]
-    coverage_percentage: Annotated[
-        float, Field(description=&#39;Percentage of audience coverage&#39;, ge=0.0, le=100.0)
-    ]
-    deployments: Annotated[
-        list[deployment.Deployment], Field(description=&#39;Array of deployment targets&#39;)
-    ]
-    pricing_options: Annotated[
-        list[signal_pricing_option.SignalPricingOption],
-        Field(
-            description=&#39;Pricing options available for this signal. The buyer selects one and passes its pricing_option_id in report_usage for billing verification.&#39;,
-            min_length=1,
-        ),
-    ]</code></pre>
+    value_type: Annotated[
+        signal_value_type.SignalValueType | None,
+        Field(description=&#34;The data type of this signal&#39;s values (binary, categorical, numeric)&#34;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

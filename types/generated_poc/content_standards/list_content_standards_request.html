@@ -62,16 +62,16 @@ el.replaceWith(d);
     channels: Annotated[
         list[channels_1.MediaChannel] | None, Field(description=&#39;Filter by channel&#39;, min_length=1)
     ] = None
-    languages: Annotated[
-        list[str] | None, Field(description=&#39;Filter by BCP 47 language tags&#39;, min_length=1)
-    ] = None
+    context: context_1.ContextObject | None = None
     countries: Annotated[
         list[str] | None,
         Field(description=&#39;Filter by ISO 3166-1 alpha-2 country codes&#39;, min_length=1),
     ] = None
-    pagination: pagination_request.PaginationRequest | None = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    languages: Annotated[
+        list[str] | None, Field(description=&#39;Filter by BCP 47 language tags&#39;, min_length=1)
+    ] = None
+    pagination: pagination_request.PaginationRequest | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

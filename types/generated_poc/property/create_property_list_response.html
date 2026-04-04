@@ -59,14 +59,14 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    list: Annotated[property_list.PropertyList, Field(description=&#39;The created property list&#39;)]
     auth_token: Annotated[
         str,
         Field(
             description=&#39;Token that can be shared with sellers to authorize fetching this list. Store this - it is only returned at creation time.&#39;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    list: Annotated[property_list.PropertyList, Field(description=&#39;The created property list&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -59,11 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    supported: Annotated[bool | None, Field(description=&#39;Supports A2UI surface rendering&#39;)] = False
     catalogs: Annotated[
         list[str] | None,
         Field(description=&#34;Supported A2UI component catalogs (e.g., &#39;si-standard&#39;, &#39;standard&#39;)&#34;),
-    ] = None</code></pre>
+    ] = None
+    supported: Annotated[bool | None, Field(description=&#39;Supports A2UI surface rendering&#39;)] = False</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -119,10 +119,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    avatar_id: Annotated[str | None, Field(description=&#39;Brand avatar identifier&#39;)] = None
     provider: Annotated[
         str | None, Field(description=&#39;Avatar provider (d-id, heygen, synthesia, etc.)&#39;)
-    ] = None
-    avatar_id: Annotated[str | None, Field(description=&#39;Brand avatar identifier&#39;)] = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -232,13 +232,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    standard: Annotated[
-        list[StandardEnum] | None,
-        Field(description=&#39;Standard components that all SI hosts must render&#39;),
-    ] = None
     extensions: Annotated[
         dict[str, Any] | None,
         Field(description=&#39;Platform-specific extensions (chatgpt_apps_sdk, maps, forms, etc.)&#39;),
+    ] = None
+    standard: Annotated[
+        list[StandardEnum] | None,
+        Field(description=&#39;Standard components that all SI hosts must render&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -295,15 +295,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    avatar: Annotated[
+        bool | Avatar | None, Field(description=&#39;Animated video presence with brand avatar&#39;)
+    ] = None
     conversational: Annotated[
         bool | None, Field(description=&#39;Pure text exchange - the baseline modality&#39;)
     ] = True
+    video: Annotated[bool | Video | None, Field(description=&#39;Brand video content playback&#39;)] = None
     voice: Annotated[
         bool | Voice | None, Field(description=&#39;Audio-based interaction using brand voice&#39;)
-    ] = None
-    video: Annotated[bool | Video | None, Field(description=&#39;Brand video content playback&#39;)] = None
-    avatar: Annotated[
-        bool | Avatar | None, Field(description=&#39;Animated video presence with brand avatar&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -368,17 +368,17 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    modalities: Annotated[
-        Modalities | None, Field(description=&#39;Interaction modalities supported&#39;)
-    ] = None
+    a2ui: Annotated[A2ui | None, Field(description=&#39;A2UI (Agent-to-UI) capabilities&#39;)] = None
+    commerce: Annotated[Commerce | None, Field(description=&#39;Commerce capabilities&#39;)] = None
     components: Annotated[Components | None, Field(description=&#39;Visual components supported&#39;)] = (
         None
     )
-    commerce: Annotated[Commerce | None, Field(description=&#39;Commerce capabilities&#39;)] = None
-    a2ui: Annotated[A2ui | None, Field(description=&#39;A2UI (Agent-to-UI) capabilities&#39;)] = None
     mcp_apps: Annotated[
         bool | None, Field(description=&#39;Supports MCP Apps for rendering A2UI surfaces in iframes&#39;)
-    ] = False</code></pre>
+    ] = False
+    modalities: Annotated[
+        Modalities | None, Field(description=&#39;Interaction modalities supported&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

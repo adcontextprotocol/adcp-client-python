@@ -59,16 +59,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    x: Annotated[float, Field(description=&#34;Horizontal offset from the asset&#39;s left edge&#34;)]
-    y: Annotated[float, Field(description=&#34;Vertical offset from the asset&#39;s top edge&#34;)]
-    width: Annotated[float, Field(description=&#39;Width of the overlay&#39;, ge=0.0)]
     height: Annotated[float, Field(description=&#39;Height of the overlay&#39;, ge=0.0)]
     unit: Annotated[
         Unit,
         Field(
-            description=&#34;&#39;px&#39; = absolute pixels from asset top-left. &#39;fraction&#39; = proportional to asset dimensions (x/y: 0.0 = asset edge, 1.0 = opposite edge; width/height: 0.12 = 12% of asset dimension).&#34;
+            description=&#34;&#39;px&#39; = absolute pixels from asset top-left. &#39;fraction&#39; = proportional to asset dimensions (0.0 = edge, 1.0 = opposite edge). &#39;inches&#39;, &#39;cm&#39;, &#39;mm&#39;, &#39;pt&#39; (1/72 inch) = physical units for print overlays, measured from asset top-left.&#34;
         ),
-    ]</code></pre>
+    ]
+    width: Annotated[float, Field(description=&#39;Width of the overlay&#39;, ge=0.0)]
+    x: Annotated[float, Field(description=&#34;Horizontal offset from the asset&#39;s left edge&#34;)]
+    y: Annotated[float, Field(description=&#34;Vertical offset from the asset&#39;s top edge&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -136,10 +136,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    id: Annotated[
-        str,
+    bounds: Annotated[
+        Bounds,
         Field(
-            description=&#34;Identifier for this overlay (e.g., &#39;play_pause&#39;, &#39;volume&#39;, &#39;publisher_logo&#39;, &#39;carousel_prev&#39;, &#39;carousel_next&#39;)&#34;
+            description=&#34;Position and size of the overlay relative to the asset&#39;s own top-left corner. See &#39;unit&#39; for coordinate interpretation.&#34;
         ),
     ]
     description: Annotated[
@@ -148,18 +148,18 @@ validated to form a valid model.</p>
             description=&#39;Human-readable explanation of what this overlay is and how buyers should account for it&#39;
         ),
     ] = None
+    id: Annotated[
+        str,
+        Field(
+            description=&#34;Identifier for this overlay (e.g., &#39;play_pause&#39;, &#39;volume&#39;, &#39;publisher_logo&#39;, &#39;carousel_prev&#39;, &#39;carousel_next&#39;)&#34;
+        ),
+    ]
     visual: Annotated[
         Visual | None,
         Field(
             description=&#39;Optional visual reference for this overlay element. Useful for creative agents compositing previews and for buyers understanding what will appear over their content. Must include at least one of: url, light, or dark.&#39;
         ),
-    ] = None
-    bounds: Annotated[
-        Bounds,
-        Field(
-            description=&#34;Position and size of the overlay relative to the asset&#39;s own top-left corner. See &#39;unit&#39; for coordinate interpretation.&#34;
-        ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -221,7 +221,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Unit(Enum):
     px = &#39;px&#39;
-    fraction = &#39;fraction&#39;</code></pre>
+    fraction = &#39;fraction&#39;
+    inches = &#39;inches&#39;
+    cm = &#39;cm&#39;
+    mm = &#39;mm&#39;
+    pt = &#39;pt&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -264,7 +268,23 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.core.overlay.Unit.cm"><code class="name">var <span class="ident">cm</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.overlay.Unit.fraction"><code class="name">var <span class="ident">fraction</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.overlay.Unit.inches"><code class="name">var <span class="ident">inches</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.overlay.Unit.mm"><code class="name">var <span class="ident">mm</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.overlay.Unit.pt"><code class="name">var <span class="ident">pt</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -287,11 +307,9 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    url: Annotated[
+    dark: Annotated[
         AnyUrl | None,
-        Field(
-            description=&#39;URL to a theme-neutral overlay graphic (SVG or PNG). Use when a single file works for all backgrounds, e.g. an SVG using CSS custom properties or currentColor.&#39;
-        ),
+        Field(description=&#39;URL to the overlay graphic for use on dark backgrounds (SVG or PNG)&#39;),
     ] = None
     light: Annotated[
         AnyUrl | None,
@@ -299,9 +317,11 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;URL to the overlay graphic for use on light/bright backgrounds (SVG or PNG)&#39;
         ),
     ] = None
-    dark: Annotated[
+    url: Annotated[
         AnyUrl | None,
-        Field(description=&#39;URL to the overlay graphic for use on dark backgrounds (SVG or PNG)&#39;),
+        Field(
+            description=&#39;URL to a theme-neutral overlay graphic (SVG or PNG). Use when a single file works for all backgrounds, e.g. an SVG using CSS custom properties or currentColor.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -387,8 +407,12 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.overlay.Unit" href="#adcp.types.generated_poc.core.overlay.Unit">Unit</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.overlay.Unit.cm" href="#adcp.types.generated_poc.core.overlay.Unit.cm">cm</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.overlay.Unit.fraction" href="#adcp.types.generated_poc.core.overlay.Unit.fraction">fraction</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.overlay.Unit.inches" href="#adcp.types.generated_poc.core.overlay.Unit.inches">inches</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.overlay.Unit.mm" href="#adcp.types.generated_poc.core.overlay.Unit.mm">mm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.overlay.Unit.pt" href="#adcp.types.generated_poc.core.overlay.Unit.pt">pt</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.overlay.Unit.px" href="#adcp.types.generated_poc.core.overlay.Unit.px">px</a></code></li>
 </ul>
 </li>

@@ -117,13 +117,6 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    regions: Annotated[
-        list[Region] | None,
-        Field(
-            description=&#34;Regions or states where this offering is relevant. ISO 3166-2 subdivision codes (e.g., &#39;NL-NH&#39;, &#39;US-CA&#39;).&#34;,
-            min_length=1,
-        ),
-    ] = None
     metros: Annotated[
         list[Metro] | None,
         Field(
@@ -135,6 +128,13 @@ validated to form a valid model.</p>
         list[PostalArea] | None,
         Field(
             description=&#39;Postal areas where this offering is relevant. Each entry specifies the postal system and target values.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    regions: Annotated[
+        list[Region] | None,
+        Field(
+            description=&#34;Regions or states where this offering is relevant. ISO 3166-2 subdivision codes (e.g., &#39;NL-NH&#39;, &#39;US-CA&#39;).&#34;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -261,21 +261,58 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    offering_id: Annotated[
-        str,
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
         Field(
-            description=&#39;Unique identifier for this offering. Used by hosts to reference specific offerings in si_get_offering calls.&#39;
+            description=&#39;Structured asset groups for this offering. Each group carries a typed pool of creative assets (headlines, images, videos, etc.) identified by a group ID that matches format-level vocabulary.&#39;
         ),
-    ]
+    ] = None
+    categories: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Categories this offering belongs to (e.g., &#39;measurement&#39;, &#39;identity&#39;, &#39;programmatic&#39;)&#34;
+        ),
+    ] = None
+    checkout_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#34;URL for checkout/purchase flow when the brand doesn&#39;t support agentic checkout.&#34;
+        ),
+    ] = None
+    description: Annotated[str | None, Field(description=&#34;Description of what&#39;s being offered&#34;)] = (
+        None
+    )
+    ext: ext_1.ExtensionObject | None = None
+    geo_targets: Annotated[
+        GeoTargets | None,
+        Field(
+            description=&#34;Geographic scope of this offering. Declares where the offering is relevant — for location-specific offerings such as job vacancies, in-store promotions, or local events. Platforms use this to target geographically appropriate audiences and to filter out offerings irrelevant to a user&#39;s location. Uses the same geographic structures as targeting_overlay in create_media_buy.&#34;
+        ),
+    ] = None
+    keywords: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Keywords for matching this offering to user intent. Hosts use these for retrieval/relevance scoring.&#39;
+        ),
+    ] = None
+    landing_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#34;Landing page URL for this offering. For catalog-driven creatives, this is the per-item click-through destination that platforms map to the ad&#39;s link-out URL. Every offering in a catalog should have a landing_url unless the format provides its own destination logic.&#34;
+        ),
+    ] = None
     name: Annotated[
         str,
         Field(
             description=&#34;Human-readable offering name (e.g., &#39;Winter Sale&#39;, &#39;Free Trial&#39;, &#39;Enterprise Platform&#39;)&#34;
         ),
     ]
-    description: Annotated[str | None, Field(description=&#34;Description of what&#39;s being offered&#34;)] = (
-        None
-    )
+    offering_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this offering. Used by hosts to reference specific offerings in si_get_offering calls.&#39;
+        ),
+    ]
     tagline: Annotated[
         str | None, Field(description=&#39;Short promotional tagline for the offering&#39;)
     ] = None
@@ -290,44 +327,7 @@ validated to form a valid model.</p>
         Field(
             description=&#39;When the offering expires. If not specified, offering has no expiration.&#39;
         ),
-    ] = None
-    checkout_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#34;URL for checkout/purchase flow when the brand doesn&#39;t support agentic checkout.&#34;
-        ),
-    ] = None
-    landing_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#34;Landing page URL for this offering. For catalog-driven creatives, this is the per-item click-through destination that platforms map to the ad&#39;s link-out URL. Every offering in a catalog should have a landing_url unless the format provides its own destination logic.&#34;
-        ),
-    ] = None
-    assets: Annotated[
-        list[offering_asset_group.OfferingAssetGroup] | None,
-        Field(
-            description=&#39;Structured asset groups for this offering. Each group carries a typed pool of creative assets (headlines, images, videos, etc.) identified by a group ID that matches format-level vocabulary.&#39;
-        ),
-    ] = None
-    geo_targets: Annotated[
-        GeoTargets | None,
-        Field(
-            description=&#34;Geographic scope of this offering. Declares where the offering is relevant — for location-specific offerings such as job vacancies, in-store promotions, or local events. Platforms use this to target geographically appropriate audiences and to filter out offerings irrelevant to a user&#39;s location. Uses the same geographic structures as targeting_overlay in create_media_buy.&#34;
-        ),
-    ] = None
-    keywords: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Keywords for matching this offering to user intent. Hosts use these for retrieval/relevance scoring.&#39;
-        ),
-    ] = None
-    categories: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Categories this offering belongs to (e.g., &#39;measurement&#39;, &#39;identity&#39;, &#39;programmatic&#39;)&#34;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

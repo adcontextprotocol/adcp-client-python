@@ -66,14 +66,6 @@ el.replaceWith(d);
             min_length=1,
         ),
     ]
-    start_hour: Annotated[
-        int,
-        Field(
-            description=&#39;Start hour (inclusive), 0-23 in 24-hour format. 0 = midnight, 6 = 6:00am, 18 = 6:00pm.&#39;,
-            ge=0,
-            le=23,
-        ),
-    ]
     end_hour: Annotated[
         int,
         Field(
@@ -87,7 +79,15 @@ el.replaceWith(d);
         Field(
             description=&#34;Optional human-readable name for this time window (e.g., &#39;Morning Drive&#39;, &#39;Prime Time&#39;)&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    start_hour: Annotated[
+        int,
+        Field(
+            description=&#39;Start hour (inclusive), 0-23 in 24-hour format. 0 = midnight, 6 = 6:00am, 18 = 6:00pm.&#39;,
+            ge=0,
+            le=23,
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

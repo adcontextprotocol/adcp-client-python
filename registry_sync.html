@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.registry_sync API documentation</title>
+<meta name="description" content="Registry change feed synchronization.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.registry_sync</code></h1>
+</header>
+<section id="section-intro">
+<p>Registry change feed synchronization.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.registry_sync.CursorStore"><code class="flex name class">
+<span>class <span class="ident">CursorStore</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@runtime_checkable
+class CursorStore(Protocol):
+    &#34;&#34;&#34;Protocol for persisting the feed cursor.&#34;&#34;&#34;
+
+    async def load(self) -&gt; str | None:
+        &#34;&#34;&#34;Load the saved cursor, or None if no cursor exists.&#34;&#34;&#34;
+        ...
+
+    async def save(self, cursor: str) -&gt; None:
+        &#34;&#34;&#34;Save the current cursor.&#34;&#34;&#34;
+        ...</code></pre>
+</details>
+<div class="desc"><p>Protocol for persisting the feed cursor.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.registry_sync.CursorStore.load"><code class="name flex">
+<span>async def <span class="ident">load</span></span>(<span>self) ‑> str | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def load(self) -&gt; str | None:
+    &#34;&#34;&#34;Load the saved cursor, or None if no cursor exists.&#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Load the saved cursor, or None if no cursor exists.</p></div>
+</dd>
+<dt id="adcp.registry_sync.CursorStore.save"><code class="name flex">
+<span>async def <span class="ident">save</span></span>(<span>self, cursor: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def save(self, cursor: str) -&gt; None:
+    &#34;&#34;&#34;Save the current cursor.&#34;&#34;&#34;
+    ...</code></pre>
+</details>
+<div class="desc"><p>Save the current cursor.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.registry_sync.FileCursorStore"><code class="flex name class">
+<span>class <span class="ident">FileCursorStore</span></span>
+<span>(</span><span>path: str | Path = '.adcp-sync-cursor.json')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FileCursorStore:
+    &#34;&#34;&#34;Default cursor store using a local JSON file.
+
+    Args:
+        path: Path to the cursor file. Defaults to .adcp-sync-cursor.json
+    &#34;&#34;&#34;
+
+    def __init__(self, path: str | Path = &#34;.adcp-sync-cursor.json&#34;) -&gt; None:
+        self._path = Path(path)
+
+    async def load(self) -&gt; str | None:
+        try:
+            data = json.loads(self._path.read_text())
+            return data.get(&#34;cursor&#34;)  # type: ignore[no-any-return]
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            return None
+
+    async def save(self, cursor: str) -&gt; None:
+        temp = self._path.with_suffix(&#34;.tmp&#34;)
+        temp.write_text(json.dumps({&#34;cursor&#34;: cursor}))
+        temp.replace(self._path)  # Atomic rename</code></pre>
+</details>
+<div class="desc"><p>Default cursor store using a local JSON file.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>path</code></strong></dt>
+<dd>Path to the cursor file. Defaults to .adcp-sync-cursor.json</dd>
+</dl></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.registry_sync.FileCursorStore.load"><code class="name flex">
+<span>async def <span class="ident">load</span></span>(<span>self) ‑> str | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def load(self) -&gt; str | None:
+    try:
+        data = json.loads(self._path.read_text())
+        return data.get(&#34;cursor&#34;)  # type: ignore[no-any-return]
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        return None</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.registry_sync.FileCursorStore.save"><code class="name flex">
+<span>async def <span class="ident">save</span></span>(<span>self, cursor: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def save(self, cursor: str) -&gt; None:
+    temp = self._path.with_suffix(&#34;.tmp&#34;)
+    temp.write_text(json.dumps({&#34;cursor&#34;: cursor}))
+    temp.replace(self._path)  # Atomic rename</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.registry_sync.RegistrySync"><code class="flex name class">
+<span>class <span class="ident">RegistrySync</span></span>
+<span>(</span><span>client: RegistryClient,<br>*,<br>auth_token: str,<br>poll_interval: float = 60.0,<br>cursor_store: <a title="adcp.registry_sync.CursorStore" href="#adcp.registry_sync.CursorStore">CursorStore</a> | None = None,<br>types: str | None = None,<br>batch_size: int = 100)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RegistrySync:
+    &#34;&#34;&#34;Polls the registry change feed and dispatches events to handlers.
+
+    Args:
+        client: RegistryClient instance for HTTP calls.
+        auth_token: Bearer token for feed access.
+        poll_interval: Seconds between polls (default 60).
+        cursor_store: Optional CursorStore for persistence.
+            Defaults to FileCursorStore.
+        types: Optional event type filter (e.g., &#34;property.*,agent.*&#34;).
+        batch_size: Max events per poll (default 100, max 10000).
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        client: RegistryClient,
+        *,
+        auth_token: str,
+        poll_interval: float = 60.0,
+        cursor_store: CursorStore | None = None,
+        types: str | None = None,
+        batch_size: int = 100,
+    ) -&gt; None:
+        self._client = client
+        self._auth_token = auth_token
+        self._poll_interval = poll_interval
+        self._cursor_store: CursorStore = cursor_store or FileCursorStore()
+        self._types = types
+        self._batch_size = min(batch_size, 10000)
+        self._handlers: dict[str, list[ChangeHandler]] = defaultdict(list)
+        self._all_handlers: list[ChangeHandler] = []
+        self._cursor: str | None = None
+        self._cursor_loaded = False
+        self._stop_event: asyncio.Event | None = None
+        self._running = False
+
+    def on(self, event_type: str, handler: ChangeHandler) -&gt; None:
+        &#34;&#34;&#34;Register a handler for a specific event type.
+
+        Supports glob patterns: &#34;property.*&#34; matches &#34;property.created&#34;,
+        &#34;property.updated&#34;, etc.
+        &#34;&#34;&#34;
+        self._handlers[event_type].append(handler)
+
+    def on_all(self, handler: ChangeHandler) -&gt; None:
+        &#34;&#34;&#34;Register a handler for all events.&#34;&#34;&#34;
+        self._all_handlers.append(handler)
+
+    @property
+    def cursor(self) -&gt; str | None:
+        &#34;&#34;&#34;Current cursor position.&#34;&#34;&#34;
+        return self._cursor
+
+    async def _load_cursor(self) -&gt; None:
+        &#34;&#34;&#34;Load cursor from store on first use.&#34;&#34;&#34;
+        if not self._cursor_loaded:
+            self._cursor = await self._cursor_store.load()
+            self._cursor_loaded = True
+
+    async def _dispatch(self, event: FeedEvent) -&gt; None:
+        &#34;&#34;&#34;Dispatch a single event to matching handlers.&#34;&#34;&#34;
+        # Dispatch to type-specific handlers
+        for pattern, handlers in self._handlers.items():
+            if fnmatch(event.event_type, pattern):
+                for handler in handlers:
+                    try:
+                        await handler(event)
+                    except Exception:
+                        logger.exception(
+                            &#34;Handler error for event %s (%s)&#34;,
+                            event.event_id,
+                            event.event_type,
+                        )
+
+        # Dispatch to catch-all handlers
+        for handler in self._all_handlers:
+            try:
+                await handler(event)
+            except Exception:
+                logger.exception(
+                    &#34;Handler error for event %s (%s)&#34;,
+                    event.event_id,
+                    event.event_type,
+                )
+
+    async def poll_once(self) -&gt; list[FeedEvent]:
+        &#34;&#34;&#34;Poll the feed once and dispatch events.
+
+        Returns the list of events processed.
+        &#34;&#34;&#34;
+        await self._load_cursor()
+
+        try:
+            page = await self._client.get_feed(
+                auth_token=self._auth_token,
+                cursor=self._cursor,
+                types=self._types,
+                limit=self._batch_size,
+            )
+        except RegistryError as e:
+            if e.status_code == 410:
+                logger.warning(&#34;Feed cursor expired, resetting to start&#34;)
+                self._cursor = None
+                await self._cursor_store.save(&#34;&#34;)
+                return []
+            raise
+
+        for event in page.events:
+            await self._dispatch(event)
+
+        if page.cursor:
+            self._cursor = page.cursor
+            await self._cursor_store.save(page.cursor)
+
+        return list(page.events)
+
+    async def start(self) -&gt; None:
+        &#34;&#34;&#34;Start the polling loop. Runs until stop() is called.&#34;&#34;&#34;
+        if self._running:
+            return
+
+        self._running = True
+        self._stop_event = asyncio.Event()
+        logger.info(&#34;RegistrySync started (interval=%.1fs)&#34;, self._poll_interval)
+
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    events = await self.poll_once()
+                    if events:
+                        logger.debug(&#34;Processed %d events&#34;, len(events))
+                except RegistryError as e:
+                    logger.error(&#34;Feed poll failed: %s&#34;, e)
+                except Exception:
+                    logger.exception(&#34;Unexpected error in feed poll&#34;)
+
+                # Wait for interval or stop signal
+                try:
+                    await asyncio.wait_for(
+                        self._stop_event.wait(),
+                        timeout=self._poll_interval,
+                    )
+                except asyncio.TimeoutError:
+                    pass  # Normal - poll interval elapsed
+        finally:
+            self._running = False
+            logger.info(&#34;RegistrySync stopped&#34;)
+
+    async def stop(self) -&gt; None:
+        &#34;&#34;&#34;Stop the polling loop gracefully.&#34;&#34;&#34;
+        if self._stop_event is not None:
+            self._stop_event.set()</code></pre>
+</details>
+<div class="desc"><p>Polls the registry change feed and dispatches events to handlers.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>client</code></strong></dt>
+<dd>RegistryClient instance for HTTP calls.</dd>
+<dt><strong><code>auth_token</code></strong></dt>
+<dd>Bearer token for feed access.</dd>
+<dt><strong><code>poll_interval</code></strong></dt>
+<dd>Seconds between polls (default 60).</dd>
+<dt><strong><code>cursor_store</code></strong></dt>
+<dd>Optional CursorStore for persistence.
+Defaults to FileCursorStore.</dd>
+<dt><strong><code>types</code></strong></dt>
+<dd>Optional event type filter (e.g., "property.<em>,agent.</em>").</dd>
+<dt><strong><code>batch_size</code></strong></dt>
+<dd>Max events per poll (default 100, max 10000).</dd>
+</dl></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.registry_sync.RegistrySync.cursor"><code class="name">prop <span class="ident">cursor</span> : str | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def cursor(self) -&gt; str | None:
+    &#34;&#34;&#34;Current cursor position.&#34;&#34;&#34;
+    return self._cursor</code></pre>
+</details>
+<div class="desc"><p>Current cursor position.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.registry_sync.RegistrySync.on"><code class="name flex">
+<span>def <span class="ident">on</span></span>(<span>self, event_type: str, handler: ChangeHandler) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def on(self, event_type: str, handler: ChangeHandler) -&gt; None:
+    &#34;&#34;&#34;Register a handler for a specific event type.
+
+    Supports glob patterns: &#34;property.*&#34; matches &#34;property.created&#34;,
+    &#34;property.updated&#34;, etc.
+    &#34;&#34;&#34;
+    self._handlers[event_type].append(handler)</code></pre>
+</details>
+<div class="desc"><p>Register a handler for a specific event type.</p>
+<p>Supports glob patterns: "property.*" matches "property.created",
+"property.updated", etc.</p></div>
+</dd>
+<dt id="adcp.registry_sync.RegistrySync.on_all"><code class="name flex">
+<span>def <span class="ident">on_all</span></span>(<span>self, handler: ChangeHandler) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def on_all(self, handler: ChangeHandler) -&gt; None:
+    &#34;&#34;&#34;Register a handler for all events.&#34;&#34;&#34;
+    self._all_handlers.append(handler)</code></pre>
+</details>
+<div class="desc"><p>Register a handler for all events.</p></div>
+</dd>
+<dt id="adcp.registry_sync.RegistrySync.poll_once"><code class="name flex">
+<span>async def <span class="ident">poll_once</span></span>(<span>self) ‑> list[<a title="adcp.types.registry.FeedEvent" href="types/registry.html#adcp.types.registry.FeedEvent">FeedEvent</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def poll_once(self) -&gt; list[FeedEvent]:
+    &#34;&#34;&#34;Poll the feed once and dispatch events.
+
+    Returns the list of events processed.
+    &#34;&#34;&#34;
+    await self._load_cursor()
+
+    try:
+        page = await self._client.get_feed(
+            auth_token=self._auth_token,
+            cursor=self._cursor,
+            types=self._types,
+            limit=self._batch_size,
+        )
+    except RegistryError as e:
+        if e.status_code == 410:
+            logger.warning(&#34;Feed cursor expired, resetting to start&#34;)
+            self._cursor = None
+            await self._cursor_store.save(&#34;&#34;)
+            return []
+        raise
+
+    for event in page.events:
+        await self._dispatch(event)
+
+    if page.cursor:
+        self._cursor = page.cursor
+        await self._cursor_store.save(page.cursor)
+
+    return list(page.events)</code></pre>
+</details>
+<div class="desc"><p>Poll the feed once and dispatch events.</p>
+<p>Returns the list of events processed.</p></div>
+</dd>
+<dt id="adcp.registry_sync.RegistrySync.start"><code class="name flex">
+<span>async def <span class="ident">start</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def start(self) -&gt; None:
+    &#34;&#34;&#34;Start the polling loop. Runs until stop() is called.&#34;&#34;&#34;
+    if self._running:
+        return
+
+    self._running = True
+    self._stop_event = asyncio.Event()
+    logger.info(&#34;RegistrySync started (interval=%.1fs)&#34;, self._poll_interval)
+
+    try:
+        while not self._stop_event.is_set():
+            try:
+                events = await self.poll_once()
+                if events:
+                    logger.debug(&#34;Processed %d events&#34;, len(events))
+            except RegistryError as e:
+                logger.error(&#34;Feed poll failed: %s&#34;, e)
+            except Exception:
+                logger.exception(&#34;Unexpected error in feed poll&#34;)
+
+            # Wait for interval or stop signal
+            try:
+                await asyncio.wait_for(
+                    self._stop_event.wait(),
+                    timeout=self._poll_interval,
+                )
+            except asyncio.TimeoutError:
+                pass  # Normal - poll interval elapsed
+    finally:
+        self._running = False
+        logger.info(&#34;RegistrySync stopped&#34;)</code></pre>
+</details>
+<div class="desc"><p>Start the polling loop. Runs until stop() is called.</p></div>
+</dd>
+<dt id="adcp.registry_sync.RegistrySync.stop"><code class="name flex">
+<span>async def <span class="ident">stop</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def stop(self) -&gt; None:
+    &#34;&#34;&#34;Stop the polling loop gracefully.&#34;&#34;&#34;
+    if self._stop_event is not None:
+        self._stop_event.set()</code></pre>
+</details>
+<div class="desc"><p>Stop the polling loop gracefully.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.registry_sync.CursorStore" href="#adcp.registry_sync.CursorStore">CursorStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.registry_sync.CursorStore.load" href="#adcp.registry_sync.CursorStore.load">load</a></code></li>
+<li><code><a title="adcp.registry_sync.CursorStore.save" href="#adcp.registry_sync.CursorStore.save">save</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.registry_sync.FileCursorStore" href="#adcp.registry_sync.FileCursorStore">FileCursorStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.registry_sync.FileCursorStore.load" href="#adcp.registry_sync.FileCursorStore.load">load</a></code></li>
+<li><code><a title="adcp.registry_sync.FileCursorStore.save" href="#adcp.registry_sync.FileCursorStore.save">save</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.registry_sync.RegistrySync" href="#adcp.registry_sync.RegistrySync">RegistrySync</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.registry_sync.RegistrySync.cursor" href="#adcp.registry_sync.RegistrySync.cursor">cursor</a></code></li>
+<li><code><a title="adcp.registry_sync.RegistrySync.on" href="#adcp.registry_sync.RegistrySync.on">on</a></code></li>
+<li><code><a title="adcp.registry_sync.RegistrySync.on_all" href="#adcp.registry_sync.RegistrySync.on_all">on_all</a></code></li>
+<li><code><a title="adcp.registry_sync.RegistrySync.poll_once" href="#adcp.registry_sync.RegistrySync.poll_once">poll_once</a></code></li>
+<li><code><a title="adcp.registry_sync.RegistrySync.start" href="#adcp.registry_sync.RegistrySync.start">start</a></code></li>
+<li><code><a title="adcp.registry_sync.RegistrySync.stop" href="#adcp.registry_sync.RegistrySync.stop">stop</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

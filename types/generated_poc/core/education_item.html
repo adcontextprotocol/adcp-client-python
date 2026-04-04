@@ -148,61 +148,6 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    program_id: Annotated[str, Field(description=&#39;Unique identifier for this program or course.&#39;)]
-    name: Annotated[
-        str,
-        Field(
-            description=&#34;Program or course name (e.g., &#39;MSc Computer Science&#39;, &#39;Digital Marketing Certificate&#39;).&#34;
-        ),
-    ]
-    school: Annotated[str, Field(description=&#39;Institution or provider name.&#39;)]
-    description: Annotated[
-        str | None,
-        Field(description=&#39;Program description including curriculum highlights and outcomes.&#39;),
-    ] = None
-    subject: Annotated[
-        str | None,
-        Field(
-            description=&#34;Subject area or field of study (e.g., &#39;computer-science&#39;, &#39;business&#39;, &#39;healthcare&#39;).&#34;
-        ),
-    ] = None
-    degree_type: Annotated[DegreeType | None, Field(description=&#39;Type of credential awarded.&#39;)] = (
-        None
-    )
-    level: Annotated[Level | None, Field(description=&#39;Difficulty or prerequisite level.&#39;)] = None
-    price: Annotated[price_1.Price | None, Field(description=&#39;Tuition or course fee.&#39;)] = None
-    duration: Annotated[
-        str | None,
-        Field(
-            description=&#34;Program duration as a human-readable string (e.g., &#39;4 weeks&#39;, &#39;2 years&#39;, &#39;6 months&#39;).&#34;
-        ),
-    ] = None
-    start_date: Annotated[
-        date_aliased | None, Field(description=&#39;Next available start date (ISO 8601 date).&#39;)
-    ] = None
-    language: Annotated[
-        str | None, Field(description=&#34;Language of instruction (e.g., &#39;en&#39;, &#39;nl&#39;, &#39;es&#39;).&#34;)
-    ] = None
-    modality: Annotated[Modality | None, Field(description=&#39;Delivery format.&#39;)] = None
-    location: Annotated[
-        str | None,
-        Field(
-            description=&#34;Campus or instruction location (e.g., &#39;Amsterdam, NL&#39;). Omit for fully online programs.&#34;
-        ),
-    ] = None
-    image_url: Annotated[AnyUrl | None, Field(description=&#39;Program or institution image URL.&#39;)] = (
-        None
-    )
-    url: Annotated[AnyUrl | None, Field(description=&#39;Program landing page or enrollment URL.&#39;)] = (
-        None
-    )
-    tags: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Tags for filtering (e.g., &#39;stem&#39;, &#39;scholarship-available&#39;, &#39;evening-classes&#39;).&#34;,
-            min_length=1,
-        ),
-    ] = None
     assets: Annotated[
         list[offering_asset_group.OfferingAssetGroup] | None,
         Field(
@@ -210,7 +155,62 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    degree_type: Annotated[DegreeType | None, Field(description=&#39;Type of credential awarded.&#39;)] = (
+        None
+    )
+    description: Annotated[
+        str | None,
+        Field(description=&#39;Program description including curriculum highlights and outcomes.&#39;),
+    ] = None
+    duration: Annotated[
+        str | None,
+        Field(
+            description=&#34;Program duration as a human-readable string (e.g., &#39;4 weeks&#39;, &#39;2 years&#39;, &#39;6 months&#39;).&#34;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Program or institution image URL.&#39;)] = (
+        None
+    )
+    language: Annotated[
+        str | None, Field(description=&#34;Language of instruction (e.g., &#39;en&#39;, &#39;nl&#39;, &#39;es&#39;).&#34;)
+    ] = None
+    level: Annotated[Level | None, Field(description=&#39;Difficulty or prerequisite level.&#39;)] = None
+    location: Annotated[
+        str | None,
+        Field(
+            description=&#34;Campus or instruction location (e.g., &#39;Amsterdam, NL&#39;). Omit for fully online programs.&#34;
+        ),
+    ] = None
+    modality: Annotated[Modality | None, Field(description=&#39;Delivery format.&#39;)] = None
+    name: Annotated[
+        str,
+        Field(
+            description=&#34;Program or course name (e.g., &#39;MSc Computer Science&#39;, &#39;Digital Marketing Certificate&#39;).&#34;
+        ),
+    ]
+    price: Annotated[price_1.Price | None, Field(description=&#39;Tuition or course fee.&#39;)] = None
+    program_id: Annotated[str, Field(description=&#39;Unique identifier for this program or course.&#39;)]
+    school: Annotated[str, Field(description=&#39;Institution or provider name.&#39;)]
+    start_date: Annotated[
+        date_aliased | None, Field(description=&#39;Next available start date (ISO 8601 date).&#39;)
+    ] = None
+    subject: Annotated[
+        str | None,
+        Field(
+            description=&#34;Subject area or field of study (e.g., &#39;computer-science&#39;, &#39;business&#39;, &#39;healthcare&#39;).&#34;
+        ),
+    ] = None
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Tags for filtering (e.g., &#39;stem&#39;, &#39;scholarship-available&#39;, &#39;evening-classes&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    url: Annotated[AnyUrl | None, Field(description=&#39;Program landing page or enrollment URL.&#39;)] = (
+        None
+    )</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

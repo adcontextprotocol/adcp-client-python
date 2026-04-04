@@ -59,15 +59,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
     protocols: Annotated[
         list[Protocol] | None,
         Field(
             description=&#39;Specific protocols to query capabilities for. If omitted, returns capabilities for all supported protocols.&#39;,
             min_length=1,
         ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -59,17 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    reason: Annotated[
-        Reason | None, Field(description=&#39;Reason code indicating why input is needed&#39;)
-    ] = None
+    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error] | None,
         Field(
             description=&#39;Optional validation errors or warnings explaining why input is required.&#39;
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None
+    reason: Annotated[
+        Reason | None, Field(description=&#39;Reason code indicating why input is needed&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -59,11 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    explanation: Annotated[str, Field(description=&#39;Why this scenario passes or fails the policy.&#39;)]
     scenario: Annotated[
         str,
         Field(description=&#39;A concrete scenario describing an advertising action or configuration.&#39;),
-    ]
-    explanation: Annotated[str, Field(description=&#39;Why this scenario passes or fails the policy.&#39;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -119,12 +119,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    fail: Annotated[
+        list[Exemplar] | None, Field(description=&#39;Scenarios that violate this policy.&#39;)
+    ] = None
     pass_: Annotated[
         list[Exemplar] | None,
         Field(alias=&#39;pass&#39;, description=&#39;Scenarios that comply with this policy.&#39;),
-    ] = None
-    fail: Annotated[
-        list[Exemplar] | None, Field(description=&#39;Scenarios that violate this policy.&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -181,63 +181,20 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    policy_id: Annotated[
-        str,
-        Field(
-            description=&#39;Unique identifier for this policy (e.g., &#34;uk_hfss&#34;, &#34;us_coppa&#34;, &#34;alcohol_advertising&#34;).&#39;
-        ),
-    ]
-    version: Annotated[
-        str,
-        Field(
-            description=&#39;Semver version string (e.g., &#34;1.0.0&#34;). Incremented when policy content changes.&#39;
-        ),
-    ]
-    name: Annotated[str, Field(description=&#39;Human-readable name (e.g., &#34;UK HFSS Restrictions&#34;).&#39;)]
-    description: Annotated[
-        str | None, Field(description=&#39;Brief summary of what this policy covers.&#39;)
-    ] = None
     category: Annotated[
         policy_category.PolicyCategory,
         Field(
             description=&#39;The nature of the obligation: regulation (legal requirement) or standard (best practice).&#39;
         ),
     ]
-    enforcement: Annotated[
-        policy_enforcement.PolicyEnforcementLevel,
-        Field(
-            description=&#39;How governance agents treat violations. Regulations are typically &#34;must&#34;; standards are typically &#34;should&#34;.&#39;
-        ),
-    ]
-    jurisdictions: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;ISO 3166-1 alpha-2 country codes where this policy applies. Empty array means the policy is not jurisdiction-specific.&#39;
-        ),
-    ] = None
-    region_aliases: Annotated[
-        dict[str, list[str]] | None,
-        Field(
-            description=&#39;Named groups of jurisdictions for convenience (e.g., {&#34;EU&#34;: [&#34;AT&#34;,&#34;BE&#34;,&#34;BG&#34;,...]}). Governance agents expand aliases when matching against a plan\&#39;s target jurisdictions.&#39;
-        ),
-    ] = None
-    verticals: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Industry verticals this policy applies to (e.g., [&#34;alcohol&#34;, &#34;beverage&#34;]). Used for automatic matching against a brand\&#39;s declared verticals.&#39;
-        ),
-    ] = None
     channels: Annotated[
         list[channels_1.MediaChannel] | None,
         Field(
             description=&#39;Advertising channels this policy applies to. If omitted or null, the policy applies to all channels.&#39;
         ),
     ] = None
-    governance_domains: Annotated[
-        list[governance_domain.GovernanceDomain] | None,
-        Field(
-            description=&#39;Governance sub-domains this policy applies to. Determines which types of governance agents can declare registry:{policy_id} features. For example, a policy with domains [&#34;creative&#34;, &#34;property&#34;] can be declared as a feature by both creative and property governance agents.&#39;
-        ),
+    description: Annotated[
+        str | None, Field(description=&#39;Brief summary of what this policy covers.&#39;)
     ] = None
     effective_date: Annotated[
         date_aliased | None,
@@ -245,14 +202,61 @@ validated to form a valid model.</p>
             description=&#39;ISO 8601 date when the regulation or standard takes effect. Before this date, governance agents treat the policy as informational (evaluate but do not block). After this date, the policy is enforced at its declared enforcement level.&#39;
         ),
     ] = None
-    sunset_date: Annotated[
-        date_aliased | None,
+    enforcement: Annotated[
+        policy_enforcement.PolicyEnforcementLevel,
         Field(
-            description=&#39;ISO 8601 date when the regulation or standard is no longer enforced. After this date, governance agents stop evaluating this policy. Omit if the policy has no expiration.&#39;
+            description=&#39;How governance agents treat violations. Regulations are typically &#34;must&#34;; standards are typically &#34;should&#34;.&#39;
+        ),
+    ]
+    exemplars: Annotated[
+        Exemplars | None,
+        Field(
+            description=&#39;Calibration examples for governance agents, following the Content Standards pattern.&#39;
         ),
     ] = None
-    source_url: Annotated[
-        AnyUrl | None, Field(description=&#39;Link to the source regulation, standard, or legislation.&#39;)
+    ext: ext_1.ExtensionObject | None = None
+    governance_domains: Annotated[
+        list[governance_domain.GovernanceDomain] | None,
+        Field(
+            description=&#39;Governance sub-domains this policy applies to. Determines which types of governance agents can declare registry:{policy_id} features. For example, a policy with domains [&#34;creative&#34;, &#34;property&#34;] can be declared as a feature by both creative and property governance agents.&#39;
+        ),
+    ] = None
+    guidance: Annotated[
+        str | None,
+        Field(
+            description=&#39;Implementation notes for governance agent developers. Not used in evaluation prompts.&#39;
+        ),
+    ] = None
+    jurisdictions: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;ISO 3166-1 alpha-2 country codes where this policy applies. Empty array means the policy is not jurisdiction-specific.&#39;
+        ),
+    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name (e.g., &#34;UK HFSS Restrictions&#34;).&#39;)]
+    policy: Annotated[
+        str,
+        Field(
+            description=&#39;Natural language policy text describing what is required, prohibited, or recommended. Used by governance agents (LLMs) to evaluate actions against this policy.&#39;
+        ),
+    ]
+    policy_categories: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Regulatory categories this policy belongs to (e.g., [&#34;children_directed&#34;, &#34;age_restricted&#34;]). Used for automatic matching against a campaign plan\&#39;s declared policy_categories. A single policy can belong to multiple categories.&#39;
+        ),
+    ] = None
+    policy_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this policy (e.g., &#34;uk_hfss&#34;, &#34;us_coppa&#34;, &#34;alcohol_advertising&#34;).&#39;
+        ),
+    ]
+    region_aliases: Annotated[
+        dict[str, list[str]] | None,
+        Field(
+            description=&#39;Named groups of jurisdictions for convenience (e.g., {&#34;EU&#34;: [&#34;AT&#34;,&#34;BE&#34;,&#34;BG&#34;,...]}). Governance agents expand aliases when matching against a plan\&#39;s target jurisdictions.&#39;
+        ),
     ] = None
     source_name: Annotated[
         str | None,
@@ -260,25 +264,21 @@ validated to form a valid model.</p>
             description=&#39;Name of the issuing body (e.g., &#34;UK Food Standards Agency&#34;, &#34;US Federal Trade Commission&#34;).&#39;
         ),
     ] = None
-    policy: Annotated[
+    source_url: Annotated[
+        AnyUrl | None, Field(description=&#39;Link to the source regulation, standard, or legislation.&#39;)
+    ] = None
+    sunset_date: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#39;ISO 8601 date when the regulation or standard is no longer enforced. After this date, governance agents stop evaluating this policy. Omit if the policy has no expiration.&#39;
+        ),
+    ] = None
+    version: Annotated[
         str,
         Field(
-            description=&#39;Natural language policy text describing what is required, prohibited, or recommended. Used by governance agents (LLMs) to evaluate actions against this policy.&#39;
+            description=&#39;Semver version string (e.g., &#34;1.0.0&#34;). Incremented when policy content changes.&#39;
         ),
-    ]
-    guidance: Annotated[
-        str | None,
-        Field(
-            description=&#39;Implementation notes for governance agent developers. Not used in evaluation prompts.&#39;
-        ),
-    ] = None
-    exemplars: Annotated[
-        Exemplars | None,
-        Field(
-            description=&#39;Calibration examples for governance agents, following the Content Standards pattern.&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -349,6 +349,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_categories"><code class="name">var <span class="ident">policy_categories</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_id"><code class="name">var <span class="ident">policy_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -370,10 +374,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.version"><code class="name">var <span class="ident">version</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.verticals"><code class="name">var <span class="ident">verticals</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -436,13 +436,13 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.model_config" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.name" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy">policy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_categories" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_categories">policy_categories</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_id" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.policy_id">policy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.region_aliases" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.region_aliases">region_aliases</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_name" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_name">source_name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_url" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.source_url">source_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.sunset_date" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.sunset_date">sunset_date</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.version" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.version">version</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry.verticals" href="#adcp.types.generated_poc.governance.policy_entry.PolicyEntry.verticals">verticals</a></code></li>
 </ul>
 </li>
 </ul>

@@ -59,11 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    property_types: Annotated[
-        list[str] | None, Field(description=&#39;Property types this feature applies to&#39;)
-    ] = None
     countries: Annotated[
         list[str] | None, Field(description=&#39;Countries where this feature is available&#39;)
+    ] = None
+    property_types: Annotated[
+        list[str] | None, Field(description=&#39;Property types this feature applies to&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -120,31 +120,22 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    feature_id: Annotated[
-        str,
-        Field(
-            description=&#34;Unique identifier for this feature (e.g., &#39;consent_quality&#39;, &#39;carbon_score&#39;). Features prefixed with &#39;registry:&#39; reference standardized policies from the shared policy registry (e.g., &#39;registry:us_coppa&#39;, &#39;registry:uk_hfss&#39;). Unprefixed feature IDs are agent-defined.&#34;
-        ),
-    ]
-    name: Annotated[str, Field(description=&#39;Human-readable name for the feature&#39;)]
-    description: Annotated[
-        str | None, Field(description=&#39;Description of what this feature measures or represents&#39;)
-    ] = None
-    type: Annotated[
-        Type,
-        Field(
-            description=&#39;The type of values this feature produces: binary (true/false), quantitative (numeric range), categorical (enumerated values)&#39;
-        ),
-    ]
-    range: Annotated[
-        Range | None, Field(description=&#39;For quantitative features, the valid range of values&#39;)
-    ] = None
     allowed_values: Annotated[
         list[str] | None, Field(description=&#39;For categorical features, the set of valid values&#39;)
     ] = None
     coverage: Annotated[
         Coverage | None, Field(description=&#39;What this feature covers (empty arrays = all)&#39;)
     ] = None
+    description: Annotated[
+        str | None, Field(description=&#39;Description of what this feature measures or represents&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    feature_id: Annotated[
+        str,
+        Field(
+            description=&#34;Unique identifier for this feature (e.g., &#39;consent_quality&#39;, &#39;carbon_score&#39;). Features prefixed with &#39;registry:&#39; reference standardized policies from the shared policy registry (e.g., &#39;registry:us_coppa&#39;, &#39;registry:uk_hfss&#39;). Unprefixed feature IDs are agent-defined.&#34;
+        ),
+    ]
     methodology_url: Annotated[
         AnyUrl,
         Field(
@@ -154,7 +145,16 @@ validated to form a valid model.</p>
     methodology_version: Annotated[
         str | None, Field(description=&#39;Version identifier for the methodology (for audit trails)&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    name: Annotated[str, Field(description=&#39;Human-readable name for the feature&#39;)]
+    range: Annotated[
+        Range | None, Field(description=&#39;For quantitative features, the valid range of values&#39;)
+    ] = None
+    type: Annotated[
+        Type,
+        Field(
+            description=&#39;The type of values this feature produces: binary (true/false), quantitative (numeric range), categorical (enumerated values)&#39;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -242,8 +242,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    min: Annotated[float, Field(description=&#39;Minimum value&#39;)]
-    max: Annotated[float, Field(description=&#39;Maximum value&#39;)]</code></pre>
+    max: Annotated[float, Field(description=&#39;Maximum value&#39;)]
+    min: Annotated[float, Field(description=&#39;Minimum value&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

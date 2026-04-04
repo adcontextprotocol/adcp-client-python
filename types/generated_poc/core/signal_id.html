@@ -123,12 +123,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    source: Annotated[
-        Literal[&#39;catalog&#39;],
-        Field(
-            description=&#34;Discriminator indicating this signal is from a data provider&#39;s published catalog&#34;
-        ),
-    ]
     data_provider_domain: Annotated[
         str,
         Field(
@@ -141,6 +135,12 @@ validated to form a valid model.</p>
         Field(
             description=&#34;Signal identifier within the data provider&#39;s catalog (e.g., &#39;likely_tesla_buyers&#39;, &#39;income_100k_plus&#39;)&#34;,
             pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+        ),
+    ]
+    source: Annotated[
+        Literal[&#39;catalog&#39;],
+        Field(
+            description=&#34;Discriminator indicating this signal is from a data provider&#39;s published catalog&#34;
         ),
     ]</code></pre>
 </details>
@@ -202,12 +202,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    source: Annotated[
-        Literal[&#39;agent&#39;],
-        Field(
-            description=&#39;Discriminator indicating this signal is native to the agent (not from a data provider catalog)&#39;
-        ),
-    ]
     agent_url: Annotated[
         AnyUrl,
         Field(
@@ -219,6 +213,12 @@ validated to form a valid model.</p>
         Field(
             description=&#34;Signal identifier within the agent&#39;s signal set (e.g., &#39;custom_auto_intenders&#39;)&#34;,
             pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+        ),
+    ]
+    source: Annotated[
+        Literal[&#39;agent&#39;],
+        Field(
+            description=&#39;Discriminator indicating this signal is native to the agent (not from a data provider catalog)&#39;
         ),
     ]</code></pre>
 </details>

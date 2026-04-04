@@ -46,6 +46,194 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed"><code class="flex name class">
+<span>class <span class="ident">Bleed</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Bleed(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    uniform: Annotated[float, Field(description=&#39;Same bleed on all four sides&#39;, ge=0.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed.uniform"><code class="name">var <span class="ident">uniform</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1"><code class="flex name class">
+<span>class <span class="ident">Bleed1</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Bleed1(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    bottom: Annotated[float, Field(ge=0.0)]
+    left: Annotated[float, Field(ge=0.0)]
+    right: Annotated[float, Field(ge=0.0)]
+    top: Annotated[float, Field(ge=0.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.bottom"><code class="name">var <span class="ident">bottom</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.left"><code class="name">var <span class="ident">left</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.right"><code class="name">var <span class="ident">right</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.top"><code class="name">var <span class="ident">top</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace"><code class="flex name class">
+<span>class <span class="ident">ColorSpace</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ColorSpace(Enum):
+    rgb = &#39;rgb&#39;
+    cmyk = &#39;cmyk&#39;
+    grayscale = &#39;grayscale&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.cmyk"><code class="name">var <span class="ident">cmyk</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.grayscale"><code class="name">var <span class="ident">grayscale</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.rgb"><code class="name">var <span class="ident">rgb</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format"><code class="flex name class">
 <span>class <span class="ident">Format</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -62,7 +250,10 @@ el.replaceWith(d);
     gif = &#39;gif&#39;
     webp = &#39;webp&#39;
     svg = &#39;svg&#39;
-    avif = &#39;avif&#39;</code></pre>
+    avif = &#39;avif&#39;
+    tiff = &#39;tiff&#39;
+    pdf = &#39;pdf&#39;
+    eps = &#39;eps&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -109,6 +300,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.eps"><code class="name">var <span class="ident">eps</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.gif"><code class="name">var <span class="ident">gif</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -121,11 +316,19 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.pdf"><code class="name">var <span class="ident">pdf</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.png"><code class="name">var <span class="ident">png</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.svg"><code class="name">var <span class="ident">svg</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.tiff"><code class="name">var <span class="ident">tiff</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -148,33 +351,8 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    min_width: Annotated[
-        int | None,
-        Field(
-            description=&#39;Minimum width in pixels. For exact dimensions, set min_width = max_width.&#39;,
-            ge=1,
-        ),
-    ] = None
-    max_width: Annotated[
-        int | None,
-        Field(
-            description=&#39;Maximum width in pixels. For exact dimensions, set min_width = max_width.&#39;,
-            ge=1,
-        ),
-    ] = None
-    min_height: Annotated[
-        int | None,
-        Field(
-            description=&#39;Minimum height in pixels. For exact dimensions, set min_height = max_height.&#39;,
-            ge=1,
-        ),
-    ] = None
-    max_height: Annotated[
-        int | None,
-        Field(
-            description=&#39;Maximum height in pixels. For exact dimensions, set min_height = max_height.&#39;,
-            ge=1,
-        ),
+    animation_allowed: Annotated[
+        bool | None, Field(description=&#39;Whether animated images (GIF, animated WebP) are accepted&#39;)
     ] = None
     aspect_ratio: Annotated[
         str | None,
@@ -183,9 +361,67 @@ attributes &ndash; see the documentation for details.</p></div>
             pattern=&#39;^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$&#39;,
         ),
     ] = None
+    bleed: Annotated[
+        Bleed | Bleed1 | None,
+        Field(
+            description=&#39;Required bleed area beyond the trim size. The submitted image must be larger than the declared dimensions: total width = trim width + left bleed + right bleed, total height = trim height + top bleed + bottom bleed. For uniform bleed: total = trim + (2 * uniform). Uses the same unit as the parent dimensions.&#39;
+        ),
+    ] = None
+    color_space: Annotated[
+        ColorSpace | None, Field(description=&#39;Required color space. Print typically requires CMYK.&#39;)
+    ] = None
     formats: Annotated[list[Format] | None, Field(description=&#39;Accepted image file formats&#39;)] = None
+    max_animation_duration_ms: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum animation duration in milliseconds (if animation_allowed is true)&#39;,
+            ge=0,
+        ),
+    ] = None
     max_file_size_kb: Annotated[
         int | None, Field(description=&#39;Maximum file size in kilobytes&#39;, ge=1)
+    ] = None
+    max_height: Annotated[
+        float | None,
+        Field(
+            description=&#39;Maximum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height.&#39;,
+            gt=0.0,
+        ),
+    ] = None
+    max_weight_grams: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum weight in grams for the finished physical piece (print inserts, flyers). Affects postage calculations and production constraints. Only applicable to print channels.&#39;,
+            gt=0,
+        ),
+    ] = None
+    max_width: Annotated[
+        float | None,
+        Field(
+            description=&#39;Maximum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width.&#39;,
+            gt=0.0,
+        ),
+    ] = None
+    min_dpi: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum resolution in dots per inch. Always in DPI regardless of the dimension unit. Standard print requires 300 DPI, newspaper 150 DPI.&#39;,
+            ge=1,
+        ),
+    ] = None
+    min_height: Annotated[
+        float | None,
+        Field(
+            description=&#39;Minimum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height.&#39;,
+            gt=0.0,
+        ),
+    ] = None
+    min_width: Annotated[
+        float | None,
+        Field(
+            description=&#39;Minimum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width.&#39;,
+            gt=0.0,
+        ),
     ] = None
     transparency_required: Annotated[
         bool | None,
@@ -193,14 +429,10 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Whether the image must support transparency (requires PNG, WebP, or GIF)&#39;
         ),
     ] = None
-    animation_allowed: Annotated[
-        bool | None, Field(description=&#39;Whether animated images (GIF, animated WebP) are accepted&#39;)
-    ] = None
-    max_animation_duration_ms: Annotated[
-        int | None,
+    unit: Annotated[
+        dimension_unit.DimensionUnit | None,
         Field(
-            description=&#39;Maximum animation duration in milliseconds (if animation_allowed is true)&#39;,
-            ge=0,
+            description=&#34;Unit of measurement for width/height values. Defaults to &#39;px&#39; when absent. Print formats use &#39;inches&#39; or &#39;cm&#39;.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -229,6 +461,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.bleed"><code class="name">var <span class="ident">bleed</span> : <a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed">Bleed</a> | <a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1">Bleed1</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.color_space"><code class="name">var <span class="ident">color_space</span> : <a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace">ColorSpace</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.formats"><code class="name">var <span class="ident">formats</span> : list[<a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format">Format</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -241,19 +481,27 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_height"><code class="name">var <span class="ident">max_height</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_height"><code class="name">var <span class="ident">max_height</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_width"><code class="name">var <span class="ident">max_width</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_weight_grams"><code class="name">var <span class="ident">max_weight_grams</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_height"><code class="name">var <span class="ident">min_height</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_width"><code class="name">var <span class="ident">max_width</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_width"><code class="name">var <span class="ident">min_width</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_dpi"><code class="name">var <span class="ident">min_dpi</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_height"><code class="name">var <span class="ident">min_height</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_width"><code class="name">var <span class="ident">min_width</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -262,6 +510,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.transparency_required"><code class="name">var <span class="ident">transparency_required</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.enums.dimension_unit.DimensionUnit" href="../../enums/dimension_unit.html#adcp.types.generated_poc.enums.dimension_unit.DimensionUnit">DimensionUnit</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -293,14 +545,42 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed">Bleed</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed.model_config" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed.uniform" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed.uniform">uniform</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1">Bleed1</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.bottom" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.bottom">bottom</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.left" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.left">left</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.model_config" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.right" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.right">right</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.top" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Bleed1.top">top</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace">ColorSpace</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.cmyk" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.cmyk">cmyk</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.grayscale" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.grayscale">grayscale</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.rgb" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ColorSpace.rgb">rgb</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format">Format</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.avif" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.avif">avif</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.eps" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.eps">eps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.gif" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.gif">gif</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.jpeg" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.jpeg">jpeg</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.jpg" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.jpg">jpg</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.pdf" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.pdf">pdf</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.png" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.png">png</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.svg" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.svg">svg</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.tiff" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.tiff">tiff</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.webp" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.Format.webp">webp</a></code></li>
 </ul>
 </li>
@@ -309,15 +589,20 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.animation_allowed" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.animation_allowed">animation_allowed</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.aspect_ratio" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.aspect_ratio">aspect_ratio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.bleed" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.bleed">bleed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.color_space" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.color_space">color_space</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.formats" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.formats">formats</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_animation_duration_ms" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_animation_duration_ms">max_animation_duration_ms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_file_size_kb" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_file_size_kb">max_file_size_kb</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_height" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_height">max_height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_weight_grams" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_weight_grams">max_weight_grams</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_width" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.max_width">max_width</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_dpi" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_dpi">min_dpi</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_height" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_height">min_height</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_width" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.min_width">min_width</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.model_config" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.transparency_required" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.transparency_required">transparency_required</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.unit" href="#adcp.types.generated_poc.core.requirements.image_asset_requirements.ImageAssetRequirements.unit">unit</a></code></li>
 </ul>
 </li>
 </ul>

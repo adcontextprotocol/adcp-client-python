@@ -59,13 +59,13 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    street: Annotated[str | None, Field(description=&#39;Street address.&#39;)] = None
     city: Annotated[str | None, Field(description=&#39;City name.&#39;)] = None
-    region: Annotated[str | None, Field(description=&#39;State, province, or region.&#39;)] = None
-    postal_code: Annotated[str | None, Field(description=&#39;Postal or ZIP code.&#39;)] = None
     country: Annotated[
         str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code.&#39;, pattern=&#39;^[A-Z]{2}$&#39;)
-    ] = None</code></pre>
+    ] = None
+    postal_code: Annotated[str | None, Field(description=&#39;Postal or ZIP code.&#39;)] = None
+    region: Annotated[str | None, Field(description=&#39;State, province, or region.&#39;)] = None
+    street: Annotated[str | None, Field(description=&#39;Street address.&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -133,37 +133,20 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    hotel_id: Annotated[
-        str,
-        Field(
-            description=&#39;Unique identifier for this property. Used to match remarketing events and inventory feeds to the correct hotel.&#39;
-        ),
-    ]
-    name: Annotated[
-        str,
-        Field(description=&#34;Property name (e.g., &#39;Grand Hotel Amsterdam&#39;, &#39;Seaside Resort &amp; Spa&#39;).&#34;),
-    ]
-    description: Annotated[
-        str | None, Field(description=&#39;Property description highlighting features and location.&#39;)
-    ] = None
-    location: Annotated[Location, Field(description=&#39;Geographic coordinates of the property.&#39;)]
     address: Annotated[
         Address | None, Field(description=&#39;Structured address for display and geocoding.&#39;)
     ] = None
-    star_rating: Annotated[
-        int | None, Field(description=&#39;Official star rating (1–5).&#39;, ge=1, le=5)
-    ] = None
-    price: Annotated[
-        price_1.Price | None,
-        Field(description=&#34;Nightly rate or starting price. Use period &#39;night&#39; for nightly rates.&#34;),
-    ] = None
-    image_url: Annotated[AnyUrl | None, Field(description=&#39;Primary property image URL.&#39;)] = None
-    url: Annotated[AnyUrl | None, Field(description=&#39;Property landing page or booking URL.&#39;)] = None
-    phone: Annotated[str | None, Field(description=&#39;Property phone number in E.164 format.&#39;)] = None
     amenities: Annotated[
         list[str] | None,
         Field(
             description=&#34;Property amenities (e.g., &#39;pool&#39;, &#39;wifi&#39;, &#39;spa&#39;, &#39;parking&#39;, &#39;restaurant&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this hotel. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (16:9 hero images), &#39;images_vertical&#39; (9:16 for Snap, Stories), &#39;images_square&#39; (1:1), &#39;logo&#39;. Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
             min_length=1,
         ),
     ] = None
@@ -181,6 +164,30 @@ validated to form a valid model.</p>
             pattern=&#39;^[0-2][0-9]:[0-5][0-9]$&#39;,
         ),
     ] = None
+    description: Annotated[
+        str | None, Field(description=&#39;Property description highlighting features and location.&#39;)
+    ] = None
+    ext: ext_1.ExtensionObject | None = None
+    hotel_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique identifier for this property. Used to match remarketing events and inventory feeds to the correct hotel.&#39;
+        ),
+    ]
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Primary property image URL.&#39;)] = None
+    location: Annotated[Location, Field(description=&#39;Geographic coordinates of the property.&#39;)]
+    name: Annotated[
+        str,
+        Field(description=&#34;Property name (e.g., &#39;Grand Hotel Amsterdam&#39;, &#39;Seaside Resort &amp; Spa&#39;).&#34;),
+    ]
+    phone: Annotated[str | None, Field(description=&#39;Property phone number in E.164 format.&#39;)] = None
+    price: Annotated[
+        price_1.Price | None,
+        Field(description=&#34;Nightly rate or starting price. Use period &#39;night&#39; for nightly rates.&#34;),
+    ] = None
+    star_rating: Annotated[
+        int | None, Field(description=&#39;Official star rating (1–5).&#39;, ge=1, le=5)
+    ] = None
     tags: Annotated[
         list[str] | None,
         Field(
@@ -188,6 +195,7 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    url: Annotated[AnyUrl | None, Field(description=&#39;Property landing page or booking URL.&#39;)] = None
     valid_from: Annotated[
         date_aliased | None,
         Field(
@@ -199,15 +207,7 @@ validated to form a valid model.</p>
         Field(
             description=&#34;Date until which this item is available or this rate applies (ISO 8601, e.g., &#39;2025-09-30&#39;). Used for seasonal availability windows in feed imports.&#34;
         ),
-    ] = None
-    assets: Annotated[
-        list[offering_asset_group.OfferingAssetGroup] | None,
-        Field(
-            description=&#34;Typed creative asset pools for this hotel. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (16:9 hero images), &#39;images_vertical&#39; (9:16 for Snap, Stories), &#39;images_square&#39; (1:1), &#39;logo&#39;. Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
-            min_length=1,
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

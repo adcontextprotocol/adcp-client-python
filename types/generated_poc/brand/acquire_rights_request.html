@@ -59,19 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    rights_id: Annotated[
-        str, Field(description=&#39;Rights offering identifier from get_rights response&#39;)
-    ]
-    pricing_option_id: Annotated[
-        str, Field(description=&#39;Selected pricing option from the rights offering&#39;)
-    ]
     buyer: Annotated[brand_ref.BrandReference, Field(description=&#34;The buyer&#39;s brand identity&#34;)]
     campaign: Annotated[Campaign, Field(description=&#39;Campaign details for rights clearance&#39;)]
-    revocation_webhook: Annotated[
-        push_notification_config_1.PushNotificationConfig,
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None
+    idempotency_key: Annotated[
+        str | None,
         Field(
-            description=&#39;Webhook for rights revocation notifications. If the rights holder needs to revoke rights (talent scandal, contract violation, etc.), they POST a revocation-notification to this URL. The buyer is responsible for stopping creative delivery upon receipt.&#39;
+            description=&#39;Client-generated key for safe retries. Resubmitting with the same key returns the original response rather than creating a duplicate acquisition. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
         ),
+    ] = None
+    pricing_option_id: Annotated[
+        str, Field(description=&#39;Selected pricing option from the rights offering&#39;)
     ]
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
@@ -79,16 +80,15 @@ el.replaceWith(d);
             description=&#39;Webhook for async status updates if the acquisition requires approval. The rights agent sends a webhook notification when the status transitions to acquired or rejected.&#39;
         ),
     ] = None
-    idempotency_key: Annotated[
-        str | None,
+    revocation_webhook: Annotated[
+        push_notification_config_1.PushNotificationConfig,
         Field(
-            description=&#39;Client-generated key for safe retries. Resubmitting with the same key returns the original response rather than creating a duplicate acquisition.&#39;,
-            max_length=255,
-            min_length=8,
+            description=&#39;Webhook for rights revocation notifications. If the rights holder needs to revoke rights (talent scandal, contract violation, etc.), they POST a revocation-notification to this URL. The buyer is responsible for stopping creative delivery upon receipt.&#39;
         ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None</code></pre>
+    ]
+    rights_id: Annotated[
+        str, Field(description=&#39;Rights offering identifier from get_rights response&#39;)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -172,27 +172,27 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    description: Annotated[str, Field(description=&#39;Description of how the rights will be used&#39;)]
-    uses: Annotated[
-        list[right_use.RightUse],
-        Field(description=&#39;Specific rights uses for this campaign&#39;, min_length=1),
-    ]
     countries: Annotated[
         list[Country] | None,
         Field(description=&#39;Countries where the campaign will run (ISO 3166-1 alpha-2)&#39;),
     ] = None
-    format_ids: Annotated[
-        list[format_id.FormatId] | None, Field(description=&#39;Creative formats that will be produced&#39;)
-    ] = None
+    description: Annotated[str, Field(description=&#39;Description of how the rights will be used&#39;)]
+    end_date: Annotated[date_aliased | None, Field(description=&#39;Campaign end date (ISO 8601)&#39;)] = (
+        None
+    )
     estimated_impressions: Annotated[
         int | None, Field(description=&#39;Estimated total impressions for the campaign&#39;, ge=0)
+    ] = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None, Field(description=&#39;Creative formats that will be produced&#39;)
     ] = None
     start_date: Annotated[
         date_aliased | None, Field(description=&#39;Campaign start date (ISO 8601)&#39;)
     ] = None
-    end_date: Annotated[date_aliased | None, Field(description=&#39;Campaign end date (ISO 8601)&#39;)] = (
-        None
-    )</code></pre>
+    uses: Annotated[
+        list[right_use.RightUse],
+        Field(description=&#39;Specific rights uses for this campaign&#39;, min_length=1),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
