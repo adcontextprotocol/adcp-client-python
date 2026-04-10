@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.server.responses API documentation</title>
+<meta name="description" content="Response builder helpers for ADCP servers …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.server.responses</code></h1>
+</header>
+<section id="section-intro">
+<p>Response builder helpers for ADCP servers.</p>
+<p>These functions produce correctly-shaped AdCP response dicts that match
+the generated Pydantic response schemas. They reduce boilerplate and
+ensure schema compliance.</p>
+<p>Every builder here matches the field names in the corresponding
+generated response type (e.g., SyncAccountsResponse uses "accounts",
+SyncCreativesResponse uses "creatives").</p>
+<h2 id="usage">Usage</h2>
+<p>from adcp.server.responses import capabilities_response, products_response</p>
+<p>@mcp.tool()
+async def get_adcp_capabilities():
+return capabilities_response(["media_buy"])</p>
+<p>@mcp.tool()
+async def get_products():
+return products_response(MY_PRODUCTS)</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.server.responses.activate_signal_response"><code class="name flex">
+<span>def <span class="ident">activate_signal_response</span></span>(<span>deployments: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def activate_signal_response(
+    deployments: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build an activate_signal success response.
+
+    Each deployment should include: type, is_live, activation_key.
+    For platform: platform, account.
+    For agent: agent_url.
+    Matches ActivateSignalResponse1 (success) schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;deployments&#34;: deployments,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build an activate_signal success response.</p>
+<p>Each deployment should include: type, is_live, activation_key.
+For platform: platform, account.
+For agent: agent_url.
+Matches ActivateSignalResponse1 (success) schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.build_creative_response"><code class="name flex">
+<span>def <span class="ident">build_creative_response</span></span>(<span>creative_manifest: dict[str, Any] | list[dict[str, Any]],<br>*,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_creative_response(
+    creative_manifest: dict[str, Any] | list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a build_creative success response.
+
+    Accepts either a single manifest dict or a list of manifests.
+    Each manifest should include: format_id, name, assets.
+
+    Single manifest matches BuildCreativeResponse1.
+    List matches BuildCreativeResponse2 (multi-format).
+    &#34;&#34;&#34;
+    if isinstance(creative_manifest, list):
+        return {
+            &#34;creative_manifests&#34;: creative_manifest,
+            &#34;sandbox&#34;: sandbox,
+        }
+    return {
+        &#34;creative_manifest&#34;: creative_manifest,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a build_creative success response.</p>
+<p>Accepts either a single manifest dict or a list of manifests.
+Each manifest should include: format_id, name, assets.</p>
+<p>Single manifest matches BuildCreativeResponse1.
+List matches BuildCreativeResponse2 (multi-format).</p></div>
+</dd>
+<dt id="adcp.server.responses.capabilities_response"><code class="name flex">
+<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def capabilities_response(
+    supported_protocols: list[str],
+    *,
+    major_versions: list[int] | None = None,
+    sandbox: bool = True,
+    features: dict[str, Any] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_adcp_capabilities response.
+
+    Args:
+        supported_protocols: e.g. [&#34;media_buy&#34;], [&#34;media_buy&#34;, &#34;signals&#34;],
+            [&#34;media_buy&#34;, &#34;compliance_testing&#34;].
+        major_versions: AdCP major versions. Defaults to [3].
+        sandbox: Whether this is a sandbox agent. Defaults to True.
+        features: Additional feature flags.
+    &#34;&#34;&#34;
+    resp: dict[str, Any] = {
+        &#34;adcp&#34;: {&#34;major_versions&#34;: major_versions or [3]},
+        &#34;supported_protocols&#34;: supported_protocols,
+        &#34;sandbox&#34;: sandbox,
+    }
+    if features:
+        resp[&#34;features&#34;] = features
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build a get_adcp_capabilities response.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>supported_protocols</code></strong></dt>
+<dd>e.g. ["media_buy"], ["media_buy", "signals"],
+["media_buy", "compliance_testing"].</dd>
+<dt><strong><code>major_versions</code></strong></dt>
+<dd>AdCP major versions. Defaults to [3].</dd>
+<dt><strong><code>sandbox</code></strong></dt>
+<dd>Whether this is a sandbox agent. Defaults to True.</dd>
+<dt><strong><code>features</code></strong></dt>
+<dd>Additional feature flags.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.responses.creative_formats_response"><code class="name flex">
+<span>def <span class="ident">creative_formats_response</span></span>(<span>formats: list[Any], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def creative_formats_response(
+    formats: list[Any],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a list_creative_formats response.
+
+    Each format should include: format_id ({agent_url, id}), name.
+    Matches ListCreativeFormatsResponse schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;formats&#34;: _serialize(formats),
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a list_creative_formats response.</p>
+<p>Each format should include: format_id ({agent_url, id}), name.
+Matches ListCreativeFormatsResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.delivery_response"><code class="name flex">
+<span>def <span class="ident">delivery_response</span></span>(<span>media_buy_deliveries: list[dict[str, Any]],<br>*,<br>reporting_period: dict[str, str] | None = None,<br>currency: str = 'USD',<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delivery_response(
+    media_buy_deliveries: list[dict[str, Any]],
+    *,
+    reporting_period: dict[str, str] | None = None,
+    currency: str = &#34;USD&#34;,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_media_buy_delivery response.
+
+    Each media_buy_delivery should include:
+        media_buy_id, status, totals (impressions, spend, etc.), by_package.
+
+    Matches GetMediaBuyDeliveryResponse schema.
+
+    Args:
+        media_buy_deliveries: Array of delivery data per media buy.
+        reporting_period: {&#34;start&#34;: ISO timestamp, &#34;end&#34;: ISO timestamp}.
+            Defaults to current timestamp for both.
+        currency: ISO 4217 currency code.
+        sandbox: Whether this is simulated data.
+    &#34;&#34;&#34;
+    now = datetime.now(timezone.utc).isoformat()
+    return {
+        &#34;reporting_period&#34;: reporting_period or {&#34;start&#34;: now, &#34;end&#34;: now},
+        &#34;media_buy_deliveries&#34;: media_buy_deliveries,
+        &#34;currency&#34;: currency,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a get_media_buy_delivery response.</p>
+<p>Each media_buy_delivery should include:
+media_buy_id, status, totals (impressions, spend, etc.), by_package.</p>
+<p>Matches GetMediaBuyDeliveryResponse schema.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>media_buy_deliveries</code></strong></dt>
+<dd>Array of delivery data per media buy.</dd>
+<dt><strong><code>reporting_period</code></strong></dt>
+<dd>{"start": ISO timestamp, "end": ISO timestamp}.
+Defaults to current timestamp for both.</dd>
+<dt><strong><code>currency</code></strong></dt>
+<dd>ISO 4217 currency code.</dd>
+<dt><strong><code>sandbox</code></strong></dt>
+<dd>Whether this is simulated data.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.responses.error_response"><code class="name flex">
+<span>def <span class="ident">error_response</span></span>(<span>code: str, message: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def error_response(code: str, message: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a standard AdCP error dict.
+
+    Args:
+        code: Error code (e.g., &#34;INVALID_PRODUCT&#34;, &#34;NOT_FOUND&#34;).
+        message: Human-readable error message.
+    &#34;&#34;&#34;
+    return {&#34;code&#34;: code, &#34;message&#34;: message}</code></pre>
+</details>
+<div class="desc"><p>Build a standard AdCP error dict.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>code</code></strong></dt>
+<dd>Error code (e.g., "INVALID_PRODUCT", "NOT_FOUND").</dd>
+<dt><strong><code>message</code></strong></dt>
+<dd>Human-readable error message.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.responses.list_creatives_response"><code class="name flex">
+<span>def <span class="ident">list_creatives_response</span></span>(<span>creatives: list[Any],<br>*,<br>pagination: dict[str, Any] | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def list_creatives_response(
+    creatives: list[Any],
+    *,
+    pagination: dict[str, Any] | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a list_creatives response.
+
+    Each creative should include: creative_id, name, format_id, status.
+    Matches ListCreativesResponse schema.
+    &#34;&#34;&#34;
+    count = len(creatives)
+    return {
+        &#34;creatives&#34;: _serialize(creatives),
+        &#34;pagination&#34;: pagination or {&#34;total&#34;: count, &#34;has_more&#34;: False},
+        &#34;query_summary&#34;: {&#34;total_results&#34;: count, &#34;total_matching&#34;: count, &#34;returned&#34;: count},
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a list_creatives response.</p>
+<p>Each creative should include: creative_id, name, format_id, status.
+Matches ListCreativesResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.log_event_response"><code class="name flex">
+<span>def <span class="ident">log_event_response</span></span>(<span>events_received: int, events_processed: int, *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def log_event_response(
+    events_received: int,
+    events_processed: int,
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a log_event success response.
+
+    Matches LogEventResponse1 (success) schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;events_received&#34;: events_received,
+        &#34;events_processed&#34;: events_processed,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a log_event success response.</p>
+<p>Matches LogEventResponse1 (success) schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.media_buy_error_response"><code class="name flex">
+<span>def <span class="ident">media_buy_error_response</span></span>(<span>errors: list[dict[str, str]]) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def media_buy_error_response(errors: list[dict[str, str]]) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a create_media_buy error response.
+
+    Each error dict: {&#34;code&#34;: &#34;...&#34;, &#34;message&#34;: &#34;...&#34;}.
+    Matches CreateMediaBuyResponse2 (error) schema.
+    &#34;&#34;&#34;
+    return {&#34;errors&#34;: errors}</code></pre>
+</details>
+<div class="desc"><p>Build a create_media_buy error response.</p>
+<p>Each error dict: {"code": "&hellip;", "message": "&hellip;"}.
+Matches CreateMediaBuyResponse2 (error) schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.media_buy_response"><code class="name flex">
+<span>def <span class="ident">media_buy_response</span></span>(<span>media_buy_id: str,<br>packages: list[Any],<br>*,<br>buyer_ref: str | None = None,<br>status: str | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def media_buy_response(
+    media_buy_id: str,
+    packages: list[Any],
+    *,
+    buyer_ref: str | None = None,
+    status: str | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a create_media_buy success response.
+
+    Each package should include: package_id, product_id, pricing_option_id, budget.
+    Matches CreateMediaBuyResponse1 (success) schema.
+    &#34;&#34;&#34;
+    resp: dict[str, Any] = {
+        &#34;media_buy_id&#34;: media_buy_id,
+        &#34;packages&#34;: _serialize(packages),
+        &#34;sandbox&#34;: sandbox,
+    }
+    if buyer_ref is not None:
+        resp[&#34;buyer_ref&#34;] = buyer_ref
+    if status is not None:
+        resp[&#34;status&#34;] = status
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build a create_media_buy success response.</p>
+<p>Each package should include: package_id, product_id, pricing_option_id, budget.
+Matches CreateMediaBuyResponse1 (success) schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.media_buys_response"><code class="name flex">
+<span>def <span class="ident">media_buys_response</span></span>(<span>media_buys: list[Any], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def media_buys_response(
+    media_buys: list[Any],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_media_buys response.
+
+    Each media buy should include: media_buy_id, status, currency, packages.
+    Matches GetMediaBuysResponse schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;media_buys&#34;: _serialize(media_buys),
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a get_media_buys response.</p>
+<p>Each media buy should include: media_buy_id, status, currency, packages.
+Matches GetMediaBuysResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.preview_creative_response"><code class="name flex">
+<span>def <span class="ident">preview_creative_response</span></span>(<span>previews: list[dict[str, Any]],<br>*,<br>expires_at: str | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def preview_creative_response(
+    previews: list[dict[str, Any]],
+    *,
+    expires_at: str | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a preview_creative single response.
+
+    Each preview should include:
+        preview_id, input ({format_id, name, assets}),
+        renders ([{render_id, output_format, preview_url, role, dimensions}]).
+
+    Matches PreviewCreativeResponse1 (single) schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;response_type&#34;: &#34;single&#34;,
+        &#34;previews&#34;: previews,
+        &#34;expires_at&#34;: expires_at or &#34;2099-12-31T23:59:59Z&#34;,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a preview_creative single response.</p>
+<p>Each preview should include:
+preview_id, input ({format_id, name, assets}),
+renders ([{render_id, output_format, preview_url, role, dimensions}]).</p>
+<p>Matches PreviewCreativeResponse1 (single) schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.products_response"><code class="name flex">
+<span>def <span class="ident">products_response</span></span>(<span>products: list[Any], *, item_count: int | None = None, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def products_response(
+    products: list[Any],
+    *,
+    item_count: int | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_products response.
+
+    Matches GetProductsResponse schema.
+    &#34;&#34;&#34;
+    serialized = _serialize(products)
+    resp: dict[str, Any] = {
+        &#34;products&#34;: serialized,
+        &#34;item_count&#34;: item_count if item_count is not None else len(serialized),
+        &#34;sandbox&#34;: sandbox,
+    }
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build a get_products response.</p>
+<p>Matches GetProductsResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.signals_response"><code class="name flex">
+<span>def <span class="ident">signals_response</span></span>(<span>signals: list[Any], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def signals_response(
+    signals: list[Any],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_signals response.
+
+    Each signal should include: signal_agent_segment_id, name, description,
+    signal_type, data_provider, coverage_percentage, deployments, pricing_options, signal_id.
+    Matches GetSignalsResponse schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;signals&#34;: _serialize(signals),
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a get_signals response.</p>
+<p>Each signal should include: signal_agent_segment_id, name, description,
+signal_type, data_provider, coverage_percentage, deployments, pricing_options, signal_id.
+Matches GetSignalsResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.sync_accounts_response"><code class="name flex">
+<span>def <span class="ident">sync_accounts_response</span></span>(<span>accounts: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sync_accounts_response(
+    accounts: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a sync_accounts success response.
+
+    Each account dict should include: account_id, brand, operator,
+    action (&#34;created&#34;|&#34;updated&#34;), status (&#34;active&#34;|&#34;pending_approval&#34;).
+
+    Matches SyncAccountsResponse1 schema (field: &#34;accounts&#34;).
+    &#34;&#34;&#34;
+    return {&#34;accounts&#34;: accounts, &#34;sandbox&#34;: sandbox}</code></pre>
+</details>
+<div class="desc"><p>Build a sync_accounts success response.</p>
+<p>Each account dict should include: account_id, brand, operator,
+action ("created"|"updated"), status ("active"|"pending_approval").</p>
+<p>Matches SyncAccountsResponse1 schema (field: "accounts").</p></div>
+</dd>
+<dt id="adcp.server.responses.sync_catalogs_response"><code class="name flex">
+<span>def <span class="ident">sync_catalogs_response</span></span>(<span>catalogs: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sync_catalogs_response(
+    catalogs: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a sync_catalogs success response.
+
+    Each catalog should include: catalog_id, action, item_count, items_approved.
+    Matches SyncCatalogsResponse1 (success) schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;catalogs&#34;: catalogs,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a sync_catalogs success response.</p>
+<p>Each catalog should include: catalog_id, action, item_count, items_approved.
+Matches SyncCatalogsResponse1 (success) schema.</p></div>
+</dd>
+<dt id="adcp.server.responses.sync_creatives_response"><code class="name flex">
+<span>def <span class="ident">sync_creatives_response</span></span>(<span>creatives: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sync_creatives_response(
+    creatives: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a sync_creatives success response.
+
+    Each creative dict should include: creative_id, action (&#34;created&#34;|&#34;updated&#34;).
+    Optionally: status (&#34;accepted&#34;|&#34;pending_review&#34;|&#34;rejected&#34;).
+    Matches SyncCreativesResponse1 schema (field: &#34;creatives&#34;).
+    &#34;&#34;&#34;
+    return {&#34;creatives&#34;: creatives, &#34;sandbox&#34;: sandbox}</code></pre>
+</details>
+<div class="desc"><p>Build a sync_creatives success response.</p>
+<p>Each creative dict should include: creative_id, action ("created"|"updated").
+Optionally: status ("accepted"|"pending_review"|"rejected").
+Matches SyncCreativesResponse1 schema (field: "creatives").</p></div>
+</dd>
+<dt id="adcp.server.responses.sync_governance_response"><code class="name flex">
+<span>def <span class="ident">sync_governance_response</span></span>(<span>accounts: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sync_governance_response(
+    accounts: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a sync_governance response.
+
+    Each account dict should include: account, status (&#34;synced&#34;),
+    governance_agents ([{url, categories}]).
+    &#34;&#34;&#34;
+    return {&#34;accounts&#34;: accounts, &#34;sandbox&#34;: sandbox}</code></pre>
+</details>
+<div class="desc"><p>Build a sync_governance response.</p>
+<p>Each account dict should include: account, status ("synced"),
+governance_agents ([{url, categories}]).</p></div>
+</dd>
+<dt id="adcp.server.responses.update_media_buy_response"><code class="name flex">
+<span>def <span class="ident">update_media_buy_response</span></span>(<span>media_buy_id: str,<br>*,<br>affected_packages: list[Any] | None = None,<br>status: str | None = None,<br>revision: int | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_media_buy_response(
+    media_buy_id: str,
+    *,
+    affected_packages: list[Any] | None = None,
+    status: str | None = None,
+    revision: int | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build an update_media_buy success response.
+
+    Matches UpdateMediaBuyResponse1 (success) schema.
+    &#34;&#34;&#34;
+    resp: dict[str, Any] = {
+        &#34;media_buy_id&#34;: media_buy_id,
+        &#34;sandbox&#34;: sandbox,
+    }
+    if affected_packages is not None:
+        resp[&#34;affected_packages&#34;] = _serialize(affected_packages)
+    if status is not None:
+        resp[&#34;status&#34;] = status
+    if revision is not None:
+        resp[&#34;revision&#34;] = revision
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build an update_media_buy success response.</p>
+<p>Matches UpdateMediaBuyResponse1 (success) schema.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.server" href="index.html">adcp.server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.server.responses.activate_signal_response" href="#adcp.server.responses.activate_signal_response">activate_signal_response</a></code></li>
+<li><code><a title="adcp.server.responses.build_creative_response" href="#adcp.server.responses.build_creative_response">build_creative_response</a></code></li>
+<li><code><a title="adcp.server.responses.capabilities_response" href="#adcp.server.responses.capabilities_response">capabilities_response</a></code></li>
+<li><code><a title="adcp.server.responses.creative_formats_response" href="#adcp.server.responses.creative_formats_response">creative_formats_response</a></code></li>
+<li><code><a title="adcp.server.responses.delivery_response" href="#adcp.server.responses.delivery_response">delivery_response</a></code></li>
+<li><code><a title="adcp.server.responses.error_response" href="#adcp.server.responses.error_response">error_response</a></code></li>
+<li><code><a title="adcp.server.responses.list_creatives_response" href="#adcp.server.responses.list_creatives_response">list_creatives_response</a></code></li>
+<li><code><a title="adcp.server.responses.log_event_response" href="#adcp.server.responses.log_event_response">log_event_response</a></code></li>
+<li><code><a title="adcp.server.responses.media_buy_error_response" href="#adcp.server.responses.media_buy_error_response">media_buy_error_response</a></code></li>
+<li><code><a title="adcp.server.responses.media_buy_response" href="#adcp.server.responses.media_buy_response">media_buy_response</a></code></li>
+<li><code><a title="adcp.server.responses.media_buys_response" href="#adcp.server.responses.media_buys_response">media_buys_response</a></code></li>
+<li><code><a title="adcp.server.responses.preview_creative_response" href="#adcp.server.responses.preview_creative_response">preview_creative_response</a></code></li>
+<li><code><a title="adcp.server.responses.products_response" href="#adcp.server.responses.products_response">products_response</a></code></li>
+<li><code><a title="adcp.server.responses.signals_response" href="#adcp.server.responses.signals_response">signals_response</a></code></li>
+<li><code><a title="adcp.server.responses.sync_accounts_response" href="#adcp.server.responses.sync_accounts_response">sync_accounts_response</a></code></li>
+<li><code><a title="adcp.server.responses.sync_catalogs_response" href="#adcp.server.responses.sync_catalogs_response">sync_catalogs_response</a></code></li>
+<li><code><a title="adcp.server.responses.sync_creatives_response" href="#adcp.server.responses.sync_creatives_response">sync_creatives_response</a></code></li>
+<li><code><a title="adcp.server.responses.sync_governance_response" href="#adcp.server.responses.sync_governance_response">sync_governance_response</a></code></li>
+<li><code><a title="adcp.server.responses.update_media_buy_response" href="#adcp.server.responses.update_media_buy_response">update_media_buy_response</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

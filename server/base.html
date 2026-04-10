@@ -329,6 +329,15 @@ el.replaceWith(d);
         &#34;&#34;&#34;
         return self._not_supported(&#34;sync_audiences&#34;)
 
+    async def sync_governance(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Sync governance agents for accounts.
+
+        Override this to handle governance agent registration.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;sync_governance&#34;)
+
     async def sync_catalogs(
         self, params: dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
@@ -1535,6 +1544,26 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Sync event sources.</p>
 <p>Override this to provide functionality.</p></div>
 </dd>
+<dt id="adcp.server.base.ADCPHandler.sync_governance"><code class="name flex">
+<span>async def <span class="ident">sync_governance</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_governance(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Sync governance agents for accounts.
+
+    Override this to handle governance agent registration.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;sync_governance&#34;)</code></pre>
+</details>
+<div class="desc"><p>Sync governance agents for accounts.</p>
+<p>Override this to handle governance agent registration.</p></div>
+</dd>
 <dt id="adcp.server.base.ADCPHandler.sync_plans"><code class="name flex">
 <span>async def <span class="ident">sync_plans</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
@@ -1790,6 +1819,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_catalogs" href="#adcp.server.base.ADCPHandler.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_creatives" href="#adcp.server.base.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>

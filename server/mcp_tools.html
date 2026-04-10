@@ -142,9 +142,9 @@ async def call_tool(name: str, arguments: dict):
     async def call_tool(params: dict[str, Any]) -&gt; Any:
         context = ToolContext()
         result = await method(params, context)
-        # Convert Pydantic models to dicts for MCP serialization
+        # Convert Pydantic models to JSON-safe dicts for MCP serialization
         if hasattr(result, &#34;model_dump&#34;):
-            return result.model_dump(exclude_none=True)
+            return result.model_dump(mode=&#34;json&#34;, exclude_none=True)
         return result
 
     return call_tool</code></pre>

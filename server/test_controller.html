@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.server.test_controller API documentation</title>
+<meta name="description" content="Built-in comply_test_controller for ADCP servers …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.server.test_controller</code></h1>
+</header>
+<section id="section-intro">
+<p>Built-in comply_test_controller for ADCP servers.</p>
+<p>Provides TestControllerStore and register_test_controller() so that
+storyboard tests can manipulate server state (force status transitions,
+simulate delivery, etc.) without agents needing to implement the
+comply_test_controller tool by hand.</p>
+<h2 id="usage">Usage</h2>
+<p>from adcp.server import serve, ADCPHandler
+from adcp.server.test_controller import TestControllerStore, register_test_controller</p>
+<p>class MyStore(TestControllerStore):
+async def force_account_status(self, account_id, status):
+old = self.accounts[account_id]["status"]
+self.accounts[account_id]["status"] = status
+return {"previous_state": old, "current_state": status}</p>
+<p>store = MyStore()
+serve(MySeller(), name="my-agent", test_controller=store)</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.server.test_controller.register_test_controller"><code class="name flex">
+<span>def <span class="ident">register_test_controller</span></span>(<span>mcp: Any,<br>store: <a title="adcp.server.test_controller.TestControllerStore" href="#adcp.server.test_controller.TestControllerStore">TestControllerStore</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_test_controller(mcp: Any, store: TestControllerStore) -&gt; None:
+    &#34;&#34;&#34;Register the comply_test_controller tool on an MCP server.
+
+    This is the Python equivalent of the JS SDK&#39;s registerTestController().
+    It adds the comply_test_controller MCP tool backed by your TestControllerStore.
+
+    Args:
+        mcp: A FastMCP server instance.
+        store: Your TestControllerStore implementation.
+
+    Example:
+        from adcp.server.test_controller import TestControllerStore, register_test_controller
+
+        class MyStore(TestControllerStore):
+            async def force_account_status(self, account_id, status):
+                old = self.accounts[account_id][&#34;status&#34;]
+                self.accounts[account_id][&#34;status&#34;] = status
+                return {&#34;previous_state&#34;: old, &#34;current_state&#34;: status}
+
+        mcp = create_mcp_server(MySeller(), name=&#34;my-agent&#34;)
+        register_test_controller(mcp, MyStore())
+        mcp.run(transport=&#34;streamable-http&#34;)
+    &#34;&#34;&#34;
+
+    from mcp.server.fastmcp.tools import Tool
+    from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
+    from pydantic import ConfigDict
+
+    async def comply_test_controller(**kwargs: Any) -&gt; str:
+        result = await _handle_test_controller(store, kwargs)
+        return json.dumps(result)
+
+    tool = Tool.from_function(
+        comply_test_controller,
+        name=&#34;comply_test_controller&#34;,
+        description=&#34;Compliance test controller. Sandbox only, not for production use.&#34;,
+    )
+
+    # Override schema with the proper comply_test_controller inputSchema
+    tool.parameters = {
+        &#34;type&#34;: &#34;object&#34;,
+        &#34;properties&#34;: {
+            &#34;scenario&#34;: {
+                &#34;type&#34;: &#34;string&#34;,
+                &#34;enum&#34;: [
+                    &#34;list_scenarios&#34;,
+                    &#34;force_creative_status&#34;,
+                    &#34;force_account_status&#34;,
+                    &#34;force_media_buy_status&#34;,
+                    &#34;force_session_status&#34;,
+                    &#34;simulate_delivery&#34;,
+                    &#34;simulate_budget_spend&#34;,
+                ],
+            },
+            &#34;params&#34;: {&#34;type&#34;: &#34;object&#34;},
+            &#34;context&#34;: {&#34;type&#34;: &#34;object&#34;},
+        },
+        &#34;required&#34;: [&#34;scenario&#34;],
+    }
+
+    # Override fn_metadata with a permissive model
+    class _ControllerArgs(ArgModelBase):
+        model_config = ConfigDict(extra=&#34;allow&#34;)
+
+        def model_dump_one_level(self) -&gt; dict[str, Any]:
+            result: dict[str, Any] = {}
+            for field_name in self.__class__.model_fields:
+                result[field_name] = getattr(self, field_name)
+            if self.model_extra:
+                result.update(self.model_extra)
+            return result
+
+    tool.fn_metadata = FuncMetadata(
+        arg_model=_ControllerArgs,
+        output_schema=tool.fn_metadata.output_schema,
+        output_model=tool.fn_metadata.output_model,
+        wrap_output=tool.fn_metadata.wrap_output,
+    )
+
+    mcp._tool_manager._tools[&#34;comply_test_controller&#34;] = tool</code></pre>
+</details>
+<div class="desc"><p>Register the comply_test_controller tool on an MCP server.</p>
+<p>This is the Python equivalent of the JS SDK's registerTestController().
+It adds the comply_test_controller MCP tool backed by your TestControllerStore.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>mcp</code></strong></dt>
+<dd>A FastMCP server instance.</dd>
+<dt><strong><code>store</code></strong></dt>
+<dd>Your TestControllerStore implementation.</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>from adcp.server.test_controller import TestControllerStore, register_test_controller</p>
+<p>class MyStore(TestControllerStore):
+async def force_account_status(self, account_id, status):
+old = self.accounts[account_id]["status"]
+self.accounts[account_id]["status"] = status
+return {"previous_state": old, "current_state": status}</p>
+<p>mcp = create_mcp_server(MySeller(), name="my-agent")
+register_test_controller(mcp, MyStore())
+mcp.run(transport="streamable-http")</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.server.test_controller.TestControllerError"><code class="flex name class">
+<span>class <span class="ident">TestControllerError</span></span>
+<span>(</span><span>code: str, message: str, current_state: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestControllerError(Exception):
+    &#34;&#34;&#34;Typed error for test controller store methods.
+
+    Raise this from your TestControllerStore methods to return structured
+    error responses. The dispatcher catches it and converts to the AdCP
+    comply_test_controller error format.
+
+    Example:
+        async def force_media_buy_status(self, media_buy_id, status, rejection_reason=None):
+            prev = self.media_buys.get(media_buy_id)
+            if prev is None:
+                raise TestControllerError(&#34;NOT_FOUND&#34;, f&#34;Media buy {media_buy_id} not found&#34;)
+            if prev in (&#34;completed&#34;, &#34;rejected&#34;, &#34;canceled&#34;):
+                raise TestControllerError(
+                    &#34;INVALID_TRANSITION&#34;,
+                    f&#34;Cannot transition from {prev}&#34;,
+                    current_state=prev,
+                )
+            self.media_buys[media_buy_id] = status
+            return {&#34;previous_state&#34;: prev, &#34;current_state&#34;: status}
+    &#34;&#34;&#34;
+
+    def __init__(self, code: str, message: str, current_state: str | None = None):
+        super().__init__(message)
+        self.code = code
+        self.current_state = current_state</code></pre>
+</details>
+<div class="desc"><p>Typed error for test controller store methods.</p>
+<p>Raise this from your TestControllerStore methods to return structured
+error responses. The dispatcher catches it and converts to the AdCP
+comply_test_controller error format.</p>
+<h2 id="example">Example</h2>
+<p>async def force_media_buy_status(self, media_buy_id, status, rejection_reason=None):
+prev = self.media_buys.get(media_buy_id)
+if prev is None:
+raise TestControllerError("NOT_FOUND", f"Media buy {media_buy_id} not found")
+if prev in ("completed", "rejected", "canceled"):
+raise TestControllerError(
+"INVALID_TRANSITION",
+f"Cannot transition from {prev}",
+current_state=prev,
+)
+self.media_buys[media_buy_id] = status
+return {"previous_state": prev, "current_state": status}</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.server.test_controller.TestControllerStore"><code class="flex name class">
+<span>class <span class="ident">TestControllerStore</span></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestControllerStore:
+    &#34;&#34;&#34;Base class for test controller state management.
+
+    Subclass this and override the methods for scenarios your agent supports.
+    Methods you don&#39;t override will be reported as unsupported scenarios
+    and excluded from list_scenarios.
+
+    Raise TestControllerError for structured error responses.
+    &#34;&#34;&#34;
+
+    async def force_creative_status(
+        self, creative_id: str, status: str, rejection_reason: str | None = None
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Force a creative to a given status.
+
+        Returns:
+            {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def force_account_status(self, account_id: str, status: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Force an account to a given status.
+
+        Returns:
+            {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def force_media_buy_status(
+        self, media_buy_id: str, status: str, rejection_reason: str | None = None
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Force a media buy to a given status.
+
+        Returns:
+            {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def force_session_status(
+        self, session_id: str, status: str, termination_reason: str | None = None
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Force a session to a given status.
+
+        Returns:
+            {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def simulate_delivery(
+        self,
+        media_buy_id: str,
+        impressions: int | None = None,
+        clicks: int | None = None,
+        conversions: int | None = None,
+        reported_spend: dict[str, Any] | None = None,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Simulate delivery metrics for a media buy.
+
+        Returns:
+            {&#34;simulated&#34;: {...}, &#34;cumulative&#34;: {...} | None}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def simulate_budget_spend(
+        self,
+        spend_percentage: float,
+        account_id: str | None = None,
+        media_buy_id: str | None = None,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Simulate budget spend to a percentage.
+
+        Returns:
+            {&#34;simulated&#34;: {...}}
+        &#34;&#34;&#34;
+        raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Base class for test controller state management.</p>
+<p>Subclass this and override the methods for scenarios your agent supports.
+Methods you don't override will be reported as unsupported scenarios
+and excluded from list_scenarios.</p>
+<p>Raise TestControllerError for structured error responses.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.test_controller.TestControllerStore.force_account_status"><code class="name flex">
+<span>async def <span class="ident">force_account_status</span></span>(<span>self, account_id: str, status: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def force_account_status(self, account_id: str, status: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Force an account to a given status.
+
+    Returns:
+        {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Force an account to a given status.</p>
+<h2 id="returns">Returns</h2>
+<p>{"previous_state": str, "current_state": str}</p></div>
+</dd>
+<dt id="adcp.server.test_controller.TestControllerStore.force_creative_status"><code class="name flex">
+<span>async def <span class="ident">force_creative_status</span></span>(<span>self, creative_id: str, status: str, rejection_reason: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def force_creative_status(
+    self, creative_id: str, status: str, rejection_reason: str | None = None
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Force a creative to a given status.
+
+    Returns:
+        {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Force a creative to a given status.</p>
+<h2 id="returns">Returns</h2>
+<p>{"previous_state": str, "current_state": str}</p></div>
+</dd>
+<dt id="adcp.server.test_controller.TestControllerStore.force_media_buy_status"><code class="name flex">
+<span>async def <span class="ident">force_media_buy_status</span></span>(<span>self, media_buy_id: str, status: str, rejection_reason: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def force_media_buy_status(
+    self, media_buy_id: str, status: str, rejection_reason: str | None = None
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Force a media buy to a given status.
+
+    Returns:
+        {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Force a media buy to a given status.</p>
+<h2 id="returns">Returns</h2>
+<p>{"previous_state": str, "current_state": str}</p></div>
+</dd>
+<dt id="adcp.server.test_controller.TestControllerStore.force_session_status"><code class="name flex">
+<span>async def <span class="ident">force_session_status</span></span>(<span>self, session_id: str, status: str, termination_reason: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def force_session_status(
+    self, session_id: str, status: str, termination_reason: str | None = None
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Force a session to a given status.
+
+    Returns:
+        {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Force a session to a given status.</p>
+<h2 id="returns">Returns</h2>
+<p>{"previous_state": str, "current_state": str}</p></div>
+</dd>
+<dt id="adcp.server.test_controller.TestControllerStore.simulate_budget_spend"><code class="name flex">
+<span>async def <span class="ident">simulate_budget_spend</span></span>(<span>self,<br>spend_percentage: float,<br>account_id: str | None = None,<br>media_buy_id: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def simulate_budget_spend(
+    self,
+    spend_percentage: float,
+    account_id: str | None = None,
+    media_buy_id: str | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Simulate budget spend to a percentage.
+
+    Returns:
+        {&#34;simulated&#34;: {...}}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Simulate budget spend to a percentage.</p>
+<h2 id="returns">Returns</h2>
+<p>{"simulated": {&hellip;}}</p></div>
+</dd>
+<dt id="adcp.server.test_controller.TestControllerStore.simulate_delivery"><code class="name flex">
+<span>async def <span class="ident">simulate_delivery</span></span>(<span>self,<br>media_buy_id: str,<br>impressions: int | None = None,<br>clicks: int | None = None,<br>conversions: int | None = None,<br>reported_spend: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def simulate_delivery(
+    self,
+    media_buy_id: str,
+    impressions: int | None = None,
+    clicks: int | None = None,
+    conversions: int | None = None,
+    reported_spend: dict[str, Any] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Simulate delivery metrics for a media buy.
+
+    Returns:
+        {&#34;simulated&#34;: {...}, &#34;cumulative&#34;: {...} | None}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Simulate delivery metrics for a media buy.</p>
+<h2 id="returns">Returns</h2>
+<p>{"simulated": {&hellip;}, "cumulative": {&hellip;} | None}</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.server" href="index.html">adcp.server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.server.test_controller.register_test_controller" href="#adcp.server.test_controller.register_test_controller">register_test_controller</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.server.test_controller.TestControllerError" href="#adcp.server.test_controller.TestControllerError">TestControllerError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.server.test_controller.TestControllerStore" href="#adcp.server.test_controller.TestControllerStore">TestControllerStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.test_controller.TestControllerStore.force_account_status" href="#adcp.server.test_controller.TestControllerStore.force_account_status">force_account_status</a></code></li>
+<li><code><a title="adcp.server.test_controller.TestControllerStore.force_creative_status" href="#adcp.server.test_controller.TestControllerStore.force_creative_status">force_creative_status</a></code></li>
+<li><code><a title="adcp.server.test_controller.TestControllerStore.force_media_buy_status" href="#adcp.server.test_controller.TestControllerStore.force_media_buy_status">force_media_buy_status</a></code></li>
+<li><code><a title="adcp.server.test_controller.TestControllerStore.force_session_status" href="#adcp.server.test_controller.TestControllerStore.force_session_status">force_session_status</a></code></li>
+<li><code><a title="adcp.server.test_controller.TestControllerStore.simulate_budget_spend" href="#adcp.server.test_controller.TestControllerStore.simulate_budget_spend">simulate_budget_spend</a></code></li>
+<li><code><a title="adcp.server.test_controller.TestControllerStore.simulate_delivery" href="#adcp.server.test_controller.TestControllerStore.simulate_delivery">simulate_delivery</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

@@ -37,17 +37,19 @@ el.replaceWith(d);
 </header>
 <section id="section-intro">
 <p>ADCP Server Framework.</p>
-<p>Provides base classes and adapters for building ADCP-compliant servers/agents.
-Supports selective protocol implementation via protocol-specific adapters.</p>
-<h2 id="examples">Examples</h2>
-<h1 id="content-standards-agent-stubs-media-buy-operations">Content Standards agent (stubs media buy operations)</h1>
-<p>from adcp.server import ContentStandardsHandler, create_mcp_tools</p>
-<p>class MyContentHandler(ContentStandardsHandler):
-async def create_content_standards(self, request):
-# Implement your logic
-pass</p>
-<h1 id="register-with-mcp-server">Register with MCP server</h1>
-<p>tools = create_mcp_tools(MyContentHandler())</p>
+<p>The simplest way to build an AdCP agent:</p>
+<pre><code>from adcp.server import ADCPHandler, serve
+from adcp.server.responses import capabilities_response, products_response
+
+class MySeller(ADCPHandler):
+    async def get_adcp_capabilities(self, params, context=None):
+        return capabilities_response(["media_buy"])
+
+    async def get_products(self, params, context=None):
+        return products_response(MY_PRODUCTS)
+
+serve(MySeller(), name="my-seller")
+</code></pre>
 </section>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
@@ -80,9 +82,17 @@ pass</p>
 <dd>
 <div class="desc"><p>Proposal generation helpers …</p></div>
 </dd>
+<dt><code class="name"><a title="adcp.server.responses" href="responses.html">adcp.server.responses</a></code></dt>
+<dd>
+<div class="desc"><p>Response builder helpers for ADCP servers …</p></div>
+</dd>
 <dt><code class="name"><a title="adcp.server.sponsored_intelligence" href="sponsored_intelligence.html">adcp.server.sponsored_intelligence</a></code></dt>
 <dd>
 <div class="desc"><p>Sponsored Intelligence protocol handler …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.server.test_controller" href="test_controller.html">adcp.server.test_controller</a></code></dt>
+<dd>
+<div class="desc"><p>Built-in comply_test_controller for ADCP servers …</p></div>
 </dd>
 <dt><code class="name"><a title="adcp.server.tmp" href="tmp.html">adcp.server.tmp</a></code></dt>
 <dd>
@@ -95,6 +105,181 @@ pass</p>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="adcp.server.activate_signal_response"><code class="name flex">
+<span>def <span class="ident">activate_signal_response</span></span>(<span>deployments: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def activate_signal_response(
+    deployments: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build an activate_signal success response.
+
+    Each deployment should include: type, is_live, activation_key.
+    For platform: platform, account.
+    For agent: agent_url.
+    Matches ActivateSignalResponse1 (success) schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;deployments&#34;: deployments,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build an activate_signal success response.</p>
+<p>Each deployment should include: type, is_live, activation_key.
+For platform: platform, account.
+For agent: agent_url.
+Matches ActivateSignalResponse1 (success) schema.</p></div>
+</dd>
+<dt id="adcp.server.build_creative_response"><code class="name flex">
+<span>def <span class="ident">build_creative_response</span></span>(<span>creative_manifest: dict[str, Any] | list[dict[str, Any]],<br>*,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_creative_response(
+    creative_manifest: dict[str, Any] | list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a build_creative success response.
+
+    Accepts either a single manifest dict or a list of manifests.
+    Each manifest should include: format_id, name, assets.
+
+    Single manifest matches BuildCreativeResponse1.
+    List matches BuildCreativeResponse2 (multi-format).
+    &#34;&#34;&#34;
+    if isinstance(creative_manifest, list):
+        return {
+            &#34;creative_manifests&#34;: creative_manifest,
+            &#34;sandbox&#34;: sandbox,
+        }
+    return {
+        &#34;creative_manifest&#34;: creative_manifest,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a build_creative success response.</p>
+<p>Accepts either a single manifest dict or a list of manifests.
+Each manifest should include: format_id, name, assets.</p>
+<p>Single manifest matches BuildCreativeResponse1.
+List matches BuildCreativeResponse2 (multi-format).</p></div>
+</dd>
+<dt id="adcp.server.capabilities_response"><code class="name flex">
+<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def capabilities_response(
+    supported_protocols: list[str],
+    *,
+    major_versions: list[int] | None = None,
+    sandbox: bool = True,
+    features: dict[str, Any] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_adcp_capabilities response.
+
+    Args:
+        supported_protocols: e.g. [&#34;media_buy&#34;], [&#34;media_buy&#34;, &#34;signals&#34;],
+            [&#34;media_buy&#34;, &#34;compliance_testing&#34;].
+        major_versions: AdCP major versions. Defaults to [3].
+        sandbox: Whether this is a sandbox agent. Defaults to True.
+        features: Additional feature flags.
+    &#34;&#34;&#34;
+    resp: dict[str, Any] = {
+        &#34;adcp&#34;: {&#34;major_versions&#34;: major_versions or [3]},
+        &#34;supported_protocols&#34;: supported_protocols,
+        &#34;sandbox&#34;: sandbox,
+    }
+    if features:
+        resp[&#34;features&#34;] = features
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build a get_adcp_capabilities response.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>supported_protocols</code></strong></dt>
+<dd>e.g. ["media_buy"], ["media_buy", "signals"],
+["media_buy", "compliance_testing"].</dd>
+<dt><strong><code>major_versions</code></strong></dt>
+<dd>AdCP major versions. Defaults to [3].</dd>
+<dt><strong><code>sandbox</code></strong></dt>
+<dd>Whether this is a sandbox agent. Defaults to True.</dd>
+<dt><strong><code>features</code></strong></dt>
+<dd>Additional feature flags.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.create_mcp_server"><code class="name flex">
+<span>def <span class="ident">create_mcp_server</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>instructions: str | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_mcp_server(
+    handler: ADCPHandler,
+    *,
+    name: str = &#34;adcp-agent&#34;,
+    port: int | None = None,
+    instructions: str | None = None,
+) -&gt; Any:
+    &#34;&#34;&#34;Create a FastMCP server from an ADCP handler without starting it.
+
+    Use this when you need to customize the server before running it,
+    or when you need to add extra non-ADCP tools.
+
+    Args:
+        handler: An ADCPHandler subclass instance.
+        name: Server name.
+        port: Port to listen on.
+        instructions: Optional system instructions.
+
+    Returns:
+        A configured FastMCP server instance. Call mcp.run() to start.
+
+    Example:
+        mcp = create_mcp_server(MyAgent(), name=&#34;my-agent&#34;)
+        mcp.run(transport=&#34;streamable-http&#34;)
+    &#34;&#34;&#34;
+    from mcp.server.fastmcp import FastMCP
+
+    resolved_port = port or int(os.environ.get(&#34;PORT&#34;, &#34;3001&#34;))
+    mcp = FastMCP(name, instructions=instructions, port=resolved_port)
+    _register_handler_tools(mcp, handler)
+    return mcp</code></pre>
+</details>
+<div class="desc"><p>Create a FastMCP server from an ADCP handler without starting it.</p>
+<p>Use this when you need to customize the server before running it,
+or when you need to add extra non-ADCP tools.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>handler</code></strong></dt>
+<dd>An ADCPHandler subclass instance.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>Server name.</dd>
+<dt><strong><code>port</code></strong></dt>
+<dd>Port to listen on.</dd>
+<dt><strong><code>instructions</code></strong></dt>
+<dd>Optional system instructions.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A configured FastMCP server instance. Call mcp.run() to start.</p>
+<h2 id="example">Example</h2>
+<p>mcp = create_mcp_server(MyAgent(), name="my-agent")
+mcp.run(transport="streamable-http")</p></div>
+</dd>
 <dt id="adcp.server.create_mcp_tools"><code class="name flex">
 <span>def <span class="ident">create_mcp_tools</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>) ‑> <a title="adcp.server.mcp_tools.MCPToolSet" href="mcp_tools.html#adcp.server.mcp_tools.MCPToolSet">MCPToolSet</a></span>
 </code></dt>
@@ -165,6 +350,113 @@ async def call_tool(name: str, arguments: dict):
 <h2 id="returns">Returns</h2>
 <p>MCPToolSet with tool definitions and handlers</p></div>
 </dd>
+<dt id="adcp.server.creative_formats_response"><code class="name flex">
+<span>def <span class="ident">creative_formats_response</span></span>(<span>formats: list[Any], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def creative_formats_response(
+    formats: list[Any],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a list_creative_formats response.
+
+    Each format should include: format_id ({agent_url, id}), name.
+    Matches ListCreativeFormatsResponse schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;formats&#34;: _serialize(formats),
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a list_creative_formats response.</p>
+<p>Each format should include: format_id ({agent_url, id}), name.
+Matches ListCreativeFormatsResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.delivery_response"><code class="name flex">
+<span>def <span class="ident">delivery_response</span></span>(<span>media_buy_deliveries: list[dict[str, Any]],<br>*,<br>reporting_period: dict[str, str] | None = None,<br>currency: str = 'USD',<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delivery_response(
+    media_buy_deliveries: list[dict[str, Any]],
+    *,
+    reporting_period: dict[str, str] | None = None,
+    currency: str = &#34;USD&#34;,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_media_buy_delivery response.
+
+    Each media_buy_delivery should include:
+        media_buy_id, status, totals (impressions, spend, etc.), by_package.
+
+    Matches GetMediaBuyDeliveryResponse schema.
+
+    Args:
+        media_buy_deliveries: Array of delivery data per media buy.
+        reporting_period: {&#34;start&#34;: ISO timestamp, &#34;end&#34;: ISO timestamp}.
+            Defaults to current timestamp for both.
+        currency: ISO 4217 currency code.
+        sandbox: Whether this is simulated data.
+    &#34;&#34;&#34;
+    now = datetime.now(timezone.utc).isoformat()
+    return {
+        &#34;reporting_period&#34;: reporting_period or {&#34;start&#34;: now, &#34;end&#34;: now},
+        &#34;media_buy_deliveries&#34;: media_buy_deliveries,
+        &#34;currency&#34;: currency,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a get_media_buy_delivery response.</p>
+<p>Each media_buy_delivery should include:
+media_buy_id, status, totals (impressions, spend, etc.), by_package.</p>
+<p>Matches GetMediaBuyDeliveryResponse schema.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>media_buy_deliveries</code></strong></dt>
+<dd>Array of delivery data per media buy.</dd>
+<dt><strong><code>reporting_period</code></strong></dt>
+<dd>{"start": ISO timestamp, "end": ISO timestamp}.
+Defaults to current timestamp for both.</dd>
+<dt><strong><code>currency</code></strong></dt>
+<dd>ISO 4217 currency code.</dd>
+<dt><strong><code>sandbox</code></strong></dt>
+<dd>Whether this is simulated data.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.error_response"><code class="name flex">
+<span>def <span class="ident">error_response</span></span>(<span>code: str, message: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def error_response(code: str, message: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a standard AdCP error dict.
+
+    Args:
+        code: Error code (e.g., &#34;INVALID_PRODUCT&#34;, &#34;NOT_FOUND&#34;).
+        message: Human-readable error message.
+    &#34;&#34;&#34;
+    return {&#34;code&#34;: code, &#34;message&#34;: message}</code></pre>
+</details>
+<div class="desc"><p>Build a standard AdCP error dict.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>code</code></strong></dt>
+<dd>Error code (e.g., "INVALID_PRODUCT", "NOT_FOUND").</dd>
+<dt><strong><code>message</code></strong></dt>
+<dd>Human-readable error message.</dd>
+</dl></div>
+</dd>
 <dt id="adcp.server.get_tools_for_handler"><code class="name flex">
 <span>def <span class="ident">get_tools_for_handler</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a> | type[<a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>]) ‑> list[dict[str, typing.Any]]</span>
 </code></dt>
@@ -208,6 +500,147 @@ ADCPHandler gets all tools. Unknown handlers get only protocol discovery
 <h2 id="returns">Returns</h2>
 <p>Filtered list of tool definitions</p></div>
 </dd>
+<dt id="adcp.server.list_creatives_response"><code class="name flex">
+<span>def <span class="ident">list_creatives_response</span></span>(<span>creatives: list[Any],<br>*,<br>pagination: dict[str, Any] | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def list_creatives_response(
+    creatives: list[Any],
+    *,
+    pagination: dict[str, Any] | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a list_creatives response.
+
+    Each creative should include: creative_id, name, format_id, status.
+    Matches ListCreativesResponse schema.
+    &#34;&#34;&#34;
+    count = len(creatives)
+    return {
+        &#34;creatives&#34;: _serialize(creatives),
+        &#34;pagination&#34;: pagination or {&#34;total&#34;: count, &#34;has_more&#34;: False},
+        &#34;query_summary&#34;: {&#34;total_results&#34;: count, &#34;total_matching&#34;: count, &#34;returned&#34;: count},
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a list_creatives response.</p>
+<p>Each creative should include: creative_id, name, format_id, status.
+Matches ListCreativesResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.log_event_response"><code class="name flex">
+<span>def <span class="ident">log_event_response</span></span>(<span>events_received: int, events_processed: int, *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def log_event_response(
+    events_received: int,
+    events_processed: int,
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a log_event success response.
+
+    Matches LogEventResponse1 (success) schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;events_received&#34;: events_received,
+        &#34;events_processed&#34;: events_processed,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a log_event success response.</p>
+<p>Matches LogEventResponse1 (success) schema.</p></div>
+</dd>
+<dt id="adcp.server.media_buy_error_response"><code class="name flex">
+<span>def <span class="ident">media_buy_error_response</span></span>(<span>errors: list[dict[str, str]]) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def media_buy_error_response(errors: list[dict[str, str]]) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a create_media_buy error response.
+
+    Each error dict: {&#34;code&#34;: &#34;...&#34;, &#34;message&#34;: &#34;...&#34;}.
+    Matches CreateMediaBuyResponse2 (error) schema.
+    &#34;&#34;&#34;
+    return {&#34;errors&#34;: errors}</code></pre>
+</details>
+<div class="desc"><p>Build a create_media_buy error response.</p>
+<p>Each error dict: {"code": "&hellip;", "message": "&hellip;"}.
+Matches CreateMediaBuyResponse2 (error) schema.</p></div>
+</dd>
+<dt id="adcp.server.media_buy_response"><code class="name flex">
+<span>def <span class="ident">media_buy_response</span></span>(<span>media_buy_id: str,<br>packages: list[Any],<br>*,<br>buyer_ref: str | None = None,<br>status: str | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def media_buy_response(
+    media_buy_id: str,
+    packages: list[Any],
+    *,
+    buyer_ref: str | None = None,
+    status: str | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a create_media_buy success response.
+
+    Each package should include: package_id, product_id, pricing_option_id, budget.
+    Matches CreateMediaBuyResponse1 (success) schema.
+    &#34;&#34;&#34;
+    resp: dict[str, Any] = {
+        &#34;media_buy_id&#34;: media_buy_id,
+        &#34;packages&#34;: _serialize(packages),
+        &#34;sandbox&#34;: sandbox,
+    }
+    if buyer_ref is not None:
+        resp[&#34;buyer_ref&#34;] = buyer_ref
+    if status is not None:
+        resp[&#34;status&#34;] = status
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build a create_media_buy success response.</p>
+<p>Each package should include: package_id, product_id, pricing_option_id, budget.
+Matches CreateMediaBuyResponse1 (success) schema.</p></div>
+</dd>
+<dt id="adcp.server.media_buys_response"><code class="name flex">
+<span>def <span class="ident">media_buys_response</span></span>(<span>media_buys: list[Any], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def media_buys_response(
+    media_buys: list[Any],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_media_buys response.
+
+    Each media buy should include: media_buy_id, status, currency, packages.
+    Matches GetMediaBuysResponse schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;media_buys&#34;: _serialize(media_buys),
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a get_media_buys response.</p>
+<p>Each media buy should include: media_buy_id, status, currency, packages.
+Matches GetMediaBuysResponse schema.</p></div>
+</dd>
 <dt id="adcp.server.not_supported"><code class="name flex">
 <span>def <span class="ident">not_supported</span></span>(<span>reason: str = 'This operation is not supported by this agent') ‑> <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
@@ -247,6 +680,446 @@ ADCPHandler gets all tools. Unknown handlers get only protocol discovery
 </dl>
 <h2 id="returns">Returns</h2>
 <p>NotImplementedResponse with supported=False</p></div>
+</dd>
+<dt id="adcp.server.preview_creative_response"><code class="name flex">
+<span>def <span class="ident">preview_creative_response</span></span>(<span>previews: list[dict[str, Any]],<br>*,<br>expires_at: str | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def preview_creative_response(
+    previews: list[dict[str, Any]],
+    *,
+    expires_at: str | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a preview_creative single response.
+
+    Each preview should include:
+        preview_id, input ({format_id, name, assets}),
+        renders ([{render_id, output_format, preview_url, role, dimensions}]).
+
+    Matches PreviewCreativeResponse1 (single) schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;response_type&#34;: &#34;single&#34;,
+        &#34;previews&#34;: previews,
+        &#34;expires_at&#34;: expires_at or &#34;2099-12-31T23:59:59Z&#34;,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a preview_creative single response.</p>
+<p>Each preview should include:
+preview_id, input ({format_id, name, assets}),
+renders ([{render_id, output_format, preview_url, role, dimensions}]).</p>
+<p>Matches PreviewCreativeResponse1 (single) schema.</p></div>
+</dd>
+<dt id="adcp.server.products_response"><code class="name flex">
+<span>def <span class="ident">products_response</span></span>(<span>products: list[Any], *, item_count: int | None = None, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def products_response(
+    products: list[Any],
+    *,
+    item_count: int | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_products response.
+
+    Matches GetProductsResponse schema.
+    &#34;&#34;&#34;
+    serialized = _serialize(products)
+    resp: dict[str, Any] = {
+        &#34;products&#34;: serialized,
+        &#34;item_count&#34;: item_count if item_count is not None else len(serialized),
+        &#34;sandbox&#34;: sandbox,
+    }
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build a get_products response.</p>
+<p>Matches GetProductsResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.register_test_controller"><code class="name flex">
+<span>def <span class="ident">register_test_controller</span></span>(<span>mcp: Any,<br>store: <a title="adcp.server.TestControllerStore" href="#adcp.server.TestControllerStore">TestControllerStore</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_test_controller(mcp: Any, store: TestControllerStore) -&gt; None:
+    &#34;&#34;&#34;Register the comply_test_controller tool on an MCP server.
+
+    This is the Python equivalent of the JS SDK&#39;s registerTestController().
+    It adds the comply_test_controller MCP tool backed by your TestControllerStore.
+
+    Args:
+        mcp: A FastMCP server instance.
+        store: Your TestControllerStore implementation.
+
+    Example:
+        from adcp.server.test_controller import TestControllerStore, register_test_controller
+
+        class MyStore(TestControllerStore):
+            async def force_account_status(self, account_id, status):
+                old = self.accounts[account_id][&#34;status&#34;]
+                self.accounts[account_id][&#34;status&#34;] = status
+                return {&#34;previous_state&#34;: old, &#34;current_state&#34;: status}
+
+        mcp = create_mcp_server(MySeller(), name=&#34;my-agent&#34;)
+        register_test_controller(mcp, MyStore())
+        mcp.run(transport=&#34;streamable-http&#34;)
+    &#34;&#34;&#34;
+
+    from mcp.server.fastmcp.tools import Tool
+    from mcp.server.fastmcp.utilities.func_metadata import ArgModelBase, FuncMetadata
+    from pydantic import ConfigDict
+
+    async def comply_test_controller(**kwargs: Any) -&gt; str:
+        result = await _handle_test_controller(store, kwargs)
+        return json.dumps(result)
+
+    tool = Tool.from_function(
+        comply_test_controller,
+        name=&#34;comply_test_controller&#34;,
+        description=&#34;Compliance test controller. Sandbox only, not for production use.&#34;,
+    )
+
+    # Override schema with the proper comply_test_controller inputSchema
+    tool.parameters = {
+        &#34;type&#34;: &#34;object&#34;,
+        &#34;properties&#34;: {
+            &#34;scenario&#34;: {
+                &#34;type&#34;: &#34;string&#34;,
+                &#34;enum&#34;: [
+                    &#34;list_scenarios&#34;,
+                    &#34;force_creative_status&#34;,
+                    &#34;force_account_status&#34;,
+                    &#34;force_media_buy_status&#34;,
+                    &#34;force_session_status&#34;,
+                    &#34;simulate_delivery&#34;,
+                    &#34;simulate_budget_spend&#34;,
+                ],
+            },
+            &#34;params&#34;: {&#34;type&#34;: &#34;object&#34;},
+            &#34;context&#34;: {&#34;type&#34;: &#34;object&#34;},
+        },
+        &#34;required&#34;: [&#34;scenario&#34;],
+    }
+
+    # Override fn_metadata with a permissive model
+    class _ControllerArgs(ArgModelBase):
+        model_config = ConfigDict(extra=&#34;allow&#34;)
+
+        def model_dump_one_level(self) -&gt; dict[str, Any]:
+            result: dict[str, Any] = {}
+            for field_name in self.__class__.model_fields:
+                result[field_name] = getattr(self, field_name)
+            if self.model_extra:
+                result.update(self.model_extra)
+            return result
+
+    tool.fn_metadata = FuncMetadata(
+        arg_model=_ControllerArgs,
+        output_schema=tool.fn_metadata.output_schema,
+        output_model=tool.fn_metadata.output_model,
+        wrap_output=tool.fn_metadata.wrap_output,
+    )
+
+    mcp._tool_manager._tools[&#34;comply_test_controller&#34;] = tool</code></pre>
+</details>
+<div class="desc"><p>Register the comply_test_controller tool on an MCP server.</p>
+<p>This is the Python equivalent of the JS SDK's registerTestController().
+It adds the comply_test_controller MCP tool backed by your TestControllerStore.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>mcp</code></strong></dt>
+<dd>A FastMCP server instance.</dd>
+<dt><strong><code>store</code></strong></dt>
+<dd>Your TestControllerStore implementation.</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>from adcp.server.test_controller import TestControllerStore, register_test_controller</p>
+<p>class MyStore(TestControllerStore):
+async def force_account_status(self, account_id, status):
+old = self.accounts[account_id]["status"]
+self.accounts[account_id]["status"] = status
+return {"previous_state": old, "current_state": status}</p>
+<p>mcp = create_mcp_server(MySeller(), name="my-agent")
+register_test_controller(mcp, MyStore())
+mcp.run(transport="streamable-http")</p></div>
+</dd>
+<dt id="adcp.server.serve"><code class="name flex">
+<span>def <span class="ident">serve</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>mount: str = '/mcp',<br>transport: str = 'streamable-http',<br>instructions: str | None = None,<br>test_controller: <a title="adcp.server.TestControllerStore" href="#adcp.server.TestControllerStore">TestControllerStore</a> | None = None) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def serve(
+    handler: ADCPHandler,
+    *,
+    name: str = &#34;adcp-agent&#34;,
+    port: int | None = None,
+    mount: str = &#34;/mcp&#34;,
+    transport: str = &#34;streamable-http&#34;,
+    instructions: str | None = None,
+    test_controller: TestControllerStore | None = None,
+) -&gt; None:
+    &#34;&#34;&#34;Start an MCP server from an ADCP handler.
+
+    This is the simplest way to run an ADCP agent. It creates a FastMCP server,
+    registers all tools from the handler, optionally registers a test controller,
+    and starts serving.
+
+    Args:
+        handler: An ADCPHandler subclass instance with your tool implementations.
+        name: Server name shown to MCP clients.
+        port: Port to listen on. Defaults to PORT env var, then 3001.
+        mount: URL path to mount MCP endpoint on.
+        transport: MCP transport type. Default &#34;streamable-http&#34;.
+        instructions: Optional system instructions for the agent.
+        test_controller: Optional TestControllerStore instance for storyboard testing.
+
+    Example:
+        from adcp.server import ADCPHandler, serve
+        from adcp.server.responses import capabilities_response
+
+        class MyAgent(ADCPHandler):
+            async def get_adcp_capabilities(self, params, context=None):
+                return capabilities_response([&#34;media_buy&#34;])
+
+        serve(MyAgent(), name=&#34;my-agent&#34;)
+
+    With test controller:
+        from adcp.server.test_controller import TestControllerStore
+
+        class MyStore(TestControllerStore):
+            async def force_account_status(self, account_id, status):
+                ...
+
+        serve(MyAgent(), name=&#34;my-agent&#34;, test_controller=MyStore())
+    &#34;&#34;&#34;
+    mcp = create_mcp_server(handler, name=name, port=port, instructions=instructions)
+
+    if test_controller is not None:
+        from adcp.server.test_controller import register_test_controller
+
+        register_test_controller(mcp, test_controller)
+
+    mcp.run(transport=transport)</code></pre>
+</details>
+<div class="desc"><p>Start an MCP server from an ADCP handler.</p>
+<p>This is the simplest way to run an ADCP agent. It creates a FastMCP server,
+registers all tools from the handler, optionally registers a test controller,
+and starts serving.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>handler</code></strong></dt>
+<dd>An ADCPHandler subclass instance with your tool implementations.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>Server name shown to MCP clients.</dd>
+<dt><strong><code>port</code></strong></dt>
+<dd>Port to listen on. Defaults to PORT env var, then 3001.</dd>
+<dt><strong><code>mount</code></strong></dt>
+<dd>URL path to mount MCP endpoint on.</dd>
+<dt><strong><code>transport</code></strong></dt>
+<dd>MCP transport type. Default "streamable-http".</dd>
+<dt><strong><code>instructions</code></strong></dt>
+<dd>Optional system instructions for the agent.</dd>
+<dt><strong><code>test_controller</code></strong></dt>
+<dd>Optional TestControllerStore instance for storyboard testing.</dd>
+</dl>
+<h2 id="example">Example</h2>
+<p>from adcp.server import ADCPHandler, serve
+from adcp.server.responses import capabilities_response</p>
+<p>class MyAgent(ADCPHandler):
+async def get_adcp_capabilities(self, params, context=None):
+return capabilities_response(["media_buy"])</p>
+<p>serve(MyAgent(), name="my-agent")</p>
+<p>With test controller:
+from adcp.server.test_controller import TestControllerStore</p>
+<pre><code>class MyStore(TestControllerStore):
+    async def force_account_status(self, account_id, status):
+        ...
+
+serve(MyAgent(), name="my-agent", test_controller=MyStore())
+</code></pre></div>
+</dd>
+<dt id="adcp.server.signals_response"><code class="name flex">
+<span>def <span class="ident">signals_response</span></span>(<span>signals: list[Any], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def signals_response(
+    signals: list[Any],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a get_signals response.
+
+    Each signal should include: signal_agent_segment_id, name, description,
+    signal_type, data_provider, coverage_percentage, deployments, pricing_options, signal_id.
+    Matches GetSignalsResponse schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;signals&#34;: _serialize(signals),
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a get_signals response.</p>
+<p>Each signal should include: signal_agent_segment_id, name, description,
+signal_type, data_provider, coverage_percentage, deployments, pricing_options, signal_id.
+Matches GetSignalsResponse schema.</p></div>
+</dd>
+<dt id="adcp.server.sync_accounts_response"><code class="name flex">
+<span>def <span class="ident">sync_accounts_response</span></span>(<span>accounts: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sync_accounts_response(
+    accounts: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a sync_accounts success response.
+
+    Each account dict should include: account_id, brand, operator,
+    action (&#34;created&#34;|&#34;updated&#34;), status (&#34;active&#34;|&#34;pending_approval&#34;).
+
+    Matches SyncAccountsResponse1 schema (field: &#34;accounts&#34;).
+    &#34;&#34;&#34;
+    return {&#34;accounts&#34;: accounts, &#34;sandbox&#34;: sandbox}</code></pre>
+</details>
+<div class="desc"><p>Build a sync_accounts success response.</p>
+<p>Each account dict should include: account_id, brand, operator,
+action ("created"|"updated"), status ("active"|"pending_approval").</p>
+<p>Matches SyncAccountsResponse1 schema (field: "accounts").</p></div>
+</dd>
+<dt id="adcp.server.sync_catalogs_response"><code class="name flex">
+<span>def <span class="ident">sync_catalogs_response</span></span>(<span>catalogs: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sync_catalogs_response(
+    catalogs: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a sync_catalogs success response.
+
+    Each catalog should include: catalog_id, action, item_count, items_approved.
+    Matches SyncCatalogsResponse1 (success) schema.
+    &#34;&#34;&#34;
+    return {
+        &#34;catalogs&#34;: catalogs,
+        &#34;sandbox&#34;: sandbox,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a sync_catalogs success response.</p>
+<p>Each catalog should include: catalog_id, action, item_count, items_approved.
+Matches SyncCatalogsResponse1 (success) schema.</p></div>
+</dd>
+<dt id="adcp.server.sync_creatives_response"><code class="name flex">
+<span>def <span class="ident">sync_creatives_response</span></span>(<span>creatives: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sync_creatives_response(
+    creatives: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a sync_creatives success response.
+
+    Each creative dict should include: creative_id, action (&#34;created&#34;|&#34;updated&#34;).
+    Optionally: status (&#34;accepted&#34;|&#34;pending_review&#34;|&#34;rejected&#34;).
+    Matches SyncCreativesResponse1 schema (field: &#34;creatives&#34;).
+    &#34;&#34;&#34;
+    return {&#34;creatives&#34;: creatives, &#34;sandbox&#34;: sandbox}</code></pre>
+</details>
+<div class="desc"><p>Build a sync_creatives success response.</p>
+<p>Each creative dict should include: creative_id, action ("created"|"updated").
+Optionally: status ("accepted"|"pending_review"|"rejected").
+Matches SyncCreativesResponse1 schema (field: "creatives").</p></div>
+</dd>
+<dt id="adcp.server.sync_governance_response"><code class="name flex">
+<span>def <span class="ident">sync_governance_response</span></span>(<span>accounts: list[dict[str, Any]], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sync_governance_response(
+    accounts: list[dict[str, Any]],
+    *,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a sync_governance response.
+
+    Each account dict should include: account, status (&#34;synced&#34;),
+    governance_agents ([{url, categories}]).
+    &#34;&#34;&#34;
+    return {&#34;accounts&#34;: accounts, &#34;sandbox&#34;: sandbox}</code></pre>
+</details>
+<div class="desc"><p>Build a sync_governance response.</p>
+<p>Each account dict should include: account, status ("synced"),
+governance_agents ([{url, categories}]).</p></div>
+</dd>
+<dt id="adcp.server.update_media_buy_response"><code class="name flex">
+<span>def <span class="ident">update_media_buy_response</span></span>(<span>media_buy_id: str,<br>*,<br>affected_packages: list[Any] | None = None,<br>status: str | None = None,<br>revision: int | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def update_media_buy_response(
+    media_buy_id: str,
+    *,
+    affected_packages: list[Any] | None = None,
+    status: str | None = None,
+    revision: int | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build an update_media_buy success response.
+
+    Matches UpdateMediaBuyResponse1 (success) schema.
+    &#34;&#34;&#34;
+    resp: dict[str, Any] = {
+        &#34;media_buy_id&#34;: media_buy_id,
+        &#34;sandbox&#34;: sandbox,
+    }
+    if affected_packages is not None:
+        resp[&#34;affected_packages&#34;] = _serialize(affected_packages)
+    if status is not None:
+        resp[&#34;status&#34;] = status
+    if revision is not None:
+        resp[&#34;revision&#34;] = revision
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build an update_media_buy success response.</p>
+<p>Matches UpdateMediaBuyResponse1 (success) schema.</p></div>
 </dd>
 <dt id="adcp.server.validate_capabilities"><code class="name flex">
 <span>def <span class="ident">validate_capabilities</span></span>(<span>handler: Any, capabilities: GetAdcpCapabilitiesResponse) ‑> list[str]</span>
@@ -567,6 +1440,15 @@ whose corresponding handler methods are not overridden from the base class.</p>
         Override this to provide audience synchronization.
         &#34;&#34;&#34;
         return self._not_supported(&#34;sync_audiences&#34;)
+
+    async def sync_governance(
+        self, params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Sync governance agents for accounts.
+
+        Override this to handle governance agent registration.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;sync_governance&#34;)
 
     async def sync_catalogs(
         self, params: dict[str, Any], context: ToolContext | None = None
@@ -1774,6 +2656,26 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Sync event sources.</p>
 <p>Override this to provide functionality.</p></div>
 </dd>
+<dt id="adcp.server.ADCPHandler.sync_governance"><code class="name flex">
+<span>async def <span class="ident">sync_governance</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_governance(
+    self, params: dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Sync governance agents for accounts.
+
+    Override this to handle governance agent registration.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;sync_governance&#34;)</code></pre>
+</details>
+<div class="desc"><p>Sync governance agents for accounts.</p>
+<p>Override this to handle governance agent registration.</p></div>
+</dd>
 <dt id="adcp.server.ADCPHandler.sync_plans"><code class="name flex">
 <span>async def <span class="ident">sync_plans</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
@@ -1961,6 +2863,7 @@ pass</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_catalogs" href="base.html#adcp.server.base.ADCPHandler.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_creatives" href="base.html#adcp.server.base.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="base.html#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
@@ -2055,6 +2958,7 @@ pass</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_catalogs" href="base.html#adcp.server.base.ADCPHandler.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_creatives" href="base.html#adcp.server.base.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="base.html#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
@@ -2711,6 +3615,7 @@ async def handle_validate_content_delivery(
 <li><code><a title="adcp.server.base.ADCPHandler.sync_catalogs" href="base.html#adcp.server.base.ADCPHandler.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_creatives" href="base.html#adcp.server.base.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="base.html#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="base.html#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>
@@ -3565,6 +4470,7 @@ async def handle_update_property_list(
 <li><code><a title="adcp.server.base.ADCPHandler.sync_catalogs" href="base.html#adcp.server.base.ADCPHandler.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_creatives" href="base.html#adcp.server.base.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.validate_content_delivery" href="base.html#adcp.server.base.ADCPHandler.validate_content_delivery">validate_content_delivery</a></code></li>
@@ -4849,6 +5755,7 @@ async def handle_si_terminate_session(
 <li><code><a title="adcp.server.base.ADCPHandler.sync_catalogs" href="base.html#adcp.server.base.ADCPHandler.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_creatives" href="base.html#adcp.server.base.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="base.html#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
@@ -4857,6 +5764,296 @@ async def handle_si_terminate_session(
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.server.TestControllerError"><code class="flex name class">
+<span>class <span class="ident">TestControllerError</span></span>
+<span>(</span><span>code: str, message: str, current_state: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestControllerError(Exception):
+    &#34;&#34;&#34;Typed error for test controller store methods.
+
+    Raise this from your TestControllerStore methods to return structured
+    error responses. The dispatcher catches it and converts to the AdCP
+    comply_test_controller error format.
+
+    Example:
+        async def force_media_buy_status(self, media_buy_id, status, rejection_reason=None):
+            prev = self.media_buys.get(media_buy_id)
+            if prev is None:
+                raise TestControllerError(&#34;NOT_FOUND&#34;, f&#34;Media buy {media_buy_id} not found&#34;)
+            if prev in (&#34;completed&#34;, &#34;rejected&#34;, &#34;canceled&#34;):
+                raise TestControllerError(
+                    &#34;INVALID_TRANSITION&#34;,
+                    f&#34;Cannot transition from {prev}&#34;,
+                    current_state=prev,
+                )
+            self.media_buys[media_buy_id] = status
+            return {&#34;previous_state&#34;: prev, &#34;current_state&#34;: status}
+    &#34;&#34;&#34;
+
+    def __init__(self, code: str, message: str, current_state: str | None = None):
+        super().__init__(message)
+        self.code = code
+        self.current_state = current_state</code></pre>
+</details>
+<div class="desc"><p>Typed error for test controller store methods.</p>
+<p>Raise this from your TestControllerStore methods to return structured
+error responses. The dispatcher catches it and converts to the AdCP
+comply_test_controller error format.</p>
+<h2 id="example">Example</h2>
+<p>async def force_media_buy_status(self, media_buy_id, status, rejection_reason=None):
+prev = self.media_buys.get(media_buy_id)
+if prev is None:
+raise TestControllerError("NOT_FOUND", f"Media buy {media_buy_id} not found")
+if prev in ("completed", "rejected", "canceled"):
+raise TestControllerError(
+"INVALID_TRANSITION",
+f"Cannot transition from {prev}",
+current_state=prev,
+)
+self.media_buys[media_buy_id] = status
+return {"previous_state": prev, "current_state": status}</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.server.TestControllerStore"><code class="flex name class">
+<span>class <span class="ident">TestControllerStore</span></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TestControllerStore:
+    &#34;&#34;&#34;Base class for test controller state management.
+
+    Subclass this and override the methods for scenarios your agent supports.
+    Methods you don&#39;t override will be reported as unsupported scenarios
+    and excluded from list_scenarios.
+
+    Raise TestControllerError for structured error responses.
+    &#34;&#34;&#34;
+
+    async def force_creative_status(
+        self, creative_id: str, status: str, rejection_reason: str | None = None
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Force a creative to a given status.
+
+        Returns:
+            {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def force_account_status(self, account_id: str, status: str) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Force an account to a given status.
+
+        Returns:
+            {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def force_media_buy_status(
+        self, media_buy_id: str, status: str, rejection_reason: str | None = None
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Force a media buy to a given status.
+
+        Returns:
+            {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def force_session_status(
+        self, session_id: str, status: str, termination_reason: str | None = None
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Force a session to a given status.
+
+        Returns:
+            {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def simulate_delivery(
+        self,
+        media_buy_id: str,
+        impressions: int | None = None,
+        clicks: int | None = None,
+        conversions: int | None = None,
+        reported_spend: dict[str, Any] | None = None,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Simulate delivery metrics for a media buy.
+
+        Returns:
+            {&#34;simulated&#34;: {...}, &#34;cumulative&#34;: {...} | None}
+        &#34;&#34;&#34;
+        raise NotImplementedError
+
+    async def simulate_budget_spend(
+        self,
+        spend_percentage: float,
+        account_id: str | None = None,
+        media_buy_id: str | None = None,
+    ) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Simulate budget spend to a percentage.
+
+        Returns:
+            {&#34;simulated&#34;: {...}}
+        &#34;&#34;&#34;
+        raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Base class for test controller state management.</p>
+<p>Subclass this and override the methods for scenarios your agent supports.
+Methods you don't override will be reported as unsupported scenarios
+and excluded from list_scenarios.</p>
+<p>Raise TestControllerError for structured error responses.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.TestControllerStore.force_account_status"><code class="name flex">
+<span>async def <span class="ident">force_account_status</span></span>(<span>self, account_id: str, status: str) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def force_account_status(self, account_id: str, status: str) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Force an account to a given status.
+
+    Returns:
+        {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Force an account to a given status.</p>
+<h2 id="returns">Returns</h2>
+<p>{"previous_state": str, "current_state": str}</p></div>
+</dd>
+<dt id="adcp.server.TestControllerStore.force_creative_status"><code class="name flex">
+<span>async def <span class="ident">force_creative_status</span></span>(<span>self, creative_id: str, status: str, rejection_reason: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def force_creative_status(
+    self, creative_id: str, status: str, rejection_reason: str | None = None
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Force a creative to a given status.
+
+    Returns:
+        {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Force a creative to a given status.</p>
+<h2 id="returns">Returns</h2>
+<p>{"previous_state": str, "current_state": str}</p></div>
+</dd>
+<dt id="adcp.server.TestControllerStore.force_media_buy_status"><code class="name flex">
+<span>async def <span class="ident">force_media_buy_status</span></span>(<span>self, media_buy_id: str, status: str, rejection_reason: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def force_media_buy_status(
+    self, media_buy_id: str, status: str, rejection_reason: str | None = None
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Force a media buy to a given status.
+
+    Returns:
+        {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Force a media buy to a given status.</p>
+<h2 id="returns">Returns</h2>
+<p>{"previous_state": str, "current_state": str}</p></div>
+</dd>
+<dt id="adcp.server.TestControllerStore.force_session_status"><code class="name flex">
+<span>async def <span class="ident">force_session_status</span></span>(<span>self, session_id: str, status: str, termination_reason: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def force_session_status(
+    self, session_id: str, status: str, termination_reason: str | None = None
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Force a session to a given status.
+
+    Returns:
+        {&#34;previous_state&#34;: str, &#34;current_state&#34;: str}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Force a session to a given status.</p>
+<h2 id="returns">Returns</h2>
+<p>{"previous_state": str, "current_state": str}</p></div>
+</dd>
+<dt id="adcp.server.TestControllerStore.simulate_budget_spend"><code class="name flex">
+<span>async def <span class="ident">simulate_budget_spend</span></span>(<span>self,<br>spend_percentage: float,<br>account_id: str | None = None,<br>media_buy_id: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def simulate_budget_spend(
+    self,
+    spend_percentage: float,
+    account_id: str | None = None,
+    media_buy_id: str | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Simulate budget spend to a percentage.
+
+    Returns:
+        {&#34;simulated&#34;: {...}}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Simulate budget spend to a percentage.</p>
+<h2 id="returns">Returns</h2>
+<p>{"simulated": {&hellip;}}</p></div>
+</dd>
+<dt id="adcp.server.TestControllerStore.simulate_delivery"><code class="name flex">
+<span>async def <span class="ident">simulate_delivery</span></span>(<span>self,<br>media_buy_id: str,<br>impressions: int | None = None,<br>clicks: int | None = None,<br>conversions: int | None = None,<br>reported_spend: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def simulate_delivery(
+    self,
+    media_buy_id: str,
+    impressions: int | None = None,
+    clicks: int | None = None,
+    conversions: int | None = None,
+    reported_spend: dict[str, Any] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Simulate delivery metrics for a media buy.
+
+    Returns:
+        {&#34;simulated&#34;: {...}, &#34;cumulative&#34;: {...} | None}
+    &#34;&#34;&#34;
+    raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>Simulate delivery metrics for a media buy.</p>
+<h2 id="returns">Returns</h2>
+<p>{"simulated": {&hellip;}, "cumulative": {&hellip;} | None}</p></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.server.TmpHandler"><code class="flex name class">
 <span>class <span class="ident">TmpHandler</span></span>
@@ -4951,6 +6148,7 @@ pass</p>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_catalogs" href="base.html#adcp.server.base.ADCPHandler.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_creatives" href="base.html#adcp.server.base.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="base.html#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
@@ -5022,15 +6220,39 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.governance" href="governance.html">adcp.server.governance</a></code></li>
 <li><code><a title="adcp.server.mcp_tools" href="mcp_tools.html">adcp.server.mcp_tools</a></code></li>
 <li><code><a title="adcp.server.proposal" href="proposal.html">adcp.server.proposal</a></code></li>
+<li><code><a title="adcp.server.responses" href="responses.html">adcp.server.responses</a></code></li>
 <li><code><a title="adcp.server.sponsored_intelligence" href="sponsored_intelligence.html">adcp.server.sponsored_intelligence</a></code></li>
+<li><code><a title="adcp.server.test_controller" href="test_controller.html">adcp.server.test_controller</a></code></li>
 <li><code><a title="adcp.server.tmp" href="tmp.html">adcp.server.tmp</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="adcp.server.activate_signal_response" href="#adcp.server.activate_signal_response">activate_signal_response</a></code></li>
+<li><code><a title="adcp.server.build_creative_response" href="#adcp.server.build_creative_response">build_creative_response</a></code></li>
+<li><code><a title="adcp.server.capabilities_response" href="#adcp.server.capabilities_response">capabilities_response</a></code></li>
+<li><code><a title="adcp.server.create_mcp_server" href="#adcp.server.create_mcp_server">create_mcp_server</a></code></li>
 <li><code><a title="adcp.server.create_mcp_tools" href="#adcp.server.create_mcp_tools">create_mcp_tools</a></code></li>
+<li><code><a title="adcp.server.creative_formats_response" href="#adcp.server.creative_formats_response">creative_formats_response</a></code></li>
+<li><code><a title="adcp.server.delivery_response" href="#adcp.server.delivery_response">delivery_response</a></code></li>
+<li><code><a title="adcp.server.error_response" href="#adcp.server.error_response">error_response</a></code></li>
 <li><code><a title="adcp.server.get_tools_for_handler" href="#adcp.server.get_tools_for_handler">get_tools_for_handler</a></code></li>
+<li><code><a title="adcp.server.list_creatives_response" href="#adcp.server.list_creatives_response">list_creatives_response</a></code></li>
+<li><code><a title="adcp.server.log_event_response" href="#adcp.server.log_event_response">log_event_response</a></code></li>
+<li><code><a title="adcp.server.media_buy_error_response" href="#adcp.server.media_buy_error_response">media_buy_error_response</a></code></li>
+<li><code><a title="adcp.server.media_buy_response" href="#adcp.server.media_buy_response">media_buy_response</a></code></li>
+<li><code><a title="adcp.server.media_buys_response" href="#adcp.server.media_buys_response">media_buys_response</a></code></li>
 <li><code><a title="adcp.server.not_supported" href="#adcp.server.not_supported">not_supported</a></code></li>
+<li><code><a title="adcp.server.preview_creative_response" href="#adcp.server.preview_creative_response">preview_creative_response</a></code></li>
+<li><code><a title="adcp.server.products_response" href="#adcp.server.products_response">products_response</a></code></li>
+<li><code><a title="adcp.server.register_test_controller" href="#adcp.server.register_test_controller">register_test_controller</a></code></li>
+<li><code><a title="adcp.server.serve" href="#adcp.server.serve">serve</a></code></li>
+<li><code><a title="adcp.server.signals_response" href="#adcp.server.signals_response">signals_response</a></code></li>
+<li><code><a title="adcp.server.sync_accounts_response" href="#adcp.server.sync_accounts_response">sync_accounts_response</a></code></li>
+<li><code><a title="adcp.server.sync_catalogs_response" href="#adcp.server.sync_catalogs_response">sync_catalogs_response</a></code></li>
+<li><code><a title="adcp.server.sync_creatives_response" href="#adcp.server.sync_creatives_response">sync_creatives_response</a></code></li>
+<li><code><a title="adcp.server.sync_governance_response" href="#adcp.server.sync_governance_response">sync_governance_response</a></code></li>
+<li><code><a title="adcp.server.update_media_buy_response" href="#adcp.server.update_media_buy_response">update_media_buy_response</a></code></li>
 <li><code><a title="adcp.server.validate_capabilities" href="#adcp.server.validate_capabilities">validate_capabilities</a></code></li>
 </ul>
 </li>
@@ -5084,6 +6306,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.ADCPHandler.sync_catalogs" href="#adcp.server.ADCPHandler.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.sync_creatives" href="#adcp.server.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.sync_event_sources" href="#adcp.server.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.server.ADCPHandler.sync_governance" href="#adcp.server.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.sync_plans" href="#adcp.server.ADCPHandler.sync_plans">sync_plans</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.update_content_standards" href="#adcp.server.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.update_media_buy" href="#adcp.server.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
@@ -5196,6 +6419,20 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.si_initiate_session" href="#adcp.server.SponsoredIntelligenceHandler.si_initiate_session">si_initiate_session</a></code></li>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.si_send_message" href="#adcp.server.SponsoredIntelligenceHandler.si_send_message">si_send_message</a></code></li>
 <li><code><a title="adcp.server.SponsoredIntelligenceHandler.si_terminate_session" href="#adcp.server.SponsoredIntelligenceHandler.si_terminate_session">si_terminate_session</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.server.TestControllerError" href="#adcp.server.TestControllerError">TestControllerError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.server.TestControllerStore" href="#adcp.server.TestControllerStore">TestControllerStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.TestControllerStore.force_account_status" href="#adcp.server.TestControllerStore.force_account_status">force_account_status</a></code></li>
+<li><code><a title="adcp.server.TestControllerStore.force_creative_status" href="#adcp.server.TestControllerStore.force_creative_status">force_creative_status</a></code></li>
+<li><code><a title="adcp.server.TestControllerStore.force_media_buy_status" href="#adcp.server.TestControllerStore.force_media_buy_status">force_media_buy_status</a></code></li>
+<li><code><a title="adcp.server.TestControllerStore.force_session_status" href="#adcp.server.TestControllerStore.force_session_status">force_session_status</a></code></li>
+<li><code><a title="adcp.server.TestControllerStore.simulate_budget_spend" href="#adcp.server.TestControllerStore.simulate_budget_spend">simulate_budget_spend</a></code></li>
+<li><code><a title="adcp.server.TestControllerStore.simulate_delivery" href="#adcp.server.TestControllerStore.simulate_delivery">simulate_delivery</a></code></li>
 </ul>
 </li>
 <li>
