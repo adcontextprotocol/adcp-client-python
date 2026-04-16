@@ -130,6 +130,10 @@ async def call_tool(name: str, arguments: dict):
 ) -&gt; Callable[[dict[str, Any]], Any]:
     &#34;&#34;&#34;Create a tool caller function for an ADCP handler method.
 
+    Automatically injects context passthrough: if the request contains a
+    ``context`` field, it is echoed back in the response (ADCP requirement).
+    Handlers no longer need to call ``inject_context()`` manually.
+
     Args:
         handler: The ADCP handler instance
         method_name: Name of the method to call
@@ -137,6 +141,8 @@ async def call_tool(name: str, arguments: dict):
     Returns:
         Async callable that invokes the handler method
     &#34;&#34;&#34;
+    from adcp.server.helpers import inject_context
+
     method = getattr(handler, method_name)
 
     async def call_tool(params: dict[str, Any]) -&gt; Any:
@@ -144,12 +150,18 @@ async def call_tool(name: str, arguments: dict):
         result = await method(params, context)
         # Convert Pydantic models to JSON-safe dicts for MCP serialization
         if hasattr(result, &#34;model_dump&#34;):
-            return result.model_dump(mode=&#34;json&#34;, exclude_none=True)
+            result = result.model_dump(mode=&#34;json&#34;, exclude_none=True)
+        # ADCP requires echoing context from request to response
+        if isinstance(result, dict):
+            inject_context(params, result)
         return result
 
     return call_tool</code></pre>
 </details>
 <div class="desc"><p>Create a tool caller function for an ADCP handler method.</p>
+<p>Automatically injects context passthrough: if the request contains a
+<code>context</code> field, it is echoed back in the response (ADCP requirement).
+Handlers no longer need to call <code>inject_context()</code> manually.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>handler</code></strong></dt>

@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.server.a2a_server API documentation</title>
+<meta name="description" content="A2A server support for ADCP handlers …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.server.a2a_server</code></h1>
+</header>
+<section id="section-intro">
+<p>A2A server support for ADCP handlers.</p>
+<p>Bridges ADCPHandler to the a2a-sdk server framework so the same handler
+can be served over both MCP and A2A transports.</p>
+<pre><code>from adcp.server import ADCPHandler, serve
+serve(MyHandler(), name="my-agent", transport="a2a")
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.server.a2a_server.create_a2a_server"><code class="name flex">
+<span>def <span class="ident">create_a2a_server</span></span>(<span>handler: ADCPHandler,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>description: str | None = None,<br>version: str = '1.0.0',<br>test_controller: TestControllerStore | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_a2a_server(
+    handler: ADCPHandler,
+    *,
+    name: str = &#34;adcp-agent&#34;,
+    port: int | None = None,
+    description: str | None = None,
+    version: str = &#34;1.0.0&#34;,
+    test_controller: TestControllerStore | None = None,
+) -&gt; Any:
+    &#34;&#34;&#34;Create an A2A Starlette application from an ADCP handler.
+
+    Args:
+        handler: An ADCPHandler subclass instance.
+        name: Agent name shown in the A2A agent card.
+        port: Port number (used in the agent card URL).
+        description: Agent description for the agent card.
+        version: Agent version string.
+        test_controller: Optional TestControllerStore for storyboard testing.
+
+    Returns:
+        A Starlette app ready to be run with uvicorn.
+    &#34;&#34;&#34;
+    from a2a.server.apps.jsonrpc.starlette_app import A2AStarletteApplication
+
+    resolved_port = port or int(os.environ.get(&#34;PORT&#34;, &#34;3001&#34;))
+
+    executor = ADCPAgentExecutor(handler, test_controller=test_controller)
+
+    agent_card = _build_agent_card(
+        handler,
+        name=name,
+        port=resolved_port,
+        description=description,
+        version=version,
+        extra_skills=_test_controller_skills() if test_controller else None,
+    )
+
+    task_store = InMemoryTaskStore()
+
+    request_handler = DefaultRequestHandler(
+        agent_executor=executor,
+        task_store=task_store,
+    )
+
+    a2a_app = A2AStarletteApplication(
+        agent_card=agent_card,
+        http_handler=request_handler,
+    )
+
+    return a2a_app.build()</code></pre>
+</details>
+<div class="desc"><p>Create an A2A Starlette application from an ADCP handler.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>handler</code></strong></dt>
+<dd>An ADCPHandler subclass instance.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>Agent name shown in the A2A agent card.</dd>
+<dt><strong><code>port</code></strong></dt>
+<dd>Port number (used in the agent card URL).</dd>
+<dt><strong><code>description</code></strong></dt>
+<dd>Agent description for the agent card.</dd>
+<dt><strong><code>version</code></strong></dt>
+<dd>Agent version string.</dd>
+<dt><strong><code>test_controller</code></strong></dt>
+<dd>Optional TestControllerStore for storyboard testing.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A Starlette app ready to be run with uvicorn.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.server.a2a_server.ADCPAgentExecutor"><code class="flex name class">
+<span>class <span class="ident">ADCPAgentExecutor</span></span>
+<span>(</span><span>handler: ADCPHandler, test_controller: TestControllerStore | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPAgentExecutor(AgentExecutor):
+    &#34;&#34;&#34;Bridges ADCPHandler methods to the a2a-sdk AgentExecutor interface.
+
+    Incoming A2A messages are parsed to extract the ADCP skill name and
+    parameters, dispatched to the matching handler method, and the result
+    is published back as A2A Task events.
+
+    Expects the explicit skill invocation format used by A2AAdapter:
+        DataPart(data={&#34;skill&#34;: &#34;get_products&#34;, &#34;parameters&#34;: {...}})
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        handler: ADCPHandler,
+        test_controller: TestControllerStore | None = None,
+    ) -&gt; None:
+        self._handler = handler
+        self._tool_callers: dict[str, Any] = {}
+
+        # Build tool callers for all tools this handler supports
+        tool_defs = get_tools_for_handler(handler)
+        for tool_def in tool_defs:
+            name = tool_def[&#34;name&#34;]
+            self._tool_callers[name] = create_tool_caller(handler, name)
+
+        if test_controller is not None:
+            self._register_test_controller(test_controller)
+
+    @property
+    def supported_skills(self) -&gt; list[str]:
+        &#34;&#34;&#34;List of skill names this executor can handle.&#34;&#34;&#34;
+        return list(self._tool_callers.keys())
+
+    def _register_test_controller(self, store: TestControllerStore) -&gt; None:
+        &#34;&#34;&#34;Register comply_test_controller as a callable skill.&#34;&#34;&#34;
+
+        async def _call_test_controller(params: dict[str, Any]) -&gt; Any:
+            return await _handle_test_controller(store, params)
+
+        self._tool_callers[&#34;comply_test_controller&#34;] = _call_test_controller
+
+    async def execute(
+        self, context: RequestContext, event_queue: EventQueue
+    ) -&gt; None:
+        &#34;&#34;&#34;Execute an ADCP skill from an incoming A2A message.&#34;&#34;&#34;
+        skill_name, params = self._parse_request(context)
+
+        if skill_name is None:
+            await self._send_error(
+                event_queue, context, &#34;No skill specified in message&#34;
+            )
+            return
+
+        if skill_name not in self._tool_callers:
+            await self._send_error(
+                event_queue, context, f&#34;Unknown skill: {skill_name}&#34;
+            )
+            return
+
+        try:
+            result = await self._tool_callers[skill_name](params)
+            await self._send_result(event_queue, context, skill_name, result)
+        except Exception:
+            logger.exception(&#34;Error executing skill %s&#34;, skill_name)
+            await self._send_error(
+                event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;
+            )
+
+    async def cancel(
+        self, context: RequestContext, event_queue: EventQueue
+    ) -&gt; None:
+        &#34;&#34;&#34;ADCP operations are synchronous; cancellation sets state to canceled.&#34;&#34;&#34;
+        event = _make_task(
+            context,
+            state=TaskState.canceled,
+            message=&#34;Task canceled&#34;,
+        )
+        await event_queue.enqueue_event(event)
+
+    # ------------------------------------------------------------------
+    # Message parsing
+    # ------------------------------------------------------------------
+
+    def _parse_request(
+        self, context: RequestContext
+    ) -&gt; tuple[str | None, dict[str, Any]]:
+        &#34;&#34;&#34;Extract skill name and parameters from the A2A message.
+
+        Supports two formats:
+        1. Explicit skill invocation via DataPart:
+           DataPart(data={&#34;skill&#34;: &#34;get_products&#34;, &#34;parameters&#34;: {...}})
+        2. Natural language fallback via TextPart (best-effort parse)
+        &#34;&#34;&#34;
+        msg = context.message
+        if msg is None or not msg.parts:
+            return None, {}
+
+        # Try DataPart first (explicit skill invocation)
+        for part in msg.parts:
+            inner = part.root if hasattr(part, &#34;root&#34;) else part
+            if isinstance(inner, DataPart) and isinstance(inner.data, dict):
+                skill = inner.data.get(&#34;skill&#34;)
+                params = inner.data.get(&#34;parameters&#34;, {})
+                if skill:
+                    return str(skill), params if isinstance(params, dict) else {}
+
+        # Fallback: try to parse TextPart as JSON
+        for part in msg.parts:
+            inner = part.root if hasattr(part, &#34;root&#34;) else part
+            if isinstance(inner, TextPart):
+                parsed = self._parse_text_request(inner.text)
+                if parsed[0] is not None:
+                    return parsed
+
+        return None, {}
+
+    def _parse_text_request(
+        self, text: str
+    ) -&gt; tuple[str | None, dict[str, Any]]:
+        &#34;&#34;&#34;Best-effort parse of a text request for skill + params.&#34;&#34;&#34;
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict) and &#34;skill&#34; in data:
+                return str(data[&#34;skill&#34;]), data.get(&#34;parameters&#34;, {})
+        except (json.JSONDecodeError, TypeError):
+            pass
+        return None, {}
+
+    # ------------------------------------------------------------------
+    # Response helpers
+    # ------------------------------------------------------------------
+
+    async def _send_result(
+        self,
+        event_queue: EventQueue,
+        context: RequestContext,
+        skill_name: str,
+        result: Any,
+    ) -&gt; None:
+        &#34;&#34;&#34;Publish a completed task with the skill result.&#34;&#34;&#34;
+        # Normalize result to a JSON-safe dict
+        if hasattr(result, &#34;model_dump&#34;):
+            data = result.model_dump(mode=&#34;json&#34;, exclude_none=True)
+        elif not isinstance(result, dict):
+            data = {&#34;result&#34;: result}
+        else:
+            data = result
+
+        task = _make_task(
+            context,
+            state=TaskState.completed,
+            data=data,
+            message=f&#34;Completed {skill_name}&#34;,
+        )
+        await event_queue.enqueue_event(task)
+
+    async def _send_error(
+        self,
+        event_queue: EventQueue,
+        context: RequestContext,
+        error_msg: str,
+    ) -&gt; None:
+        &#34;&#34;&#34;Publish a failed task.&#34;&#34;&#34;
+        task = _make_task(
+            context,
+            state=TaskState.failed,
+            message=error_msg,
+        )
+        await event_queue.enqueue_event(task)</code></pre>
+</details>
+<div class="desc"><p>Bridges ADCPHandler methods to the a2a-sdk AgentExecutor interface.</p>
+<p>Incoming A2A messages are parsed to extract the ADCP skill name and
+parameters, dispatched to the matching handler method, and the result
+is published back as A2A Task events.</p>
+<p>Expects the explicit skill invocation format used by A2AAdapter:
+DataPart(data={"skill": "get_products", "parameters": {&hellip;}})</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>a2a.server.agent_execution.agent_executor.AgentExecutor</li>
+<li>abc.ABC</li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.server.a2a_server.ADCPAgentExecutor.supported_skills"><code class="name">prop <span class="ident">supported_skills</span> : list[str]</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def supported_skills(self) -&gt; list[str]:
+    &#34;&#34;&#34;List of skill names this executor can handle.&#34;&#34;&#34;
+    return list(self._tool_callers.keys())</code></pre>
+</details>
+<div class="desc"><p>List of skill names this executor can handle.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.a2a_server.ADCPAgentExecutor.cancel"><code class="name flex">
+<span>async def <span class="ident">cancel</span></span>(<span>self, context: RequestContext, event_queue: EventQueue) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def cancel(
+    self, context: RequestContext, event_queue: EventQueue
+) -&gt; None:
+    &#34;&#34;&#34;ADCP operations are synchronous; cancellation sets state to canceled.&#34;&#34;&#34;
+    event = _make_task(
+        context,
+        state=TaskState.canceled,
+        message=&#34;Task canceled&#34;,
+    )
+    await event_queue.enqueue_event(event)</code></pre>
+</details>
+<div class="desc"><p>ADCP operations are synchronous; cancellation sets state to canceled.</p></div>
+</dd>
+<dt id="adcp.server.a2a_server.ADCPAgentExecutor.execute"><code class="name flex">
+<span>async def <span class="ident">execute</span></span>(<span>self, context: RequestContext, event_queue: EventQueue) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def execute(
+    self, context: RequestContext, event_queue: EventQueue
+) -&gt; None:
+    &#34;&#34;&#34;Execute an ADCP skill from an incoming A2A message.&#34;&#34;&#34;
+    skill_name, params = self._parse_request(context)
+
+    if skill_name is None:
+        await self._send_error(
+            event_queue, context, &#34;No skill specified in message&#34;
+        )
+        return
+
+    if skill_name not in self._tool_callers:
+        await self._send_error(
+            event_queue, context, f&#34;Unknown skill: {skill_name}&#34;
+        )
+        return
+
+    try:
+        result = await self._tool_callers[skill_name](params)
+        await self._send_result(event_queue, context, skill_name, result)
+    except Exception:
+        logger.exception(&#34;Error executing skill %s&#34;, skill_name)
+        await self._send_error(
+            event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;
+        )</code></pre>
+</details>
+<div class="desc"><p>Execute an ADCP skill from an incoming A2A message.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.server" href="index.html">adcp.server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.server.a2a_server.create_a2a_server" href="#adcp.server.a2a_server.create_a2a_server">create_a2a_server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.server.a2a_server.ADCPAgentExecutor" href="#adcp.server.a2a_server.ADCPAgentExecutor">ADCPAgentExecutor</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.a2a_server.ADCPAgentExecutor.cancel" href="#adcp.server.a2a_server.ADCPAgentExecutor.cancel">cancel</a></code></li>
+<li><code><a title="adcp.server.a2a_server.ADCPAgentExecutor.execute" href="#adcp.server.a2a_server.ADCPAgentExecutor.execute">execute</a></code></li>
+<li><code><a title="adcp.server.a2a_server.ADCPAgentExecutor.supported_skills" href="#adcp.server.a2a_server.ADCPAgentExecutor.supported_skills">supported_skills</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

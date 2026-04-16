@@ -87,6 +87,10 @@ handler code runs.</li>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
+<dt><code class="name"><a title="adcp.server.a2a_server" href="a2a_server.html">adcp.server.a2a_server</a></code></dt>
+<dd>
+<div class="desc"><p>A2A server support for ADCP handlers …</p></div>
+</dd>
 <dt><code class="name"><a title="adcp.server.base" href="base.html">adcp.server.base</a></code></dt>
 <dd>
 <div class="desc"><p>Base classes for ADCP server implementations …</p></div>
@@ -419,6 +423,84 @@ most commonly forget.</p></div>
 <dt><strong><code>features</code></strong></dt>
 <dd>Additional feature flags.</dd>
 </dl></div>
+</dd>
+<dt id="adcp.server.create_a2a_server"><code class="name flex">
+<span>def <span class="ident">create_a2a_server</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>description: str | None = None,<br>version: str = '1.0.0',<br>test_controller: <a title="adcp.server.TestControllerStore" href="#adcp.server.TestControllerStore">TestControllerStore</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_a2a_server(
+    handler: ADCPHandler,
+    *,
+    name: str = &#34;adcp-agent&#34;,
+    port: int | None = None,
+    description: str | None = None,
+    version: str = &#34;1.0.0&#34;,
+    test_controller: TestControllerStore | None = None,
+) -&gt; Any:
+    &#34;&#34;&#34;Create an A2A Starlette application from an ADCP handler.
+
+    Args:
+        handler: An ADCPHandler subclass instance.
+        name: Agent name shown in the A2A agent card.
+        port: Port number (used in the agent card URL).
+        description: Agent description for the agent card.
+        version: Agent version string.
+        test_controller: Optional TestControllerStore for storyboard testing.
+
+    Returns:
+        A Starlette app ready to be run with uvicorn.
+    &#34;&#34;&#34;
+    from a2a.server.apps.jsonrpc.starlette_app import A2AStarletteApplication
+
+    resolved_port = port or int(os.environ.get(&#34;PORT&#34;, &#34;3001&#34;))
+
+    executor = ADCPAgentExecutor(handler, test_controller=test_controller)
+
+    agent_card = _build_agent_card(
+        handler,
+        name=name,
+        port=resolved_port,
+        description=description,
+        version=version,
+        extra_skills=_test_controller_skills() if test_controller else None,
+    )
+
+    task_store = InMemoryTaskStore()
+
+    request_handler = DefaultRequestHandler(
+        agent_executor=executor,
+        task_store=task_store,
+    )
+
+    a2a_app = A2AStarletteApplication(
+        agent_card=agent_card,
+        http_handler=request_handler,
+    )
+
+    return a2a_app.build()</code></pre>
+</details>
+<div class="desc"><p>Create an A2A Starlette application from an ADCP handler.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>handler</code></strong></dt>
+<dd>An ADCPHandler subclass instance.</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>Agent name shown in the A2A agent card.</dd>
+<dt><strong><code>port</code></strong></dt>
+<dd>Port number (used in the agent card URL).</dd>
+<dt><strong><code>description</code></strong></dt>
+<dd>Agent description for the agent card.</dd>
+<dt><strong><code>version</code></strong></dt>
+<dd>Agent version string.</dd>
+<dt><strong><code>test_controller</code></strong></dt>
+<dd>Optional TestControllerStore for storyboard testing.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A Starlette app ready to be run with uvicorn.</p></div>
 </dd>
 <dt id="adcp.server.create_mcp_server"><code class="name flex">
 <span>def <span class="ident">create_mcp_server</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>instructions: str | None = None) ‑> Any</span>
@@ -1194,31 +1276,31 @@ ACCOUNT_PAYMENT_REQUIRED, ACCOUNT_AMBIGUOUS, etc.).</p></div>
     instructions: str | None = None,
     test_controller: TestControllerStore | None = None,
 ) -&gt; None:
-    &#34;&#34;&#34;Start an MCP server from an ADCP handler or server builder.
+    &#34;&#34;&#34;Start an MCP or A2A server from an ADCP handler or server builder.
 
     Accepts either an ``ADCPHandler`` instance or an ``ADCPServerBuilder``
     (from ``adcp_server()``). Builders are auto-converted via ``build_handler()``.
 
-    This is the simplest way to run an ADCP agent. It creates a FastMCP server,
-    registers all tools from the handler, optionally registers a test controller,
-    and starts serving.
+    This is the simplest way to run an ADCP agent. Set ``transport=&#34;a2a&#34;``
+    to serve over the A2A protocol instead of MCP.
 
     Args:
         handler: An ADCPHandler subclass instance with your tool implementations.
-        name: Server name shown to MCP clients.
+        name: Server name shown to clients / in the A2A agent card.
         port: Port to listen on. Defaults to PORT env var, then 3001.
-        mount: URL path to mount MCP endpoint on.
-        transport: MCP transport type. Default &#34;streamable-http&#34;.
-        instructions: Optional system instructions for the agent.
+        mount: URL path to mount MCP endpoint on (MCP only).
+        transport: ``&#34;streamable-http&#34;`` (default, MCP) or ``&#34;a2a&#34;``.
+        instructions: Optional system instructions for the agent (MCP only).
         test_controller: Optional TestControllerStore instance for storyboard testing.
 
     Security:
         This function does NOT configure authentication. In production,
         use a reverse proxy or middleware that validates credentials
-        before forwarding to the MCP endpoint. Without authentication,
-        the tools/list endpoint exposes the agent&#39;s capability surface.
+        before forwarding to the endpoint. Without authentication,
+        MCP exposes tools/list and A2A exposes /.well-known/agent.json,
+        both of which reveal the agent&#39;s full capability surface.
 
-    Example:
+    Example (MCP):
         from adcp.server import ADCPHandler, serve
         from adcp.server.responses import capabilities_response
 
@@ -1227,6 +1309,9 @@ ACCOUNT_PAYMENT_REQUIRED, ACCOUNT_AMBIGUOUS, etc.).</p></div>
                 return capabilities_response([&#34;media_buy&#34;])
 
         serve(MyAgent(), name=&#34;my-agent&#34;)
+
+    Example (A2A):
+        serve(MyAgent(), name=&#34;my-agent&#34;, transport=&#34;a2a&#34;)
 
     With test controller:
         from adcp.server.test_controller import TestControllerStore
@@ -1245,50 +1330,60 @@ ACCOUNT_PAYMENT_REQUIRED, ACCOUNT_AMBIGUOUS, etc.).</p></div>
             name = handler.name
         handler = handler.build_handler()
 
-    mcp = create_mcp_server(handler, name=name, port=port, instructions=instructions)
-
-    if test_controller is not None:
-        from adcp.server.test_controller import register_test_controller
-
-        register_test_controller(mcp, test_controller)
-
-    mcp.run(transport=transport)</code></pre>
+    if transport == &#34;a2a&#34;:
+        _serve_a2a(handler, name=name, port=port, test_controller=test_controller)
+    elif transport in (&#34;streamable-http&#34;, &#34;sse&#34;, &#34;stdio&#34;):
+        _serve_mcp(
+            handler,
+            name=name,
+            port=port,
+            transport=transport,
+            instructions=instructions,
+            test_controller=test_controller,
+        )
+    else:
+        valid = &#34;, &#34;.join(sorted((&#34;a2a&#34;, &#34;streamable-http&#34;, &#34;sse&#34;, &#34;stdio&#34;)))
+        raise ValueError(f&#34;Unknown transport {transport!r}. Valid: {valid}&#34;)</code></pre>
 </details>
-<div class="desc"><p>Start an MCP server from an ADCP handler or server builder.</p>
+<div class="desc"><p>Start an MCP or A2A server from an ADCP handler or server builder.</p>
 <p>Accepts either an <code><a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a></code> instance or an <code><a title="adcp.server.ADCPServerBuilder" href="#adcp.server.ADCPServerBuilder">ADCPServerBuilder</a></code>
 (from <code><a title="adcp.server.adcp_server" href="#adcp.server.adcp_server">adcp_server()</a></code>). Builders are auto-converted via <code>build_handler()</code>.</p>
-<p>This is the simplest way to run an ADCP agent. It creates a FastMCP server,
-registers all tools from the handler, optionally registers a test controller,
-and starts serving.</p>
+<p>This is the simplest way to run an ADCP agent. Set <code>transport="a2a"</code>
+to serve over the A2A protocol instead of MCP.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>handler</code></strong></dt>
 <dd>An ADCPHandler subclass instance with your tool implementations.</dd>
 <dt><strong><code>name</code></strong></dt>
-<dd>Server name shown to MCP clients.</dd>
+<dd>Server name shown to clients / in the A2A agent card.</dd>
 <dt><strong><code>port</code></strong></dt>
 <dd>Port to listen on. Defaults to PORT env var, then 3001.</dd>
 <dt><strong><code>mount</code></strong></dt>
-<dd>URL path to mount MCP endpoint on.</dd>
+<dd>URL path to mount MCP endpoint on (MCP only).</dd>
 <dt><strong><code>transport</code></strong></dt>
-<dd>MCP transport type. Default "streamable-http".</dd>
+<dd><code>"streamable-http"</code> (default, MCP) or <code>"a2a"</code>.</dd>
 <dt><strong><code>instructions</code></strong></dt>
-<dd>Optional system instructions for the agent.</dd>
+<dd>Optional system instructions for the agent (MCP only).</dd>
 <dt><strong><code>test_controller</code></strong></dt>
 <dd>Optional TestControllerStore instance for storyboard testing.</dd>
 </dl>
 <h2 id="security">Security</h2>
 <p>This function does NOT configure authentication. In production,
 use a reverse proxy or middleware that validates credentials
-before forwarding to the MCP endpoint. Without authentication,
-the tools/list endpoint exposes the agent's capability surface.</p>
-<h2 id="example">Example</h2>
-<p>from adcp.server import ADCPHandler, serve
+before forwarding to the endpoint. Without authentication,
+MCP exposes tools/list and A2A exposes /.well-known/agent.json,
+both of which reveal the agent's full capability surface.</p>
+<p>Example (MCP):
+from adcp.server import ADCPHandler, serve
 from adcp.server.responses import capabilities_response</p>
-<p>class MyAgent(ADCPHandler):
-async def get_adcp_capabilities(self, params, context=None):
-return capabilities_response(["media_buy"])</p>
-<p>serve(MyAgent(), name="my-agent")</p>
+<pre><code>class MyAgent(ADCPHandler):
+    async def get_adcp_capabilities(self, params, context=None):
+        return capabilities_response(["media_buy"])
+
+serve(MyAgent(), name="my-agent")
+</code></pre>
+<p>Example (A2A):
+serve(MyAgent(), name="my-agent", transport="a2a")</p>
 <p>With test controller:
 from adcp.server.test_controller import TestControllerStore</p>
 <pre><code>class MyStore(TestControllerStore):
@@ -1571,6 +1666,274 @@ whose corresponding handler methods are not overridden from the base class.</p>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.server.ADCPAgentExecutor"><code class="flex name class">
+<span>class <span class="ident">ADCPAgentExecutor</span></span>
+<span>(</span><span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>,<br>test_controller: <a title="adcp.server.TestControllerStore" href="#adcp.server.TestControllerStore">TestControllerStore</a> | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPAgentExecutor(AgentExecutor):
+    &#34;&#34;&#34;Bridges ADCPHandler methods to the a2a-sdk AgentExecutor interface.
+
+    Incoming A2A messages are parsed to extract the ADCP skill name and
+    parameters, dispatched to the matching handler method, and the result
+    is published back as A2A Task events.
+
+    Expects the explicit skill invocation format used by A2AAdapter:
+        DataPart(data={&#34;skill&#34;: &#34;get_products&#34;, &#34;parameters&#34;: {...}})
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        handler: ADCPHandler,
+        test_controller: TestControllerStore | None = None,
+    ) -&gt; None:
+        self._handler = handler
+        self._tool_callers: dict[str, Any] = {}
+
+        # Build tool callers for all tools this handler supports
+        tool_defs = get_tools_for_handler(handler)
+        for tool_def in tool_defs:
+            name = tool_def[&#34;name&#34;]
+            self._tool_callers[name] = create_tool_caller(handler, name)
+
+        if test_controller is not None:
+            self._register_test_controller(test_controller)
+
+    @property
+    def supported_skills(self) -&gt; list[str]:
+        &#34;&#34;&#34;List of skill names this executor can handle.&#34;&#34;&#34;
+        return list(self._tool_callers.keys())
+
+    def _register_test_controller(self, store: TestControllerStore) -&gt; None:
+        &#34;&#34;&#34;Register comply_test_controller as a callable skill.&#34;&#34;&#34;
+
+        async def _call_test_controller(params: dict[str, Any]) -&gt; Any:
+            return await _handle_test_controller(store, params)
+
+        self._tool_callers[&#34;comply_test_controller&#34;] = _call_test_controller
+
+    async def execute(
+        self, context: RequestContext, event_queue: EventQueue
+    ) -&gt; None:
+        &#34;&#34;&#34;Execute an ADCP skill from an incoming A2A message.&#34;&#34;&#34;
+        skill_name, params = self._parse_request(context)
+
+        if skill_name is None:
+            await self._send_error(
+                event_queue, context, &#34;No skill specified in message&#34;
+            )
+            return
+
+        if skill_name not in self._tool_callers:
+            await self._send_error(
+                event_queue, context, f&#34;Unknown skill: {skill_name}&#34;
+            )
+            return
+
+        try:
+            result = await self._tool_callers[skill_name](params)
+            await self._send_result(event_queue, context, skill_name, result)
+        except Exception:
+            logger.exception(&#34;Error executing skill %s&#34;, skill_name)
+            await self._send_error(
+                event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;
+            )
+
+    async def cancel(
+        self, context: RequestContext, event_queue: EventQueue
+    ) -&gt; None:
+        &#34;&#34;&#34;ADCP operations are synchronous; cancellation sets state to canceled.&#34;&#34;&#34;
+        event = _make_task(
+            context,
+            state=TaskState.canceled,
+            message=&#34;Task canceled&#34;,
+        )
+        await event_queue.enqueue_event(event)
+
+    # ------------------------------------------------------------------
+    # Message parsing
+    # ------------------------------------------------------------------
+
+    def _parse_request(
+        self, context: RequestContext
+    ) -&gt; tuple[str | None, dict[str, Any]]:
+        &#34;&#34;&#34;Extract skill name and parameters from the A2A message.
+
+        Supports two formats:
+        1. Explicit skill invocation via DataPart:
+           DataPart(data={&#34;skill&#34;: &#34;get_products&#34;, &#34;parameters&#34;: {...}})
+        2. Natural language fallback via TextPart (best-effort parse)
+        &#34;&#34;&#34;
+        msg = context.message
+        if msg is None or not msg.parts:
+            return None, {}
+
+        # Try DataPart first (explicit skill invocation)
+        for part in msg.parts:
+            inner = part.root if hasattr(part, &#34;root&#34;) else part
+            if isinstance(inner, DataPart) and isinstance(inner.data, dict):
+                skill = inner.data.get(&#34;skill&#34;)
+                params = inner.data.get(&#34;parameters&#34;, {})
+                if skill:
+                    return str(skill), params if isinstance(params, dict) else {}
+
+        # Fallback: try to parse TextPart as JSON
+        for part in msg.parts:
+            inner = part.root if hasattr(part, &#34;root&#34;) else part
+            if isinstance(inner, TextPart):
+                parsed = self._parse_text_request(inner.text)
+                if parsed[0] is not None:
+                    return parsed
+
+        return None, {}
+
+    def _parse_text_request(
+        self, text: str
+    ) -&gt; tuple[str | None, dict[str, Any]]:
+        &#34;&#34;&#34;Best-effort parse of a text request for skill + params.&#34;&#34;&#34;
+        try:
+            data = json.loads(text)
+            if isinstance(data, dict) and &#34;skill&#34; in data:
+                return str(data[&#34;skill&#34;]), data.get(&#34;parameters&#34;, {})
+        except (json.JSONDecodeError, TypeError):
+            pass
+        return None, {}
+
+    # ------------------------------------------------------------------
+    # Response helpers
+    # ------------------------------------------------------------------
+
+    async def _send_result(
+        self,
+        event_queue: EventQueue,
+        context: RequestContext,
+        skill_name: str,
+        result: Any,
+    ) -&gt; None:
+        &#34;&#34;&#34;Publish a completed task with the skill result.&#34;&#34;&#34;
+        # Normalize result to a JSON-safe dict
+        if hasattr(result, &#34;model_dump&#34;):
+            data = result.model_dump(mode=&#34;json&#34;, exclude_none=True)
+        elif not isinstance(result, dict):
+            data = {&#34;result&#34;: result}
+        else:
+            data = result
+
+        task = _make_task(
+            context,
+            state=TaskState.completed,
+            data=data,
+            message=f&#34;Completed {skill_name}&#34;,
+        )
+        await event_queue.enqueue_event(task)
+
+    async def _send_error(
+        self,
+        event_queue: EventQueue,
+        context: RequestContext,
+        error_msg: str,
+    ) -&gt; None:
+        &#34;&#34;&#34;Publish a failed task.&#34;&#34;&#34;
+        task = _make_task(
+            context,
+            state=TaskState.failed,
+            message=error_msg,
+        )
+        await event_queue.enqueue_event(task)</code></pre>
+</details>
+<div class="desc"><p>Bridges ADCPHandler methods to the a2a-sdk AgentExecutor interface.</p>
+<p>Incoming A2A messages are parsed to extract the ADCP skill name and
+parameters, dispatched to the matching handler method, and the result
+is published back as A2A Task events.</p>
+<p>Expects the explicit skill invocation format used by A2AAdapter:
+DataPart(data={"skill": "get_products", "parameters": {&hellip;}})</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>a2a.server.agent_execution.agent_executor.AgentExecutor</li>
+<li>abc.ABC</li>
+</ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.server.ADCPAgentExecutor.supported_skills"><code class="name">prop <span class="ident">supported_skills</span> : list[str]</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def supported_skills(self) -&gt; list[str]:
+    &#34;&#34;&#34;List of skill names this executor can handle.&#34;&#34;&#34;
+    return list(self._tool_callers.keys())</code></pre>
+</details>
+<div class="desc"><p>List of skill names this executor can handle.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.ADCPAgentExecutor.cancel"><code class="name flex">
+<span>async def <span class="ident">cancel</span></span>(<span>self, context: RequestContext, event_queue: EventQueue) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def cancel(
+    self, context: RequestContext, event_queue: EventQueue
+) -&gt; None:
+    &#34;&#34;&#34;ADCP operations are synchronous; cancellation sets state to canceled.&#34;&#34;&#34;
+    event = _make_task(
+        context,
+        state=TaskState.canceled,
+        message=&#34;Task canceled&#34;,
+    )
+    await event_queue.enqueue_event(event)</code></pre>
+</details>
+<div class="desc"><p>ADCP operations are synchronous; cancellation sets state to canceled.</p></div>
+</dd>
+<dt id="adcp.server.ADCPAgentExecutor.execute"><code class="name flex">
+<span>async def <span class="ident">execute</span></span>(<span>self, context: RequestContext, event_queue: EventQueue) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def execute(
+    self, context: RequestContext, event_queue: EventQueue
+) -&gt; None:
+    &#34;&#34;&#34;Execute an ADCP skill from an incoming A2A message.&#34;&#34;&#34;
+    skill_name, params = self._parse_request(context)
+
+    if skill_name is None:
+        await self._send_error(
+            event_queue, context, &#34;No skill specified in message&#34;
+        )
+        return
+
+    if skill_name not in self._tool_callers:
+        await self._send_error(
+            event_queue, context, f&#34;Unknown skill: {skill_name}&#34;
+        )
+        return
+
+    try:
+        result = await self._tool_callers[skill_name](params)
+        await self._send_result(event_queue, context, skill_name, result)
+    except Exception:
+        logger.exception(&#34;Error executing skill %s&#34;, skill_name)
+        await self._send_error(
+            event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;
+        )</code></pre>
+</details>
+<div class="desc"><p>Execute an ADCP skill from an incoming A2A message.</p></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.server.ADCPHandler"><code class="flex name class">
 <span>class <span class="ident">ADCPHandler</span></span>
 </code></dt>
@@ -6984,6 +7347,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 </li>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
+<li><code><a title="adcp.server.a2a_server" href="a2a_server.html">adcp.server.a2a_server</a></code></li>
 <li><code><a title="adcp.server.base" href="base.html">adcp.server.base</a></code></li>
 <li><code><a title="adcp.server.brand" href="brand.html">adcp.server.brand</a></code></li>
 <li><code><a title="adcp.server.builder" href="builder.html">adcp.server.builder</a></code></li>
@@ -7008,6 +7372,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.build_creative_response" href="#adcp.server.build_creative_response">build_creative_response</a></code></li>
 <li><code><a title="adcp.server.cancel_media_buy_response" href="#adcp.server.cancel_media_buy_response">cancel_media_buy_response</a></code></li>
 <li><code><a title="adcp.server.capabilities_response" href="#adcp.server.capabilities_response">capabilities_response</a></code></li>
+<li><code><a title="adcp.server.create_a2a_server" href="#adcp.server.create_a2a_server">create_a2a_server</a></code></li>
 <li><code><a title="adcp.server.create_mcp_server" href="#adcp.server.create_mcp_server">create_mcp_server</a></code></li>
 <li><code><a title="adcp.server.create_mcp_tools" href="#adcp.server.create_mcp_tools">create_mcp_tools</a></code></li>
 <li><code><a title="adcp.server.creative_formats_response" href="#adcp.server.creative_formats_response">creative_formats_response</a></code></li>
@@ -7039,6 +7404,14 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="adcp.server.ADCPAgentExecutor" href="#adcp.server.ADCPAgentExecutor">ADCPAgentExecutor</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.ADCPAgentExecutor.cancel" href="#adcp.server.ADCPAgentExecutor.cancel">cancel</a></code></li>
+<li><code><a title="adcp.server.ADCPAgentExecutor.execute" href="#adcp.server.ADCPAgentExecutor.execute">execute</a></code></li>
+<li><code><a title="adcp.server.ADCPAgentExecutor.supported_skills" href="#adcp.server.ADCPAgentExecutor.supported_skills">supported_skills</a></code></li>
+</ul>
+</li>
 <li>
 <h4><code><a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a></code></h4>
 <ul class="">
