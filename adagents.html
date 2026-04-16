@@ -165,13 +165,21 @@ el.replaceWith(d);
     # Track visited URLs to detect loops
     visited_urls: set[str] = set()
 
+    is_redirect = False
+
     for depth in range(MAX_REDIRECT_DEPTH + 1):
         # Check for redirect loop
         if url in visited_urls:
-            raise AdagentsValidationError(f&#34;Circular redirect detected: {url} already visited&#34;)
+            raise AdagentsValidationError(
+                &#34;Circular redirect detected in authoritative_location chain&#34;
+            )
         visited_urls.add(url)
 
-        data = await _fetch_adagents_url(url, timeout, user_agent, client)
+        # Use the caller&#39;s client for the initial fetch only. Redirect targets
+        # use a fresh client to avoid leaking credentials to third-party URLs.
+        fetch_client = None if is_redirect else client
+
+        data = await _fetch_adagents_url(url, timeout, user_agent, fetch_client)
 
         # Check if this is a redirect. A response with authoritative_location but no
         # authorized_agents indicates a redirect. If both are present, authorized_agents
@@ -187,6 +195,9 @@ el.replaceWith(d);
                     f&#34;authoritative_location must be an HTTPS URL, got: {authoritative_url!r}&#34;
                 )
 
+            # Validate the redirect target is not a private/reserved address
+            _validate_redirect_url(authoritative_url)
+
             # Check if we&#39;ve exceeded max depth
             if depth &gt;= MAX_REDIRECT_DEPTH:
                 raise AdagentsValidationError(
@@ -195,6 +206,7 @@ el.replaceWith(d);
 
             # Follow the redirect
             url = authoritative_url
+            is_redirect = True
             continue
 
         # We have the final data with authorized_agents (or both fields present,
@@ -367,6 +379,9 @@ to enable connection pooling</li>
 <pre><code class="python">def get_all_properties(adagents_data: dict[str, Any]) -&gt; list[dict[str, Any]]:
     &#34;&#34;&#34;Extract all properties from adagents.json data.
 
+    Handles all authorization types: inline_properties, property_ids,
+    property_tags, and publisher_properties.
+
     Args:
         adagents_data: Parsed adagents.json data
 
@@ -383,6 +398,10 @@ to enable connection pooling</li>
     if not isinstance(authorized_agents, list):
         raise AdagentsValidationError(&#34;adagents.json must have &#39;authorized_agents&#39; array&#34;)
 
+    top_level_properties = adagents_data.get(&#34;properties&#34;, [])
+    if not isinstance(top_level_properties, list):
+        top_level_properties = []
+
     properties = []
     for agent in authorized_agents:
         if not isinstance(agent, dict):
@@ -392,20 +411,17 @@ to enable connection pooling</li>
         if not agent_url:
             continue
 
-        agent_properties = agent.get(&#34;properties&#34;, [])
-        if not isinstance(agent_properties, list):
-            continue
+        agent_properties = _resolve_agent_properties(agent, top_level_properties)
 
-        # Add each property with the agent URL for reference
         for prop in agent_properties:
-            if isinstance(prop, dict):
-                # Create a copy and add agent_url
-                prop_with_agent = {**prop, &#34;agent_url&#34;: agent_url}
-                properties.append(prop_with_agent)
+            prop_with_agent = {**prop, &#34;agent_url&#34;: agent_url}
+            properties.append(prop_with_agent)
 
     return properties</code></pre>
 </details>
 <div class="desc"><p>Extract all properties from adagents.json data.</p>
+<p>Handles all authorization types: inline_properties, property_ids,
+property_tags, and publisher_properties.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>adagents_data</code></strong></dt>
@@ -500,12 +516,10 @@ to enable connection pooling</li>
     if not isinstance(authorized_agents, list):
         raise AdagentsValidationError(&#34;adagents.json must have &#39;authorized_agents&#39; array&#34;)
 
-    # Get top-level properties for reference-based authorization types
     top_level_properties = adagents_data.get(&#34;properties&#34;, [])
     if not isinstance(top_level_properties, list):
         top_level_properties = []
 
-    # Normalize the agent URL for comparison
     normalized_agent_url = normalize_url(agent_url)
 
     for agent in authorized_agents:
@@ -516,48 +530,10 @@ to enable connection pooling</li>
         if not agent_url_from_json:
             continue
 
-        # Match agent URL (protocol-agnostic)
         if normalize_url(agent_url_from_json) != normalized_agent_url:
             continue
 
-        # Found the agent - determine authorization type
-        authorization_type = agent.get(&#34;authorization_type&#34;, &#34;&#34;)
-
-        # Handle inline_properties (properties array directly on agent)
-        if authorization_type == &#34;inline_properties&#34; or &#34;properties&#34; in agent:
-            properties = agent.get(&#34;properties&#34;, [])
-            if not isinstance(properties, list):
-                return []
-            return [p for p in properties if isinstance(p, dict)]
-
-        # Handle property_ids (filter top-level properties by property_id)
-        if authorization_type == &#34;property_ids&#34;:
-            authorized_ids = set(agent.get(&#34;property_ids&#34;, []))
-            return [
-                p
-                for p in top_level_properties
-                if isinstance(p, dict) and p.get(&#34;property_id&#34;) in authorized_ids
-            ]
-
-        # Handle property_tags (filter top-level properties by tags)
-        if authorization_type == &#34;property_tags&#34;:
-            authorized_tags = set(agent.get(&#34;property_tags&#34;, []))
-            return [
-                p
-                for p in top_level_properties
-                if isinstance(p, dict) and set(p.get(&#34;tags&#34;, [])) &amp; authorized_tags
-            ]
-
-        # Handle publisher_properties (cross-domain references)
-        # Returns the selector objects; caller must resolve against other domains
-        if authorization_type == &#34;publisher_properties&#34;:
-            publisher_props = agent.get(&#34;publisher_properties&#34;, [])
-            if not isinstance(publisher_props, list):
-                return []
-            return [p for p in publisher_props if isinstance(p, dict)]
-
-        # No recognized authorization type - return empty
-        return []
+        return _resolve_agent_properties(agent, top_level_properties)
 
     return []</code></pre>
 </details>
