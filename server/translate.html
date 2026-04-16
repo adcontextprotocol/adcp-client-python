@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.server.translate API documentation</title>
+<meta name="description" content="Error translation and request normalization for proxy and custom-transport servers …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.server.translate</code></h1>
+</header>
+<section id="section-intro">
+<p>Error translation and request normalization for proxy and custom-transport servers.</p>
+<p>Standard servers using <code>serve()</code> or <code>ADCPAgentExecutor</code> do not need these
+helpers — the framework handles error translation and request normalization
+internally.</p>
+<p>These are for <strong>proxy servers</strong> that catch <code>ADCPError</code> from a downstream
+agent call and need to format it for their own transport, or custom
+multi-transport servers that bypass the standard framework.</p>
+<p>Not exported from <code><a title="adcp.server" href="index.html">adcp.server</a></code> — import directly::</p>
+<pre><code>from adcp.server.translate import translate_error, normalize_request
+
+# In a proxy catching errors from a downstream agent:
+try:
+    result = await downstream_client.create_media_buy(params)
+except ADCPError as e:
+    raise translate_error(e, protocol="a2a")
+    # Raises: ServerError(InternalError(message="...", data={...}))
+
+# Normalize deprecated field names from older callers:
+params = normalize_request(params, task_name="create_media_buy")
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.server.translate.normalize_request"><code class="name flex">
+<span>def <span class="ident">normalize_request</span></span>(<span>params: dict[str, Any], task_name: str | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def normalize_request(
+    params: dict[str, Any],
+    task_name: str | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Normalize deprecated field names and structures in request params.
+
+    Applies known transforms so servers can accept both old and new field
+    formats without duplicating normalization logic in every handler.
+
+    Transforms applied:
+
+    - ``account_id: &#34;123&#34;`` → ``account: {account_id: &#34;123&#34;}`` (structural)
+    - ``brand_manifest: &#34;https://...&#34;`` → ``brand: {domain: &#34;...&#34;}`` (URL parse)
+    - ``promoted_offerings`` → ``catalogs`` (rename)
+    - ``campaign_ref`` → ``buyer_campaign_ref`` (create_media_buy only)
+    - Package-level ``optimization_goal`` → ``optimization_goals`` (scalar→array)
+    - Package-level ``catalog`` → ``catalogs`` (scalar→array)
+
+    If both the deprecated and current field name are present, the current
+    name takes precedence and the deprecated name is removed.
+
+    Args:
+        params: Request parameters dict.
+        task_name: ADCP task/tool name (e.g. ``&#34;create_media_buy&#34;``).
+            Enables tool-scoped renames when provided.
+
+    Returns:
+        New dict with deprecated field names replaced by current names.
+        Original dict is not mutated (top-level copy; packages list is
+        copied if package-level transforms apply).
+    &#34;&#34;&#34;
+    result = dict(params)
+
+    # Structural transforms
+    _normalize_account(result)
+    _normalize_brand_manifest(result)
+
+    # Package-level transforms (deep copy the packages list)
+    if &#34;packages&#34; in result and isinstance(result[&#34;packages&#34;], list):
+        result[&#34;packages&#34;] = [
+            dict(pkg) if isinstance(pkg, dict) else pkg
+            for pkg in result[&#34;packages&#34;]
+        ]
+        _normalize_packages(result)
+
+    # Global renames
+    for old_name, new_name in _GLOBAL_RENAMES.items():
+        if old_name in result:
+            if new_name not in result:
+                result[new_name] = result.pop(old_name)
+            else:
+                del result[old_name]
+
+    # Tool-scoped renames
+    if task_name:
+        tool_renames = _TOOL_RENAMES.get(task_name, {})
+        for old_name, new_name in tool_renames.items():
+            if old_name in result:
+                if new_name not in result:
+                    result[new_name] = result.pop(old_name)
+                else:
+                    del result[old_name]
+
+    return result</code></pre>
+</details>
+<div class="desc"><p>Normalize deprecated field names and structures in request params.</p>
+<p>Applies known transforms so servers can accept both old and new field
+formats without duplicating normalization logic in every handler.</p>
+<p>Transforms applied:</p>
+<ul>
+<li><code>account_id: "123"</code> → <code>account: {account_id: "123"}</code> (structural)</li>
+<li><code>brand_manifest: "https://..."</code> → <code>brand: {domain: "..."}</code> (URL parse)</li>
+<li><code>promoted_offerings</code> → <code>catalogs</code> (rename)</li>
+<li><code>campaign_ref</code> → <code>buyer_campaign_ref</code> (create_media_buy only)</li>
+<li>Package-level <code>optimization_goal</code> → <code>optimization_goals</code> (scalar→array)</li>
+<li>Package-level <code>catalog</code> → <code>catalogs</code> (scalar→array)</li>
+</ul>
+<p>If both the deprecated and current field name are present, the current
+name takes precedence and the deprecated name is removed.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>params</code></strong></dt>
+<dd>Request parameters dict.</dd>
+<dt><strong><code>task_name</code></strong></dt>
+<dd>ADCP task/tool name (e.g. <code>"create_media_buy"</code>).
+Enables tool-scoped renames when provided.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>New dict with deprecated field names replaced by current names.
+Original dict is not mutated (top-level copy; packages list is
+copied if package-level transforms apply).</p></div>
+</dd>
+<dt id="adcp.server.translate.translate_error"><code class="name flex">
+<span>def <span class="ident">translate_error</span></span>(<span>exc: ADCPError | Error, protocol: "Literal['mcp', 'a2a'] | Protocol") ‑> mcp.server.fastmcp.exceptions.ToolError | a2a.utils.errors.ServerError</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def translate_error(
+    exc: ADCPError | Error,
+    protocol: Literal[&#34;mcp&#34;, &#34;a2a&#34;] | Protocol,
+) -&gt; ToolError | ServerError:
+    &#34;&#34;&#34;Translate an AdCP error to a protocol SDK error type.
+
+    Returns an error that can be directly raised in a protocol handler::
+
+        try:
+            result = await handler.create_media_buy(params)
+        except ADCPError as e:
+            raise translate_error(e, protocol=&#34;mcp&#34;)
+
+    For MCP, returns ``ToolError`` (from ``mcp.server.fastmcp``).
+    For A2A, returns ``ServerError`` wrapping ``InvalidParamsError``
+    (for correctable errors) or ``InternalError`` (for transient/terminal).
+
+    The ``data`` field on A2A errors preserves recovery classification,
+    error_code, suggestion, and details so buyer agents can make
+    retry/fix/abandon decisions.
+
+    Args:
+        exc: An ADCPError exception or an Error Pydantic model.
+        protocol: Target protocol - ``&#34;mcp&#34;`` or ``&#34;a2a&#34;``.
+
+    Returns:
+        ``ToolError`` for MCP, ``ServerError`` for A2A. Raise the result.
+
+    Raises:
+        ValueError: If protocol is not ``&#34;mcp&#34;`` or ``&#34;a2a&#34;``.
+
+    Warning:
+        Error details are passed through to the caller. Do not include
+        internal state (stack traces, SQL queries, internal URLs) in
+        Error objects passed to this function.
+    &#34;&#34;&#34;
+    proto = protocol.value if isinstance(protocol, Protocol) else str(protocol)
+    proto = proto.lower()
+    if proto not in (&#34;mcp&#34;, &#34;a2a&#34;):
+        raise ValueError(f&#34;protocol must be &#39;mcp&#39; or &#39;a2a&#39;, got {protocol!r}&#34;)
+
+    # Extract structured fields from the input
+    if isinstance(exc, Error):
+        code = exc.code
+        message = exc.message
+        suggestion = exc.suggestion
+        details = exc.details
+        recovery = _recovery_for_code(code)
+        errors = None
+    elif isinstance(exc, ADCPError):
+        code = _error_code_for_exception(exc)
+        message = exc.message
+        suggestion = exc.suggestion
+        recovery = _recovery_for_code(code)
+        details = None
+        errors = getattr(exc, &#34;errors&#34;, None)
+    else:
+        raise TypeError(f&#34;Expected ADCPError or Error, got {type(exc).__name__}&#34;)
+
+    if proto == &#34;mcp&#34;:
+        return _to_mcp(code, message, suggestion=suggestion)
+    return _to_a2a(
+        code, message,
+        recovery=recovery, suggestion=suggestion,
+        details=details, errors=errors,
+    )</code></pre>
+</details>
+<div class="desc"><p>Translate an AdCP error to a protocol SDK error type.</p>
+<p>Returns an error that can be directly raised in a protocol handler::</p>
+<pre><code>try:
+    result = await handler.create_media_buy(params)
+except ADCPError as e:
+    raise translate_error(e, protocol="mcp")
+</code></pre>
+<p>For MCP, returns <code>ToolError</code> (from <code>mcp.server.fastmcp</code>).
+For A2A, returns <code>ServerError</code> wrapping <code>InvalidParamsError</code>
+(for correctable errors) or <code>InternalError</code> (for transient/terminal).</p>
+<p>The <code>data</code> field on A2A errors preserves recovery classification,
+error_code, suggestion, and details so buyer agents can make
+retry/fix/abandon decisions.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>exc</code></strong></dt>
+<dd>An ADCPError exception or an Error Pydantic model.</dd>
+<dt><strong><code>protocol</code></strong></dt>
+<dd>Target protocol - <code>"mcp"</code> or <code>"a2a"</code>.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code>ToolError</code> for MCP, <code>ServerError</code> for A2A. Raise the result.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd>If protocol is not <code>"mcp"</code> or <code>"a2a"</code>.</dd>
+</dl>
+<h2 id="warning">Warning</h2>
+<p>Error details are passed through to the caller. Do not include
+internal state (stack traces, SQL queries, internal URLs) in
+Error objects passed to this function.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.server" href="index.html">adcp.server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.server.translate.normalize_request" href="#adcp.server.translate.normalize_request">normalize_request</a></code></li>
+<li><code><a title="adcp.server.translate.translate_error" href="#adcp.server.translate.translate_error">translate_error</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
