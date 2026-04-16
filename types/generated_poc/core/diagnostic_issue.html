@@ -59,15 +59,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    message: Annotated[
-        str,
-        Field(description=&#39;Human/agent-readable description of the issue and how to resolve it.&#39;),
-    ]
     severity: Annotated[
         Severity,
         Field(
             description=&#34;&#39;error&#39;: blocks optimization until resolved. &#39;warning&#39;: optimization works but effectiveness is reduced. &#39;info&#39;: suggestion for improvement.&#34;
         ),
+    ]
+    message: Annotated[
+        str,
+        Field(description=&#39;Human/agent-readable description of the issue and how to resolve it.&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

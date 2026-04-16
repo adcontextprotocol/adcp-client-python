@@ -60,7 +60,12 @@ el.replaceWith(d);
         extra=&#39;allow&#39;,
     )
     allowed_external_domains: Annotated[
-        list[str] | None,
+        list[
+            constr(
+                pattern=r&#39;^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]{0,61}[A-Za-z0-9])$&#39;
+            )
+        ]
+        | None,
         Field(
             description=&#39;List of domains the HTML creative may reference for external resources. Only applicable when external_resources_allowed is true.&#39;
         ),

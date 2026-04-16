@@ -211,11 +211,7 @@ validated to form a valid model.</p>
     ] = None
     ext: ext_1.ExtensionObject | None = None
     hours: Annotated[
-        dict[
-            Literal[&#39;monday&#39;, &#39;tuesday&#39;, &#39;wednesday&#39;, &#39;thursday&#39;, &#39;friday&#39;, &#39;saturday&#39;, &#39;sunday&#39;],
-            str,
-        ]
-        | None,
+        dict[str, str] | None,
         Field(
             description=&#39;Operating hours. Keys are ISO day names (monday–sunday), values are time ranges.&#39;
         ),
@@ -277,7 +273,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.store_item.StoreItem.hours"><code class="name">var <span class="ident">hours</span> : dict[typing.Literal['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], str] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.store_item.StoreItem.hours"><code class="name">var <span class="ident">hours</span> : dict[str, str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

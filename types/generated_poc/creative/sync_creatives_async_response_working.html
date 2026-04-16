@@ -59,24 +59,24 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
+    percentage: Annotated[
+        float | None, Field(description=&#39;Completion percentage (0-100)&#39;, ge=0.0, le=100.0)
+    ] = None
+    current_step: Annotated[
+        str | None, Field(description=&#39;Current step or phase of the operation&#39;)
+    ] = None
+    total_steps: Annotated[
+        int | None, Field(description=&#39;Total number of steps in the operation&#39;, ge=1)
+    ] = None
+    step_number: Annotated[int | None, Field(description=&#39;Current step number&#39;, ge=1)] = None
     creatives_processed: Annotated[
         int | None, Field(description=&#39;Number of creatives processed so far&#39;, ge=0)
     ] = None
     creatives_total: Annotated[
         int | None, Field(description=&#39;Total number of creatives to process&#39;, ge=0)
     ] = None
-    current_step: Annotated[
-        str | None, Field(description=&#39;Current step or phase of the operation&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    percentage: Annotated[
-        float | None, Field(description=&#39;Completion percentage (0-100)&#39;, ge=0.0, le=100.0)
-    ] = None
-    step_number: Annotated[int | None, Field(description=&#39;Current step number&#39;, ge=1)] = None
-    total_steps: Annotated[
-        int | None, Field(description=&#39;Total number of steps in the operation&#39;, ge=1)
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

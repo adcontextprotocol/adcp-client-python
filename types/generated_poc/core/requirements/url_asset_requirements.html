@@ -208,7 +208,13 @@ attributes &ndash; see the documentation for details.</p></div>
         extra=&#39;allow&#39;,
     )
     allowed_domains: Annotated[
-        list[str] | None, Field(description=&#39;List of allowed domains for the URL&#39;)
+        list[
+            constr(
+                pattern=r&#39;^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]{0,61}[A-Za-z0-9])$&#39;
+            )
+        ]
+        | None,
+        Field(description=&#39;List of allowed domains for the URL&#39;),
     ] = None
     macro_support: Annotated[
         bool | None,

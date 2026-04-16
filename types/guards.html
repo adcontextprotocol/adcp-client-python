@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.guards API documentation</title>
+<meta name="description" content="Type guards for ADCP discriminated union responses …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.guards</code></h1>
+</header>
+<section id="section-intro">
+<p>Type guards for ADCP discriminated union responses.</p>
+<p>ADCP 3.0 responses use atomic semantics: a response contains EITHER
+success data OR errors, never both. These type guards enable static
+type narrowing with mypy and runtime branch detection.</p>
+<h2 id="usage">Usage</h2>
+<p>from adcp.types.guards import is_success, is_error</p>
+<p>response = result.data
+# CreateMediaBuyResponse (union type)</p>
+<p>if is_success(response):
+# mypy knows this is CreateMediaBuySuccessResponse
+print(response.media_buy_id)
+else:
+# error branch
+print(response.errors)</p>
+<p>Generic guards work with any ADCP response union:
+from adcp.types.guards import is_adcp_error, is_adcp_success</p>
+<pre><code>if is_adcp_error(response):
+    print(response.errors)
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.types.guards.is_activate_signal_error"><code class="name flex">
+<span>def <span class="ident">is_activate_signal_error</span></span>(<span>response: ActivateSignalResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse2" href="generated_poc/signals/activate_signal_response.html#adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse2">ActivateSignalResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_activate_signal_error(
+    response: ActivateSignalResponse,
+) -&gt; TypeGuard[ActivateSignalErrorResponse]:
+    &#34;&#34;&#34;Check if an ActivateSignalResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if an ActivateSignalResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_activate_signal_success"><code class="name flex">
+<span>def <span class="ident">is_activate_signal_success</span></span>(<span>response: ActivateSignalResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse1" href="generated_poc/signals/activate_signal_response.html#adcp.types.generated_poc.signals.activate_signal_response.ActivateSignalResponse1">ActivateSignalResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_activate_signal_success(
+    response: ActivateSignalResponse,
+) -&gt; TypeGuard[ActivateSignalSuccessResponse]:
+    &#34;&#34;&#34;Check if an ActivateSignalResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if an ActivateSignalResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_adcp_error"><code class="name flex">
+<span>def <span class="ident">is_adcp_error</span></span>(<span>response: Any) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_adcp_error(response: Any) -&gt; bool:
+    &#34;&#34;&#34;Check if an ADCP response is an error response.
+
+    Works with any ADCP response union type. Error responses
+    have a non-empty ``errors`` field.
+
+    Args:
+        response: Any ADCP response object (success or error variant).
+
+    Returns:
+        True if the response contains errors.
+    &#34;&#34;&#34;
+    errors = getattr(response, &#34;errors&#34;, None)
+    if errors is None:
+        return False
+    if isinstance(errors, list):
+        return len(errors) &gt; 0
+    return True</code></pre>
+</details>
+<div class="desc"><p>Check if an ADCP response is an error response.</p>
+<p>Works with any ADCP response union type. Error responses
+have a non-empty <code>errors</code> field.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>response</code></strong></dt>
+<dd>Any ADCP response object (success or error variant).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>True if the response contains errors.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_adcp_success"><code class="name flex">
+<span>def <span class="ident">is_adcp_success</span></span>(<span>response: Any) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_adcp_success(response: Any) -&gt; bool:
+    &#34;&#34;&#34;Check if an ADCP response is a success response.
+
+    Works with any ADCP response union type. Success responses
+    do not have an ``errors`` field (or it is None/empty).
+
+    Args:
+        response: Any ADCP response object (success or error variant).
+
+    Returns:
+        True if the response is a success (no errors).
+    &#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if an ADCP response is a success response.</p>
+<p>Works with any ADCP response union type. Success responses
+do not have an <code>errors</code> field (or it is None/empty).</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>response</code></strong></dt>
+<dd>Any ADCP response object (success or error variant).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>True if the response is a success (no errors).</p></div>
+</dd>
+<dt id="adcp.types.guards.is_build_creative_error"><code class="name flex">
+<span>def <span class="ident">is_build_creative_error</span></span>(<span>response: BuildCreativeResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2" href="generated_poc/media_buy/build_creative_response.html#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2">BuildCreativeResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_build_creative_error(
+    response: BuildCreativeResponse,
+) -&gt; TypeGuard[BuildCreativeErrorResponse]:
+    &#34;&#34;&#34;Check if a BuildCreativeResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a BuildCreativeResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_build_creative_success"><code class="name flex">
+<span>def <span class="ident">is_build_creative_success</span></span>(<span>response: BuildCreativeResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1" href="generated_poc/media_buy/build_creative_response.html#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1">BuildCreativeResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_build_creative_success(
+    response: BuildCreativeResponse,
+) -&gt; TypeGuard[BuildCreativeSuccessResponse]:
+    &#34;&#34;&#34;Check if a BuildCreativeResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a BuildCreativeResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_calibrate_content_success"><code class="name flex">
+<span>def <span class="ident">is_calibrate_content_success</span></span>(<span>response: CalibrateContentSuccessResponse | CalibrateContentErrorResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1" href="generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1">CalibrateContentResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_calibrate_content_success(
+    response: CalibrateContentSuccessResponse | CalibrateContentErrorResponse,
+) -&gt; TypeGuard[CalibrateContentSuccessResponse]:
+    &#34;&#34;&#34;Check if a CalibrateContentResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a CalibrateContentResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_create_media_buy_error"><code class="name flex">
+<span>def <span class="ident">is_create_media_buy_error</span></span>(<span>response: CreateMediaBuyResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse2" href="generated_poc/media_buy/create_media_buy_response.html#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse2">CreateMediaBuyResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_create_media_buy_error(
+    response: CreateMediaBuyResponse,
+) -&gt; TypeGuard[CreateMediaBuyErrorResponse]:
+    &#34;&#34;&#34;Check if a CreateMediaBuyResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a CreateMediaBuyResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_create_media_buy_success"><code class="name flex">
+<span>def <span class="ident">is_create_media_buy_success</span></span>(<span>response: CreateMediaBuyResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1" href="generated_poc/media_buy/create_media_buy_response.html#adcp.types.generated_poc.media_buy.create_media_buy_response.CreateMediaBuyResponse1">CreateMediaBuyResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_create_media_buy_success(
+    response: CreateMediaBuyResponse,
+) -&gt; TypeGuard[CreateMediaBuySuccessResponse]:
+    &#34;&#34;&#34;Check if a CreateMediaBuyResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a CreateMediaBuyResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_get_account_financials_error"><code class="name flex">
+<span>def <span class="ident">is_get_account_financials_error</span></span>(<span>response: GetAccountFinancialsSuccessResponse | GetAccountFinancialsErrorResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2" href="generated_poc/account/get_account_financials_response.html#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse2">GetAccountFinancialsResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_get_account_financials_error(
+    response: GetAccountFinancialsSuccessResponse | GetAccountFinancialsErrorResponse,
+) -&gt; TypeGuard[GetAccountFinancialsErrorResponse]:
+    &#34;&#34;&#34;Check if a GetAccountFinancialsResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a GetAccountFinancialsResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_get_account_financials_success"><code class="name flex">
+<span>def <span class="ident">is_get_account_financials_success</span></span>(<span>response: GetAccountFinancialsSuccessResponse | GetAccountFinancialsErrorResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1" href="generated_poc/account/get_account_financials_response.html#adcp.types.generated_poc.account.get_account_financials_response.GetAccountFinancialsResponse1">GetAccountFinancialsResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_get_account_financials_success(
+    response: GetAccountFinancialsSuccessResponse | GetAccountFinancialsErrorResponse,
+) -&gt; TypeGuard[GetAccountFinancialsSuccessResponse]:
+    &#34;&#34;&#34;Check if a GetAccountFinancialsResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a GetAccountFinancialsResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_get_creative_features_success"><code class="name flex">
+<span>def <span class="ident">is_get_creative_features_success</span></span>(<span>response: GetCreativeFeaturesSuccessResponse | GetCreativeFeaturesErrorResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1" href="generated_poc/creative/get_creative_features_response.html#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1">GetCreativeFeaturesResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_get_creative_features_success(
+    response: GetCreativeFeaturesSuccessResponse | GetCreativeFeaturesErrorResponse,
+) -&gt; TypeGuard[GetCreativeFeaturesSuccessResponse]:
+    &#34;&#34;&#34;Check if a GetCreativeFeaturesResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a GetCreativeFeaturesResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_log_event_error"><code class="name flex">
+<span>def <span class="ident">is_log_event_error</span></span>(<span>response: LogEventResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse2" href="generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse2">LogEventResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_log_event_error(
+    response: LogEventResponse,
+) -&gt; TypeGuard[LogEventErrorResponse]:
+    &#34;&#34;&#34;Check if a LogEventResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a LogEventResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_log_event_success"><code class="name flex">
+<span>def <span class="ident">is_log_event_success</span></span>(<span>response: LogEventResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1" href="generated_poc/media_buy/log_event_response.html#adcp.types.generated_poc.media_buy.log_event_response.LogEventResponse1">LogEventResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_log_event_success(
+    response: LogEventResponse,
+) -&gt; TypeGuard[LogEventSuccessResponse]:
+    &#34;&#34;&#34;Check if a LogEventResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a LogEventResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_performance_feedback_error"><code class="name flex">
+<span>def <span class="ident">is_performance_feedback_error</span></span>(<span>response: ProvidePerformanceFeedbackSuccessResponse | ProvidePerformanceFeedbackErrorResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse2" href="generated_poc/media_buy/provide_performance_feedback_response.html#adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse2">ProvidePerformanceFeedbackResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_performance_feedback_error(
+    response: ProvidePerformanceFeedbackSuccessResponse | ProvidePerformanceFeedbackErrorResponse,
+) -&gt; TypeGuard[ProvidePerformanceFeedbackErrorResponse]:
+    &#34;&#34;&#34;Check if a ProvidePerformanceFeedbackResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a ProvidePerformanceFeedbackResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_performance_feedback_success"><code class="name flex">
+<span>def <span class="ident">is_performance_feedback_success</span></span>(<span>response: ProvidePerformanceFeedbackSuccessResponse | ProvidePerformanceFeedbackErrorResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse1" href="generated_poc/media_buy/provide_performance_feedback_response.html#adcp.types.generated_poc.media_buy.provide_performance_feedback_response.ProvidePerformanceFeedbackResponse1">ProvidePerformanceFeedbackResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_performance_feedback_success(
+    response: ProvidePerformanceFeedbackSuccessResponse | ProvidePerformanceFeedbackErrorResponse,
+) -&gt; TypeGuard[ProvidePerformanceFeedbackSuccessResponse]:
+    &#34;&#34;&#34;Check if a ProvidePerformanceFeedbackResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a ProvidePerformanceFeedbackResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_sync_accounts_error"><code class="name flex">
+<span>def <span class="ident">is_sync_accounts_error</span></span>(<span>response: SyncAccountsResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse2" href="generated_poc/account/sync_accounts_response.html#adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse2">SyncAccountsResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_sync_accounts_error(
+    response: SyncAccountsResponse,
+) -&gt; TypeGuard[SyncAccountsErrorResponse]:
+    &#34;&#34;&#34;Check if a SyncAccountsResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a SyncAccountsResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_sync_accounts_success"><code class="name flex">
+<span>def <span class="ident">is_sync_accounts_success</span></span>(<span>response: SyncAccountsResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse1" href="generated_poc/account/sync_accounts_response.html#adcp.types.generated_poc.account.sync_accounts_response.SyncAccountsResponse1">SyncAccountsResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_sync_accounts_success(
+    response: SyncAccountsResponse,
+) -&gt; TypeGuard[SyncAccountsSuccessResponse]:
+    &#34;&#34;&#34;Check if a SyncAccountsResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a SyncAccountsResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_sync_catalogs_error"><code class="name flex">
+<span>def <span class="ident">is_sync_catalogs_error</span></span>(<span>response: SyncCatalogsResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.sync_catalogs_response.SyncCatalogsResponse2" href="generated_poc/media_buy/sync_catalogs_response.html#adcp.types.generated_poc.media_buy.sync_catalogs_response.SyncCatalogsResponse2">SyncCatalogsResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_sync_catalogs_error(
+    response: SyncCatalogsResponse,
+) -&gt; TypeGuard[SyncCatalogsErrorResponse]:
+    &#34;&#34;&#34;Check if a SyncCatalogsResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a SyncCatalogsResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_sync_catalogs_success"><code class="name flex">
+<span>def <span class="ident">is_sync_catalogs_success</span></span>(<span>response: SyncCatalogsResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.sync_catalogs_response.SyncCatalogsResponse1" href="generated_poc/media_buy/sync_catalogs_response.html#adcp.types.generated_poc.media_buy.sync_catalogs_response.SyncCatalogsResponse1">SyncCatalogsResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_sync_catalogs_success(
+    response: SyncCatalogsResponse,
+) -&gt; TypeGuard[SyncCatalogsSuccessResponse]:
+    &#34;&#34;&#34;Check if a SyncCatalogsResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a SyncCatalogsResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_sync_creatives_error"><code class="name flex">
+<span>def <span class="ident">is_sync_creatives_error</span></span>(<span>response: SyncCreativesResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2" href="generated_poc/creative/sync_creatives_response.html#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse2">SyncCreativesResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_sync_creatives_error(
+    response: SyncCreativesResponse,
+) -&gt; TypeGuard[SyncCreativesErrorResponse]:
+    &#34;&#34;&#34;Check if a SyncCreativesResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a SyncCreativesResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_sync_creatives_success"><code class="name flex">
+<span>def <span class="ident">is_sync_creatives_success</span></span>(<span>response: SyncCreativesResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1" href="generated_poc/creative/sync_creatives_response.html#adcp.types.generated_poc.creative.sync_creatives_response.SyncCreativesResponse1">SyncCreativesResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_sync_creatives_success(
+    response: SyncCreativesResponse,
+) -&gt; TypeGuard[SyncCreativesSuccessResponse]:
+    &#34;&#34;&#34;Check if a SyncCreativesResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a SyncCreativesResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_update_media_buy_error"><code class="name flex">
+<span>def <span class="ident">is_update_media_buy_error</span></span>(<span>response: UpdateMediaBuyResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2" href="generated_poc/media_buy/update_media_buy_response.html#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse2">UpdateMediaBuyResponse2</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_update_media_buy_error(
+    response: UpdateMediaBuyResponse,
+) -&gt; TypeGuard[UpdateMediaBuyErrorResponse]:
+    &#34;&#34;&#34;Check if an UpdateMediaBuyResponse is an error.&#34;&#34;&#34;
+    return is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if an UpdateMediaBuyResponse is an error.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_update_media_buy_success"><code class="name flex">
+<span>def <span class="ident">is_update_media_buy_success</span></span>(<span>response: UpdateMediaBuyResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1" href="generated_poc/media_buy/update_media_buy_response.html#adcp.types.generated_poc.media_buy.update_media_buy_response.UpdateMediaBuyResponse1">UpdateMediaBuyResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_update_media_buy_success(
+    response: UpdateMediaBuyResponse,
+) -&gt; TypeGuard[UpdateMediaBuySuccessResponse]:
+    &#34;&#34;&#34;Check if an UpdateMediaBuyResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if an UpdateMediaBuyResponse is a success.</p></div>
+</dd>
+<dt id="adcp.types.guards.is_validate_content_delivery_success"><code class="name flex">
+<span>def <span class="ident">is_validate_content_delivery_success</span></span>(<span>response: ValidateContentDeliverySuccessResponse | ValidateContentDeliveryErrorResponse) ‑> TypeGuard[<a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1" href="generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1">ValidateContentDeliveryResponse1</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_validate_content_delivery_success(
+    response: ValidateContentDeliverySuccessResponse | ValidateContentDeliveryErrorResponse,
+) -&gt; TypeGuard[ValidateContentDeliverySuccessResponse]:
+    &#34;&#34;&#34;Check if a ValidateContentDeliveryResponse is a success.&#34;&#34;&#34;
+    return not is_adcp_error(response)</code></pre>
+</details>
+<div class="desc"><p>Check if a ValidateContentDeliveryResponse is a success.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types" href="index.html">adcp.types</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.types.guards.is_activate_signal_error" href="#adcp.types.guards.is_activate_signal_error">is_activate_signal_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_activate_signal_success" href="#adcp.types.guards.is_activate_signal_success">is_activate_signal_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_adcp_error" href="#adcp.types.guards.is_adcp_error">is_adcp_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_adcp_success" href="#adcp.types.guards.is_adcp_success">is_adcp_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_build_creative_error" href="#adcp.types.guards.is_build_creative_error">is_build_creative_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_build_creative_success" href="#adcp.types.guards.is_build_creative_success">is_build_creative_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_calibrate_content_success" href="#adcp.types.guards.is_calibrate_content_success">is_calibrate_content_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_create_media_buy_error" href="#adcp.types.guards.is_create_media_buy_error">is_create_media_buy_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_create_media_buy_success" href="#adcp.types.guards.is_create_media_buy_success">is_create_media_buy_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_get_account_financials_error" href="#adcp.types.guards.is_get_account_financials_error">is_get_account_financials_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_get_account_financials_success" href="#adcp.types.guards.is_get_account_financials_success">is_get_account_financials_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_get_creative_features_success" href="#adcp.types.guards.is_get_creative_features_success">is_get_creative_features_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_log_event_error" href="#adcp.types.guards.is_log_event_error">is_log_event_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_log_event_success" href="#adcp.types.guards.is_log_event_success">is_log_event_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_performance_feedback_error" href="#adcp.types.guards.is_performance_feedback_error">is_performance_feedback_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_performance_feedback_success" href="#adcp.types.guards.is_performance_feedback_success">is_performance_feedback_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_sync_accounts_error" href="#adcp.types.guards.is_sync_accounts_error">is_sync_accounts_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_sync_accounts_success" href="#adcp.types.guards.is_sync_accounts_success">is_sync_accounts_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_sync_catalogs_error" href="#adcp.types.guards.is_sync_catalogs_error">is_sync_catalogs_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_sync_catalogs_success" href="#adcp.types.guards.is_sync_catalogs_success">is_sync_catalogs_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_sync_creatives_error" href="#adcp.types.guards.is_sync_creatives_error">is_sync_creatives_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_sync_creatives_success" href="#adcp.types.guards.is_sync_creatives_success">is_sync_creatives_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_update_media_buy_error" href="#adcp.types.guards.is_update_media_buy_error">is_update_media_buy_error</a></code></li>
+<li><code><a title="adcp.types.guards.is_update_media_buy_success" href="#adcp.types.guards.is_update_media_buy_success">is_update_media_buy_success</a></code></li>
+<li><code><a title="adcp.types.guards.is_validate_content_delivery_success" href="#adcp.types.guards.is_validate_content_delivery_success">is_validate_content_delivery_success</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

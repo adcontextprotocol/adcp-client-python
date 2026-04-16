@@ -56,14 +56,6 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AdcpExtensionFileSchema(AdCPBaseModel):
-    field_id: Annotated[
-        str,
-        Field(
-            alias=&#39;$id&#39;,
-            description=&#39;Extension ID following pattern /schemas/extensions/{namespace}.json&#39;,
-            pattern=&#39;^/schemas/extensions/[a-z][a-z0-9_]*\\.json$&#39;,
-        ),
-    ]
     field_schema: Annotated[
         Literal[&#39;http://json-schema.org/draft-07/schema#&#39;], Field(alias=&#39;$schema&#39;)
     ]
@@ -128,10 +120,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.docs_url"><code class="name">var <span class="ident">docs_url</span> : pydantic.networks.AnyUrl | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_id"><code class="name">var <span class="ident">field_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -200,7 +188,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.additionalProperties" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.additionalProperties">additionalProperties</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.description" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.docs_url" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.docs_url">docs_url</a></code></li>
-<li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_id" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_id">field_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_schema" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.field_schema">field_schema</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.model_config" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.properties" href="#adcp.types.generated_poc.extensions.extension_meta.AdcpExtensionFileSchema.properties">properties</a></code></li>

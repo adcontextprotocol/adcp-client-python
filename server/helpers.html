@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.server.helpers API documentation</title>
+<meta name="description" content="DX helpers for ADCP server builders …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.server.helpers</code></h1>
+</header>
+<section id="section-intro">
+<p>DX helpers for ADCP server builders.</p>
+<p>Automate error responses, state transitions, account resolution,
+and context passthrough so developers focus on business logic.</p>
+<pre><code>from adcp.server.helpers import adcp_error, valid_actions_for_status
+
+return adcp_error("BUDGET_TOO_LOW", "Budget $50 is below minimum $500",
+                  field="budget", suggestion="Increase to at least $500")
+
+actions = valid_actions_for_status("active")
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.server.helpers.adcp_error"><code class="name flex">
+<span>def <span class="ident">adcp_error</span></span>(<span>code: str,<br>message: str | None = None,<br>*,<br>field: str | None = None,<br>suggestion: str | None = None,<br>recovery: str | None = None,<br>retry_after: int | None = None,<br>details: dict[str, str | int | float | bool | None] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def adcp_error(
+    code: str,
+    message: str | None = None,
+    *,
+    field: str | None = None,
+    suggestion: str | None = None,
+    recovery: str | None = None,
+    retry_after: int | None = None,
+    details: dict[str, str | int | float | bool | None] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a structured ADCP error response with auto-recovery.
+
+    Standard codes get recovery auto-populated from the code table.
+    Custom codes default to &#34;terminal&#34;.
+
+    Args:
+        code: Error code (e.g., &#34;BUDGET_TOO_LOW&#34;).
+        message: Human-readable message. Defaults to standard message.
+        field: Which request field caused the error.
+        suggestion: Actionable fix suggestion.
+        recovery: Override (&#34;transient&#34;, &#34;correctable&#34;, &#34;terminal&#34;).
+        retry_after: Seconds to wait (for RATE_LIMITED).
+        details: Server-generated debugging data (constraint names, limits,
+            thresholds). Use only server-generated values here. NEVER pass
+            request params or user-supplied strings -- they flow to the
+            caller&#39;s LLM context and could enable prompt injection.
+    &#34;&#34;&#34;
+    std = STANDARD_ERROR_CODES.get(code, {})
+    err: dict[str, Any] = {
+        &#34;code&#34;: code,
+        &#34;message&#34;: message or std.get(&#34;message&#34;, code),
+        &#34;recovery&#34;: recovery or std.get(&#34;recovery&#34;, &#34;terminal&#34;),
+    }
+    if field is not None:
+        err[&#34;field&#34;] = field
+    if suggestion is not None:
+        err[&#34;suggestion&#34;] = suggestion
+    if retry_after is not None:
+        err[&#34;retry_after&#34;] = retry_after
+    if details is not None:
+        err[&#34;details&#34;] = details
+    return {&#34;errors&#34;: [err]}</code></pre>
+</details>
+<div class="desc"><p>Build a structured ADCP error response with auto-recovery.</p>
+<p>Standard codes get recovery auto-populated from the code table.
+Custom codes default to "terminal".</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>code</code></strong></dt>
+<dd>Error code (e.g., "BUDGET_TOO_LOW").</dd>
+<dt><strong><code>message</code></strong></dt>
+<dd>Human-readable message. Defaults to standard message.</dd>
+<dt><strong><code>field</code></strong></dt>
+<dd>Which request field caused the error.</dd>
+<dt><strong><code>suggestion</code></strong></dt>
+<dd>Actionable fix suggestion.</dd>
+<dt><strong><code>recovery</code></strong></dt>
+<dd>Override ("transient", "correctable", "terminal").</dd>
+<dt><strong><code>retry_after</code></strong></dt>
+<dd>Seconds to wait (for RATE_LIMITED).</dd>
+<dt><strong><code>details</code></strong></dt>
+<dd>Server-generated debugging data (constraint names, limits,
+thresholds). Use only server-generated values here. NEVER pass
+request params or user-supplied strings &ndash; they flow to the
+caller's LLM context and could enable prompt injection.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.server.helpers.cancel_media_buy_response"><code class="name flex">
+<span>def <span class="ident">cancel_media_buy_response</span></span>(<span>media_buy_id: str,<br>canceled_by: str,<br>*,<br>reason: str | None = None,<br>canceled_at: str | None = None,<br>affected_packages: list[Any] | None = None,<br>revision: int | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def cancel_media_buy_response(
+    media_buy_id: str,
+    canceled_by: str,
+    *,
+    reason: str | None = None,
+    canceled_at: str | None = None,
+    affected_packages: list[Any] | None = None,
+    revision: int | None = None,
+    sandbox: bool = True,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a cancellation response with auto-defaults.
+
+    Auto-sets canceled_at to now, status to &#34;canceled&#34;, valid_actions to [].
+    Requires canceled_by (&#34;buyer&#34; or &#34;seller&#34;) - the field developers
+    most commonly forget.
+    &#34;&#34;&#34;
+    if canceled_by not in (&#34;buyer&#34;, &#34;seller&#34;):
+        raise ValueError(
+            f&#34;canceled_by must be &#39;buyer&#39; or &#39;seller&#39;, got {canceled_by!r}&#34;
+        )
+    resp: dict[str, Any] = {
+        &#34;media_buy_id&#34;: media_buy_id,
+        &#34;status&#34;: &#34;canceled&#34;,
+        &#34;canceled_by&#34;: canceled_by,
+        &#34;canceled_at&#34;: canceled_at or datetime.now(timezone.utc).isoformat(),
+        &#34;valid_actions&#34;: [],
+        &#34;sandbox&#34;: sandbox,
+    }
+    if reason is not None:
+        resp[&#34;reason&#34;] = reason
+    if affected_packages is not None:
+        resp[&#34;affected_packages&#34;] = affected_packages
+    if revision is not None:
+        resp[&#34;revision&#34;] = revision
+    return resp</code></pre>
+</details>
+<div class="desc"><p>Build a cancellation response with auto-defaults.</p>
+<p>Auto-sets canceled_at to now, status to "canceled", valid_actions to [].
+Requires canceled_by ("buyer" or "seller") - the field developers
+most commonly forget.</p></div>
+</dd>
+<dt id="adcp.server.helpers.inject_context"><code class="name flex">
+<span>def <span class="ident">inject_context</span></span>(<span>params: dict[str, Any], response: dict[str, Any], *, max_size: int = 65536) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def inject_context(
+    params: dict[str, Any],
+    response: dict[str, Any],
+    *,
+    max_size: int = _MAX_CONTEXT_SIZE,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Auto-inject context passthrough from request into response.
+
+    ADCP requires that if a request contains a ``context`` field,
+    the response must echo it back unchanged. A size limit prevents
+    resource amplification from oversized context payloads.
+
+    The context field is opaque and may contain attacker-controlled
+    data -- do not interpret or display its contents.
+    &#34;&#34;&#34;
+    if &#34;context&#34; in params and &#34;context&#34; not in response:
+        import json
+
+        ctx = params[&#34;context&#34;]
+        if len(json.dumps(ctx, default=str)) &lt;= max_size:
+            response[&#34;context&#34;] = ctx
+    return response</code></pre>
+</details>
+<div class="desc"><p>Auto-inject context passthrough from request into response.</p>
+<p>ADCP requires that if a request contains a <code>context</code> field,
+the response must echo it back unchanged. A size limit prevents
+resource amplification from oversized context payloads.</p>
+<p>The context field is opaque and may contain attacker-controlled
+data &ndash; do not interpret or display its contents.</p></div>
+</dd>
+<dt id="adcp.server.helpers.is_terminal_status"><code class="name flex">
+<span>def <span class="ident">is_terminal_status</span></span>(<span>status: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_terminal_status(status: str) -&gt; bool:
+    &#34;&#34;&#34;Check if a media buy status is terminal (no further actions).&#34;&#34;&#34;
+    return status in (&#34;completed&#34;, &#34;rejected&#34;, &#34;canceled&#34;)</code></pre>
+</details>
+<div class="desc"><p>Check if a media buy status is terminal (no further actions).</p></div>
+</dd>
+<dt id="adcp.server.helpers.resolve_account"><code class="name flex">
+<span>async def <span class="ident">resolve_account</span></span>(<span>params: dict[str, Any], resolver: AccountResolver | None) ‑> tuple[typing.Any | None, dict[str, typing.Any] | None]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def resolve_account(
+    params: dict[str, Any],
+    resolver: AccountResolver | None,
+) -&gt; tuple[Any | None, dict[str, Any] | None]:
+    &#34;&#34;&#34;Resolve an account reference from request params.
+
+    Returns (account, None) on success, (None, error_dict) on failure,
+    or (None, None) if no account field or no resolver configured.
+
+    The resolver can return None (auto-ACCOUNT_NOT_FOUND) or raise
+    ``AccountError`` for specific error codes (ACCOUNT_SUSPENDED,
+    ACCOUNT_PAYMENT_REQUIRED, ACCOUNT_AMBIGUOUS, etc.).
+    &#34;&#34;&#34;
+    if resolver is None or &#34;account&#34; not in params:
+        return None, None
+    try:
+        account = await resolver(params[&#34;account&#34;])
+    except AccountError as e:
+        return None, adcp_error(
+            e.code,
+            e.error_message,
+            field=&#34;account&#34;,
+            suggestion=e.suggestion,
+        )
+    if account is None:
+        return None, adcp_error(
+            &#34;ACCOUNT_NOT_FOUND&#34;,
+            &#34;The specified account does not exist&#34;,
+            field=&#34;account&#34;,
+            suggestion=&#34;Use list_accounts to discover available accounts, &#34;
+            &#34;or sync_accounts to create one&#34;,
+        )
+    return account, None</code></pre>
+</details>
+<div class="desc"><p>Resolve an account reference from request params.</p>
+<p>Returns (account, None) on success, (None, error_dict) on failure,
+or (None, None) if no account field or no resolver configured.</p>
+<p>The resolver can return None (auto-ACCOUNT_NOT_FOUND) or raise
+<code><a title="adcp.server.helpers.AccountError" href="#adcp.server.helpers.AccountError">AccountError</a></code> for specific error codes (ACCOUNT_SUSPENDED,
+ACCOUNT_PAYMENT_REQUIRED, ACCOUNT_AMBIGUOUS, etc.).</p></div>
+</dd>
+<dt id="adcp.server.helpers.valid_actions_for_status"><code class="name flex">
+<span>def <span class="ident">valid_actions_for_status</span></span>(<span>status: str) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def valid_actions_for_status(status: str) -&gt; list[str]:
+    &#34;&#34;&#34;Get valid buyer actions for a media buy status.&#34;&#34;&#34;
+    return list(MEDIA_BUY_STATE_MACHINE.get(status, []))</code></pre>
+</details>
+<div class="desc"><p>Get valid buyer actions for a media buy status.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.server.helpers.AccountError"><code class="flex name class">
+<span>class <span class="ident">AccountError</span></span>
+<span>(</span><span>code: str, message: str | None = None, *, suggestion: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AccountError(Exception):
+    &#34;&#34;&#34;Raised by account resolvers to indicate a specific account error.
+
+    Use this in your resolver to return structured errors for cases
+    beyond simple &#34;not found&#34;::
+
+        async def my_resolver(ref):
+            account = db.find(ref)
+            if not account:
+                return None  # auto-returns ACCOUNT_NOT_FOUND
+            if account.status == &#34;suspended&#34;:
+                raise AccountError(&#34;ACCOUNT_SUSPENDED&#34;, &#34;Account is suspended&#34;)
+            if account.status == &#34;payment_required&#34;:
+                raise AccountError(&#34;ACCOUNT_PAYMENT_REQUIRED&#34;,
+                    suggestion=&#34;Update payment method at https://...&#34;)
+            return account
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        code: str,
+        message: str | None = None,
+        *,
+        suggestion: str | None = None,
+    ):
+        self.code = code
+        self.error_message = message
+        self.suggestion = suggestion
+        super().__init__(message or code)</code></pre>
+</details>
+<div class="desc"><p>Raised by account resolvers to indicate a specific account error.</p>
+<p>Use this in your resolver to return structured errors for cases
+beyond simple "not found"::</p>
+<pre><code>async def my_resolver(ref):
+    account = db.find(ref)
+    if not account:
+        return None  # auto-returns ACCOUNT_NOT_FOUND
+    if account.status == "suspended":
+        raise AccountError("ACCOUNT_SUSPENDED", "Account is suspended")
+    if account.status == "payment_required":
+        raise AccountError("ACCOUNT_PAYMENT_REQUIRED",
+            suggestion="Update payment method at &lt;https://..."&gt;)
+    return account
+</code></pre></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.server" href="index.html">adcp.server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.server.helpers.adcp_error" href="#adcp.server.helpers.adcp_error">adcp_error</a></code></li>
+<li><code><a title="adcp.server.helpers.cancel_media_buy_response" href="#adcp.server.helpers.cancel_media_buy_response">cancel_media_buy_response</a></code></li>
+<li><code><a title="adcp.server.helpers.inject_context" href="#adcp.server.helpers.inject_context">inject_context</a></code></li>
+<li><code><a title="adcp.server.helpers.is_terminal_status" href="#adcp.server.helpers.is_terminal_status">is_terminal_status</a></code></li>
+<li><code><a title="adcp.server.helpers.resolve_account" href="#adcp.server.helpers.resolve_account">resolve_account</a></code></li>
+<li><code><a title="adcp.server.helpers.valid_actions_for_status" href="#adcp.server.helpers.valid_actions_for_status">valid_actions_for_status</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.server.helpers.AccountError" href="#adcp.server.helpers.AccountError">AccountError</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

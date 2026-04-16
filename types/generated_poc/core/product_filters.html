@@ -385,7 +385,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.product_filters.Geometry2" href="#adcp.types.generated_poc.core.product_filters.Geometry2">Geometry2</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -413,7 +413,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.product_filters.TravelTime2" href="#adcp.types.generated_poc.core.product_filters.TravelTime2">TravelTime2</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -485,7 +485,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.product_filters.Geometry3" href="#adcp.types.generated_poc.core.product_filters.Geometry3">Geometry3</a></code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -513,7 +513,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.product_filters.TravelTime3" href="#adcp.types.generated_poc.core.product_filters.TravelTime3">TravelTime3</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -560,10 +560,99 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Subclasses</h3>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry.coordinates"><code class="name">var <span class="ident">coordinates</span> : list[typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.core.product_filters.Type" href="#adcp.types.generated_poc.core.product_filters.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry"><code class="flex name class">
+<span>class <span class="ident">Geometry2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geometry(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    coordinates: Annotated[list[Any], Field(description=&#39;GeoJSON coordinates array&#39;)]
+    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.product_filters.Geometry2" href="#adcp.types.generated_poc.core.product_filters.Geometry2">Geometry2</a></li>
-<li><a title="adcp.types.generated_poc.core.product_filters.Geometry3" href="#adcp.types.generated_poc.core.product_filters.Geometry3">Geometry3</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry.coordinates"><code class="name">var <span class="ident">coordinates</span> : list[typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.core.product_filters.Type" href="#adcp.types.generated_poc.core.product_filters.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry"><code class="flex name class">
+<span>class <span class="ident">Geometry3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geometry(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    coordinates: Annotated[list[Any], Field(description=&#39;GeoJSON coordinates array&#39;)]
+    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type&#39;)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -587,98 +676,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry2"><code class="flex name class">
-<span>class <span class="ident">Geometry2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Geometry2(Geometry):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry3"><code class="flex name class">
-<span>class <span class="ident">Geometry3</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Geometry3(Geometry):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1038,7 +1035,7 @@ validated to form a valid model.</p>
         list[AnyUrl] | None,
         Field(
             deprecated=True,
-            description=&#39;Deprecated: Use trusted_match filter instead. Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;,
+            description=&#39;Deprecated: Use trusted_match filter instead. Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;
         ),
     ] = None
     required_features: Annotated[
@@ -1493,10 +1490,99 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Subclasses</h3>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.core.product_filters.Unit" href="#adcp.types.generated_poc.core.product_filters.Unit">Unit</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime"><code class="flex name class">
+<span>class <span class="ident">TravelTime2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TravelTime(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    unit: Annotated[Unit, Field(description=&#39;Time unit&#39;)]
+    value: Annotated[float, Field(description=&#39;Travel time limit&#39;, ge=1.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.product_filters.TravelTime2" href="#adcp.types.generated_poc.core.product_filters.TravelTime2">TravelTime2</a></li>
-<li><a title="adcp.types.generated_poc.core.product_filters.TravelTime3" href="#adcp.types.generated_poc.core.product_filters.TravelTime3">TravelTime3</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.core.product_filters.Unit" href="#adcp.types.generated_poc.core.product_filters.Unit">Unit</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime"><code class="flex name class">
+<span>class <span class="ident">TravelTime3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TravelTime(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    unit: Annotated[Unit, Field(description=&#39;Time unit&#39;)]
+    value: Annotated[float, Field(description=&#39;Travel time limit&#39;, ge=1.0)]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -1520,98 +1606,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime2"><code class="flex name class">
-<span>class <span class="ident">TravelTime2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TravelTime2(TravelTime):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime3"><code class="flex name class">
-<span>class <span class="ident">TravelTime3</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TravelTime3(TravelTime):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1901,15 +1895,19 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.Geometry2" href="#adcp.types.generated_poc.core.product_filters.Geometry2">Geometry2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry2.model_config" href="#adcp.types.generated_poc.core.product_filters.Geometry2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.coordinates" href="#adcp.types.generated_poc.core.product_filters.Geometry.coordinates">coordinates</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_config" href="#adcp.types.generated_poc.core.product_filters.Geometry.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.type" href="#adcp.types.generated_poc.core.product_filters.Geometry.type">type</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.Geometry3" href="#adcp.types.generated_poc.core.product_filters.Geometry3">Geometry3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry3.model_config" href="#adcp.types.generated_poc.core.product_filters.Geometry3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.coordinates" href="#adcp.types.generated_poc.core.product_filters.Geometry.coordinates">coordinates</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_config" href="#adcp.types.generated_poc.core.product_filters.Geometry.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.type" href="#adcp.types.generated_poc.core.product_filters.Geometry.type">type</a></code></li>
 </ul>
 </li>
 <li>
@@ -2012,15 +2010,19 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime2" href="#adcp.types.generated_poc.core.product_filters.TravelTime2">TravelTime2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime2.model_config" href="#adcp.types.generated_poc.core.product_filters.TravelTime2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_config" href="#adcp.types.generated_poc.core.product_filters.TravelTime.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.unit" href="#adcp.types.generated_poc.core.product_filters.TravelTime.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.value" href="#adcp.types.generated_poc.core.product_filters.TravelTime.value">value</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime3" href="#adcp.types.generated_poc.core.product_filters.TravelTime3">TravelTime3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime3.model_config" href="#adcp.types.generated_poc.core.product_filters.TravelTime3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_config" href="#adcp.types.generated_poc.core.product_filters.TravelTime.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.unit" href="#adcp.types.generated_poc.core.product_filters.TravelTime.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.value" href="#adcp.types.generated_poc.core.product_filters.TravelTime.value">value</a></code></li>
 </ul>
 </li>
 <li>

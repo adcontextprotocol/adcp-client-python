@@ -87,7 +87,7 @@ Non-Content-Standards operations return 'not supported' via the base class.</p>
 
     async def create_content_standards(
         self,
-        params: dict[str, Any],
+        params: CreateContentStandardsRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; CreateContentStandardsResponse | NotImplementedResponse:
         &#34;&#34;&#34;Create content standards configuration.
@@ -106,7 +106,7 @@ Non-Content-Standards operations return 'not supported' via the base class.</p>
 
     async def get_content_standards(
         self,
-        params: dict[str, Any],
+        params: GetContentStandardsRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; GetContentStandardsResponse | NotImplementedResponse:
         &#34;&#34;&#34;Get content standards configuration.
@@ -125,7 +125,7 @@ Non-Content-Standards operations return 'not supported' via the base class.</p>
 
     async def list_content_standards(
         self,
-        params: dict[str, Any],
+        params: ListContentStandardsRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; ListContentStandardsResponse | NotImplementedResponse:
         &#34;&#34;&#34;List content standards configurations.
@@ -144,7 +144,7 @@ Non-Content-Standards operations return 'not supported' via the base class.</p>
 
     async def update_content_standards(
         self,
-        params: dict[str, Any],
+        params: UpdateContentStandardsRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; UpdateContentStandardsResponse | NotImplementedResponse:
         &#34;&#34;&#34;Update content standards configuration.
@@ -163,7 +163,7 @@ Non-Content-Standards operations return 'not supported' via the base class.</p>
 
     async def calibrate_content(
         self,
-        params: dict[str, Any],
+        params: CalibrateContentRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; CalibrateContentResponse | NotImplementedResponse:
         &#34;&#34;&#34;Calibrate content against standards.
@@ -182,7 +182,7 @@ Non-Content-Standards operations return 'not supported' via the base class.</p>
 
     async def validate_content_delivery(
         self,
-        params: dict[str, Any],
+        params: ValidateContentDeliveryRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; ValidateContentDeliveryResponse | NotImplementedResponse:
         &#34;&#34;&#34;Validate content delivery against standards.
@@ -201,7 +201,7 @@ Non-Content-Standards operations return 'not supported' via the base class.</p>
 
     async def get_media_buy_artifacts(
         self,
-        params: dict[str, Any],
+        params: GetMediaBuyArtifactsRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; GetMediaBuyArtifactsResponse | NotImplementedResponse:
         &#34;&#34;&#34;Get artifacts associated with a media buy.
@@ -309,7 +309,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 <h3>Methods</h3>
 <dl>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.calibrate_content"><code class="name flex">
-<span>async def <span class="ident">calibrate_content</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1" href="../types/generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1">CalibrateContentResponse1</a> | <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2" href="../types/generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2">CalibrateContentResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">calibrate_content</span></span>(<span>self,<br>params: CalibrateContentRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1" href="../types/generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse1">CalibrateContentResponse1</a> | <a title="adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2" href="../types/generated_poc/content_standards/calibrate_content_response.html#adcp.types.generated_poc.content_standards.calibrate_content_response.CalibrateContentResponse2">CalibrateContentResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -318,7 +318,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 </summary>
 <pre><code class="python">async def calibrate_content(
     self,
-    params: dict[str, Any],
+    params: CalibrateContentRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; CalibrateContentResponse | NotImplementedResponse:
     &#34;&#34;&#34;Calibrate content against standards.
@@ -339,7 +339,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 <p>Validates params and delegates to handle_calibrate_content.</p></div>
 </dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.create_content_standards"><code class="name flex">
-<span>async def <span class="ident">create_content_standards</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1" href="../types/generated_poc/content_standards/create_content_standards_response.html#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1">CreateContentStandardsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2" href="../types/generated_poc/content_standards/create_content_standards_response.html#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2">CreateContentStandardsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">create_content_standards</span></span>(<span>self,<br>params: CreateContentStandardsRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1" href="../types/generated_poc/content_standards/create_content_standards_response.html#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse1">CreateContentStandardsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2" href="../types/generated_poc/content_standards/create_content_standards_response.html#adcp.types.generated_poc.content_standards.create_content_standards_response.CreateContentStandardsResponse2">CreateContentStandardsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -348,7 +348,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 </summary>
 <pre><code class="python">async def create_content_standards(
     self,
-    params: dict[str, Any],
+    params: CreateContentStandardsRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; CreateContentStandardsResponse | NotImplementedResponse:
     &#34;&#34;&#34;Create content standards configuration.
@@ -369,7 +369,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 <p>Validates params and delegates to handle_create_content_standards.</p></div>
 </dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.get_content_standards"><code class="name flex">
-<span>async def <span class="ident">get_content_standards</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse1" href="../types/generated_poc/content_standards/get_content_standards_response.html#adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse1">GetContentStandardsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse2" href="../types/generated_poc/content_standards/get_content_standards_response.html#adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse2">GetContentStandardsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">get_content_standards</span></span>(<span>self,<br>params: GetContentStandardsRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse1" href="../types/generated_poc/content_standards/get_content_standards_response.html#adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse1">GetContentStandardsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse2" href="../types/generated_poc/content_standards/get_content_standards_response.html#adcp.types.generated_poc.content_standards.get_content_standards_response.GetContentStandardsResponse2">GetContentStandardsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -378,7 +378,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 </summary>
 <pre><code class="python">async def get_content_standards(
     self,
-    params: dict[str, Any],
+    params: GetContentStandardsRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; GetContentStandardsResponse | NotImplementedResponse:
     &#34;&#34;&#34;Get content standards configuration.
@@ -399,7 +399,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 <p>Validates params and delegates to handle_get_content_standards.</p></div>
 </dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.get_media_buy_artifacts"><code class="name flex">
-<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1" href="../types/generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1">GetMediaBuyArtifactsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2" href="../types/generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2">GetMediaBuyArtifactsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self,<br>params: GetMediaBuyArtifactsRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1" href="../types/generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse1">GetMediaBuyArtifactsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2" href="../types/generated_poc/content_standards/get_media_buy_artifacts_response.html#adcp.types.generated_poc.content_standards.get_media_buy_artifacts_response.GetMediaBuyArtifactsResponse2">GetMediaBuyArtifactsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -408,7 +408,7 @@ return CreateContentStandardsResponse(&hellip;)</p></div>
 </summary>
 <pre><code class="python">async def get_media_buy_artifacts(
     self,
-    params: dict[str, Any],
+    params: GetMediaBuyArtifactsRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; GetMediaBuyArtifactsResponse | NotImplementedResponse:
     &#34;&#34;&#34;Get artifacts associated with a media buy.
@@ -562,7 +562,7 @@ async def handle_validate_content_delivery(
 <div class="desc"><p>Handle validate content delivery request.</p></div>
 </dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.list_content_standards"><code class="name flex">
-<span>async def <span class="ident">list_content_standards</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1" href="../types/generated_poc/content_standards/list_content_standards_response.html#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1">ListContentStandardsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse2" href="../types/generated_poc/content_standards/list_content_standards_response.html#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse2">ListContentStandardsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">list_content_standards</span></span>(<span>self,<br>params: ListContentStandardsRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1" href="../types/generated_poc/content_standards/list_content_standards_response.html#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse1">ListContentStandardsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse2" href="../types/generated_poc/content_standards/list_content_standards_response.html#adcp.types.generated_poc.content_standards.list_content_standards_response.ListContentStandardsResponse2">ListContentStandardsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -571,7 +571,7 @@ async def handle_validate_content_delivery(
 </summary>
 <pre><code class="python">async def list_content_standards(
     self,
-    params: dict[str, Any],
+    params: ListContentStandardsRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; ListContentStandardsResponse | NotImplementedResponse:
     &#34;&#34;&#34;List content standards configurations.
@@ -592,7 +592,7 @@ async def handle_validate_content_delivery(
 <p>Validates params and delegates to handle_list_content_standards.</p></div>
 </dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.update_content_standards"><code class="name flex">
-<span>async def <span class="ident">update_content_standards</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse1" href="../types/generated_poc/content_standards/update_content_standards_response.html#adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse1">UpdateContentStandardsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse2" href="../types/generated_poc/content_standards/update_content_standards_response.html#adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse2">UpdateContentStandardsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">update_content_standards</span></span>(<span>self,<br>params: UpdateContentStandardsRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse1" href="../types/generated_poc/content_standards/update_content_standards_response.html#adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse1">UpdateContentStandardsResponse1</a> | <a title="adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse2" href="../types/generated_poc/content_standards/update_content_standards_response.html#adcp.types.generated_poc.content_standards.update_content_standards_response.UpdateContentStandardsResponse2">UpdateContentStandardsResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -601,7 +601,7 @@ async def handle_validate_content_delivery(
 </summary>
 <pre><code class="python">async def update_content_standards(
     self,
-    params: dict[str, Any],
+    params: UpdateContentStandardsRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; UpdateContentStandardsResponse | NotImplementedResponse:
     &#34;&#34;&#34;Update content standards configuration.
@@ -622,7 +622,7 @@ async def handle_validate_content_delivery(
 <p>Validates params and delegates to handle_update_content_standards.</p></div>
 </dd>
 <dt id="adcp.server.content_standards.ContentStandardsHandler.validate_content_delivery"><code class="name flex">
-<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1" href="../types/generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1">ValidateContentDeliveryResponse1</a> | <a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2" href="../types/generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2">ValidateContentDeliveryResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self,<br>params: ValidateContentDeliveryRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1" href="../types/generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse1">ValidateContentDeliveryResponse1</a> | <a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2" href="../types/generated_poc/content_standards/validate_content_delivery_response.html#adcp.types.generated_poc.content_standards.validate_content_delivery_response.ValidateContentDeliveryResponse2">ValidateContentDeliveryResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -631,7 +631,7 @@ async def handle_validate_content_delivery(
 </summary>
 <pre><code class="python">async def validate_content_delivery(
     self,
-    params: dict[str, Any],
+    params: ValidateContentDeliveryRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; ValidateContentDeliveryResponse | NotImplementedResponse:
     &#34;&#34;&#34;Validate content delivery against standards.
@@ -662,12 +662,15 @@ async def handle_validate_content_delivery(
 <li><code><a title="adcp.server.base.ADCPHandler.check_governance" href="base.html#adcp.server.base.ADCPHandler.check_governance">check_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.comply_test_controller" href="base.html#adcp.server.base.ADCPHandler.comply_test_controller">comply_test_controller</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.context_match" href="base.html#adcp.server.base.ADCPHandler.context_match">context_match</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.create_collection_list" href="base.html#adcp.server.base.ADCPHandler.create_collection_list">create_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_media_buy" href="base.html#adcp.server.base.ADCPHandler.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_property_list" href="base.html#adcp.server.base.ADCPHandler.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.delete_collection_list" href="base.html#adcp.server.base.ADCPHandler.delete_collection_list">delete_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.delete_property_list" href="base.html#adcp.server.base.ADCPHandler.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_account_financials" href="base.html#adcp.server.base.ADCPHandler.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_adcp_capabilities" href="base.html#adcp.server.base.ADCPHandler.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_brand_identity" href="base.html#adcp.server.base.ADCPHandler.get_brand_identity">get_brand_identity</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.get_collection_list" href="base.html#adcp.server.base.ADCPHandler.get_collection_list">get_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_delivery" href="base.html#adcp.server.base.ADCPHandler.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_features" href="base.html#adcp.server.base.ADCPHandler.get_creative_features">get_creative_features</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_media_buy_delivery" href="base.html#adcp.server.base.ADCPHandler.get_media_buy_delivery">get_media_buy_delivery</a></code></li>
@@ -679,6 +682,7 @@ async def handle_validate_content_delivery(
 <li><code><a title="adcp.server.base.ADCPHandler.get_signals" href="base.html#adcp.server.base.ADCPHandler.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.identity_match" href="base.html#adcp.server.base.ADCPHandler.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_accounts" href="base.html#adcp.server.base.ADCPHandler.list_accounts">list_accounts</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.list_collection_lists" href="base.html#adcp.server.base.ADCPHandler.list_collection_lists">list_collection_lists</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creative_formats" href="base.html#adcp.server.base.ADCPHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creatives" href="base.html#adcp.server.base.ADCPHandler.list_creatives">list_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_property_lists" href="base.html#adcp.server.base.ADCPHandler.list_property_lists">list_property_lists</a></code></li>
@@ -698,6 +702,7 @@ async def handle_validate_content_delivery(
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="base.html#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_collection_list" href="base.html#adcp.server.base.ADCPHandler.update_collection_list">update_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="base.html#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>
 </ul>

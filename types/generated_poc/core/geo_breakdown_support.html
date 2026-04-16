@@ -63,13 +63,13 @@ el.replaceWith(d);
         bool | None, Field(description=&#39;Supports country-level geo breakdown (ISO 3166-1 alpha-2)&#39;)
     ] = None
     metro: Annotated[
-        dict[metro_system.MetroAreaSystem, bool] | None,
+        dict[str, bool] | None,
         Field(
             description=&#39;Metro area breakdown support. Keys are metro-system enum values; true means supported.&#39;
         ),
     ] = None
     postal_area: Annotated[
-        dict[postal_system.PostalCodeSystem, bool] | None,
+        dict[str, bool] | None,
         Field(
             description=&#39;Postal area breakdown support. Keys are postal-system enum values; true means supported.&#39;
         ),
@@ -99,7 +99,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.geo_breakdown_support.GeographicBreakdownSupport.metro"><code class="name">var <span class="ident">metro</span> : dict[<a title="adcp.types.generated_poc.enums.metro_system.MetroAreaSystem" href="../enums/metro_system.html#adcp.types.generated_poc.enums.metro_system.MetroAreaSystem">MetroAreaSystem</a>, bool] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.geo_breakdown_support.GeographicBreakdownSupport.metro"><code class="name">var <span class="ident">metro</span> : dict[str, bool] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -107,7 +107,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.geo_breakdown_support.GeographicBreakdownSupport.postal_area"><code class="name">var <span class="ident">postal_area</span> : dict[<a title="adcp.types.generated_poc.enums.postal_system.PostalCodeSystem" href="../enums/postal_system.html#adcp.types.generated_poc.enums.postal_system.PostalCodeSystem">PostalCodeSystem</a>, bool] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.geo_breakdown_support.GeographicBreakdownSupport.postal_area"><code class="name">var <span class="ident">postal_area</span> : dict[str, bool] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

@@ -3767,7 +3767,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     assignment_errors: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], str] | None,
+        dict[str, str] | None,
         Field(
             description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
         ),

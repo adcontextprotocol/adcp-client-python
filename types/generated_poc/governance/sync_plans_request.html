@@ -160,9 +160,52 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Subclasses</h3>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit"><code class="flex name class">
+<span>class <span class="ident">TotalBudgetCap</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BudgetLimit(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    amount: float
+    currency: str</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -758,7 +801,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.total_budget_cap"><code class="name">var <span class="ident">total_budget_cap</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.total_budget_cap"><code class="name">var <span class="ident">total_budget_cap</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -826,52 +869,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap"><code class="flex name class">
-<span>class <span class="ident">TotalBudgetCap</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TotalBudgetCap(BudgetLimit):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
 </dl>
 </section>
 </article>
@@ -896,6 +893,14 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.per_seller_max_pct" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.per_seller_max_pct">per_seller_max_pct</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.reallocation_threshold" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.reallocation_threshold">reallocation_threshold</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.total" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.total">total</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -982,12 +987,6 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.plans" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.plans">plans</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

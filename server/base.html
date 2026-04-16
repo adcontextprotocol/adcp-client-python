@@ -122,7 +122,7 @@ el.replaceWith(d);
     # Core Catalog Operations
     # ========================================================================
 
-    async def get_products(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def get_products(self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
         &#34;&#34;&#34;Get advertising products.
 
         Override this to provide product catalog functionality.
@@ -130,7 +130,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_products&#34;)
 
     async def list_creative_formats(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ListCreativeFormatsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;List supported creative formats.
 
@@ -143,7 +143,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def sync_creatives(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SyncCreativesRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Sync creatives.
 
@@ -152,7 +152,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;sync_creatives&#34;)
 
     async def list_creatives(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ListCreativesRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;List creatives.
 
@@ -161,7 +161,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;list_creatives&#34;)
 
     async def build_creative(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: BuildCreativeRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Build a creative.
 
@@ -170,7 +170,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;build_creative&#34;)
 
     async def preview_creative(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: PreviewCreativeRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Preview a creative rendering.
 
@@ -179,7 +179,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;preview_creative&#34;)
 
     async def get_creative_delivery(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetCreativeDeliveryRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get creative delivery metrics.
 
@@ -192,7 +192,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def create_media_buy(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: CreateMediaBuyRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Create a media buy.
 
@@ -201,7 +201,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;create_media_buy&#34;)
 
     async def update_media_buy(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: UpdateMediaBuyRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Update a media buy.
 
@@ -210,7 +210,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;update_media_buy&#34;)
 
     async def get_media_buy_delivery(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetMediaBuyDeliveryRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get media buy delivery metrics.
 
@@ -219,7 +219,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_media_buy_delivery&#34;)
 
     async def get_media_buys(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetMediaBuysRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get media buys with status and optional delivery snapshots.
 
@@ -231,7 +231,7 @@ el.replaceWith(d);
     # Signal Operations
     # ========================================================================
 
-    async def get_signals(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def get_signals(self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
         &#34;&#34;&#34;Get available signals.
 
         Override this to provide signal catalog.
@@ -239,7 +239,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_signals&#34;)
 
     async def activate_signal(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ActivateSignalRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Activate a signal.
 
@@ -252,7 +252,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def provide_performance_feedback(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ProvidePerformanceFeedbackRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Provide performance feedback.
 
@@ -265,7 +265,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def list_accounts(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ListAccountsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;List accounts.
 
@@ -274,7 +274,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;list_accounts&#34;)
 
     async def sync_accounts(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SyncAccountsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Sync accounts.
 
@@ -283,7 +283,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;sync_accounts&#34;)
 
     async def get_account_financials(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetAccountFinancialsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get account financials.
 
@@ -292,7 +292,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_account_financials&#34;)
 
     async def report_usage(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ReportUsageRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Report account usage.
 
@@ -304,7 +304,7 @@ el.replaceWith(d);
     # Event Operations
     # ========================================================================
 
-    async def log_event(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def log_event(self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
         &#34;&#34;&#34;Log event.
 
         Override this to provide functionality.
@@ -312,7 +312,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;log_event&#34;)
 
     async def sync_event_sources(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SyncEventSourcesRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Sync event sources.
 
@@ -321,7 +321,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;sync_event_sources&#34;)
 
     async def sync_audiences(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SyncAudiencesRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Sync audiences.
 
@@ -339,7 +339,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;sync_governance&#34;)
 
     async def sync_catalogs(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SyncCatalogsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Sync catalogs.
 
@@ -352,7 +352,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def get_adcp_capabilities(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetAdcpCapabilitiesRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get ADCP capabilities.
 
@@ -365,7 +365,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def create_content_standards(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: CreateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Create content standards configuration.
 
@@ -374,7 +374,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;create_content_standards&#34;)
 
     async def get_content_standards(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get content standards configuration.
 
@@ -383,7 +383,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_content_standards&#34;)
 
     async def list_content_standards(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ListContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;List content standards configurations.
 
@@ -392,7 +392,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;list_content_standards&#34;)
 
     async def update_content_standards(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: UpdateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Update content standards configuration.
 
@@ -401,7 +401,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;update_content_standards&#34;)
 
     async def calibrate_content(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: CalibrateContentRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Calibrate content against standards.
 
@@ -410,7 +410,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;calibrate_content&#34;)
 
     async def validate_content_delivery(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ValidateContentDeliveryRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Validate content delivery against standards.
 
@@ -419,7 +419,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;validate_content_delivery&#34;)
 
     async def get_media_buy_artifacts(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetMediaBuyArtifactsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get artifacts associated with a media buy.
 
@@ -432,7 +432,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def si_get_offering(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SiGetOfferingRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get sponsored intelligence offering.
 
@@ -441,7 +441,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;si_get_offering&#34;)
 
     async def si_initiate_session(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SiInitiateSessionRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Initiate sponsored intelligence session.
 
@@ -450,7 +450,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;si_initiate_session&#34;)
 
     async def si_send_message(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SiSendMessageRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Send message in sponsored intelligence session.
 
@@ -459,7 +459,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;si_send_message&#34;)
 
     async def si_terminate_session(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SiTerminateSessionRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Terminate sponsored intelligence session.
 
@@ -472,7 +472,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def get_creative_features(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetCreativeFeaturesRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Evaluate governance features for a creative.
 
@@ -481,7 +481,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_creative_features&#34;)
 
     async def sync_plans(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SyncPlansRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Sync campaign governance plans.
 
@@ -490,7 +490,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;sync_plans&#34;)
 
     async def check_governance(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: CheckGovernanceRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Check an action against campaign governance.
 
@@ -499,7 +499,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;check_governance&#34;)
 
     async def report_plan_outcome(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ReportPlanOutcomeRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Report the outcome of a governed action.
 
@@ -508,7 +508,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;report_plan_outcome&#34;)
 
     async def get_plan_audit_logs(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetPlanAuditLogsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Retrieve governance audit logs for plans.
 
@@ -517,7 +517,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_plan_audit_logs&#34;)
 
     async def create_property_list(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: CreatePropertyListRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Create a property list for governance filtering.
 
@@ -526,7 +526,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;create_property_list&#34;)
 
     async def get_property_list(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetPropertyListRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get a property list with optional resolution.
 
@@ -535,7 +535,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_property_list&#34;)
 
     async def list_property_lists(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ListPropertyListsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;List property lists.
 
@@ -544,7 +544,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;list_property_lists&#34;)
 
     async def update_property_list(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: UpdatePropertyListRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Update a property list.
 
@@ -553,7 +553,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;update_property_list&#34;)
 
     async def delete_property_list(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: DeletePropertyListRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Delete a property list.
 
@@ -562,11 +562,60 @@ el.replaceWith(d);
         return self._not_supported(&#34;delete_property_list&#34;)
 
     # ========================================================================
+    # V3 Governance (Collection Lists) Operations
+    # ========================================================================
+
+    async def create_collection_list(
+        self, params: CreateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Create a collection list for governance filtering.
+
+        Override this in GovernanceHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;create_collection_list&#34;)
+
+    async def get_collection_list(
+        self, params: GetCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Get a collection list with optional resolution.
+
+        Override this in GovernanceHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;get_collection_list&#34;)
+
+    async def list_collection_lists(
+        self, params: ListCollectionListsRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;List collection lists.
+
+        Override this in GovernanceHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;list_collection_lists&#34;)
+
+    async def update_collection_list(
+        self, params: UpdateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Update a collection list.
+
+        Override this in GovernanceHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;update_collection_list&#34;)
+
+    async def delete_collection_list(
+        self, params: DeleteCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Delete a collection list.
+
+        Override this in GovernanceHandler subclasses.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;delete_collection_list&#34;)
+
+    # ========================================================================
     # V3 TMP Operations
     # ========================================================================
 
     async def context_match(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ContextMatchRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Match ad context to buyer packages.
 
@@ -575,7 +624,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;context_match&#34;)
 
     async def identity_match(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: IdentityMatchRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Match user identity for package eligibility.
 
@@ -588,7 +637,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def get_brand_identity(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetBrandIdentityRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get brand identity information.
 
@@ -597,7 +646,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_brand_identity&#34;)
 
     async def get_rights(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: GetRightsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Get available rights for licensing.
 
@@ -606,7 +655,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_rights&#34;)
 
     async def acquire_rights(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: AcquireRightsRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Acquire rights for brand content usage.
 
@@ -619,7 +668,7 @@ el.replaceWith(d);
     # ========================================================================
 
     async def comply_test_controller(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: ComplyTestControllerRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Compliance test controller (sandbox only).
 
@@ -651,7 +700,7 @@ only the operations your agent supports.</p>
 <h3>Methods</h3>
 <dl>
 <dt id="adcp.server.base.ADCPHandler.acquire_rights"><code class="name flex">
-<span>async def <span class="ident">acquire_rights</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">acquire_rights</span></span>(<span>self,<br>params: AcquireRightsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -659,7 +708,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def acquire_rights(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: AcquireRightsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Acquire rights for brand content usage.
 
@@ -671,7 +720,7 @@ only the operations your agent supports.</p>
 <p>Override this in BrandHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.activate_signal"><code class="name flex">
-<span>async def <span class="ident">activate_signal</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">activate_signal</span></span>(<span>self,<br>params: ActivateSignalRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -679,7 +728,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def activate_signal(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ActivateSignalRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Activate a signal.
 
@@ -691,7 +740,7 @@ only the operations your agent supports.</p>
 <p>Override this to handle signal activation.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.build_creative"><code class="name flex">
-<span>async def <span class="ident">build_creative</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">build_creative</span></span>(<span>self,<br>params: BuildCreativeRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -699,7 +748,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def build_creative(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: BuildCreativeRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Build a creative.
 
@@ -711,7 +760,7 @@ only the operations your agent supports.</p>
 <p>Override this to build creatives from assets.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.calibrate_content"><code class="name flex">
-<span>async def <span class="ident">calibrate_content</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">calibrate_content</span></span>(<span>self,<br>params: CalibrateContentRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -719,7 +768,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def calibrate_content(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: CalibrateContentRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Calibrate content against standards.
 
@@ -731,7 +780,7 @@ only the operations your agent supports.</p>
 <p>Override this in ContentStandardsHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.check_governance"><code class="name flex">
-<span>async def <span class="ident">check_governance</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">check_governance</span></span>(<span>self,<br>params: CheckGovernanceRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -739,7 +788,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def check_governance(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: CheckGovernanceRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Check an action against campaign governance.
 
@@ -751,7 +800,7 @@ only the operations your agent supports.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.comply_test_controller"><code class="name flex">
-<span>async def <span class="ident">comply_test_controller</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">comply_test_controller</span></span>(<span>self,<br>params: ComplyTestControllerRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -759,7 +808,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def comply_test_controller(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ComplyTestControllerRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Compliance test controller (sandbox only).
 
@@ -771,7 +820,7 @@ only the operations your agent supports.</p>
 <p>Override this in ComplianceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.context_match"><code class="name flex">
-<span>async def <span class="ident">context_match</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">context_match</span></span>(<span>self,<br>params: ContextMatchRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -779,7 +828,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def context_match(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ContextMatchRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Match ad context to buyer packages.
 
@@ -790,8 +839,28 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Match ad context to buyer packages.</p>
 <p>Override this to provide TMP context matching.</p></div>
 </dd>
+<dt id="adcp.server.base.ADCPHandler.create_collection_list"><code class="name flex">
+<span>async def <span class="ident">create_collection_list</span></span>(<span>self,<br>params: CreateCollectionListRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_collection_list(
+    self, params: CreateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Create a collection list for governance filtering.
+
+    Override this in GovernanceHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;create_collection_list&#34;)</code></pre>
+</details>
+<div class="desc"><p>Create a collection list for governance filtering.</p>
+<p>Override this in GovernanceHandler subclasses.</p></div>
+</dd>
 <dt id="adcp.server.base.ADCPHandler.create_content_standards"><code class="name flex">
-<span>async def <span class="ident">create_content_standards</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">create_content_standards</span></span>(<span>self,<br>params: CreateContentStandardsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -799,7 +868,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def create_content_standards(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: CreateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Create content standards configuration.
 
@@ -811,7 +880,7 @@ only the operations your agent supports.</p>
 <p>Override this in ContentStandardsHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.create_media_buy"><code class="name flex">
-<span>async def <span class="ident">create_media_buy</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">create_media_buy</span></span>(<span>self,<br>params: CreateMediaBuyRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -819,7 +888,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def create_media_buy(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: CreateMediaBuyRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Create a media buy.
 
@@ -831,7 +900,7 @@ only the operations your agent supports.</p>
 <p>Override this to handle media buy creation.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.create_property_list"><code class="name flex">
-<span>async def <span class="ident">create_property_list</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">create_property_list</span></span>(<span>self,<br>params: CreatePropertyListRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -839,7 +908,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def create_property_list(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: CreatePropertyListRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Create a property list for governance filtering.
 
@@ -850,8 +919,28 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Create a property list for governance filtering.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
+<dt id="adcp.server.base.ADCPHandler.delete_collection_list"><code class="name flex">
+<span>async def <span class="ident">delete_collection_list</span></span>(<span>self,<br>params: DeleteCollectionListRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def delete_collection_list(
+    self, params: DeleteCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Delete a collection list.
+
+    Override this in GovernanceHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;delete_collection_list&#34;)</code></pre>
+</details>
+<div class="desc"><p>Delete a collection list.</p>
+<p>Override this in GovernanceHandler subclasses.</p></div>
+</dd>
 <dt id="adcp.server.base.ADCPHandler.delete_property_list"><code class="name flex">
-<span>async def <span class="ident">delete_property_list</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">delete_property_list</span></span>(<span>self,<br>params: DeletePropertyListRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -859,7 +948,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def delete_property_list(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: DeletePropertyListRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Delete a property list.
 
@@ -871,7 +960,7 @@ only the operations your agent supports.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_account_financials"><code class="name flex">
-<span>async def <span class="ident">get_account_financials</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_account_financials</span></span>(<span>self,<br>params: GetAccountFinancialsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -879,7 +968,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_account_financials(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetAccountFinancialsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get account financials.
 
@@ -891,7 +980,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide account financial reporting.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_adcp_capabilities"><code class="name flex">
-<span>async def <span class="ident">get_adcp_capabilities</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_adcp_capabilities</span></span>(<span>self,<br>params: GetAdcpCapabilitiesRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -899,7 +988,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_adcp_capabilities(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetAdcpCapabilitiesRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get ADCP capabilities.
 
@@ -911,7 +1000,7 @@ only the operations your agent supports.</p>
 <p>Override this to advertise your agent's capabilities.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_brand_identity"><code class="name flex">
-<span>async def <span class="ident">get_brand_identity</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_brand_identity</span></span>(<span>self,<br>params: GetBrandIdentityRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -919,7 +1008,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_brand_identity(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetBrandIdentityRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get brand identity information.
 
@@ -930,8 +1019,28 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Get brand identity information.</p>
 <p>Override this in BrandHandler subclasses.</p></div>
 </dd>
+<dt id="adcp.server.base.ADCPHandler.get_collection_list"><code class="name flex">
+<span>async def <span class="ident">get_collection_list</span></span>(<span>self,<br>params: GetCollectionListRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_collection_list(
+    self, params: GetCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Get a collection list with optional resolution.
+
+    Override this in GovernanceHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;get_collection_list&#34;)</code></pre>
+</details>
+<div class="desc"><p>Get a collection list with optional resolution.</p>
+<p>Override this in GovernanceHandler subclasses.</p></div>
+</dd>
 <dt id="adcp.server.base.ADCPHandler.get_content_standards"><code class="name flex">
-<span>async def <span class="ident">get_content_standards</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_content_standards</span></span>(<span>self,<br>params: GetContentStandardsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -939,7 +1048,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_content_standards(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get content standards configuration.
 
@@ -951,7 +1060,7 @@ only the operations your agent supports.</p>
 <p>Override this in ContentStandardsHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_creative_delivery"><code class="name flex">
-<span>async def <span class="ident">get_creative_delivery</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_creative_delivery</span></span>(<span>self,<br>params: GetCreativeDeliveryRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -959,7 +1068,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_creative_delivery(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetCreativeDeliveryRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get creative delivery metrics.
 
@@ -971,7 +1080,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide functionality.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_creative_features"><code class="name flex">
-<span>async def <span class="ident">get_creative_features</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_creative_features</span></span>(<span>self,<br>params: GetCreativeFeaturesRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -979,7 +1088,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_creative_features(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetCreativeFeaturesRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Evaluate governance features for a creative.
 
@@ -991,7 +1100,7 @@ only the operations your agent supports.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_media_buy_artifacts"><code class="name flex">
-<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_media_buy_artifacts</span></span>(<span>self,<br>params: GetMediaBuyArtifactsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -999,7 +1108,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_media_buy_artifacts(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetMediaBuyArtifactsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get artifacts associated with a media buy.
 
@@ -1011,7 +1120,7 @@ only the operations your agent supports.</p>
 <p>Override this in ContentStandardsHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_media_buy_delivery"><code class="name flex">
-<span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_media_buy_delivery</span></span>(<span>self,<br>params: GetMediaBuyDeliveryRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1019,7 +1128,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_media_buy_delivery(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetMediaBuyDeliveryRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get media buy delivery metrics.
 
@@ -1031,7 +1140,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide delivery reporting.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_media_buys"><code class="name flex">
-<span>async def <span class="ident">get_media_buys</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_media_buys</span></span>(<span>self,<br>params: GetMediaBuysRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1039,7 +1148,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_media_buys(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetMediaBuysRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get media buys with status and optional delivery snapshots.
 
@@ -1051,7 +1160,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide media buy listing functionality.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_plan_audit_logs"><code class="name flex">
-<span>async def <span class="ident">get_plan_audit_logs</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_plan_audit_logs</span></span>(<span>self,<br>params: GetPlanAuditLogsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1059,7 +1168,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_plan_audit_logs(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetPlanAuditLogsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Retrieve governance audit logs for plans.
 
@@ -1071,14 +1180,14 @@ only the operations your agent supports.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_products"><code class="name flex">
-<span>async def <span class="ident">get_products</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_products</span></span>(<span>self,<br>params: GetProductsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def get_products(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def get_products(self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
     &#34;&#34;&#34;Get advertising products.
 
     Override this to provide product catalog functionality.
@@ -1089,7 +1198,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide product catalog functionality.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_property_list"><code class="name flex">
-<span>async def <span class="ident">get_property_list</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_property_list</span></span>(<span>self,<br>params: GetPropertyListRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1097,7 +1206,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_property_list(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetPropertyListRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get a property list with optional resolution.
 
@@ -1109,7 +1218,7 @@ only the operations your agent supports.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_rights"><code class="name flex">
-<span>async def <span class="ident">get_rights</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_rights</span></span>(<span>self,<br>params: GetRightsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1117,7 +1226,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_rights(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: GetRightsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get available rights for licensing.
 
@@ -1129,14 +1238,14 @@ only the operations your agent supports.</p>
 <p>Override this in BrandHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.get_signals"><code class="name flex">
-<span>async def <span class="ident">get_signals</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">get_signals</span></span>(<span>self,<br>params: GetSignalsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def get_signals(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def get_signals(self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
     &#34;&#34;&#34;Get available signals.
 
     Override this to provide signal catalog.
@@ -1147,7 +1256,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide signal catalog.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.identity_match"><code class="name flex">
-<span>async def <span class="ident">identity_match</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">identity_match</span></span>(<span>self,<br>params: IdentityMatchRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1155,7 +1264,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def identity_match(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: IdentityMatchRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Match user identity for package eligibility.
 
@@ -1167,7 +1276,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide TMP identity matching.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.list_accounts"><code class="name flex">
-<span>async def <span class="ident">list_accounts</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">list_accounts</span></span>(<span>self,<br>params: ListAccountsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1175,7 +1284,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_accounts(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ListAccountsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;List accounts.
 
@@ -1186,8 +1295,28 @@ only the operations your agent supports.</p>
 <div class="desc"><p>List accounts.</p>
 <p>Override this to provide functionality.</p></div>
 </dd>
+<dt id="adcp.server.base.ADCPHandler.list_collection_lists"><code class="name flex">
+<span>async def <span class="ident">list_collection_lists</span></span>(<span>self,<br>params: ListCollectionListsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_collection_lists(
+    self, params: ListCollectionListsRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;List collection lists.
+
+    Override this in GovernanceHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;list_collection_lists&#34;)</code></pre>
+</details>
+<div class="desc"><p>List collection lists.</p>
+<p>Override this in GovernanceHandler subclasses.</p></div>
+</dd>
 <dt id="adcp.server.base.ADCPHandler.list_content_standards"><code class="name flex">
-<span>async def <span class="ident">list_content_standards</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">list_content_standards</span></span>(<span>self,<br>params: ListContentStandardsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1195,7 +1324,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_content_standards(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ListContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;List content standards configurations.
 
@@ -1207,7 +1336,7 @@ only the operations your agent supports.</p>
 <p>Override this in ContentStandardsHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.list_creative_formats"><code class="name flex">
-<span>async def <span class="ident">list_creative_formats</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">list_creative_formats</span></span>(<span>self,<br>params: ListCreativeFormatsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1215,7 +1344,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_creative_formats(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ListCreativeFormatsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;List supported creative formats.
 
@@ -1227,7 +1356,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide creative format information.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.list_creatives"><code class="name flex">
-<span>async def <span class="ident">list_creatives</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">list_creatives</span></span>(<span>self,<br>params: ListCreativesRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1235,7 +1364,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_creatives(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ListCreativesRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;List creatives.
 
@@ -1247,7 +1376,7 @@ only the operations your agent supports.</p>
 <p>Override this to list synced creatives.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.list_property_lists"><code class="name flex">
-<span>async def <span class="ident">list_property_lists</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">list_property_lists</span></span>(<span>self,<br>params: ListPropertyListsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1255,7 +1384,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_property_lists(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ListPropertyListsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;List property lists.
 
@@ -1267,14 +1396,14 @@ only the operations your agent supports.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.log_event"><code class="name flex">
-<span>async def <span class="ident">log_event</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">log_event</span></span>(<span>self,<br>params: LogEventRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def log_event(self, params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def log_event(self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
     &#34;&#34;&#34;Log event.
 
     Override this to provide functionality.
@@ -1285,7 +1414,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide functionality.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.preview_creative"><code class="name flex">
-<span>async def <span class="ident">preview_creative</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">preview_creative</span></span>(<span>self,<br>params: PreviewCreativeRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1293,7 +1422,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def preview_creative(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: PreviewCreativeRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Preview a creative rendering.
 
@@ -1305,7 +1434,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide creative preview functionality.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.provide_performance_feedback"><code class="name flex">
-<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">provide_performance_feedback</span></span>(<span>self,<br>params: ProvidePerformanceFeedbackRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1313,7 +1442,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def provide_performance_feedback(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ProvidePerformanceFeedbackRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Provide performance feedback.
 
@@ -1325,7 +1454,7 @@ only the operations your agent supports.</p>
 <p>Override this to handle performance feedback ingestion.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.report_plan_outcome"><code class="name flex">
-<span>async def <span class="ident">report_plan_outcome</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">report_plan_outcome</span></span>(<span>self,<br>params: ReportPlanOutcomeRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1333,7 +1462,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def report_plan_outcome(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ReportPlanOutcomeRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Report the outcome of a governed action.
 
@@ -1345,7 +1474,7 @@ only the operations your agent supports.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.report_usage"><code class="name flex">
-<span>async def <span class="ident">report_usage</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">report_usage</span></span>(<span>self,<br>params: ReportUsageRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1353,7 +1482,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def report_usage(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ReportUsageRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Report account usage.
 
@@ -1365,7 +1494,7 @@ only the operations your agent supports.</p>
 <p>Override this to ingest account usage.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.si_get_offering"><code class="name flex">
-<span>async def <span class="ident">si_get_offering</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">si_get_offering</span></span>(<span>self,<br>params: SiGetOfferingRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1373,7 +1502,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def si_get_offering(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SiGetOfferingRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Get sponsored intelligence offering.
 
@@ -1385,7 +1514,7 @@ only the operations your agent supports.</p>
 <p>Override this in SponsoredIntelligenceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.si_initiate_session"><code class="name flex">
-<span>async def <span class="ident">si_initiate_session</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">si_initiate_session</span></span>(<span>self,<br>params: SiInitiateSessionRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1393,7 +1522,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def si_initiate_session(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SiInitiateSessionRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Initiate sponsored intelligence session.
 
@@ -1405,7 +1534,7 @@ only the operations your agent supports.</p>
 <p>Override this in SponsoredIntelligenceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.si_send_message"><code class="name flex">
-<span>async def <span class="ident">si_send_message</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">si_send_message</span></span>(<span>self,<br>params: SiSendMessageRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1413,7 +1542,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def si_send_message(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SiSendMessageRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Send message in sponsored intelligence session.
 
@@ -1425,7 +1554,7 @@ only the operations your agent supports.</p>
 <p>Override this in SponsoredIntelligenceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.si_terminate_session"><code class="name flex">
-<span>async def <span class="ident">si_terminate_session</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">si_terminate_session</span></span>(<span>self,<br>params: SiTerminateSessionRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1433,7 +1562,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def si_terminate_session(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SiTerminateSessionRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Terminate sponsored intelligence session.
 
@@ -1445,7 +1574,7 @@ only the operations your agent supports.</p>
 <p>Override this in SponsoredIntelligenceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.sync_accounts"><code class="name flex">
-<span>async def <span class="ident">sync_accounts</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">sync_accounts</span></span>(<span>self,<br>params: SyncAccountsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1453,7 +1582,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def sync_accounts(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SyncAccountsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Sync accounts.
 
@@ -1465,7 +1594,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide functionality.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.sync_audiences"><code class="name flex">
-<span>async def <span class="ident">sync_audiences</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">sync_audiences</span></span>(<span>self,<br>params: SyncAudiencesRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1473,7 +1602,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def sync_audiences(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SyncAudiencesRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Sync audiences.
 
@@ -1485,7 +1614,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide audience synchronization.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.sync_catalogs"><code class="name flex">
-<span>async def <span class="ident">sync_catalogs</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">sync_catalogs</span></span>(<span>self,<br>params: SyncCatalogsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1493,7 +1622,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def sync_catalogs(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SyncCatalogsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Sync catalogs.
 
@@ -1505,7 +1634,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide catalog synchronization.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.sync_creatives"><code class="name flex">
-<span>async def <span class="ident">sync_creatives</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self,<br>params: SyncCreativesRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1513,7 +1642,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def sync_creatives(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SyncCreativesRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Sync creatives.
 
@@ -1525,7 +1654,7 @@ only the operations your agent supports.</p>
 <p>Override this to handle creative synchronization.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.sync_event_sources"><code class="name flex">
-<span>async def <span class="ident">sync_event_sources</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">sync_event_sources</span></span>(<span>self,<br>params: SyncEventSourcesRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1533,7 +1662,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def sync_event_sources(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SyncEventSourcesRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Sync event sources.
 
@@ -1565,7 +1694,7 @@ only the operations your agent supports.</p>
 <p>Override this to handle governance agent registration.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.sync_plans"><code class="name flex">
-<span>async def <span class="ident">sync_plans</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">sync_plans</span></span>(<span>self,<br>params: SyncPlansRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1573,7 +1702,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def sync_plans(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SyncPlansRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Sync campaign governance plans.
 
@@ -1584,8 +1713,28 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Sync campaign governance plans.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
+<dt id="adcp.server.base.ADCPHandler.update_collection_list"><code class="name flex">
+<span>async def <span class="ident">update_collection_list</span></span>(<span>self,<br>params: UpdateCollectionListRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_collection_list(
+    self, params: UpdateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Update a collection list.
+
+    Override this in GovernanceHandler subclasses.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;update_collection_list&#34;)</code></pre>
+</details>
+<div class="desc"><p>Update a collection list.</p>
+<p>Override this in GovernanceHandler subclasses.</p></div>
+</dd>
 <dt id="adcp.server.base.ADCPHandler.update_content_standards"><code class="name flex">
-<span>async def <span class="ident">update_content_standards</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">update_content_standards</span></span>(<span>self,<br>params: UpdateContentStandardsRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1593,7 +1742,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def update_content_standards(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: UpdateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Update content standards configuration.
 
@@ -1605,7 +1754,7 @@ only the operations your agent supports.</p>
 <p>Override this in ContentStandardsHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.update_media_buy"><code class="name flex">
-<span>async def <span class="ident">update_media_buy</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">update_media_buy</span></span>(<span>self,<br>params: UpdateMediaBuyRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1613,7 +1762,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def update_media_buy(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: UpdateMediaBuyRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Update a media buy.
 
@@ -1625,7 +1774,7 @@ only the operations your agent supports.</p>
 <p>Override this to handle media buy updates.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.update_property_list"><code class="name flex">
-<span>async def <span class="ident">update_property_list</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">update_property_list</span></span>(<span>self,<br>params: UpdatePropertyListRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1633,7 +1782,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def update_property_list(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: UpdatePropertyListRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Update a property list.
 
@@ -1645,7 +1794,7 @@ only the operations your agent supports.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.validate_content_delivery"><code class="name flex">
-<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">validate_content_delivery</span></span>(<span>self,<br>params: ValidateContentDeliveryRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1653,7 +1802,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def validate_content_delivery(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: ValidateContentDeliveryRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Validate content delivery against standards.
 
@@ -1781,13 +1930,16 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.check_governance" href="#adcp.server.base.ADCPHandler.check_governance">check_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.comply_test_controller" href="#adcp.server.base.ADCPHandler.comply_test_controller">comply_test_controller</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.context_match" href="#adcp.server.base.ADCPHandler.context_match">context_match</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.create_collection_list" href="#adcp.server.base.ADCPHandler.create_collection_list">create_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_content_standards" href="#adcp.server.base.ADCPHandler.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_media_buy" href="#adcp.server.base.ADCPHandler.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_property_list" href="#adcp.server.base.ADCPHandler.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.delete_collection_list" href="#adcp.server.base.ADCPHandler.delete_collection_list">delete_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.delete_property_list" href="#adcp.server.base.ADCPHandler.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_account_financials" href="#adcp.server.base.ADCPHandler.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_adcp_capabilities" href="#adcp.server.base.ADCPHandler.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_brand_identity" href="#adcp.server.base.ADCPHandler.get_brand_identity">get_brand_identity</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.get_collection_list" href="#adcp.server.base.ADCPHandler.get_collection_list">get_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_content_standards" href="#adcp.server.base.ADCPHandler.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_delivery" href="#adcp.server.base.ADCPHandler.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_features" href="#adcp.server.base.ADCPHandler.get_creative_features">get_creative_features</a></code></li>
@@ -1801,6 +1953,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.get_signals" href="#adcp.server.base.ADCPHandler.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.identity_match" href="#adcp.server.base.ADCPHandler.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_accounts" href="#adcp.server.base.ADCPHandler.list_accounts">list_accounts</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.list_collection_lists" href="#adcp.server.base.ADCPHandler.list_collection_lists">list_collection_lists</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_content_standards" href="#adcp.server.base.ADCPHandler.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creative_formats" href="#adcp.server.base.ADCPHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creatives" href="#adcp.server.base.ADCPHandler.list_creatives">list_creatives</a></code></li>
@@ -1821,6 +1974,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_collection_list" href="#adcp.server.base.ADCPHandler.update_collection_list">update_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>

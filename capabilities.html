@@ -47,6 +47,57 @@ Used by both the client (buyer-side validation) and server (seller-side validati
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="adcp.capabilities.build_synthetic_capabilities"><code class="name flex">
+<span>def <span class="ident">build_synthetic_capabilities</span></span>(<span>supported_protocols: list[str], *, major_versions: list[int] | None = None) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_synthetic_capabilities(
+    supported_protocols: list[str],
+    *,
+    major_versions: list[int] | None = None,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Build a synthetic capabilities response for pre-v3 sellers.
+
+    Use this when connecting to a seller that doesn&#39;t support
+    ``get_adcp_capabilities`` (pre-v3 sellers). The returned dict
+    can be passed to ``FeatureResolver`` after wrapping with the
+    appropriate Pydantic model.
+
+    Args:
+        supported_protocols: List of protocol domains the seller supports
+            (e.g., ``[&#34;media_buy&#34;]``).
+        major_versions: ADCP major versions the seller supports.
+            Defaults to ``[2]``.
+
+    Returns:
+        A dict matching the GetAdcpCapabilitiesResponse shape.
+    &#34;&#34;&#34;
+    return {
+        &#34;adcp&#34;: {&#34;major_versions&#34;: major_versions or [2]},
+        &#34;supported_protocols&#34;: supported_protocols,
+    }</code></pre>
+</details>
+<div class="desc"><p>Build a synthetic capabilities response for pre-v3 sellers.</p>
+<p>Use this when connecting to a seller that doesn't support
+<code>get_adcp_capabilities</code> (pre-v3 sellers). The returned dict
+can be passed to <code><a title="adcp.capabilities.FeatureResolver" href="#adcp.capabilities.FeatureResolver">FeatureResolver</a></code> after wrapping with the
+appropriate Pydantic model.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>supported_protocols</code></strong></dt>
+<dd>List of protocol domains the seller supports
+(e.g., <code>["media_buy"]</code>).</dd>
+<dt><strong><code>major_versions</code></strong></dt>
+<dd>ADCP major versions the seller supports.
+Defaults to <code>[2]</code>.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A dict matching the GetAdcpCapabilitiesResponse shape.</p></div>
+</dd>
 <dt id="adcp.capabilities.validate_capabilities"><code class="name flex">
 <span>def <span class="ident">validate_capabilities</span></span>(<span>handler: Any, capabilities: GetAdcpCapabilitiesResponse) ‑> list[str]</span>
 </code></dt>
@@ -168,6 +219,19 @@ whose corresponding handler methods are not overridden from the base class.</p>
     @property
     def capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
         return self._caps
+
+    def supports_v3(self) -&gt; bool:
+        &#34;&#34;&#34;Check if the seller supports ADCP v3.
+
+        Returns:
+            True if major_versions includes 3.
+        &#34;&#34;&#34;
+        if self._caps.adcp is None:
+            return False
+        for v in self._caps.adcp.major_versions:
+            if (v.root if hasattr(v, &#34;root&#34;) else v) == 3:
+                return True
+        return False
 
     def supports(self, feature: str) -&gt; bool:
         &#34;&#34;&#34;Check if a feature is supported.&#34;&#34;&#34;
@@ -472,6 +536,31 @@ def capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
 </details>
 <div class="desc"><p>Check if a feature is supported.</p></div>
 </dd>
+<dt id="adcp.capabilities.FeatureResolver.supports_v3"><code class="name flex">
+<span>def <span class="ident">supports_v3</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def supports_v3(self) -&gt; bool:
+    &#34;&#34;&#34;Check if the seller supports ADCP v3.
+
+    Returns:
+        True if major_versions includes 3.
+    &#34;&#34;&#34;
+    if self._caps.adcp is None:
+        return False
+    for v in self._caps.adcp.major_versions:
+        if (v.root if hasattr(v, &#34;root&#34;) else v) == 3:
+            return True
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if the seller supports ADCP v3.</p>
+<h2 id="returns">Returns</h2>
+<p>True if major_versions includes 3.</p></div>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -489,6 +578,7 @@ def capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="adcp.capabilities.build_synthetic_capabilities" href="#adcp.capabilities.build_synthetic_capabilities">build_synthetic_capabilities</a></code></li>
 <li><code><a title="adcp.capabilities.validate_capabilities" href="#adcp.capabilities.validate_capabilities">validate_capabilities</a></code></li>
 </ul>
 </li>
@@ -501,6 +591,7 @@ def capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
 <li><code><a title="adcp.capabilities.FeatureResolver.get_declared_features" href="#adcp.capabilities.FeatureResolver.get_declared_features">get_declared_features</a></code></li>
 <li><code><a title="adcp.capabilities.FeatureResolver.require" href="#adcp.capabilities.FeatureResolver.require">require</a></code></li>
 <li><code><a title="adcp.capabilities.FeatureResolver.supports" href="#adcp.capabilities.FeatureResolver.supports">supports</a></code></li>
+<li><code><a title="adcp.capabilities.FeatureResolver.supports_v3" href="#adcp.capabilities.FeatureResolver.supports_v3">supports_v3</a></code></li>
 </ul>
 </li>
 </ul>

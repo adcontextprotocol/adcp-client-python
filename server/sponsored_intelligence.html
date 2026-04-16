@@ -87,7 +87,7 @@ Non-SI operations return 'not supported' via the base class.</p>
 
     async def si_get_offering(
         self,
-        params: dict[str, Any],
+        params: SiGetOfferingRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; SiGetOfferingResponse | NotImplementedResponse:
         &#34;&#34;&#34;Get sponsored intelligence offering.
@@ -106,7 +106,7 @@ Non-SI operations return 'not supported' via the base class.</p>
 
     async def si_initiate_session(
         self,
-        params: dict[str, Any],
+        params: SiInitiateSessionRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; SiInitiateSessionResponse | NotImplementedResponse:
         &#34;&#34;&#34;Initiate sponsored intelligence session.
@@ -125,7 +125,7 @@ Non-SI operations return 'not supported' via the base class.</p>
 
     async def si_send_message(
         self,
-        params: dict[str, Any],
+        params: SiSendMessageRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; SiSendMessageResponse | NotImplementedResponse:
         &#34;&#34;&#34;Send message in sponsored intelligence session.
@@ -144,7 +144,7 @@ Non-SI operations return 'not supported' via the base class.</p>
 
     async def si_terminate_session(
         self,
-        params: dict[str, Any],
+        params: SiTerminateSessionRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; SiTerminateSessionResponse | NotImplementedResponse:
         &#34;&#34;&#34;Terminate sponsored intelligence session.
@@ -301,7 +301,7 @@ async def handle_si_terminate_session(
 <div class="desc"><p>Handle terminate session request.</p></div>
 </dd>
 <dt id="adcp.server.sponsored_intelligence.SponsoredIntelligenceHandler.si_get_offering"><code class="name flex">
-<span>async def <span class="ident">si_get_offering</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse" href="../types/generated_poc/sponsored_intelligence/si_get_offering_response.html#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse">SiGetOfferingResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">si_get_offering</span></span>(<span>self,<br>params: SiGetOfferingRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse" href="../types/generated_poc/sponsored_intelligence/si_get_offering_response.html#adcp.types.generated_poc.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse">SiGetOfferingResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -310,7 +310,7 @@ async def handle_si_terminate_session(
 </summary>
 <pre><code class="python">async def si_get_offering(
     self,
-    params: dict[str, Any],
+    params: SiGetOfferingRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; SiGetOfferingResponse | NotImplementedResponse:
     &#34;&#34;&#34;Get sponsored intelligence offering.
@@ -331,7 +331,7 @@ async def handle_si_terminate_session(
 <p>Validates params and delegates to handle_si_get_offering.</p></div>
 </dd>
 <dt id="adcp.server.sponsored_intelligence.SponsoredIntelligenceHandler.si_initiate_session"><code class="name flex">
-<span>async def <span class="ident">si_initiate_session</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse" href="../types/generated_poc/sponsored_intelligence/si_initiate_session_response.html#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse">SiInitiateSessionResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">si_initiate_session</span></span>(<span>self,<br>params: SiInitiateSessionRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse" href="../types/generated_poc/sponsored_intelligence/si_initiate_session_response.html#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse">SiInitiateSessionResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -340,7 +340,7 @@ async def handle_si_terminate_session(
 </summary>
 <pre><code class="python">async def si_initiate_session(
     self,
-    params: dict[str, Any],
+    params: SiInitiateSessionRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; SiInitiateSessionResponse | NotImplementedResponse:
     &#34;&#34;&#34;Initiate sponsored intelligence session.
@@ -361,7 +361,7 @@ async def handle_si_terminate_session(
 <p>Validates params and delegates to handle_si_initiate_session.</p></div>
 </dd>
 <dt id="adcp.server.sponsored_intelligence.SponsoredIntelligenceHandler.si_send_message"><code class="name flex">
-<span>async def <span class="ident">si_send_message</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse" href="../types/generated_poc/sponsored_intelligence/si_send_message_response.html#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse">SiSendMessageResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">si_send_message</span></span>(<span>self,<br>params: SiSendMessageRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse" href="../types/generated_poc/sponsored_intelligence/si_send_message_response.html#adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.SiSendMessageResponse">SiSendMessageResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -370,7 +370,7 @@ async def handle_si_terminate_session(
 </summary>
 <pre><code class="python">async def si_send_message(
     self,
-    params: dict[str, Any],
+    params: SiSendMessageRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; SiSendMessageResponse | NotImplementedResponse:
     &#34;&#34;&#34;Send message in sponsored intelligence session.
@@ -391,7 +391,7 @@ async def handle_si_terminate_session(
 <p>Validates params and delegates to handle_si_send_message.</p></div>
 </dd>
 <dt id="adcp.server.sponsored_intelligence.SponsoredIntelligenceHandler.si_terminate_session"><code class="name flex">
-<span>async def <span class="ident">si_terminate_session</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse" href="../types/generated_poc/sponsored_intelligence/si_terminate_session_response.html#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse">SiTerminateSessionResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">si_terminate_session</span></span>(<span>self,<br>params: SiTerminateSessionRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse" href="../types/generated_poc/sponsored_intelligence/si_terminate_session_response.html#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse">SiTerminateSessionResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -400,7 +400,7 @@ async def handle_si_terminate_session(
 </summary>
 <pre><code class="python">async def si_terminate_session(
     self,
-    params: dict[str, Any],
+    params: SiTerminateSessionRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; SiTerminateSessionResponse | NotImplementedResponse:
     &#34;&#34;&#34;Terminate sponsored intelligence session.
@@ -432,13 +432,16 @@ async def handle_si_terminate_session(
 <li><code><a title="adcp.server.base.ADCPHandler.check_governance" href="base.html#adcp.server.base.ADCPHandler.check_governance">check_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.comply_test_controller" href="base.html#adcp.server.base.ADCPHandler.comply_test_controller">comply_test_controller</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.context_match" href="base.html#adcp.server.base.ADCPHandler.context_match">context_match</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.create_collection_list" href="base.html#adcp.server.base.ADCPHandler.create_collection_list">create_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_content_standards" href="base.html#adcp.server.base.ADCPHandler.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_media_buy" href="base.html#adcp.server.base.ADCPHandler.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_property_list" href="base.html#adcp.server.base.ADCPHandler.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.delete_collection_list" href="base.html#adcp.server.base.ADCPHandler.delete_collection_list">delete_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.delete_property_list" href="base.html#adcp.server.base.ADCPHandler.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_account_financials" href="base.html#adcp.server.base.ADCPHandler.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_adcp_capabilities" href="base.html#adcp.server.base.ADCPHandler.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_brand_identity" href="base.html#adcp.server.base.ADCPHandler.get_brand_identity">get_brand_identity</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.get_collection_list" href="base.html#adcp.server.base.ADCPHandler.get_collection_list">get_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_content_standards" href="base.html#adcp.server.base.ADCPHandler.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_delivery" href="base.html#adcp.server.base.ADCPHandler.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_features" href="base.html#adcp.server.base.ADCPHandler.get_creative_features">get_creative_features</a></code></li>
@@ -452,6 +455,7 @@ async def handle_si_terminate_session(
 <li><code><a title="adcp.server.base.ADCPHandler.get_signals" href="base.html#adcp.server.base.ADCPHandler.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.identity_match" href="base.html#adcp.server.base.ADCPHandler.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_accounts" href="base.html#adcp.server.base.ADCPHandler.list_accounts">list_accounts</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.list_collection_lists" href="base.html#adcp.server.base.ADCPHandler.list_collection_lists">list_collection_lists</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_content_standards" href="base.html#adcp.server.base.ADCPHandler.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creative_formats" href="base.html#adcp.server.base.ADCPHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creatives" href="base.html#adcp.server.base.ADCPHandler.list_creatives">list_creatives</a></code></li>
@@ -468,6 +472,7 @@ async def handle_si_terminate_session(
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_plans" href="base.html#adcp.server.base.ADCPHandler.sync_plans">sync_plans</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_collection_list" href="base.html#adcp.server.base.ADCPHandler.update_collection_list">update_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="base.html#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>

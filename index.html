@@ -58,7 +58,7 @@ el.replaceWith(d);
 </dd>
 <dt><code class="name"><a title="adcp.exceptions" href="exceptions.html">adcp.exceptions</a></code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Exception hierarchy for AdCP client.</p></div>
 </dd>
 <dt><code class="name"><a title="adcp.property_registry" href="property_registry.html">adcp.property_registry</a></code></dt>
 <dd>
@@ -2466,6 +2466,14 @@ for ANY property on this domain</li>
 <li><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></li>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
 </ul>
 </dd>
 <dt id="adcp.ADCPClient"><code class="flex name class">
@@ -9111,7 +9119,11 @@ of an existing property list.</p>
             &#34;Check that the agent URI is correct and the agent is running.\n&#34;
             &#34;     Try testing with: python -m adcp test --config &lt;agent-id&gt;&#34;
         )
-        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+        super().__init__(message, agent_id, agent_uri, suggestion)
+
+    @property
+    def is_retryable(self) -&gt; bool:
+        return True</code></pre>
 </details>
 <div class="desc"><p>Connection to agent failed.</p>
 <p>Initialize connection error.</p></div>
@@ -9120,6 +9132,14 @@ of an existing property list.</p>
 <li><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></li>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
 </ul>
 </dd>
 <dt id="adcp.ADCPError"><code class="flex name class">
@@ -9153,9 +9173,14 @@ of an existing property list.</p>
         if agent_uri:
             full_message = f&#34;{full_message}\n  URI: {agent_uri}&#34;
         if suggestion:
-            full_message = f&#34;{full_message}\n  💡 {suggestion}&#34;
+            full_message = f&#34;{full_message}\n  Suggestion: {suggestion}&#34;
 
-        super().__init__(full_message)</code></pre>
+        super().__init__(full_message)
+
+    @property
+    def is_retryable(self) -&gt; bool:
+        &#34;&#34;&#34;Whether this error is safe to retry.&#34;&#34;&#34;
+        return False</code></pre>
 </details>
 <div class="desc"><p>Base exception for all AdCP client errors.</p>
 <p>Initialize exception with context.</p></div>
@@ -9171,12 +9196,29 @@ of an existing property list.</p>
 <li><a title="adcp.exceptions.ADCPFeatureUnsupportedError" href="exceptions.html#adcp.exceptions.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></li>
 <li><a title="adcp.exceptions.ADCPProtocolError" href="exceptions.html#adcp.exceptions.ADCPProtocolError">ADCPProtocolError</a></li>
 <li><a title="adcp.exceptions.ADCPSimpleAPIError" href="exceptions.html#adcp.exceptions.ADCPSimpleAPIError">ADCPSimpleAPIError</a></li>
+<li><a title="adcp.exceptions.ADCPTaskError" href="exceptions.html#adcp.exceptions.ADCPTaskError">ADCPTaskError</a></li>
 <li><a title="adcp.exceptions.ADCPTimeoutError" href="exceptions.html#adcp.exceptions.ADCPTimeoutError">ADCPTimeoutError</a></li>
 <li><a title="adcp.exceptions.ADCPToolNotFoundError" href="exceptions.html#adcp.exceptions.ADCPToolNotFoundError">ADCPToolNotFoundError</a></li>
 <li><a title="adcp.exceptions.ADCPWebhookError" href="exceptions.html#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></li>
 <li><a title="adcp.exceptions.AdagentsValidationError" href="exceptions.html#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
 <li><a title="adcp.exceptions.RegistryError" href="exceptions.html#adcp.exceptions.RegistryError">RegistryError</a></li>
 </ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.ADCPError.is_retryable"><code class="name">prop <span class="ident">is_retryable</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def is_retryable(self) -&gt; bool:
+    &#34;&#34;&#34;Whether this error is safe to retry.&#34;&#34;&#34;
+    return False</code></pre>
+</details>
+<div class="desc"><p>Whether this error is safe to retry.</p></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.ADCPFeatureUnsupportedError"><code class="flex name class">
 <span>class <span class="ident">ADCPFeatureUnsupportedError</span></span>
@@ -9236,6 +9278,14 @@ of an existing property list.</p>
 <li><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></li>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
 </ul>
 </dd>
 <dt id="adcp.ADCPMultiAgentClient"><code class="flex name class">
@@ -9483,6 +9533,14 @@ def agent_ids(self) -&gt; list[str]:
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
 </ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.ADCPTimeoutError"><code class="flex name class">
 <span>class <span class="ident">ADCPTimeoutError</span></span>
@@ -9508,7 +9566,11 @@ def agent_ids(self) -&gt; list[str]:
             f&#34;The request took longer than {timeout}s.&#34; if timeout else &#34;The request timed out.&#34;
         )
         suggestion += &#34;\n     Try increasing the timeout value or check if the agent is overloaded.&#34;
-        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+        super().__init__(message, agent_id, agent_uri, suggestion)
+
+    @property
+    def is_retryable(self) -&gt; bool:
+        return True</code></pre>
 </details>
 <div class="desc"><p>Request timed out.</p>
 <p>Initialize timeout error.</p></div>
@@ -9517,6 +9579,14 @@ def agent_ids(self) -&gt; list[str]:
 <li><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></li>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
 </ul>
 </dd>
 <dt id="adcp.ADCPToolNotFoundError"><code class="flex name class">
@@ -9552,6 +9622,14 @@ def agent_ids(self) -&gt; list[str]:
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
 </ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.ADCPWebhookError"><code class="flex name class">
 <span>class <span class="ident">ADCPWebhookError</span></span>
@@ -9576,6 +9654,14 @@ def agent_ids(self) -&gt; list[str]:
 <h3>Subclasses</h3>
 <ul class="hlist">
 <li><a title="adcp.exceptions.ADCPWebhookSignatureError" href="exceptions.html#adcp.exceptions.ADCPWebhookSignatureError">ADCPWebhookSignatureError</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
 </ul>
 </dd>
 <dt id="adcp.ADCPWebhookSignatureError"><code class="flex name class">
@@ -9606,6 +9692,14 @@ def agent_ids(self) -&gt; list[str]:
 <li><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></li>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPWebhookError" href="exceptions.html#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPWebhookError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
 </ul>
 </dd>
 <dt id="adcp.AccountReference"><code class="flex name class">
@@ -10885,6 +10979,14 @@ validated to form a valid model.</p>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
 </ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.AdagentsValidationError" href="exceptions.html#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.AdagentsValidationError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.AdagentsTimeoutError"><code class="flex name class">
 <span>class <span class="ident">AdagentsTimeoutError</span></span>
@@ -10916,6 +11018,14 @@ validated to form a valid model.</p>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
 </ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.AdagentsValidationError" href="exceptions.html#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.AdagentsValidationError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.AdagentsValidationError"><code class="flex name class">
 <span>class <span class="ident">AdagentsValidationError</span></span>
@@ -10941,6 +11051,14 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><a title="adcp.exceptions.AdagentsNotFoundError" href="exceptions.html#adcp.exceptions.AdagentsNotFoundError">AdagentsNotFoundError</a></li>
 <li><a title="adcp.exceptions.AdagentsTimeoutError" href="exceptions.html#adcp.exceptions.AdagentsTimeoutError">AdagentsTimeoutError</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
 </ul>
 </dd>
 <dt id="adcp.AgentCapabilities"><code class="flex name class">
@@ -13676,10 +13794,6 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset" href="types/generated_poc/core/assets/catalog_asset.html#adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset">CatalogAsset</a></li>
-</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.Catalog.catalog_id"><code class="name">var <span class="ident">catalog_id</span> : str | None</code></dt>
@@ -15426,6 +15540,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ContextObject(AdCPBaseModel):
+    pass
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )</code></pre>
@@ -17256,7 +17371,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     assignment_errors: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], str] | None,
+        dict[str, str] | None,
         Field(
             description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
         ),
@@ -17721,7 +17836,7 @@ validated to form a valid model.</p>
     )
     assets: Annotated[
         dict[
-            Annotated[str, StringConstraints(pattern=r&#39;^[a-z0-9_]+$&#39;)],
+            str,
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
@@ -17778,7 +17893,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.CreativeManifest.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="types/generated_poc/core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="types/generated_poc/core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="types/generated_poc/core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="types/generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="types/generated_poc/core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="types/generated_poc/core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="types/generated_poc/core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="types/generated_poc/core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="types/generated_poc/core/assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="types/generated_poc/core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="types/generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset" href="types/generated_poc/core/assets/markdown_asset.html#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset">MarkdownAsset</a> | <a title="adcp.types.generated_poc.core.assets.brief_asset.BriefAsset" href="types/generated_poc/core/assets/brief_asset.html#adcp.types.generated_poc.core.assets.brief_asset.BriefAsset">BriefAsset</a> | <a title="adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset" href="types/generated_poc/core/assets/catalog_asset.html#adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset">CatalogAsset</a>]</code></dt>
+<dt id="adcp.CreativeManifest.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="types/generated_poc/core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="types/generated_poc/core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="types/generated_poc/core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="types/generated_poc/core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="types/generated_poc/core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="types/generated_poc/core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="types/generated_poc/core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="types/generated_poc/core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="types/generated_poc/core/assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="types/generated_poc/core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="types/generated_poc/core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset" href="types/generated_poc/core/assets/markdown_asset.html#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset">MarkdownAsset</a> | <a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief" href="types/generated_poc/core/creative_brief.html#adcp.types.generated_poc.core.creative_brief.CreativeBrief">CreativeBrief</a> | <a title="adcp.types.generated_poc.core.catalog.Catalog" href="types/generated_poc/core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -19103,20 +19218,12 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    details: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
-    ] = None
+    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
-    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
-    recovery: Annotated[
-        Recovery | None,
-        Field(
-            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
-        ),
-    ] = None
+    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
     retry_after: Annotated[
         float | None,
         Field(
@@ -19125,7 +19232,15 @@ validated to form a valid model.</p>
             le=3600.0,
         ),
     ] = None
-    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None</code></pre>
+    details: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+    ] = None
+    recovery: Annotated[
+        Recovery | None,
+        Field(
+            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -19606,6 +19721,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ExtensionObject(AdCPBaseModel):
+    pass
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )</code></pre>
@@ -19682,6 +19798,19 @@ validated to form a valid model.</p>
     @property
     def capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
         return self._caps
+
+    def supports_v3(self) -&gt; bool:
+        &#34;&#34;&#34;Check if the seller supports ADCP v3.
+
+        Returns:
+            True if major_versions includes 3.
+        &#34;&#34;&#34;
+        if self._caps.adcp is None:
+            return False
+        for v in self._caps.adcp.major_versions:
+            if (v.root if hasattr(v, &#34;root&#34;) else v) == 3:
+                return True
+        return False
 
     def supports(self, feature: str) -&gt; bool:
         &#34;&#34;&#34;Check if a feature is supported.&#34;&#34;&#34;
@@ -19985,6 +20114,31 @@ def capabilities(self) -&gt; GetAdcpCapabilitiesResponse:
     return False</code></pre>
 </details>
 <div class="desc"><p>Check if a feature is supported.</p></div>
+</dd>
+<dt id="adcp.FeatureResolver.supports_v3"><code class="name flex">
+<span>def <span class="ident">supports_v3</span></span>(<span>self) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def supports_v3(self) -&gt; bool:
+    &#34;&#34;&#34;Check if the seller supports ADCP v3.
+
+    Returns:
+        True if major_versions includes 3.
+    &#34;&#34;&#34;
+    if self._caps.adcp is None:
+        return False
+    for v in self._caps.adcp.major_versions:
+        if (v.root if hasattr(v, &#34;root&#34;) else v) == 3:
+            return True
+    return False</code></pre>
+</details>
+<div class="desc"><p>Check if the seller supports ADCP v3.</p>
+<h2 id="returns">Returns</h2>
+<p>True if major_versions includes 3.</p></div>
 </dd>
 </dl>
 </dd>
@@ -25776,7 +25930,7 @@ validated to form a valid model.</p>
     ] = None
     ext: ext_1.ExtensionObject | None = None
     format_summary: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], int] | None,
+        dict[str, int] | None,
         Field(
             description=&#34;Breakdown of creatives by format. Keys are agent-defined format identifiers, optionally including dimensions (e.g., &#39;display_static_300x250&#39;, &#39;video_30s_vast&#39;). Key construction is platform-specific — there is no required format.&#34;
         ),
@@ -29598,90 +29752,22 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    brief_relevance: Annotated[
-        str | None,
+    product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
+    name: Annotated[str, Field(description=&#39;Human-readable product name&#39;)]
+    description: Annotated[
+        str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
+    ]
+    publisher_properties: Annotated[
+        list[publisher_property_selector.PublisherPropertySelector],
         Field(
-            description=&#39;Explanation of why this product matches the brief (only included when brief is provided)&#39;
-        ),
-    ] = None
-    catalog_match: Annotated[
-        CatalogMatch | None,
-        Field(
-            description=&#39;When the buyer provides a catalog on get_products, indicates which catalog items are eligible for this product. Only present for products where catalog matching is relevant (e.g., sponsored product listings, job boards, hotel ads).&#39;
-        ),
-    ] = None
-    catalog_types: Annotated[
-        list[catalog_type.CatalogType] | None,
-        Field(
-            description=&#39;Catalog types this product supports for catalog-driven campaigns. A sponsored product listing declares [&#34;product&#34;], a job board declares [&#34;job&#34;, &#34;offering&#34;]. Buyers match synced catalogs to products via this field.&#39;,
+            description=&#34;Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher&#39;s adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.&#34;,
             min_length=1,
         ),
-    ] = None
+    ]
     channels: Annotated[
         list[channels_1.MediaChannel] | None,
         Field(
             description=&#34;Advertising channels this product is sold as. Products inherit from their properties&#39; supported_channels but may narrow the scope. For example, a product covering YouTube properties might be sold as [&#39;ctv&#39;] even though those properties support [&#39;olv&#39;, &#39;social&#39;, &#39;ctv&#39;].&#34;
-        ),
-    ] = None
-    collection_targeting_allowed: Annotated[
-        bool | None,
-        Field(
-            description=&#34;Whether buyers can target a subset of this product&#39;s collections. When false (default), the product is a bundle — buyers get all listed collections. When true, buyers can select specific collections in the media buy.&#34;
-        ),
-    ] = False
-    collections: Annotated[
-        list[collection_selector.CollectionSelector] | None,
-        Field(
-            description=&#39;Collections available in this product. Each entry references collections declared in an adagents.json by domain and collection ID. Buyers resolve full collection objects from the referenced adagents.json.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    conversion_tracking: Annotated[
-        ConversionTracking | None,
-        Field(
-            description=&#34;Conversion event tracking for this product. Presence indicates the product supports optimization_goals with kind: &#39;event&#39;. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.&#34;
-        ),
-    ] = None
-    creative_policy: creative_policy_1.CreativePolicy | None = None
-    data_provider_signals: Annotated[
-        list[data_provider_signal_selector.DataProviderSignalSelector] | None,
-        Field(
-            description=&#34;Data provider signals available for this product. Buyers fetch signal definitions from each data provider&#39;s adagents.json and can verify agent authorization.&#34;
-        ),
-    ] = None
-    delivery_measurement: Annotated[
-        DeliveryMeasurement | None,
-        Field(
-            description=&#39;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. When absent, buyers should apply their own measurement defaults.&#39;
-        ),
-    ] = None
-    delivery_type: delivery_type_1.DeliveryType
-    description: Annotated[
-        str, Field(description=&#39;Detailed description of the product and its inventory&#39;)
-    ]
-    enforced_policies: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Registry policy IDs the seller enforces for this product. Enforcement level comes from the policy registry. Buyers can filter products by required policies.&#39;
-        ),
-    ] = None
-    exclusivity: Annotated[
-        exclusivity_1.Exclusivity | None,
-        Field(
-            description=&#34;Whether this product offers exclusive access to its inventory. Defaults to &#39;none&#39; when absent. Most relevant for guaranteed products tied to specific collections or placements.&#34;
-        ),
-    ] = None
-    expires_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;Expiration timestamp. After this time, the product may no longer be available for purchase and create_media_buy may reject packages referencing it.&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    forecast: Annotated[
-        delivery_forecast.DeliveryForecast | None,
-        Field(
-            description=&#39;Forecasted delivery metrics for this product. Gives buyers an estimate of expected performance before requesting a proposal.&#39;
         ),
     ] = None
     format_ids: Annotated[
@@ -29690,17 +29776,88 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Array of supported creative format IDs - structured format_id objects with agent_url and id&#39;
         ),
     ]
-    installments: Annotated[
-        list[installment.Installment] | None,
+    placements: Annotated[
+        list[placement.Placement] | None,
         Field(
-            description=&#39;Specific installments included in this product. Each installment references its parent collection via collection_id when the product spans multiple collections. When absent with collections present, the product covers the collections broadly (run-of-collection).&#39;
+            description=&#39;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#39;,
+            min_length=1,
         ),
     ] = None
-    is_custom: Annotated[bool | None, Field(description=&#39;Whether this is a custom product&#39;)] = None
-    material_submission: Annotated[
-        MaterialSubmission | None,
+    delivery_type: delivery_type_1.DeliveryType
+    exclusivity: Annotated[
+        exclusivity_1.Exclusivity | None,
         Field(
-            description=&#34;Instructions for submitting physical creative materials (print, static OOH, cinema). Present only for products requiring physical delivery outside the digital creative assignment flow. Buyer agents MUST validate url and email domains against the seller&#39;s known domains (from adagents.json) before submitting materials. Never auto-submit without human confirmation.&#34;
+            description=&#34;Whether this product offers exclusive access to its inventory. Defaults to &#39;none&#39; when absent. Most relevant for guaranteed products tied to specific collections or placements.&#34;
+        ),
+    ] = None
+    pricing_options: Annotated[
+        list[pricing_option.PricingOption],
+        Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
+    ]
+    forecast: Annotated[
+        delivery_forecast.DeliveryForecast | None,
+        Field(
+            description=&#39;Forecasted delivery metrics for this product. Gives buyers an estimate of expected performance before requesting a proposal.&#39;
+        ),
+    ] = None
+    outcome_measurement: outcome_measurement_1.OutcomeMeasurement | None = None
+    delivery_measurement: Annotated[
+        DeliveryMeasurement | None,
+        Field(
+            description=&#39;Measurement provider and methodology for delivery metrics. The buyer accepts the declared provider as the source of truth for the buy. When absent, buyers should apply their own measurement defaults.&#39;
+        ),
+    ] = None
+    measurement_terms: Annotated[
+        measurement_terms_1.MeasurementTerms | None,
+        Field(
+            description=&#34;Seller&#39;s default billing measurement and makegood terms. Declares who counts the billing metric and what remedies apply when thresholds are breached. Buyers may propose different terms at media buy creation — sellers accept, reject (TERMS_REJECTED), or adjust per their policy.&#34;
+        ),
+    ] = None
+    performance_standards: Annotated[
+        list[performance_standard.PerformanceStandard] | None,
+        Field(
+            description=&#34;Seller&#39;s default performance standards for this product: viewability, IVT, completion rate, brand safety, attention score. Buyers may propose different standards at media buy creation. When absent, no structured performance standards apply.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    cancellation_policy: Annotated[
+        cancellation_policy_1.CancellationPolicy | None,
+        Field(
+            description=&#39;Cancellation terms for this product. Declares the minimum notice period required before cancellation takes effect and any penalties for insufficient notice. Relevant for guaranteed delivery products. Buyers accept these terms by creating a media buy against the product.&#39;
+        ),
+    ] = None
+    reporting_capabilities: reporting_capabilities_1.ReportingCapabilities
+    creative_policy: creative_policy_1.CreativePolicy | None = None
+    is_custom: Annotated[bool | None, Field(description=&#39;Whether this is a custom product&#39;)] = None
+    property_targeting_allowed: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether buyers can filter this product to a subset of its publisher_properties. When false (default), the product is &#39;all or nothing&#39; - buyers must accept all properties or the product is excluded from property_list filtering results.&#34;
+        ),
+    ] = False
+    data_provider_signals: Annotated[
+        list[data_provider_signal_selector.DataProviderSignalSelector] | None,
+        Field(
+            description=&#34;Data provider signals available for this product. Buyers fetch signal definitions from each data provider&#39;s adagents.json and can verify agent authorization.&#34;
+        ),
+    ] = None
+    signal_targeting_allowed: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether buyers can filter this product to a subset of its data_provider_signals. When false (default), the product includes all listed signals as a bundle. When true, buyers can target specific signals.&#39;
+        ),
+    ] = False
+    catalog_types: Annotated[
+        list[catalog_type.CatalogType] | None,
+        Field(
+            description=&#39;Catalog types this product supports for catalog-driven campaigns. A sponsored product listing declares [&#34;product&#34;], a job board declares [&#34;job&#34;, &#34;offering&#34;]. Buyers match synced catalogs to products via this field.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    metric_optimization: Annotated[
+        MetricOptimization | None,
+        Field(
+            description=&#34;Metric optimization capabilities for this product. Presence indicates the product supports optimization_goals with kind: &#39;metric&#39;. No event source or conversion tracking setup required — the seller tracks these metrics natively.&#34;
         ),
     ] = None
     max_optimization_goals: Annotated[
@@ -29716,25 +29873,30 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Assessment of whether the buyer&#39;s event source setup is sufficient for this product to optimize effectively. Only present when the seller can evaluate the buyer&#39;s account context. Buyers should check this before creating media buys with event-based optimization goals.&#34;
         ),
     ] = None
-    metric_optimization: Annotated[
-        MetricOptimization | None,
+    conversion_tracking: Annotated[
+        ConversionTracking | None,
         Field(
-            description=&#34;Metric optimization capabilities for this product. Presence indicates the product supports optimization_goals with kind: &#39;metric&#39;. No event source or conversion tracking setup required — the seller tracks these metrics natively.&#34;
+            description=&#34;Conversion event tracking for this product. Presence indicates the product supports optimization_goals with kind: &#39;event&#39;. Seller-level capabilities (supported event types, UID types, attribution windows) are declared in get_adcp_capabilities.&#34;
         ),
     ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable product name&#39;)]
-    outcome_measurement: outcome_measurement_1.OutcomeMeasurement | None = None
-    placements: Annotated[
-        list[placement.Placement] | None,
+    catalog_match: Annotated[
+        CatalogMatch | None,
         Field(
-            description=&#39;Optional array of specific placements within this product. When provided, buyers can target specific placements when assigning creatives.&#39;,
-            min_length=1,
+            description=&#39;When the buyer provides a catalog on get_products, indicates which catalog items are eligible for this product. Only present for products where catalog matching is relevant (e.g., sponsored product listings, job boards, hotel ads).&#39;
         ),
     ] = None
-    pricing_options: Annotated[
-        list[pricing_option.PricingOption],
-        Field(description=&#39;Available pricing models for this product&#39;, min_length=1),
-    ]
+    brief_relevance: Annotated[
+        str | None,
+        Field(
+            description=&#39;Explanation of why this product matches the brief (only included when brief is provided)&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;Expiration timestamp. After this time, the product may no longer be available for purchase and create_media_buy may reject packages referencing it.&#39;
+        ),
+    ] = None
     product_card: Annotated[
         ProductCard | None,
         Field(
@@ -29747,33 +29909,44 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Optional detailed card with carousel and full specifications. Provides rich product presentation similar to media kit pages.&#39;
         ),
     ] = None
-    product_id: Annotated[str, Field(description=&#39;Unique identifier for the product&#39;)]
-    property_targeting_allowed: Annotated[
-        bool | None,
+    collections: Annotated[
+        list[collection_selector.CollectionSelector] | None,
         Field(
-            description=&#34;Whether buyers can filter this product to a subset of its publisher_properties. When false (default), the product is &#39;all or nothing&#39; - buyers must accept all properties or the product is excluded from property_list filtering results.&#34;
-        ),
-    ] = False
-    publisher_properties: Annotated[
-        list[publisher_property_selector.PublisherPropertySelector],
-        Field(
-            description=&#34;Publisher properties covered by this product. Buyers fetch actual property definitions from each publisher&#39;s adagents.json and validate agent authorization. Selection patterns mirror the authorization patterns in adagents.json for consistency.&#34;,
+            description=&#39;Collections available in this product. Each entry references collections declared in an adagents.json by domain and collection ID. Buyers resolve full collection objects from the referenced adagents.json.&#39;,
             min_length=1,
         ),
-    ]
-    reporting_capabilities: reporting_capabilities_1.ReportingCapabilities | None = None
-    signal_targeting_allowed: Annotated[
+    ] = None
+    collection_targeting_allowed: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether buyers can filter this product to a subset of its data_provider_signals. When false (default), the product includes all listed signals as a bundle. When true, buyers can target specific signals.&#39;
+            description=&#34;Whether buyers can target a subset of this product&#39;s collections. When false (default), the product is a bundle — buyers get all listed collections. When true, buyers can select specific collections in the media buy.&#34;
         ),
     ] = False
+    installments: Annotated[
+        list[installment.Installment] | None,
+        Field(
+            description=&#39;Specific installments included in this product. Each installment references its parent collection via collection_id when the product spans multiple collections. When absent with collections present, the product covers the collections broadly (run-of-collection).&#39;
+        ),
+    ] = None
+    enforced_policies: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Registry policy IDs the seller enforces for this product. Enforcement level comes from the policy registry. Buyers can filter products by required policies.&#39;
+        ),
+    ] = None
     trusted_match: Annotated[
         TrustedMatch | None,
         Field(
             description=&#39;Trusted Match Protocol capabilities for this product. When present, the product supports real-time contextual and/or identity matching via TMP. Buyers use this to determine what response types the publisher can accept and whether brands can be selected dynamically at match time.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    material_submission: Annotated[
+        MaterialSubmission | None,
+        Field(
+            description=&#34;Instructions for submitting physical creative materials (print, static OOH, cinema). Present only for products requiring physical delivery outside the digital creative assignment flow. Buyer agents MUST validate url and email domains against the seller&#39;s known domains (from adagents.json) before submitting materials. Never auto-submit without human confirmation.&#34;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -29793,6 +29966,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.Product.brief_relevance"><code class="name">var <span class="ident">brief_relevance</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Product.cancellation_policy"><code class="name">var <span class="ident">cancellation_policy</span> : <a title="adcp.types.generated_poc.core.cancellation_policy.CancellationPolicy" href="types/generated_poc/core/cancellation_policy.html#adcp.types.generated_poc.core.cancellation_policy.CancellationPolicy">CancellationPolicy</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -29884,6 +30061,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.Product.measurement_terms"><code class="name">var <span class="ident">measurement_terms</span> : <a title="adcp.types.generated_poc.core.measurement_terms.MeasurementTerms" href="types/generated_poc/core/measurement_terms.html#adcp.types.generated_poc.core.measurement_terms.MeasurementTerms">MeasurementTerms</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.Product.metric_optimization"><code class="name">var <span class="ident">metric_optimization</span> : <a title="adcp.types.generated_poc.core.product.MetricOptimization" href="types/generated_poc/core/product.html#adcp.types.generated_poc.core.product.MetricOptimization">MetricOptimization</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -29897,6 +30078,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.Product.outcome_measurement"><code class="name">var <span class="ident">outcome_measurement</span> : <a title="adcp.types.generated_poc.core.outcome_measurement.OutcomeMeasurement" href="types/generated_poc/core/outcome_measurement.html#adcp.types.generated_poc.core.outcome_measurement.OutcomeMeasurement">OutcomeMeasurement</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Product.performance_standards"><code class="name">var <span class="ident">performance_standards</span> : list[<a title="adcp.types.generated_poc.core.performance_standard.PerformanceStandard" href="types/generated_poc/core/performance_standard.html#adcp.types.generated_poc.core.performance_standard.PerformanceStandard">PerformanceStandard</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -29928,7 +30113,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.Product.reporting_capabilities"><code class="name">var <span class="ident">reporting_capabilities</span> : <a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities" href="types/generated_poc/core/reporting_capabilities.html#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities">ReportingCapabilities</a> | None</code></dt>
+<dt id="adcp.Product.reporting_capabilities"><code class="name">var <span class="ident">reporting_capabilities</span> : <a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities" href="types/generated_poc/core/reporting_capabilities.html#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities">ReportingCapabilities</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -30049,7 +30234,7 @@ validated to form a valid model.</p>
         list[AnyUrl] | None,
         Field(
             deprecated=True,
-            description=&#39;Deprecated: Use trusted_match filter instead. Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;,
+            description=&#39;Deprecated: Use trusted_match filter instead. Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;
         ),
     ] = None
     required_features: Annotated[
@@ -35172,6 +35357,14 @@ Pass cursor from previous response to resume.</p></div>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
 </ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="exceptions.html#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="exceptions.html#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.RegistrySync"><code class="flex name class">
 <span>class <span class="ident">RegistrySync</span></span>
@@ -37317,14 +37510,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
     reason: Annotated[
         Reason | None,
         Field(
             description=&#39;Reason code indicating why buyer input is needed. APPROVAL_REQUIRED: platform requires explicit approval before activating the catalog. FEED_VALIDATION: feed URL returned unexpected format or schema errors. ITEM_REVIEW: platform flagged items for manual review. FEED_ACCESS: platform cannot access the feed URL (authentication, CORS, etc.).&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -37719,20 +37912,25 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    catalogs_processed: Annotated[
-        int | None, Field(description=&#39;Number of catalogs processed so far&#39;, ge=0)
+    percentage: Annotated[
+        float | None, Field(description=&#39;Completion percentage (0-100)&#39;, ge=0.0, le=100.0)
     ] = None
-    catalogs_total: Annotated[
-        int | None, Field(description=&#39;Total number of catalogs to process&#39;, ge=0)
-    ] = None
-    context: context_1.ContextObject | None = None
     current_step: Annotated[
         str | None,
         Field(
             description=&#34;Current step or phase of the operation (e.g., &#39;Fetching product feed&#39;, &#39;Validating items&#39;, &#39;Platform review&#39;)&#34;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
+    total_steps: Annotated[
+        int | None, Field(description=&#39;Total number of steps in the operation&#39;, ge=1)
+    ] = None
+    step_number: Annotated[int | None, Field(description=&#39;Current step number&#39;, ge=1)] = None
+    catalogs_processed: Annotated[
+        int | None, Field(description=&#39;Number of catalogs processed so far&#39;, ge=0)
+    ] = None
+    catalogs_total: Annotated[
+        int | None, Field(description=&#39;Total number of catalogs to process&#39;, ge=0)
+    ] = None
     items_processed: Annotated[
         int | None,
         Field(description=&#39;Total number of catalog items processed across all catalogs&#39;, ge=0),
@@ -37741,13 +37939,8 @@ validated to form a valid model.</p>
         int | None,
         Field(description=&#39;Total number of catalog items to process across all catalogs&#39;, ge=0),
     ] = None
-    percentage: Annotated[
-        float | None, Field(description=&#39;Completion percentage (0-100)&#39;, ge=0.0, le=100.0)
-    ] = None
-    step_number: Annotated[int | None, Field(description=&#39;Current step number&#39;, ge=1)] = None
-    total_steps: Annotated[
-        int | None, Field(description=&#39;Total number of steps in the operation&#39;, ge=1)
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -41061,6 +41254,9 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.ADCPError" href="#adcp.ADCPError">ADCPError</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.ADCPError.is_retryable" href="#adcp.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
 </li>
 <li>
 <h4><code><a title="adcp.ADCPFeatureUnsupportedError" href="#adcp.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></code></h4>
@@ -42366,6 +42562,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.FeatureResolver.get_declared_features" href="#adcp.FeatureResolver.get_declared_features">get_declared_features</a></code></li>
 <li><code><a title="adcp.FeatureResolver.require" href="#adcp.FeatureResolver.require">require</a></code></li>
 <li><code><a title="adcp.FeatureResolver.supports" href="#adcp.FeatureResolver.supports">supports</a></code></li>
+<li><code><a title="adcp.FeatureResolver.supports_v3" href="#adcp.FeatureResolver.supports_v3">supports_v3</a></code></li>
 </ul>
 </li>
 <li>
@@ -43644,6 +43841,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.Product" href="#adcp.Product">Product</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.Product.brief_relevance" href="#adcp.Product.brief_relevance">brief_relevance</a></code></li>
+<li><code><a title="adcp.Product.cancellation_policy" href="#adcp.Product.cancellation_policy">cancellation_policy</a></code></li>
 <li><code><a title="adcp.Product.catalog_match" href="#adcp.Product.catalog_match">catalog_match</a></code></li>
 <li><code><a title="adcp.Product.catalog_types" href="#adcp.Product.catalog_types">catalog_types</a></code></li>
 <li><code><a title="adcp.Product.channels" href="#adcp.Product.channels">channels</a></code></li>
@@ -43666,10 +43864,12 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.Product.material_submission" href="#adcp.Product.material_submission">material_submission</a></code></li>
 <li><code><a title="adcp.Product.max_optimization_goals" href="#adcp.Product.max_optimization_goals">max_optimization_goals</a></code></li>
 <li><code><a title="adcp.Product.measurement_readiness" href="#adcp.Product.measurement_readiness">measurement_readiness</a></code></li>
+<li><code><a title="adcp.Product.measurement_terms" href="#adcp.Product.measurement_terms">measurement_terms</a></code></li>
 <li><code><a title="adcp.Product.metric_optimization" href="#adcp.Product.metric_optimization">metric_optimization</a></code></li>
 <li><code><a title="adcp.Product.model_config" href="#adcp.Product.model_config">model_config</a></code></li>
 <li><code><a title="adcp.Product.name" href="#adcp.Product.name">name</a></code></li>
 <li><code><a title="adcp.Product.outcome_measurement" href="#adcp.Product.outcome_measurement">outcome_measurement</a></code></li>
+<li><code><a title="adcp.Product.performance_standards" href="#adcp.Product.performance_standards">performance_standards</a></code></li>
 <li><code><a title="adcp.Product.placements" href="#adcp.Product.placements">placements</a></code></li>
 <li><code><a title="adcp.Product.pricing_options" href="#adcp.Product.pricing_options">pricing_options</a></code></li>
 <li><code><a title="adcp.Product.product_card" href="#adcp.Product.product_card">product_card</a></code></li>

@@ -72,13 +72,13 @@ el.replaceWith(d);
         ),
     ] = None
     cumulative_indices: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-z_]+:.+$&#39;)], float] | None,
+        dict[str, float] | None,
         Field(
             description=&#39;Cumulative audience index values since the media buy started. Same key format as indices (dimension:value). Use for detecting sustained bias drift that may not appear in a single reporting period.&#39;
         ),
     ] = None
     indices: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-z_]+:.+$&#39;)], float],
+        dict[str, float],
         Field(
             description=&#34;Audience index values for the current reporting period. Keys are seller-defined dimension:value strings (e.g., &#39;age:25-34&#39;, &#39;gender:female&#39;, &#39;income:high&#39;). The protocol does not mandate a taxonomy — dimensions and value labels vary by seller. Values are index relative to the declared baseline (1.0 = at parity, &gt;1.0 = over-indexed, &lt;1.0 = under-indexed).&#34;
         ),

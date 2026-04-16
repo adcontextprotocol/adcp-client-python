@@ -264,22 +264,26 @@ Defaults to current timestamp for both.</dd>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def error_response(code: str, message: str) -&gt; dict[str, Any]:
-    &#34;&#34;&#34;Build a standard AdCP error dict.
+    &#34;&#34;&#34;Build a single AdCP error object (not a full error response).
 
-    Args:
-        code: Error code (e.g., &#34;INVALID_PRODUCT&#34;, &#34;NOT_FOUND&#34;).
-        message: Human-readable error message.
+    .. deprecated::
+        Use ``adcp_error()`` from ``adcp.server.helpers`` instead.
+        It returns a properly wrapped ``{&#34;errors&#34;: [...]}`` response with
+        auto-recovery classification. This function returns an unwrapped
+        single error dict ``{&#34;code&#34;: ..., &#34;message&#34;: ...}`` which is not
+        a valid ADCP error response on its own.
     &#34;&#34;&#34;
     return {&#34;code&#34;: code, &#34;message&#34;: message}</code></pre>
 </details>
-<div class="desc"><p>Build a standard AdCP error dict.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>code</code></strong></dt>
-<dd>Error code (e.g., "INVALID_PRODUCT", "NOT_FOUND").</dd>
-<dt><strong><code>message</code></strong></dt>
-<dd>Human-readable error message.</dd>
-</dl></div>
+<div class="desc"><p>Build a single AdCP error object (not a full error response).</p>
+<div class="admonition deprecated">
+<p class="admonition-title">Deprecated</p>
+<p>Use <code>adcp_error()</code> from <code><a title="adcp.server.helpers" href="helpers.html">adcp.server.helpers</a></code> instead.
+It returns a properly wrapped <code>{"errors": [...]}</code> response with
+auto-recovery classification. This function returns an unwrapped
+single error dict <code>{"code": ..., "message": ...}</code> which is not
+a valid ADCP error response on its own.</p>
+</div></div>
 </dd>
 <dt id="adcp.server.responses.list_creatives_response"><code class="name flex">
 <span>def <span class="ident">list_creatives_response</span></span>(<span>creatives: list[Any],<br>*,<br>pagination: dict[str, Any] | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
@@ -360,7 +364,7 @@ Matches ListCreativesResponse schema.</p></div>
 Matches CreateMediaBuyResponse2 (error) schema.</p></div>
 </dd>
 <dt id="adcp.server.responses.media_buy_response"><code class="name flex">
-<span>def <span class="ident">media_buy_response</span></span>(<span>media_buy_id: str,<br>packages: list[Any],<br>*,<br>buyer_ref: str | None = None,<br>status: str | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">media_buy_response</span></span>(<span>media_buy_id: str,<br>packages: list[Any],<br>*,<br>buyer_ref: str | None = None,<br>status: str | None = None,<br>valid_actions: list[str] | None = None,<br>revision: int | None = None,<br>confirmed_at: str | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -373,27 +377,43 @@ Matches CreateMediaBuyResponse2 (error) schema.</p></div>
     *,
     buyer_ref: str | None = None,
     status: str | None = None,
+    valid_actions: list[str] | None = None,
+    revision: int | None = None,
+    confirmed_at: str | None = None,
     sandbox: bool = True,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;Build a create_media_buy success response.
 
     Each package should include: package_id, product_id, pricing_option_id, budget.
     Matches CreateMediaBuyResponse1 (success) schema.
+
+    Auto-populates valid_actions from status if not provided.
+    Auto-sets revision to 1 and confirmed_at to now if not provided.
     &#34;&#34;&#34;
     resp: dict[str, Any] = {
         &#34;media_buy_id&#34;: media_buy_id,
         &#34;packages&#34;: _serialize(packages),
+        &#34;revision&#34;: revision if revision is not None else 1,
+        &#34;confirmed_at&#34;: confirmed_at or datetime.now(timezone.utc).isoformat(),
         &#34;sandbox&#34;: sandbox,
     }
     if buyer_ref is not None:
         resp[&#34;buyer_ref&#34;] = buyer_ref
     if status is not None:
         resp[&#34;status&#34;] = status
+        if valid_actions is None:
+            resp[&#34;valid_actions&#34;] = valid_actions_for_status(status)
+        else:
+            resp[&#34;valid_actions&#34;] = valid_actions
+    elif valid_actions is not None:
+        resp[&#34;valid_actions&#34;] = valid_actions
     return resp</code></pre>
 </details>
 <div class="desc"><p>Build a create_media_buy success response.</p>
 <p>Each package should include: package_id, product_id, pricing_option_id, budget.
-Matches CreateMediaBuyResponse1 (success) schema.</p></div>
+Matches CreateMediaBuyResponse1 (success) schema.</p>
+<p>Auto-populates valid_actions from status if not provided.
+Auto-sets revision to 1 and confirmed_at to now if not provided.</p></div>
 </dd>
 <dt id="adcp.server.responses.media_buys_response"><code class="name flex">
 <span>def <span class="ident">media_buys_response</span></span>(<span>media_buys: list[Any], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
@@ -620,7 +640,7 @@ Matches SyncCreativesResponse1 schema (field: "creatives").</p></div>
 governance_agents ([{url, categories}]).</p></div>
 </dd>
 <dt id="adcp.server.responses.update_media_buy_response"><code class="name flex">
-<span>def <span class="ident">update_media_buy_response</span></span>(<span>media_buy_id: str,<br>*,<br>affected_packages: list[Any] | None = None,<br>status: str | None = None,<br>revision: int | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">update_media_buy_response</span></span>(<span>media_buy_id: str,<br>*,<br>affected_packages: list[Any] | None = None,<br>status: str | None = None,<br>valid_actions: list[str] | None = None,<br>revision: int | None = None,<br>sandbox: bool = True) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -632,12 +652,14 @@ governance_agents ([{url, categories}]).</p></div>
     *,
     affected_packages: list[Any] | None = None,
     status: str | None = None,
+    valid_actions: list[str] | None = None,
     revision: int | None = None,
     sandbox: bool = True,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;Build an update_media_buy success response.
 
     Matches UpdateMediaBuyResponse1 (success) schema.
+    Auto-populates valid_actions from status if not provided.
     &#34;&#34;&#34;
     resp: dict[str, Any] = {
         &#34;media_buy_id&#34;: media_buy_id,
@@ -647,12 +669,19 @@ governance_agents ([{url, categories}]).</p></div>
         resp[&#34;affected_packages&#34;] = _serialize(affected_packages)
     if status is not None:
         resp[&#34;status&#34;] = status
+        if valid_actions is None:
+            resp[&#34;valid_actions&#34;] = valid_actions_for_status(status)
+        else:
+            resp[&#34;valid_actions&#34;] = valid_actions
+    elif valid_actions is not None:
+        resp[&#34;valid_actions&#34;] = valid_actions
     if revision is not None:
         resp[&#34;revision&#34;] = revision
     return resp</code></pre>
 </details>
 <div class="desc"><p>Build an update_media_buy success response.</p>
-<p>Matches UpdateMediaBuyResponse1 (success) schema.</p></div>
+<p>Matches UpdateMediaBuyResponse1 (success) schema.
+Auto-populates valid_actions from status if not provided.</p></div>
 </dd>
 </dl>
 </section>

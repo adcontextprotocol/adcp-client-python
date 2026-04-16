@@ -91,7 +91,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def get_creative_features(
         self,
-        params: dict[str, Any],
+        params: GetCreativeFeaturesRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; GetCreativeFeaturesResponse | NotImplementedResponse:
         &#34;&#34;&#34;Evaluate governance features for a creative manifest.&#34;&#34;&#34;
@@ -107,7 +107,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def sync_plans(
         self,
-        params: dict[str, Any],
+        params: SyncPlansRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; SyncPlansResponse | NotImplementedResponse:
         &#34;&#34;&#34;Sync campaign governance plans to the agent.&#34;&#34;&#34;
@@ -123,7 +123,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def check_governance(
         self,
-        params: dict[str, Any],
+        params: CheckGovernanceRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; CheckGovernanceResponse | NotImplementedResponse:
         &#34;&#34;&#34;Check whether a proposed or committed action complies with plan governance.&#34;&#34;&#34;
@@ -139,7 +139,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def report_plan_outcome(
         self,
-        params: dict[str, Any],
+        params: ReportPlanOutcomeRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; ReportPlanOutcomeResponse | NotImplementedResponse:
         &#34;&#34;&#34;Report the outcome of a previously governed action.&#34;&#34;&#34;
@@ -155,7 +155,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def get_plan_audit_logs(
         self,
-        params: dict[str, Any],
+        params: GetPlanAuditLogsRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; GetPlanAuditLogsResponse | NotImplementedResponse:
         &#34;&#34;&#34;Retrieve governance audit logs for one or more plans.&#34;&#34;&#34;
@@ -171,7 +171,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def create_property_list(
         self,
-        params: dict[str, Any],
+        params: CreatePropertyListRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; CreatePropertyListResponse | NotImplementedResponse:
         &#34;&#34;&#34;Create a property list for governance filtering.
@@ -190,7 +190,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def get_property_list(
         self,
-        params: dict[str, Any],
+        params: GetPropertyListRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; GetPropertyListResponse | NotImplementedResponse:
         &#34;&#34;&#34;Get a property list with optional resolution.
@@ -209,7 +209,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def list_property_lists(
         self,
-        params: dict[str, Any],
+        params: ListPropertyListsRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; ListPropertyListsResponse | NotImplementedResponse:
         &#34;&#34;&#34;List property lists.
@@ -228,7 +228,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def update_property_list(
         self,
-        params: dict[str, Any],
+        params: UpdatePropertyListRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; UpdatePropertyListResponse | NotImplementedResponse:
         &#34;&#34;&#34;Update a property list.
@@ -247,7 +247,7 @@ property lists for brand safety, compliance, and quality filtering.</p>
 
     async def delete_property_list(
         self,
-        params: dict[str, Any],
+        params: DeletePropertyListRequest | dict[str, Any],
         context: ToolContext | None = None,
     ) -&gt; DeletePropertyListResponse | NotImplementedResponse:
         &#34;&#34;&#34;Delete a property list.
@@ -385,7 +385,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 <h3>Methods</h3>
 <dl>
 <dt id="adcp.server.governance.GovernanceHandler.check_governance"><code class="name flex">
-<span>async def <span class="ident">check_governance</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse" href="../types/generated_poc/governance/check_governance_response.html#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse">CheckGovernanceResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">check_governance</span></span>(<span>self,<br>params: CheckGovernanceRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse" href="../types/generated_poc/governance/check_governance_response.html#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse">CheckGovernanceResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -394,7 +394,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 </summary>
 <pre><code class="python">async def check_governance(
     self,
-    params: dict[str, Any],
+    params: CheckGovernanceRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; CheckGovernanceResponse | NotImplementedResponse:
     &#34;&#34;&#34;Check whether a proposed or committed action complies with plan governance.&#34;&#34;&#34;
@@ -411,7 +411,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 <div class="desc"><p>Check whether a proposed or committed action complies with plan governance.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.create_property_list"><code class="name flex">
-<span>async def <span class="ident">create_property_list</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.create_property_list_response.CreatePropertyListResponse" href="../types/generated_poc/property/create_property_list_response.html#adcp.types.generated_poc.property.create_property_list_response.CreatePropertyListResponse">CreatePropertyListResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">create_property_list</span></span>(<span>self,<br>params: CreatePropertyListRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.create_property_list_response.CreatePropertyListResponse" href="../types/generated_poc/property/create_property_list_response.html#adcp.types.generated_poc.property.create_property_list_response.CreatePropertyListResponse">CreatePropertyListResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -420,7 +420,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 </summary>
 <pre><code class="python">async def create_property_list(
     self,
-    params: dict[str, Any],
+    params: CreatePropertyListRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; CreatePropertyListResponse | NotImplementedResponse:
     &#34;&#34;&#34;Create a property list for governance filtering.
@@ -441,7 +441,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 <p>Validates params and delegates to handle_create_property_list.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.delete_property_list"><code class="name flex">
-<span>async def <span class="ident">delete_property_list</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse" href="../types/generated_poc/property/delete_property_list_response.html#adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse">DeletePropertyListResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">delete_property_list</span></span>(<span>self,<br>params: DeletePropertyListRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse" href="../types/generated_poc/property/delete_property_list_response.html#adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse">DeletePropertyListResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -450,7 +450,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 </summary>
 <pre><code class="python">async def delete_property_list(
     self,
-    params: dict[str, Any],
+    params: DeletePropertyListRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; DeletePropertyListResponse | NotImplementedResponse:
     &#34;&#34;&#34;Delete a property list.
@@ -471,7 +471,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 <p>Validates params and delegates to handle_delete_property_list.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.get_creative_features"><code class="name flex">
-<span>async def <span class="ident">get_creative_features</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1" href="../types/generated_poc/creative/get_creative_features_response.html#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1">GetCreativeFeaturesResponse1</a> | <a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse2" href="../types/generated_poc/creative/get_creative_features_response.html#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse2">GetCreativeFeaturesResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">get_creative_features</span></span>(<span>self,<br>params: GetCreativeFeaturesRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1" href="../types/generated_poc/creative/get_creative_features_response.html#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1">GetCreativeFeaturesResponse1</a> | <a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse2" href="../types/generated_poc/creative/get_creative_features_response.html#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse2">GetCreativeFeaturesResponse2</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -480,7 +480,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 </summary>
 <pre><code class="python">async def get_creative_features(
     self,
-    params: dict[str, Any],
+    params: GetCreativeFeaturesRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; GetCreativeFeaturesResponse | NotImplementedResponse:
     &#34;&#34;&#34;Evaluate governance features for a creative manifest.&#34;&#34;&#34;
@@ -497,7 +497,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 <div class="desc"><p>Evaluate governance features for a creative manifest.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.get_plan_audit_logs"><code class="name flex">
-<span>async def <span class="ident">get_plan_audit_logs</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse" href="../types/generated_poc/governance/get_plan_audit_logs_response.html#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse">GetPlanAuditLogsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">get_plan_audit_logs</span></span>(<span>self,<br>params: GetPlanAuditLogsRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse" href="../types/generated_poc/governance/get_plan_audit_logs_response.html#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse">GetPlanAuditLogsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -506,7 +506,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 </summary>
 <pre><code class="python">async def get_plan_audit_logs(
     self,
-    params: dict[str, Any],
+    params: GetPlanAuditLogsRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; GetPlanAuditLogsResponse | NotImplementedResponse:
     &#34;&#34;&#34;Retrieve governance audit logs for one or more plans.&#34;&#34;&#34;
@@ -523,7 +523,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 <div class="desc"><p>Retrieve governance audit logs for one or more plans.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.get_property_list"><code class="name flex">
-<span>async def <span class="ident">get_property_list</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse" href="../types/generated_poc/property/get_property_list_response.html#adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse">GetPropertyListResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">get_property_list</span></span>(<span>self,<br>params: GetPropertyListRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse" href="../types/generated_poc/property/get_property_list_response.html#adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse">GetPropertyListResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -532,7 +532,7 @@ return CreatePropertyListResponse(list=PropertyList(&hellip;))</p></div>
 </summary>
 <pre><code class="python">async def get_property_list(
     self,
-    params: dict[str, Any],
+    params: GetPropertyListRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; GetPropertyListResponse | NotImplementedResponse:
     &#34;&#34;&#34;Get a property list with optional resolution.
@@ -743,7 +743,7 @@ async def handle_update_property_list(
 <div class="desc"><p>Handle update property list request.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.list_property_lists"><code class="name flex">
-<span>async def <span class="ident">list_property_lists</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.list_property_lists_response.ListPropertyListsResponse" href="../types/generated_poc/property/list_property_lists_response.html#adcp.types.generated_poc.property.list_property_lists_response.ListPropertyListsResponse">ListPropertyListsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">list_property_lists</span></span>(<span>self,<br>params: ListPropertyListsRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.list_property_lists_response.ListPropertyListsResponse" href="../types/generated_poc/property/list_property_lists_response.html#adcp.types.generated_poc.property.list_property_lists_response.ListPropertyListsResponse">ListPropertyListsResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -752,7 +752,7 @@ async def handle_update_property_list(
 </summary>
 <pre><code class="python">async def list_property_lists(
     self,
-    params: dict[str, Any],
+    params: ListPropertyListsRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; ListPropertyListsResponse | NotImplementedResponse:
     &#34;&#34;&#34;List property lists.
@@ -773,7 +773,7 @@ async def handle_update_property_list(
 <p>Validates params and delegates to handle_list_property_lists.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.report_plan_outcome"><code class="name flex">
-<span>async def <span class="ident">report_plan_outcome</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.governance.report_plan_outcome_response.ReportPlanOutcomeResponse" href="../types/generated_poc/governance/report_plan_outcome_response.html#adcp.types.generated_poc.governance.report_plan_outcome_response.ReportPlanOutcomeResponse">ReportPlanOutcomeResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">report_plan_outcome</span></span>(<span>self,<br>params: ReportPlanOutcomeRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.governance.report_plan_outcome_response.ReportPlanOutcomeResponse" href="../types/generated_poc/governance/report_plan_outcome_response.html#adcp.types.generated_poc.governance.report_plan_outcome_response.ReportPlanOutcomeResponse">ReportPlanOutcomeResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -782,7 +782,7 @@ async def handle_update_property_list(
 </summary>
 <pre><code class="python">async def report_plan_outcome(
     self,
-    params: dict[str, Any],
+    params: ReportPlanOutcomeRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; ReportPlanOutcomeResponse | NotImplementedResponse:
     &#34;&#34;&#34;Report the outcome of a previously governed action.&#34;&#34;&#34;
@@ -799,7 +799,7 @@ async def handle_update_property_list(
 <div class="desc"><p>Report the outcome of a previously governed action.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.sync_plans"><code class="name flex">
-<span>async def <span class="ident">sync_plans</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse" href="../types/generated_poc/governance/sync_plans_response.html#adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse">SyncPlansResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">sync_plans</span></span>(<span>self,<br>params: SyncPlansRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse" href="../types/generated_poc/governance/sync_plans_response.html#adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse">SyncPlansResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -808,7 +808,7 @@ async def handle_update_property_list(
 </summary>
 <pre><code class="python">async def sync_plans(
     self,
-    params: dict[str, Any],
+    params: SyncPlansRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; SyncPlansResponse | NotImplementedResponse:
     &#34;&#34;&#34;Sync campaign governance plans to the agent.&#34;&#34;&#34;
@@ -825,7 +825,7 @@ async def handle_update_property_list(
 <div class="desc"><p>Sync campaign governance plans to the agent.</p></div>
 </dd>
 <dt id="adcp.server.governance.GovernanceHandler.update_property_list"><code class="name flex">
-<span>async def <span class="ident">update_property_list</span></span>(<span>self, params: dict[str, Any], context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.update_property_list_response.UpdatePropertyListResponse" href="../types/generated_poc/property/update_property_list_response.html#adcp.types.generated_poc.property.update_property_list_response.UpdatePropertyListResponse">UpdatePropertyListResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
+<span>async def <span class="ident">update_property_list</span></span>(<span>self,<br>params: UpdatePropertyListRequest | dict[str, Any],<br>context: ToolContext | None = None) ‑> <a title="adcp.types.generated_poc.property.update_property_list_response.UpdatePropertyListResponse" href="../types/generated_poc/property/update_property_list_response.html#adcp.types.generated_poc.property.update_property_list_response.UpdatePropertyListResponse">UpdatePropertyListResponse</a> | <a title="adcp.server.base.NotImplementedResponse" href="base.html#adcp.server.base.NotImplementedResponse">NotImplementedResponse</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -834,7 +834,7 @@ async def handle_update_property_list(
 </summary>
 <pre><code class="python">async def update_property_list(
     self,
-    params: dict[str, Any],
+    params: UpdatePropertyListRequest | dict[str, Any],
     context: ToolContext | None = None,
 ) -&gt; UpdatePropertyListResponse | NotImplementedResponse:
     &#34;&#34;&#34;Update a property list.
@@ -865,11 +865,14 @@ async def handle_update_property_list(
 <li><code><a title="adcp.server.base.ADCPHandler.calibrate_content" href="base.html#adcp.server.base.ADCPHandler.calibrate_content">calibrate_content</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.comply_test_controller" href="base.html#adcp.server.base.ADCPHandler.comply_test_controller">comply_test_controller</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.context_match" href="base.html#adcp.server.base.ADCPHandler.context_match">context_match</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.create_collection_list" href="base.html#adcp.server.base.ADCPHandler.create_collection_list">create_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_content_standards" href="base.html#adcp.server.base.ADCPHandler.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.create_media_buy" href="base.html#adcp.server.base.ADCPHandler.create_media_buy">create_media_buy</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.delete_collection_list" href="base.html#adcp.server.base.ADCPHandler.delete_collection_list">delete_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_account_financials" href="base.html#adcp.server.base.ADCPHandler.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_adcp_capabilities" href="base.html#adcp.server.base.ADCPHandler.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_brand_identity" href="base.html#adcp.server.base.ADCPHandler.get_brand_identity">get_brand_identity</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.get_collection_list" href="base.html#adcp.server.base.ADCPHandler.get_collection_list">get_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_content_standards" href="base.html#adcp.server.base.ADCPHandler.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_creative_delivery" href="base.html#adcp.server.base.ADCPHandler.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.get_media_buy_artifacts" href="base.html#adcp.server.base.ADCPHandler.get_media_buy_artifacts">get_media_buy_artifacts</a></code></li>
@@ -880,6 +883,7 @@ async def handle_update_property_list(
 <li><code><a title="adcp.server.base.ADCPHandler.get_signals" href="base.html#adcp.server.base.ADCPHandler.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.identity_match" href="base.html#adcp.server.base.ADCPHandler.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_accounts" href="base.html#adcp.server.base.ADCPHandler.list_accounts">list_accounts</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.list_collection_lists" href="base.html#adcp.server.base.ADCPHandler.list_collection_lists">list_collection_lists</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_content_standards" href="base.html#adcp.server.base.ADCPHandler.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creative_formats" href="base.html#adcp.server.base.ADCPHandler.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.list_creatives" href="base.html#adcp.server.base.ADCPHandler.list_creatives">list_creatives</a></code></li>
@@ -897,6 +901,7 @@ async def handle_update_property_list(
 <li><code><a title="adcp.server.base.ADCPHandler.sync_creatives" href="base.html#adcp.server.base.ADCPHandler.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_event_sources" href="base.html#adcp.server.base.ADCPHandler.sync_event_sources">sync_event_sources</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.sync_governance" href="base.html#adcp.server.base.ADCPHandler.sync_governance">sync_governance</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_collection_list" href="base.html#adcp.server.base.ADCPHandler.update_collection_list">update_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.validate_content_delivery" href="base.html#adcp.server.base.ADCPHandler.validate_content_delivery">validate_content_delivery</a></code></li>

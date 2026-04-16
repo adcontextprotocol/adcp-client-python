@@ -320,10 +320,7 @@ validated to form a valid model.</p>
     ] = None
     ui_elements: Annotated[
         list[si_ui_element.SiUiElement] | None,
-        Field(
-            deprecated=True,
-            description=&#39;Visual components to render (DEPRECATED: use surface instead)&#39;,
-        ),
+        Field(description=&#39;Visual components to render (DEPRECATED: use surface instead)&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -355,37 +352,9 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-</dl>
-<h3>Instance variables</h3>
-<dl>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_response.Response.ui_elements"><code class="name">var <span class="ident">ui_elements</span> : list[<a title="adcp.types.generated_poc.sponsored_intelligence.si_ui_element.SiUiElement" href="si_ui_element.html#adcp.types.generated_poc.sponsored_intelligence.si_ui_element.SiUiElement">SiUiElement</a>] | None</code></dt>
 <dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
-    if obj is None:
-        if self.wrapped_property is not None:
-            return self.wrapped_property.__get__(None, obj_type)
-        raise AttributeError(self.field_name)
-
-    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
-
-    if self.wrapped_property is not None:
-        return self.wrapped_property.__get__(obj, obj_type)
-    return obj.__dict__[self.field_name]</code></pre>
-</details>
-<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
-<h2 id="attributes">Attributes</h2>
-<dl>
-<dt><strong><code>msg</code></strong></dt>
-<dd>The deprecation message to be emitted.</dd>
-<dt><strong><code>wrapped_property</code></strong></dt>
-<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
-<dt><strong><code>field_name</code></strong></dt>
-<dd>The name of the field being deprecated.</dd>
-</dl></div>
+<div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
