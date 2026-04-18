@@ -120,18 +120,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Errors during session initiation&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
+    session_id: Annotated[
+        str, Field(description=&#39;Unique session identifier for subsequent messages&#39;)
+    ]
+    response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s initial response&#34;)] = None
     negotiated_capabilities: Annotated[
         si_capabilities.SiCapabilities | None,
         Field(description=&#39;Intersection of brand and host capabilities for this session&#39;),
     ] = None
-    response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s initial response&#34;)] = None
-    session_id: Annotated[
-        str, Field(description=&#39;Unique session identifier for subsequent messages&#39;)
-    ]
     session_status: Annotated[
         si_session_status.SiSessionStatus,
         Field(
@@ -144,7 +140,12 @@ validated to form a valid model.</p>
             description=&#39;Session inactivity timeout in seconds. After this duration without a message, the brand agent may terminate the session. Hosts SHOULD warn users before timeout when possible.&#39;,
             ge=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    errors: Annotated[
+        list[error.Error] | None, Field(description=&#39;Errors during session initiation&#39;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -163,6 +164,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -233,6 +238,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse">SiInitiateSessionResponse</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.context" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.errors" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.ext" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.model_config" href="#adcp.types.generated_poc.sponsored_intelligence.si_initiate_session_response.SiInitiateSessionResponse.model_config">model_config</a></code></li>

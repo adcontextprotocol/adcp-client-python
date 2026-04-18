@@ -59,14 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
     idempotency_key: Annotated[
-        str | None,
+        str,
         Field(
             description=&#39;Client-generated unique key for this request. If a request with the same key has already been accepted, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request. Prevents duplicate billing on retries.&#39;
         ),
-    ] = None
+    ]
     reporting_period: Annotated[
         datetime_range.DatetimeRange,
         Field(
@@ -79,7 +85,9 @@ el.replaceWith(d);
             description=&#39;One or more usage records. Each record is self-contained: it carries its own account, allowing a single request to span multiple accounts.&#39;,
             min_length=1,
         ),
-    ]</code></pre>
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -98,6 +106,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -106,7 +118,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -150,33 +162,34 @@ validated to form a valid model.</p>
     account: Annotated[
         account_ref.AccountReference, Field(description=&#39;Account for this usage record.&#39;)
     ]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code.&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
-    impressions: Annotated[
-        int | None, Field(description=&#39;Impressions delivered using this vendor service.&#39;, ge=0)
-    ] = None
     media_buy_id: Annotated[
         str | None,
         Field(
             description=&#39;Seller-assigned media buy identifier. Links this usage record to a specific media buy.&#39;
         ),
     ] = None
-    media_spend: Annotated[
-        float | None,
+    vendor_cost: Annotated[
+        float,
         Field(
-            description=&#39;Media spend in currency for the period. Required when a percent_of_media pricing model was used, so the vendor can verify the applied rate.&#39;,
+            description=&#39;Amount owed to the vendor for this record, denominated in currency.&#39;,
             ge=0.0,
         ),
-    ] = None
+    ]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code.&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
     pricing_option_id: Annotated[
         str | None,
         Field(
             description=&#34;Pricing option identifier from the vendor&#39;s discovery response (e.g., get_signals, list_content_standards). The vendor uses this to verify the correct rate was applied.&#34;
         ),
     ] = None
-    rights_id: Annotated[
-        str | None,
+    impressions: Annotated[
+        int | None, Field(description=&#39;Impressions delivered using this vendor service.&#39;, ge=0)
+    ] = None
+    media_spend: Annotated[
+        float | None,
         Field(
-            description=&#39;Rights grant identifier from acquire_rights. Required for brand/rights agents. Links usage records to specific rights grants for cap tracking, billing verification, and overage calculation.&#39;
+            description=&#39;Media spend in currency for the period. Required when a percent_of_media pricing model was used, so the vendor can verify the applied rate.&#39;,
+            ge=0.0,
         ),
     ] = None
     signal_agent_segment_id: Annotated[
@@ -189,13 +202,24 @@ validated to form a valid model.</p>
             description=&#39;Content standards configuration identifier. Required for governance agents.&#39;
         ),
     ] = None
-    vendor_cost: Annotated[
-        float,
+    rights_id: Annotated[
+        str | None,
         Field(
-            description=&#39;Amount owed to the vendor for this record, denominated in currency.&#39;,
-            ge=0.0,
+            description=&#39;Rights grant identifier from acquire_rights. Required for brand/rights agents. Links usage records to specific rights grants for cap tracking, billing verification, and overage calculation.&#39;
         ),
-    ]</code></pre>
+    ] = None
+    creative_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Creative identifier from build_creative or list_creatives. Required for creative agents. Links usage records to specific creatives for billing verification.&#39;
+        ),
+    ] = None
+    property_list_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Property list identifier from list_property_lists. Required for property list agents. Links usage records to specific property lists for billing verification.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -215,6 +239,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.account.report_usage_request.UsageItem.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.report_usage_request.UsageItem.creative_id"><code class="name">var <span class="ident">creative_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -239,6 +267,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.account.report_usage_request.UsageItem.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.report_usage_request.UsageItem.property_list_id"><code class="name">var <span class="ident">property_list_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -288,6 +320,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest" href="#adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest">ReportUsageRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.adcp_major_version" href="#adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.context" href="#adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.ext" href="#adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.idempotency_key" href="#adcp.types.generated_poc.account.report_usage_request.ReportUsageRequest.idempotency_key">idempotency_key</a></code></li>
@@ -300,12 +333,14 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem">UsageItem</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.account" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.creative_id" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.creative_id">creative_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.currency" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.impressions" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.impressions">impressions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.media_buy_id" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.media_spend" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.media_spend">media_spend</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.model_config" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.pricing_option_id" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.pricing_option_id">pricing_option_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.property_list_id" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.property_list_id">property_list_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.rights_id" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.rights_id">rights_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.signal_agent_segment_id" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.signal_agent_segment_id">signal_agent_segment_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.report_usage_request.UsageItem.standards_id" href="#adcp.types.generated_poc.account.report_usage_request.UsageItem.standards_id">standards_id</a></code></li>

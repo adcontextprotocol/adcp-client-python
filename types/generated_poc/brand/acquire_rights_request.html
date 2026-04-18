@@ -59,20 +59,27 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    buyer: Annotated[brand_ref.BrandReference, Field(description=&#34;The buyer&#39;s brand identity&#34;)]
-    campaign: Annotated[Campaign, Field(description=&#39;Campaign details for rights clearance&#39;)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
-    idempotency_key: Annotated[
-        str | None,
+    adcp_major_version: Annotated[
+        int | None,
         Field(
-            description=&#39;Client-generated key for safe retries. Resubmitting with the same key returns the original response rather than creating a duplicate acquisition. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
-            max_length=255,
-            min_length=16,
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
         ),
     ] = None
+    rights_id: Annotated[
+        str, Field(description=&#39;Rights offering identifier from get_rights response&#39;)
+    ]
     pricing_option_id: Annotated[
         str, Field(description=&#39;Selected pricing option from the rights offering&#39;)
+    ]
+    buyer: Annotated[brand_ref.BrandReference, Field(description=&#34;The buyer&#39;s brand identity&#34;)]
+    campaign: Annotated[Campaign, Field(description=&#39;Campaign details for rights clearance&#39;)]
+    revocation_webhook: Annotated[
+        push_notification_config_1.PushNotificationConfig,
+        Field(
+            description=&#39;Webhook for rights revocation notifications. If the rights holder needs to revoke rights (talent scandal, contract violation, etc.), they POST a revocation-notification to this URL. The buyer is responsible for stopping creative delivery upon receipt.&#39;
+        ),
     ]
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
@@ -80,15 +87,17 @@ el.replaceWith(d);
             description=&#39;Webhook for async status updates if the acquisition requires approval. The rights agent sends a webhook notification when the status transitions to acquired or rejected.&#39;
         ),
     ] = None
-    revocation_webhook: Annotated[
-        push_notification_config_1.PushNotificationConfig,
+    idempotency_key: Annotated[
+        str,
         Field(
-            description=&#39;Webhook for rights revocation notifications. If the rights holder needs to revoke rights (talent scandal, contract violation, etc.), they POST a revocation-notification to this URL. The buyer is responsible for stopping creative delivery upon receipt.&#39;
+            description=&#39;Client-generated key for safe retries. Resubmitting with the same key returns the original response rather than creating a duplicate acquisition. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
         ),
     ]
-    rights_id: Annotated[
-        str, Field(description=&#39;Rights offering identifier from get_rights response&#39;)
-    ]</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -107,6 +116,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.buyer"><code class="name">var <span class="ident">buyer</span> : <a title="adcp.types.generated_poc.core.brand_ref.BrandReference" href="../core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.BrandReference">BrandReference</a></code></dt>
 <dd>
 <div class="desc"></div>
@@ -123,7 +136,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -172,27 +185,27 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    description: Annotated[str, Field(description=&#39;Description of how the rights will be used&#39;)]
+    uses: Annotated[
+        list[right_use.RightUse],
+        Field(description=&#39;Specific rights uses for this campaign&#39;, min_length=1),
+    ]
     countries: Annotated[
         list[Country] | None,
         Field(description=&#39;Countries where the campaign will run (ISO 3166-1 alpha-2)&#39;),
     ] = None
-    description: Annotated[str, Field(description=&#39;Description of how the rights will be used&#39;)]
-    end_date: Annotated[date_aliased | None, Field(description=&#39;Campaign end date (ISO 8601)&#39;)] = (
-        None
-    )
-    estimated_impressions: Annotated[
-        int | None, Field(description=&#39;Estimated total impressions for the campaign&#39;, ge=0)
-    ] = None
     format_ids: Annotated[
         list[format_id.FormatId] | None, Field(description=&#39;Creative formats that will be produced&#39;)
+    ] = None
+    estimated_impressions: Annotated[
+        int | None, Field(description=&#39;Estimated total impressions for the campaign&#39;, ge=0)
     ] = None
     start_date: Annotated[
         date_aliased | None, Field(description=&#39;Campaign start date (ISO 8601)&#39;)
     ] = None
-    uses: Annotated[
-        list[right_use.RightUse],
-        Field(description=&#39;Specific rights uses for this campaign&#39;, min_length=1),
-    ]</code></pre>
+    end_date: Annotated[date_aliased | None, Field(description=&#39;Campaign end date (ISO 8601)&#39;)] = (
+        None
+    )</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -324,6 +337,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest" href="#adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest">AcquireRightsRequest</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.adcp_major_version" href="#adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.buyer" href="#adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.buyer">buyer</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.campaign" href="#adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.campaign">campaign</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.context" href="#adcp.types.generated_poc.brand.acquire_rights_request.AcquireRightsRequest.context">context</a></code></li>

@@ -199,11 +199,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    street: str | None = None
     city: str | None = None
-    country: str | None = None
-    postal_code: str | None = None
     state: str | None = None
-    street: str | None = None</code></pre>
+    postal_code: str | None = None
+    country: str | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -271,22 +271,22 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    anonymous_session_id: Annotated[
-        str | None,
-        Field(description=&#39;Session ID for anonymous users (when consent_granted is false)&#39;),
-    ] = None
     consent_granted: Annotated[bool, Field(description=&#39;Whether user consented to share identity&#39;)]
-    consent_scope: Annotated[
-        list[ConsentScopeEnum] | None, Field(description=&#39;What data was consented to share&#39;)
-    ] = None
     consent_timestamp: Annotated[
         AwareDatetime | None, Field(description=&#39;When consent was granted (ISO 8601)&#39;)
+    ] = None
+    consent_scope: Annotated[
+        list[ConsentScopeEnum] | None, Field(description=&#39;What data was consented to share&#39;)
     ] = None
     privacy_policy_acknowledged: Annotated[
         PrivacyPolicyAcknowledged | None, Field(description=&#39;Brand privacy policy acknowledgment&#39;)
     ] = None
     user: Annotated[
         User | None, Field(description=&#39;User data (only present if consent_granted is true)&#39;)
+    ] = None
+    anonymous_session_id: Annotated[
+        str | None,
+        Field(description=&#39;Session ID for anonymous users (when consent_granted is false)&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -360,8 +360,8 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     email: Annotated[EmailStr | None, Field(description=&#34;User&#39;s email address&#34;)] = None
-    locale: Annotated[str | None, Field(description=&#34;User&#39;s locale (e.g., en-US)&#34;)] = None
     name: Annotated[str | None, Field(description=&#34;User&#39;s display name&#34;)] = None
+    locale: Annotated[str | None, Field(description=&#34;User&#39;s locale (e.g., en-US)&#34;)] = None
     phone: Annotated[str | None, Field(description=&#34;User&#39;s phone number&#34;)] = None
     shipping_address: Annotated[
         ShippingAddress | None, Field(description=&#34;User&#39;s shipping address for accurate pricing&#34;)

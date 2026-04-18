@@ -59,15 +59,28 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    categories_evaluated: Annotated[
-        list[str] | None, Field(description=&#39;Governance categories evaluated during this check.&#39;)
-    ] = None
     check_id: Annotated[
         str,
         Field(
             description=&#39;Unique identifier for this governance check record. Use in report_plan_outcome to link outcomes to the check that authorized them.&#39;
         ),
     ]
+    status: Annotated[
+        Status,
+        Field(
+            description=&#34;Governance decision. &#39;approved&#39;: proceed as planned. &#39;denied&#39;: do not proceed. &#39;conditions&#39;: approved if the caller accepts the listed conditions, then re-calls check_governance with the adjusted parameters.&#34;
+        ),
+    ]
+    plan_id: Annotated[str, Field(description=&#39;Echoed from request.&#39;)]
+    explanation: Annotated[
+        str, Field(description=&#39;Human-readable explanation of the governance decision.&#39;)
+    ]
+    findings: Annotated[
+        list[Finding] | None,
+        Field(
+            description=&#34;Specific issues found during the governance check. Present when status is &#39;denied&#39; or &#39;conditions&#39;. MAY also be present on &#39;approved&#39; for informational findings (e.g., budget approaching limit).&#34;
+        ),
+    ] = None
     conditions: Annotated[
         list[Condition] | None,
         Field(
@@ -80,40 +93,29 @@ el.replaceWith(d);
             description=&#34;When this approval expires. Present when status is &#39;approved&#39; or &#39;conditions&#39;. The caller must act before this time or re-call check_governance. A lapsed approval is no approval.&#34;
         ),
     ] = None
-    explanation: Annotated[
-        str, Field(description=&#39;Human-readable explanation of the governance decision.&#39;)
-    ]
-    findings: Annotated[
-        list[Finding] | None,
-        Field(
-            description=&#34;Specific issues found during the governance check. Present when status is &#39;denied&#39; or &#39;conditions&#39;. MAY also be present on &#39;approved&#39; for informational findings (e.g., budget approaching limit).&#34;
-        ),
-    ] = None
-    governance_context: Annotated[
-        str | None,
-        Field(
-            description=&#34;Opaque governance context for this media buy. The buyer MUST attach this to the protocol envelope when sending the media buy to the seller. The seller MUST persist it and include it on all subsequent check_governance calls for this media buy&#39;s lifecycle. Only the issuing governance agent interprets this value.&#34;,
-            max_length=4096,
-            min_length=1,
-            pattern=&#39;^[\\x20-\\x7E]+$&#39;,
-        ),
-    ] = None
     next_check: Annotated[
         AwareDatetime | None,
         Field(
             description=&#39;When the seller should next call check_governance with delivery metrics. Present when the governance agent expects ongoing delivery reporting.&#39;
         ),
     ] = None
-    plan_id: Annotated[str, Field(description=&#39;Echoed from request.&#39;)]
+    categories_evaluated: Annotated[
+        list[str] | None, Field(description=&#39;Governance categories evaluated during this check.&#39;)
+    ] = None
     policies_evaluated: Annotated[
         list[str] | None, Field(description=&#39;Registry policy IDs evaluated during this check.&#39;)
     ] = None
-    status: Annotated[
-        Status,
+    governance_context: Annotated[
+        str | None,
         Field(
-            description=&#34;Governance decision. &#39;approved&#39;: proceed as planned. &#39;denied&#39;: do not proceed. &#39;conditions&#39;: approved if the caller accepts the listed conditions, then re-calls check_governance with the adjusted parameters.&#34;
+            description=&#34;Governance context token for this governed action. The buyer MUST attach this to the protocol envelope when sending the purchase request (media buy, rights acquisition, signal activation) to the seller. The seller MUST persist it and include it on all subsequent check_governance calls for this action&#39;s lifecycle.\n\nValue format: in 3.0 governance agents MUST emit a compact JWS per the AdCP JWS profile (see Security — Signed Governance Context). Sellers MAY verify; sellers that do not verify MUST persist and forward the token unchanged so auditors can verify downstream. In 3.1 all sellers MUST verify per the checklist. Non-JWS values from pre-3.0 governance agents are deprecated and will be rejected in 3.1.\n\nSellers that implement verification MUST verify signature, `aud`, `exp`, `jti` replay, and revocation per the profile before treating the request as governance-approved. This is the primary correlation key for audit and reporting across the governance lifecycle — the governance agent decodes its own signed token to look up internal plan state (buyer correlation IDs, policy decision log, etc.).&#34;,
+            max_length=4096,
+            min_length=1,
+            pattern=&#39;^[\\x20-\\x7E]+$&#39;,
         ),
-    ]</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -144,11 +146,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.explanation"><code class="name">var <span class="ident">explanation</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -211,13 +221,13 @@ validated to form a valid model.</p>
             description=&#39;Dot-path to the field that needs adjustment (in payload for proposed, in planned_delivery for committed).&#39;
         ),
     ]
-    reason: Annotated[str, Field(description=&#39;Why this condition is required.&#39;)]
     required_value: Annotated[
         Any | None,
         Field(
             description=&#39;The value the field must have for approval. When present, the condition is machine-actionable. When absent, the condition is advisory.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    reason: Annotated[str, Field(description=&#39;Why this condition is required.&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -283,6 +293,23 @@ validated to form a valid model.</p>
             description=&#34;Validation category that flagged the issue (e.g., &#39;budget_compliance&#39;, &#39;regulatory_compliance&#39;, &#39;brand_safety&#39;).&#34;
         ),
     ]
+    policy_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;ID of the policy that triggered this finding. May reference a registry policy (with source: registry) or a bespoke inline policy (with source: inline). Bespoke policy_ids are unique within their authoring container; use source_plan_id when findings aggregate across multiple plans (e.g., portfolio evaluations).&#39;
+        ),
+    ] = None
+    source_plan_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;For portfolio or aggregated evaluations where findings draw on bespoke policies from multiple member plans: identifies the plan whose policy triggered this finding. Omit when the finding&#39;s policy_id is unambiguous within the response context (e.g., single-plan check_governance).&#34;
+        ),
+    ] = None
+    severity: escalation_severity.EscalationSeverity
+    explanation: Annotated[str, Field(description=&#39;Human-readable description of the issue.&#39;)]
+    details: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Structured details for programmatic consumption.&#39;)
+    ] = None
     confidence: Annotated[
         float | None,
         Field(
@@ -291,17 +318,6 @@ validated to form a valid model.</p>
             le=1.0,
         ),
     ] = None
-    details: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Structured details for programmatic consumption.&#39;)
-    ] = None
-    explanation: Annotated[str, Field(description=&#39;Human-readable description of the issue.&#39;)]
-    policy_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Registry policy ID that triggered this finding. Present when the finding originates from a specific registry policy. Enables programmatic routing of compliance failures.&#39;
-        ),
-    ] = None
-    severity: escalation_severity.EscalationSeverity
     uncertainty_reason: Annotated[
         str | None,
         Field(
@@ -351,6 +367,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.severity"><code class="name">var <span class="ident">severity</span> : <a title="adcp.types.generated_poc.enums.escalation_severity.EscalationSeverity" href="../enums/escalation_severity.html#adcp.types.generated_poc.enums.escalation_severity.EscalationSeverity">EscalationSeverity</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_response.Finding.source_plan_id"><code class="name">var <span class="ident">source_plan_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -460,8 +480,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.categories_evaluated" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.categories_evaluated">categories_evaluated</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.check_id" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.check_id">check_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.conditions" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.conditions">conditions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.context" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.expires_at" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.explanation" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.explanation">explanation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.ext" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.findings" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.findings">findings</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.governance_context" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.governance_context">governance_context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.model_config" href="#adcp.types.generated_poc.governance.check_governance_response.CheckGovernanceResponse.model_config">model_config</a></code></li>
@@ -490,6 +512,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.model_config" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.policy_id" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.policy_id">policy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.severity" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.severity">severity</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.source_plan_id" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.source_plan_id">source_plan_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_response.Finding.uncertainty_reason" href="#adcp.types.generated_poc.governance.check_governance_response.Finding.uncertainty_reason">uncertainty_reason</a></code></li>
 </ul>
 </li>

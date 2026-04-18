@@ -59,6 +59,32 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    account: Annotated[
+        account_ref.AccountReference,
+        Field(
+            description=&#39;Account that owns this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. Required for governance checks and account resolution.&#39;
+        ),
+    ]
+    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s ID of the media buy to update&#34;)]
+    revision: Annotated[
+        int | None,
+        Field(
+            description=&#34;Expected current revision for optimistic concurrency. When provided, sellers MUST reject the update with CONFLICT if the media buy&#39;s current revision does not match. Obtain from get_media_buys or the most recent update response.&#34;,
+            ge=1,
+        ),
+    ] = None
+    paused: Annotated[
+        bool | None,
+        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
+    ] = None
     canceled: Annotated[
         Literal[True],
         Field(
@@ -72,18 +98,13 @@ el.replaceWith(d);
             max_length=500,
         ),
     ] = None
-    context: context_1.ContextObject | None = None
+    start_time: start_timing.StartTiming | None = None
     end_time: Annotated[
         AwareDatetime | None, Field(description=&#39;New end date/time in ISO 8601 format&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    idempotency_key: Annotated[
-        str | None,
-        Field(
-            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
-            max_length=255,
-            min_length=16,
-        ),
+    packages: Annotated[
+        list[package_update.PackageUpdate] | None,
+        Field(description=&#39;Package-specific updates for existing packages&#39;, min_length=1),
     ] = None
     invoice_recipient: Annotated[
         business_entity.BusinessEntity | None,
@@ -91,26 +112,11 @@ el.replaceWith(d);
             description=&#34;Update who receives the invoice for this buy. When provided, the seller invoices this entity instead of the account&#39;s default billing_entity. The seller MUST validate the invoice recipient is authorized for this account. When governance_agents are configured, the seller MUST include invoice_recipient in the check_governance request.&#34;
         ),
     ] = None
-    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s ID of the media buy to update&#34;)]
     new_packages: Annotated[
         list[package_request.PackageRequest] | None,
         Field(
             description=&#39;New packages to add to this media buy. Uses the same schema as create_media_buy packages. Sellers that support mid-flight package additions advertise add_packages in valid_actions. Sellers that do not support this MUST reject with UNSUPPORTED_FEATURE.&#39;,
             min_length=1,
-        ),
-    ] = None
-    packages: Annotated[
-        list[package_update.PackageUpdate] | None,
-        Field(description=&#39;Package-specific updates for existing packages&#39;, min_length=1),
-    ] = None
-    paused: Annotated[
-        bool | None,
-        Field(description=&#39;Pause/resume the entire media buy (true = paused, false = active)&#39;),
-    ] = None
-    push_notification_config: Annotated[
-        push_notification_config_1.PushNotificationConfig | None,
-        Field(
-            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#39;
         ),
     ] = None
     reporting_webhook: Annotated[
@@ -119,14 +125,23 @@ el.replaceWith(d);
             description=&#39;Optional webhook configuration for automated reporting delivery. Updates the reporting configuration for this media buy.&#39;
         ),
     ] = None
-    revision: Annotated[
-        int | None,
+    push_notification_config: Annotated[
+        push_notification_config_1.PushNotificationConfig | None,
         Field(
-            description=&#34;Expected current revision for optimistic concurrency. When provided, sellers MUST reject the update with CONFLICT if the media buy&#39;s current revision does not match. Obtain from get_media_buys or the most recent update response.&#34;,
-            ge=1,
+            description=&#39;Optional webhook configuration for async update notifications. Publisher will send webhook when update completes if operation takes longer than immediate response time. This is separate from reporting_webhook which configures ongoing campaign reporting.&#39;
         ),
     ] = None
-    start_time: start_timing.StartTiming | None = None</code></pre>
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated idempotency key for safe retries. If an update fails without a response, resending with the same idempotency_key guarantees the update is applied at most once. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -145,6 +160,14 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.canceled"><code class="name">var <span class="ident">canceled</span> : Literal[True]</code></dt>
 <dd>
 <div class="desc"></div>
@@ -165,7 +188,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -239,6 +262,8 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest">UpdateMediaBuyRequest</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.account" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.adcp_major_version" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.canceled" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.canceled">canceled</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.cancellation_reason" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.cancellation_reason">cancellation_reason</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.context" href="#adcp.types.generated_poc.media_buy.update_media_buy_request.UpdateMediaBuyRequest.context">context</a></code></li>

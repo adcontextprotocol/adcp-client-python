@@ -55,9 +55,9 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalTargeting(RootModel[SignalTargeting1 | SignalTargeting2 | SignalTargeting3]):
+<pre><code class="python">class SignalTargeting(RootModel[SignalTargeting4 | SignalTargeting5 | SignalTargeting6]):
     root: Annotated[
-        SignalTargeting1 | SignalTargeting2 | SignalTargeting3,
+        SignalTargeting4 | SignalTargeting5 | SignalTargeting6,
         Field(
             description=&#39;Targeting constraint for a specific signal. Uses value_type as discriminator to determine the targeting expression format.&#39;,
             discriminator=&#39;value_type&#39;,
@@ -93,7 +93,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[SignalTargeting1, SignalTargeting2, SignalTargeting3]]</li>
+<li>pydantic.root_model.RootModel[Union[SignalTargeting4, SignalTargeting5, SignalTargeting6]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
@@ -104,14 +104,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting1">SignalTargeting1</a> | <a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting2">SignalTargeting2</a> | <a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting3">SignalTargeting3</a></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting4">SignalTargeting4</a> | <a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting5">SignalTargeting5</a> | <a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting6">SignalTargeting6</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1"><code class="flex name class">
-<span>class <span class="ident">SignalTargeting1</span></span>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4"><code class="flex name class">
+<span>class <span class="ident">SignalTargeting4</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -119,18 +119,18 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalTargeting1(AdCPBaseModel):
+<pre><code class="python">class SignalTargeting4(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
     signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
+    value_type: Annotated[Literal[&#39;binary&#39;], Field(description=&#39;Discriminator for binary signals&#39;)]
     value: Annotated[
         bool,
         Field(
             description=&#39;Whether to include (true) or exclude (false) users matching this signal&#39;
         ),
-    ]
-    value_type: Annotated[Literal[&#39;binary&#39;], Field(description=&#39;Discriminator for binary signals&#39;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -149,19 +149,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.core.signal_id.SignalId" href="signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.core.signal_id.SignalId" href="signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.value"><code class="name">var <span class="ident">value</span> : bool</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.value"><code class="name">var <span class="ident">value</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.value_type"><code class="name">var <span class="ident">value_type</span> : Literal['binary']</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.value_type"><code class="name">var <span class="ident">value_type</span> : Literal['binary']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -177,8 +177,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2"><code class="flex name class">
-<span>class <span class="ident">SignalTargeting2</span></span>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5"><code class="flex name class">
+<span>class <span class="ident">SignalTargeting5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -186,7 +186,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalTargeting2(AdCPBaseModel):
+<pre><code class="python">class SignalTargeting5(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -219,19 +219,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.core.signal_id.SignalId" href="signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.core.signal_id.SignalId" href="signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.value_type"><code class="name">var <span class="ident">value_type</span> : Literal['categorical']</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.value_type"><code class="name">var <span class="ident">value_type</span> : Literal['categorical']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.values"><code class="name">var <span class="ident">values</span> : list[str]</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.values"><code class="name">var <span class="ident">values</span> : list[str]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -247,8 +247,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3"><code class="flex name class">
-<span>class <span class="ident">SignalTargeting3</span></span>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6"><code class="flex name class">
+<span>class <span class="ident">SignalTargeting6</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -256,26 +256,26 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalTargeting3(AdCPBaseModel):
+<pre><code class="python">class SignalTargeting6(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    max_value: Annotated[
-        float | None,
-        Field(
-            description=&#34;Maximum value (inclusive). Omit for no maximum. Must be &gt;= min_value when both are provided. Should be &lt;= signal&#39;s range.max if defined.&#34;
-        ),
-    ] = None
+    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
+    value_type: Annotated[
+        Literal[&#39;numeric&#39;], Field(description=&#39;Discriminator for numeric signals&#39;)
+    ]
     min_value: Annotated[
         float | None,
         Field(
             description=&#34;Minimum value (inclusive). Omit for no minimum. Must be &lt;= max_value when both are provided. Should be &gt;= signal&#39;s range.min if defined.&#34;
         ),
     ] = None
-    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
-    value_type: Annotated[
-        Literal[&#39;numeric&#39;], Field(description=&#39;Discriminator for numeric signals&#39;)
-    ]</code></pre>
+    max_value: Annotated[
+        float | None,
+        Field(
+            description=&#34;Maximum value (inclusive). Omit for no maximum. Must be &gt;= min_value when both are provided. Should be &lt;= signal&#39;s range.max if defined.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -294,23 +294,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.max_value"><code class="name">var <span class="ident">max_value</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.max_value"><code class="name">var <span class="ident">max_value</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.min_value"><code class="name">var <span class="ident">min_value</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.min_value"><code class="name">var <span class="ident">min_value</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.core.signal_id.SignalId" href="signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.core.signal_id.SignalId" href="signal_id.html#adcp.types.generated_poc.core.signal_id.SignalId">SignalId</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.value_type"><code class="name">var <span class="ident">value_type</span> : Literal['numeric']</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.value_type"><code class="name">var <span class="ident">value_type</span> : Literal['numeric']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -349,31 +349,31 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting1">SignalTargeting1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting4">SignalTargeting4</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.model_config" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.signal_id" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.signal_id">signal_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.value" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.value">value</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.value_type" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting1.value_type">value_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.model_config" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.signal_id" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.signal_id">signal_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.value" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.value">value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.value_type" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting4.value_type">value_type</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting2">SignalTargeting2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting5">SignalTargeting5</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.model_config" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.signal_id" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.signal_id">signal_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.value_type" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.value_type">value_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.values" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting2.values">values</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.model_config" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.signal_id" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.signal_id">signal_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.value_type" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.value_type">value_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.values" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting5.values">values</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting3">SignalTargeting3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting6">SignalTargeting6</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.max_value" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.max_value">max_value</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.min_value" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.min_value">min_value</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.model_config" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.signal_id" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.signal_id">signal_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.value_type" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting3.value_type">value_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.max_value" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.max_value">max_value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.min_value" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.min_value">min_value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.model_config" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.signal_id" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.signal_id">signal_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.value_type" href="#adcp.types.generated_poc.core.signal_targeting.SignalTargeting6.value_type">value_type</a></code></li>
 </ul>
 </li>
 </ul>

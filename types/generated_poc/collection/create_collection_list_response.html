@@ -65,9 +65,10 @@ el.replaceWith(d);
     auth_token: Annotated[
         str,
         Field(
-            description=&#39;Token that can be shared with sellers to authorize fetching this list. Store this - it is only returned at creation time.&#39;
+            description=&#39;Token that authorizes sellers to fetch this list via get_collection_list. Only returned at creation time — buyers MUST store it in a secret manager. Scoped to this one list_id; MUST NOT be reused across lists. Governance agents MUST issue a distinct token per seller so per-relationship revocation is possible. Tokens MUST NOT be logged, appear in cache keys, or echo in error responses. delete_collection_list MUST revoke the token immediately; compromise-driven revocation MUST also signal cache invalidation to sellers (reduced cache_valid_until or a list-changed webhook). See Security considerations in docs/governance/collection/tasks/collection_lists.&#39;
         ),
     ]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -88,6 +89,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.auth_token"><code class="name">var <span class="ident">auth_token</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -134,6 +139,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse" href="#adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse">CreateCollectionListResponse</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.auth_token" href="#adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.auth_token">auth_token</a></code></li>
+<li><code><a title="adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.context" href="#adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.ext" href="#adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.list" href="#adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.list">list</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.model_config" href="#adcp.types.generated_poc.collection.create_collection_list_response.CreateCollectionListResponse.model_config">model_config</a></code></li>

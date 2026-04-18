@@ -141,7 +141,7 @@ validated to form a valid model.</p>
     signature: Annotated[
         str,
         Field(
-            description=&#34;Cryptographic signature of the webhook payload, signed with the agent&#39;s private key. Recipients MUST verify this signature.&#34;
+            description=&#39;HMAC-SHA256 webhook signature over {unix_timestamp}.{raw_http_body_bytes} using the secret exchanged out-of-band when the seller registered with the governance agent. Recipients MUST verify against the X-ADCP-Signature and X-ADCP-Timestamp headers using timing-safe comparison and MUST reject requests where |now - timestamp| &gt; 300 seconds. The body copy of this field is a convenience only — the headers are authoritative. See docs/building/implementation/security#webhook-security.&#39;
         ),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>

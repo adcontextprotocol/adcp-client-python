@@ -59,30 +59,7 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    authentication: Annotated[
-        Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
-    ]
-    batch_frequency: Annotated[
-        BatchFrequency | None,
-        Field(
-            description=&#34;For batched delivery, how often to push artifacts. Required when delivery_mode is &#39;batched&#39;.&#34;
-        ),
-    ] = None
-    delivery_mode: Annotated[
-        DeliveryMode,
-        Field(
-            description=&#34;How artifacts are delivered. &#39;realtime&#39; pushes artifacts as impressions occur. &#39;batched&#39; aggregates artifacts and pushes periodically (see batch_frequency).&#34;
-        ),
-    ]
-    sampling_rate: Annotated[
-        float | None,
-        Field(
-            description=&#39;Fraction of impressions to include (0-1). 1.0 = all impressions, 0.1 = 10% sample. Default: 1.0&#39;,
-            ge=0.0,
-            le=1.0,
-        ),
-    ] = None
+    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for artifact delivery&#39;)]
     token: Annotated[
         str | None,
         Field(
@@ -90,7 +67,30 @@ el.replaceWith(d);
             min_length=16,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for artifact delivery&#39;)]</code></pre>
+    authentication: Annotated[
+        Authentication,
+        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
+    ]
+    delivery_mode: Annotated[
+        DeliveryMode,
+        Field(
+            description=&#34;How artifacts are delivered. &#39;realtime&#39; pushes artifacts as impressions occur. &#39;batched&#39; aggregates artifacts and pushes periodically (see batch_frequency).&#34;
+        ),
+    ]
+    batch_frequency: Annotated[
+        BatchFrequency | None,
+        Field(
+            description=&#34;For batched delivery, how often to push artifacts. Required when delivery_mode is &#39;batched&#39;.&#34;
+        ),
+    ] = None
+    sampling_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fraction of impressions to include (0-1). 1.0 = all impressions, 0.1 = 10% sample. Default: 1.0&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -162,19 +162,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    credentials: Annotated[
-        str,
-        Field(
-            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
-            min_length=32,
-        ),
-    ]
     schemes: Annotated[
         list[auth_scheme.AuthenticationScheme],
         Field(
             description=&#34;Array of authentication schemes. Supported: [&#39;Bearer&#39;] for simple token auth, [&#39;HMAC-SHA256&#39;] for signature verification (recommended for production)&#34;,
             max_length=1,
             min_length=1,
+        ),
+    ]
+    credentials: Annotated[
+        str,
+        Field(
+            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
+            min_length=32,
         ),
     ]</code></pre>
 </details>
@@ -296,22 +296,52 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated unique key for this request. If a request with the same idempotency_key and account has already been processed, the seller returns the existing media buy rather than creating a duplicate. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
+    plan_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Campaign governance plan identifier. Required when the account has governance_agents. The seller includes this in the committed check_governance request so the governance agent can validate against the correct plan.&#39;
+        ),
+    ] = None
     account: Annotated[
         account_ref.AccountReference,
         Field(
             description=&#39;Account to bill for this media buy. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts.&#39;
         ),
     ]
-    advertiser_industry: Annotated[
-        advertiser_industry_1.AdvertiserIndustry | None,
+    proposal_id: Annotated[
+        str | None,
         Field(
-            description=&#34;Industry classification for this specific campaign. A brand may operate across multiple industries (brand.json industries field), but each media buy targets one. For example, a consumer health company running a wellness campaign sends &#39;healthcare.wellness&#39;, not &#39;cpg&#39;. Sellers map this to platform-native codes (e.g., Spotify ADV categories, LinkedIn industry IDs). When omitted, sellers may infer from the brand manifest&#39;s industries field.&#34;
+            description=&#34;ID of a proposal from get_products to execute. When provided with total_budget, the publisher converts the proposal&#39;s allocation percentages into packages automatically. Alternative to providing packages array.&#34;
         ),
     ] = None
-    artifact_webhook: Annotated[
-        ArtifactWebhook | None,
+    total_budget: Annotated[
+        TotalBudget | None,
         Field(
-            description=&#39;Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.&#39;
+            description=&#34;Total budget for the media buy when executing a proposal. The publisher applies the proposal&#39;s allocation percentages to this amount to derive package budgets.&#34;
+        ),
+    ] = None
+    packages: Annotated[
+        list[package_request.PackageRequest] | None,
+        Field(
+            description=&#34;Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal&#39;s allocations.&#34;,
+            min_length=1,
         ),
     ] = None
     brand: Annotated[
@@ -320,17 +350,10 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Brand reference for this media buy. Resolved to full brand identity at execution time from brand.json or the registry.&#39;
         ),
     ]
-    context: context_1.ContextObject | None = None
-    end_time: Annotated[
-        AwareDatetime, Field(description=&#39;Campaign end date/time in ISO 8601 format&#39;)
-    ]
-    ext: ext_1.ExtensionObject | None = None
-    idempotency_key: Annotated[
-        str | None,
+    advertiser_industry: Annotated[
+        advertiser_industry_1.AdvertiserIndustry | None,
         Field(
-            description=&#39;Client-generated unique key for this request. If a request with the same idempotency_key and account has already been processed, the seller returns the existing media buy rather than creating a duplicate. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
-            max_length=255,
-            min_length=16,
+            description=&#34;Industry classification for this specific campaign. A brand may operate across multiple industries (brand.json industries field), but each media buy targets one. For example, a consumer health company running a wellness campaign sends &#39;healthcare.wellness&#39;, not &#39;cpg&#39;. Sellers map this to platform-native codes (e.g., Spotify ADV categories, LinkedIn industry IDs). When omitted, sellers may infer from the brand manifest&#39;s industries field.&#34;
         ),
     ] = None
     invoice_recipient: Annotated[
@@ -345,26 +368,18 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Acceptance of an insertion order from a committed proposal. Required when the proposal&#39;s insertion_order has requires_signature: true. References the io_id from the proposal&#39;s insertion_order.&#34;
         ),
     ] = None
-    packages: Annotated[
-        list[package_request.PackageRequest] | None,
-        Field(
-            description=&#34;Array of package configurations. Required when not using proposal_id. When executing a proposal, this can be omitted and packages will be derived from the proposal&#39;s allocations.&#34;,
-            min_length=1,
-        ),
-    ] = None
-    plan_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Campaign governance plan identifier. Required when the account has governance_agents. The seller includes this in the committed check_governance request so the governance agent can validate against the correct plan.&#39;
-        ),
-    ] = None
     po_number: Annotated[str | None, Field(description=&#39;Purchase order number for tracking&#39;)] = None
-    proposal_id: Annotated[
+    agency_estimate_number: Annotated[
         str | None,
         Field(
-            description=&#34;ID of a proposal from get_products to execute. When provided with total_budget, the publisher converts the proposal&#39;s allocation percentages into packages automatically. Alternative to providing packages array.&#34;
+            description=&#34;Agency estimate or authorization number. Primary financial reference for broadcast buys — links the order to the agency&#39;s media plan and billing system. Travels with the order and Ad-IDs through the transaction lifecycle.&#34;,
+            max_length=100,
         ),
     ] = None
+    start_time: start_timing.StartTiming
+    end_time: Annotated[
+        AwareDatetime, Field(description=&#39;Campaign end date/time in ISO 8601 format&#39;)
+    ]
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
@@ -375,13 +390,14 @@ attributes &ndash; see the documentation for details.</p></div>
         reporting_webhook_1.ReportingWebhook | None,
         Field(description=&#39;Optional webhook configuration for automated reporting delivery&#39;),
     ] = None
-    start_time: start_timing.StartTiming
-    total_budget: Annotated[
-        TotalBudget | None,
+    artifact_webhook: Annotated[
+        ArtifactWebhook | None,
         Field(
-            description=&#34;Total budget for the media buy when executing a proposal. The publisher applies the proposal&#39;s allocation percentages to this amount to derive package budgets.&#34;
+            description=&#39;Optional webhook configuration for content artifact delivery. Used by governance agents to validate content adjacency. Seller pushes artifacts to this endpoint; orchestrator forwards to governance agent for validation.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -404,7 +420,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.advertiser_industry"><code class="name">var <span class="ident">advertiser_industry</span> : <a title="adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry" href="../enums/advertiser_industry.html#adcp.types.generated_poc.enums.advertiser_industry.AdvertiserIndustry">AdvertiserIndustry</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.agency_estimate_number"><code class="name">var <span class="ident">agency_estimate_number</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -428,7 +452,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -565,11 +589,11 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    accepted_at: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when the IO was accepted&#39;)
-    ]
     io_id: Annotated[
         str, Field(description=&#34;The io_id from the proposal&#39;s insertion_order being accepted&#34;)
+    ]
+    accepted_at: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when the IO was accepted&#39;)
     ]
     signatory: Annotated[
         str,
@@ -738,7 +762,9 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest">CreateMediaBuyRequest</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.account" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.adcp_major_version" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.advertiser_industry" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.advertiser_industry">advertiser_industry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.agency_estimate_number" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.agency_estimate_number">agency_estimate_number</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.artifact_webhook">artifact_webhook</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.context" href="#adcp.types.generated_poc.media_buy.create_media_buy_request.CreateMediaBuyRequest.context">context</a></code></li>

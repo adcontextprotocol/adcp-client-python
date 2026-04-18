@@ -2192,6 +2192,262 @@ el.replaceWith(d);
         return self.adapter._parse_response(raw_result, DeletePropertyListResponse)
 
     # ========================================================================
+    # V3 Protocol Methods - Governance (Collection Lists)
+    # ========================================================================
+
+    async def create_collection_list(
+        self,
+        request: CreateCollectionListRequest,
+    ) -&gt; TaskResult[CreateCollectionListResponse]:
+        &#34;&#34;&#34;Create a collection list for governance filtering.
+
+        Collection lists define dynamic sets of collections (properties, segments, etc.)
+        that can be referenced by authorization rules and audience scoping.
+
+        Args:
+            request: Request parameters for creating the collection list
+
+        Returns:
+            TaskResult containing CreateCollectionListResponse with list_id
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;create_collection_list&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.create_collection_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;create_collection_list&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, CreateCollectionListResponse)
+
+    async def get_collection_list(
+        self,
+        request: GetCollectionListRequest,
+    ) -&gt; TaskResult[GetCollectionListResponse]:
+        &#34;&#34;&#34;Get a collection list with optional resolution.
+
+        When resolve=true, returns the resolved members of the collection list.
+
+        Args:
+            request: Request parameters including list_id and resolve flag
+
+        Returns:
+            TaskResult containing GetCollectionListResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_collection_list&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.get_collection_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;get_collection_list&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, GetCollectionListResponse)
+
+    async def list_collection_lists(
+        self,
+        request: ListCollectionListsRequest,
+    ) -&gt; TaskResult[ListCollectionListsResponse]:
+        &#34;&#34;&#34;List collection lists owned by a principal.
+
+        Args:
+            request: Request parameters with optional filtering
+
+        Returns:
+            TaskResult containing ListCollectionListsResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_collection_lists&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.list_collection_lists(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;list_collection_lists&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, ListCollectionListsResponse)
+
+    async def update_collection_list(
+        self,
+        request: UpdateCollectionListRequest,
+    ) -&gt; TaskResult[UpdateCollectionListResponse]:
+        &#34;&#34;&#34;Update a collection list.
+
+        Args:
+            request: Request parameters with list_id and updates
+
+        Returns:
+            TaskResult containing UpdateCollectionListResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_collection_list&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_collection_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_collection_list&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdateCollectionListResponse)
+
+    async def delete_collection_list(
+        self,
+        request: DeleteCollectionListRequest,
+    ) -&gt; TaskResult[DeleteCollectionListResponse]:
+        &#34;&#34;&#34;Delete a collection list.
+
+        Args:
+            request: Request parameters with list_id
+
+        Returns:
+            TaskResult containing DeleteCollectionListResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;delete_collection_list&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.delete_collection_list(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;delete_collection_list&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, DeleteCollectionListResponse)
+
+    # ========================================================================
+    # V3 Protocol Methods - Governance (Sync Governance)
+    # ========================================================================
+
+    async def sync_governance(
+        self,
+        request: SyncGovernanceRequest,
+    ) -&gt; TaskResult[SyncGovernanceResponse]:
+        &#34;&#34;&#34;Sync governance agents attached to an account.
+
+        Attach, detach, or replace the set of governance agents that must be
+        consulted for plan approval on an account.
+
+        Args:
+            request: Request parameters with account and governance agents
+
+        Returns:
+            TaskResult containing SyncGovernanceResponse
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_governance&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.sync_governance(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;sync_governance&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, SyncGovernanceResponse)
+
+    # ========================================================================
     # V3 Protocol Methods - Temporal Matching Protocol (TMP)
     # ========================================================================
 
@@ -3566,6 +3822,68 @@ optional artifact refs, context signals, and geo data.</dd>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ContextMatchResponse with offers.</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.create_collection_list"><code class="name flex">
+<span>async def <span class="ident">create_collection_list</span></span>(<span>self, request: CreateCollectionListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[CreateCollectionListResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def create_collection_list(
+    self,
+    request: CreateCollectionListRequest,
+) -&gt; TaskResult[CreateCollectionListResponse]:
+    &#34;&#34;&#34;Create a collection list for governance filtering.
+
+    Collection lists define dynamic sets of collections (properties, segments, etc.)
+    that can be referenced by authorization rules and audience scoping.
+
+    Args:
+        request: Request parameters for creating the collection list
+
+    Returns:
+        TaskResult containing CreateCollectionListResponse with list_id
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;create_collection_list&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.create_collection_list(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;create_collection_list&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, CreateCollectionListResponse)</code></pre>
+</details>
+<div class="desc"><p>Create a collection list for governance filtering.</p>
+<p>Collection lists define dynamic sets of collections (properties, segments, etc.)
+that can be referenced by authorization rules and audience scoping.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters for creating the collection list</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing CreateCollectionListResponse with list_id</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.create_content_standards"><code class="name flex">
 <span>async def <span class="ident">create_content_standards</span></span>(<span>self, request: CreateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[CreateContentStandardsResponse1, CreateContentStandardsResponse2]]</span>
 </code></dt>
@@ -3796,6 +4114,63 @@ brand manifests, and feature requirements.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing CreatePropertyListResponse with list_id</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.delete_collection_list"><code class="name flex">
+<span>async def <span class="ident">delete_collection_list</span></span>(<span>self, request: DeleteCollectionListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[DeleteCollectionListResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def delete_collection_list(
+    self,
+    request: DeleteCollectionListRequest,
+) -&gt; TaskResult[DeleteCollectionListResponse]:
+    &#34;&#34;&#34;Delete a collection list.
+
+    Args:
+        request: Request parameters with list_id
+
+    Returns:
+        TaskResult containing DeleteCollectionListResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;delete_collection_list&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.delete_collection_list(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;delete_collection_list&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, DeleteCollectionListResponse)</code></pre>
+</details>
+<div class="desc"><p>Delete a collection list.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters with list_id</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing DeleteCollectionListResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.delete_property_list"><code class="name flex">
 <span>async def <span class="ident">delete_property_list</span></span>(<span>self, request: DeletePropertyListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[DeletePropertyListResponse]</span>
@@ -4077,6 +4452,66 @@ voice synthesis config, and rights availability.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing GetBrandIdentityResponse.</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.get_collection_list"><code class="name flex">
+<span>async def <span class="ident">get_collection_list</span></span>(<span>self, request: GetCollectionListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[GetCollectionListResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def get_collection_list(
+    self,
+    request: GetCollectionListRequest,
+) -&gt; TaskResult[GetCollectionListResponse]:
+    &#34;&#34;&#34;Get a collection list with optional resolution.
+
+    When resolve=true, returns the resolved members of the collection list.
+
+    Args:
+        request: Request parameters including list_id and resolve flag
+
+    Returns:
+        TaskResult containing GetCollectionListResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_collection_list&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.get_collection_list(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;get_collection_list&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, GetCollectionListResponse)</code></pre>
+</details>
+<div class="desc"><p>Get a collection list with optional resolution.</p>
+<p>When resolve=true, returns the resolved members of the collection list.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters including list_id and resolve flag</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing GetCollectionListResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.get_content_standards"><code class="name flex">
 <span>async def <span class="ident">get_content_standards</span></span>(<span>self, request: GetContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[GetContentStandardsResponse1, GetContentStandardsResponse2]]</span>
@@ -5118,6 +5553,63 @@ and package_ids.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing ListAccountsResponse</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.list_collection_lists"><code class="name flex">
+<span>async def <span class="ident">list_collection_lists</span></span>(<span>self, request: ListCollectionListsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[ListCollectionListsResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def list_collection_lists(
+    self,
+    request: ListCollectionListsRequest,
+) -&gt; TaskResult[ListCollectionListsResponse]:
+    &#34;&#34;&#34;List collection lists owned by a principal.
+
+    Args:
+        request: Request parameters with optional filtering
+
+    Returns:
+        TaskResult containing ListCollectionListsResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_collection_lists&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.list_collection_lists(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;list_collection_lists&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, ListCollectionListsResponse)</code></pre>
+</details>
+<div class="desc"><p>List collection lists owned by a principal.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters with optional filtering</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing ListCollectionListsResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.list_content_standards"><code class="name flex">
 <span>async def <span class="ident">list_content_standards</span></span>(<span>self, request: ListContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[ListContentStandardsResponse1, ListContentStandardsResponse2]]</span>
@@ -6341,6 +6833,68 @@ sponsored intelligence session.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing SyncEventSourcesResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.sync_governance"><code class="name flex">
+<span>async def <span class="ident">sync_governance</span></span>(<span>self, request: SyncGovernanceRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncGovernanceResponse1, SyncGovernanceResponse2]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def sync_governance(
+    self,
+    request: SyncGovernanceRequest,
+) -&gt; TaskResult[SyncGovernanceResponse]:
+    &#34;&#34;&#34;Sync governance agents attached to an account.
+
+    Attach, detach, or replace the set of governance agents that must be
+    consulted for plan approval on an account.
+
+    Args:
+        request: Request parameters with account and governance agents
+
+    Returns:
+        TaskResult containing SyncGovernanceResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_governance&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.sync_governance(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;sync_governance&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, SyncGovernanceResponse)</code></pre>
+</details>
+<div class="desc"><p>Sync governance agents attached to an account.</p>
+<p>Attach, detach, or replace the set of governance agents that must be
+consulted for plan approval on an account.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters with account and governance agents</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing SyncGovernanceResponse</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.sync_plans"><code class="name flex">
 <span>async def <span class="ident">sync_plans</span></span>(<span>self, request: SyncPlansRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[SyncPlansResponse]</span>
 </code></dt>
@@ -6383,6 +6937,63 @@ sponsored intelligence session.</p>
     return self.adapter._parse_response(raw_result, SyncPlansResponse)</code></pre>
 </details>
 <div class="desc"><p>Sync campaign governance plans to the governance agent.</p></div>
+</dd>
+<dt id="adcp.client.ADCPClient.update_collection_list"><code class="name flex">
+<span>async def <span class="ident">update_collection_list</span></span>(<span>self, request: UpdateCollectionListRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[UpdateCollectionListResponse]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_collection_list(
+    self,
+    request: UpdateCollectionListRequest,
+) -&gt; TaskResult[UpdateCollectionListResponse]:
+    &#34;&#34;&#34;Update a collection list.
+
+    Args:
+        request: Request parameters with list_id and updates
+
+    Returns:
+        TaskResult containing UpdateCollectionListResponse
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_collection_list&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.update_collection_list(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_collection_list&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, UpdateCollectionListResponse)</code></pre>
+</details>
+<div class="desc"><p>Update a collection list.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request parameters with list_id and updates</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing UpdateCollectionListResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.update_content_standards"><code class="name flex">
 <span>async def <span class="ident">update_content_standards</span></span>(<span>self, request: UpdateContentStandardsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[UpdateContentStandardsResponse1, UpdateContentStandardsResponse2]]</span>
@@ -6913,15 +7524,18 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.close" href="#adcp.client.ADCPClient.close">close</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.comply_test_controller" href="#adcp.client.ADCPClient.comply_test_controller">comply_test_controller</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.context_match" href="#adcp.client.ADCPClient.context_match">context_match</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.create_collection_list" href="#adcp.client.ADCPClient.create_collection_list">create_collection_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_content_standards" href="#adcp.client.ADCPClient.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_media_buy" href="#adcp.client.ADCPClient.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.create_property_list" href="#adcp.client.ADCPClient.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.delete_collection_list" href="#adcp.client.ADCPClient.delete_collection_list">delete_collection_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.delete_property_list" href="#adcp.client.ADCPClient.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.feature_resolver" href="#adcp.client.ADCPClient.feature_resolver">feature_resolver</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.fetch_capabilities" href="#adcp.client.ADCPClient.fetch_capabilities">fetch_capabilities</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_account_financials" href="#adcp.client.ADCPClient.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_adcp_capabilities" href="#adcp.client.ADCPClient.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_brand_identity" href="#adcp.client.ADCPClient.get_brand_identity">get_brand_identity</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.get_collection_list" href="#adcp.client.ADCPClient.get_collection_list">get_collection_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_content_standards" href="#adcp.client.ADCPClient.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_creative_delivery" href="#adcp.client.ADCPClient.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.get_creative_features" href="#adcp.client.ADCPClient.get_creative_features">get_creative_features</a></code></li>
@@ -6938,6 +7552,7 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.handle_webhook" href="#adcp.client.ADCPClient.handle_webhook">handle_webhook</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.identity_match" href="#adcp.client.ADCPClient.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_accounts" href="#adcp.client.ADCPClient.list_accounts">list_accounts</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.list_collection_lists" href="#adcp.client.ADCPClient.list_collection_lists">list_collection_lists</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_content_standards" href="#adcp.client.ADCPClient.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_creative_formats" href="#adcp.client.ADCPClient.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.list_creatives" href="#adcp.client.ADCPClient.list_creatives">list_creatives</a></code></li>
@@ -6960,7 +7575,9 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.sync_catalogs" href="#adcp.client.ADCPClient.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_creatives" href="#adcp.client.ADCPClient.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_event_sources" href="#adcp.client.ADCPClient.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.sync_governance" href="#adcp.client.ADCPClient.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.sync_plans" href="#adcp.client.ADCPClient.sync_plans">sync_plans</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.update_collection_list" href="#adcp.client.ADCPClient.update_collection_list">update_collection_list</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_content_standards" href="#adcp.client.ADCPClient.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_media_buy" href="#adcp.client.ADCPClient.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_property_list" href="#adcp.client.ADCPClient.update_property_list">update_property_list</a></code></li>

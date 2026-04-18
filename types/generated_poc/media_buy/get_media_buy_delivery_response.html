@@ -59,6 +59,10 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    impressions: Annotated[
+        float, Field(description=&#39;Total impressions delivered across all media buys&#39;, ge=0.0)
+    ]
+    spend: Annotated[float, Field(description=&#39;Total amount spent across all media buys&#39;, ge=0.0)]
     clicks: Annotated[
         float | None,
         Field(description=&#39;Total clicks across all media buys (if applicable)&#39;, ge=0.0),
@@ -70,21 +74,31 @@ el.replaceWith(d);
             ge=0.0,
         ),
     ] = None
-    completion_rate: Annotated[
+    views: Annotated[
+        float | None, Field(description=&#39;Total views across all media buys (if applicable)&#39;, ge=0.0)
+    ] = None
+    conversions: Annotated[
         float | None,
-        Field(
-            description=&#39;Aggregate completion rate across all media buys (weighted by impressions, not a simple average of per-buy rates)&#39;,
-            ge=0.0,
-            le=1.0,
-        ),
+        Field(description=&#39;Total conversions across all media buys (if applicable)&#39;, ge=0.0),
     ] = None
     conversion_value: Annotated[
         float | None,
         Field(description=&#39;Total conversion value across all media buys (if applicable)&#39;, ge=0.0),
     ] = None
-    conversions: Annotated[
+    roas: Annotated[
         float | None,
-        Field(description=&#39;Total conversions across all media buys (if applicable)&#39;, ge=0.0),
+        Field(
+            description=&#39;Aggregate return on ad spend across all media buys (total conversion_value / total spend)&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    new_to_brand_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fraction of total conversions across all media buys from first-time brand buyers (weighted by conversion volume, not a simple average of per-buy rates)&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
     ] = None
     cost_per_acquisition: Annotated[
         float | None,
@@ -93,23 +107,10 @@ el.replaceWith(d);
             ge=0.0,
         ),
     ] = None
-    frequency: Annotated[
+    completion_rate: Annotated[
         float | None,
         Field(
-            description=&#39;Average frequency per reach unit across all media buys (impressions / reach when cross-buy deduplication is available). Only present when reach is present.&#39;,
-            ge=0.0,
-        ),
-    ] = None
-    impressions: Annotated[
-        float, Field(description=&#39;Total impressions delivered across all media buys&#39;, ge=0.0)
-    ]
-    media_buy_count: Annotated[
-        int, Field(description=&#39;Number of media buys included in the response&#39;, ge=0)
-    ]
-    new_to_brand_rate: Annotated[
-        float | None,
-        Field(
-            description=&#39;Fraction of total conversions across all media buys from first-time brand buyers (weighted by conversion volume, not a simple average of per-buy rates)&#39;,
+            description=&#39;Aggregate completion rate across all media buys (weighted by impressions, not a simple average of per-buy rates)&#39;,
             ge=0.0,
             le=1.0,
         ),
@@ -127,17 +128,16 @@ el.replaceWith(d);
             description=&#39;Unit of measurement for reach. Only present when all aggregated media buys use the same reach_unit.&#39;
         ),
     ] = None
-    roas: Annotated[
+    frequency: Annotated[
         float | None,
         Field(
-            description=&#39;Aggregate return on ad spend across all media buys (total conversion_value / total spend)&#39;,
+            description=&#39;Average frequency per reach unit across all media buys (impressions / reach when cross-buy deduplication is available). Only present when reach is present.&#39;,
             ge=0.0,
         ),
     ] = None
-    spend: Annotated[float, Field(description=&#39;Total amount spent across all media buys&#39;, ge=0.0)]
-    views: Annotated[
-        float | None, Field(description=&#39;Total views across all media buys (if applicable)&#39;, ge=0.0)
-    ] = None</code></pre>
+    media_buy_count: Annotated[
+        int, Field(description=&#39;Number of media buys included in the response&#39;, ge=0)
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -248,15 +248,15 @@ validated to form a valid model.</p>
             description=&#34;Audience segment identifier. For &#39;synced&#39; source, matches audience_id from sync_audiences. For other sources, seller-defined.&#34;
         ),
     ]
-    audience_name: Annotated[
-        str | None, Field(description=&#39;Human-readable audience segment name&#39;)
-    ] = None
     audience_source: Annotated[
         audience_source_1.AudienceSource,
         Field(
             description=&#39;Origin of the audience segment (synced, platform, third_party, lookalike, retargeting, unknown)&#39;
         ),
     ]
+    audience_name: Annotated[
+        str | None, Field(description=&#39;Human-readable audience segment name&#39;)
+    ] = None
     impressions: Any
     spend: Any</code></pre>
 </details>
@@ -593,26 +593,26 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ByGeoItem(DeliveryMetrics):
+    geo_level: Annotated[
+        geo_level_1.GeographicTargetingLevel,
+        Field(description=&#39;Geographic level of this entry (country, region, metro, postal_area)&#39;),
+    ]
+    system: Annotated[
+        str | None,
+        Field(
+            description=&#34;Classification system for metro or postal_area levels (e.g., &#39;nielsen_dma&#39;, &#39;us_zip&#39;). Present when geo_level is &#39;metro&#39; or &#39;postal_area&#39;.&#34;
+        ),
+    ] = None
     geo_code: Annotated[
         str,
         Field(
             description=&#34;Geographic code within the level and system. Country: ISO 3166-1 alpha-2 (&#39;US&#39;). Region: ISO 3166-2 with country prefix (&#39;US-CA&#39;). Metro/postal: system-specific code (&#39;501&#39;, &#39;10001&#39;).&#34;
         ),
     ]
-    geo_level: Annotated[
-        geo_level_1.GeographicTargetingLevel,
-        Field(description=&#39;Geographic level of this entry (country, region, metro, postal_area)&#39;),
-    ]
     geo_name: Annotated[
         str | None,
         Field(
             description=&#34;Human-readable geographic name (e.g., &#39;United States&#39;, &#39;California&#39;, &#39;New York DMA&#39;)&#34;
-        ),
-    ] = None
-    system: Annotated[
-        str | None,
-        Field(
-            description=&#34;Classification system for metro or postal_area levels (e.g., &#39;nielsen_dma&#39;, &#39;us_zip&#39;). Present when geo_level is &#39;metro&#39; or &#39;postal_area&#39;.&#34;
         ),
     ] = None
     impressions: Any
@@ -751,110 +751,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ByPackageItem(DeliveryMetrics):
-    by_audience: Annotated[
-        list[ByAudienceItem] | None,
-        Field(
-            description=&#34;Delivery by audience segment within this package. Available when the buyer requests audience breakdown via reporting_dimensions and the seller supports it. Only &#39;synced&#39; audiences are directly targetable via the targeting overlay; other sources are informational.&#34;
-        ),
-    ] = None
-    by_audience_truncated: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether by_audience was truncated. Sellers MUST return this flag whenever by_audience is present (false means the list is complete).&#39;
-        ),
-    ] = None
-    by_catalog_item: Annotated[
-        list[ByCatalogItemItem] | None,
-        Field(
-            description=&#39;Delivery by catalog item within this package. Available for catalog-driven packages when the seller supports item-level reporting.&#39;
-        ),
-    ] = None
-    by_creative: Annotated[
-        list[ByCreativeItem] | None,
-        Field(
-            description=&#39;Metrics broken down by creative within this package. Available when the seller supports creative-level reporting.&#39;
-        ),
-    ] = None
-    by_device_platform: Annotated[
-        list[ByDevicePlatformItem] | None,
-        Field(
-            description=&#39;Delivery by operating system within this package. Available when the buyer requests device_platform breakdown via reporting_dimensions and the seller supports it. Useful for CTV campaigns where tvOS vs Roku OS vs Fire OS matters.&#39;
-        ),
-    ] = None
-    by_device_platform_truncated: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether by_device_platform was truncated. Sellers MUST return this flag whenever by_device_platform is present (false means the list is complete).&#39;
-        ),
-    ] = None
-    by_device_type: Annotated[
-        list[ByDeviceTypeItem] | None,
-        Field(
-            description=&#39;Delivery by device form factor within this package. Available when the buyer requests device_type breakdown via reporting_dimensions and the seller supports it.&#39;
-        ),
-    ] = None
-    by_device_type_truncated: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether by_device_type was truncated. Sellers MUST return this flag whenever by_device_type is present (false means the list is complete).&#39;
-        ),
-    ] = None
-    by_geo: Annotated[
-        list[ByGeoItem] | None,
-        Field(
-            description=&#34;Delivery by geographic area within this package. Available when the buyer requests geo breakdown via reporting_dimensions and the seller supports it. Each dimension&#39;s rows are independent slices that should sum to the package total.&#34;
-        ),
-    ] = None
-    by_geo_truncated: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether by_geo was truncated due to the requested limit or a seller-imposed maximum. Sellers MUST return this flag whenever by_geo is present (false means the list is complete).&#39;
-        ),
-    ] = None
-    by_keyword: Annotated[
-        list[ByKeywordItem] | None,
-        Field(
-            description=&#39;Metrics broken down by keyword within this package. One row per (keyword, match_type) pair — the same keyword with different match types appears as separate rows. Keyword-grain only: rows reflect aggregate performance of each targeted keyword, not individual search queries. Rows may not sum to package totals when a single impression is attributed to the triggering keyword only. Available for search and retail media packages when the seller supports keyword-level reporting.&#39;
-        ),
-    ] = None
-    by_placement: Annotated[
-        list[ByPlacementItem] | None,
-        Field(
-            description=&#34;Delivery by placement within this package. Available when the buyer requests placement breakdown via reporting_dimensions and the seller supports it. Placement IDs reference the product&#39;s placements array.&#34;
-        ),
-    ] = None
-    by_placement_truncated: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether by_placement was truncated. Sellers MUST return this flag whenever by_placement is present (false means the list is complete).&#39;
-        ),
-    ] = None
-    currency: Annotated[
-        str,
-        Field(
-            description=&#34;ISO 4217 currency code (e.g., USD, EUR, GBP) for this package&#39;s pricing. Indicates the currency in which the rate and spend values are denominated. Different packages can use different currencies when supported by the publisher.&#34;,
-            pattern=&#39;^[A-Z]{3}$&#39;,
-        ),
-    ]
-    daily_breakdown: Annotated[
-        list[DailyBreakdownItem] | None,
-        Field(
-            description=&#39;Day-by-day delivery for this package. Only present when include_package_daily_breakdown is true in the request. Enables per-package pacing analysis and line-item monitoring.&#39;
-        ),
-    ] = None
-    delivery_status: Annotated[
-        DeliveryStatus | None,
-        Field(
-            description=&#39;System-reported operational state of this package. Reflects actual delivery state independent of buyer pause control.&#39;
-        ),
-    ] = None
+    package_id: Annotated[str, Field(description=&#34;Seller&#39;s package identifier&#34;)]
     pacing_index: Annotated[
         float | None,
         Field(description=&#39;Delivery pace (1.0 = on track, &lt;1.0 = behind, &gt;1.0 = ahead)&#39;, ge=0.0),
-    ] = None
-    package_id: Annotated[str, Field(description=&#34;Seller&#39;s package identifier&#34;)]
-    paused: Annotated[
-        bool | None, Field(description=&#39;Whether this package is currently paused by the buyer&#39;)
     ] = None
     pricing_model: Annotated[
         pricing_model_1.PricingModel,
@@ -869,6 +769,128 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ]
+    currency: Annotated[
+        str,
+        Field(
+            description=&#34;ISO 4217 currency code (e.g., USD, EUR, GBP) for this package&#39;s pricing. Indicates the currency in which the rate and spend values are denominated. Different packages can use different currencies when supported by the publisher.&#34;,
+            pattern=&#39;^[A-Z]{3}$&#39;,
+        ),
+    ]
+    delivery_status: Annotated[
+        DeliveryStatus | None,
+        Field(
+            description=&#39;System-reported operational state of this package. Reflects actual delivery state independent of buyer pause control.&#39;
+        ),
+    ] = None
+    paused: Annotated[
+        bool | None, Field(description=&#39;Whether this package is currently paused by the buyer&#39;)
+    ] = None
+    is_final: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this delivery data is final for the reporting period. When false, the data may be updated as measurement matures (e.g., broadcast C7 window accumulating DVR playback) or as processing completes (e.g., IVT filtering, deduplication). When true, the seller considers this data closed — no further updates for this period. Absent means the seller does not distinguish provisional from final data.&#39;
+        ),
+    ] = None
+    measurement_window: Annotated[
+        str | None,
+        Field(
+            description=&#34;Which measurement window this data represents, referencing a window_id from the product&#39;s reporting_capabilities.measurement_windows. For broadcast: &#39;live&#39;, &#39;c3&#39;, &#39;c7&#39;. When absent, the data is not windowed (standard digital reporting). When present with is_final: false, a later report for the same period will provide a wider window or more complete data.&#34;,
+            examples=[&#39;live&#39;, &#39;c3&#39;, &#39;c7&#39;],
+            max_length=50,
+        ),
+    ] = None
+    supersedes_window: Annotated[
+        str | None,
+        Field(
+            description=&#34;Which measurement window this data replaces. Present on window_update notifications to indicate progression (e.g., &#39;live&#39; when reporting C3 data that supersedes live-only numbers). Absent on the first report for a period. Buyers should replace stored data for the superseded window with this report&#39;s data.&#34;,
+            examples=[&#39;live&#39;, &#39;c3&#39;],
+            max_length=50,
+        ),
+    ] = None
+    by_catalog_item: Annotated[
+        list[ByCatalogItemItem] | None,
+        Field(
+            description=&#39;Delivery by catalog item within this package. Available for catalog-driven packages when the seller supports item-level reporting.&#39;
+        ),
+    ] = None
+    by_creative: Annotated[
+        list[ByCreativeItem] | None,
+        Field(
+            description=&#39;Metrics broken down by creative within this package. Available when the seller supports creative-level reporting.&#39;
+        ),
+    ] = None
+    by_keyword: Annotated[
+        list[ByKeywordItem] | None,
+        Field(
+            description=&#39;Metrics broken down by keyword within this package. One row per (keyword, match_type) pair — the same keyword with different match types appears as separate rows. Keyword-grain only: rows reflect aggregate performance of each targeted keyword, not individual search queries. Rows may not sum to package totals when a single impression is attributed to the triggering keyword only. Available for search and retail media packages when the seller supports keyword-level reporting.&#39;
+        ),
+    ] = None
+    by_geo: Annotated[
+        list[ByGeoItem] | None,
+        Field(
+            description=&#34;Delivery by geographic area within this package. Available when the buyer requests geo breakdown via reporting_dimensions and the seller supports it. Each dimension&#39;s rows are independent slices that should sum to the package total.&#34;
+        ),
+    ] = None
+    by_geo_truncated: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether by_geo was truncated due to the requested limit or a seller-imposed maximum. Sellers MUST return this flag whenever by_geo is present (false means the list is complete).&#39;
+        ),
+    ] = None
+    by_device_type: Annotated[
+        list[ByDeviceTypeItem] | None,
+        Field(
+            description=&#39;Delivery by device form factor within this package. Available when the buyer requests device_type breakdown via reporting_dimensions and the seller supports it.&#39;
+        ),
+    ] = None
+    by_device_type_truncated: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether by_device_type was truncated. Sellers MUST return this flag whenever by_device_type is present (false means the list is complete).&#39;
+        ),
+    ] = None
+    by_device_platform: Annotated[
+        list[ByDevicePlatformItem] | None,
+        Field(
+            description=&#39;Delivery by operating system within this package. Available when the buyer requests device_platform breakdown via reporting_dimensions and the seller supports it. Useful for CTV campaigns where tvOS vs Roku OS vs Fire OS matters.&#39;
+        ),
+    ] = None
+    by_device_platform_truncated: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether by_device_platform was truncated. Sellers MUST return this flag whenever by_device_platform is present (false means the list is complete).&#39;
+        ),
+    ] = None
+    by_audience: Annotated[
+        list[ByAudienceItem] | None,
+        Field(
+            description=&#34;Delivery by audience segment within this package. Available when the buyer requests audience breakdown via reporting_dimensions and the seller supports it. Only &#39;synced&#39; audiences are directly targetable via the targeting overlay; other sources are informational.&#34;
+        ),
+    ] = None
+    by_audience_truncated: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether by_audience was truncated. Sellers MUST return this flag whenever by_audience is present (false means the list is complete).&#39;
+        ),
+    ] = None
+    by_placement: Annotated[
+        list[ByPlacementItem] | None,
+        Field(
+            description=&#34;Delivery by placement within this package. Available when the buyer requests placement breakdown via reporting_dimensions and the seller supports it. Placement IDs reference the product&#39;s placements array.&#34;
+        ),
+    ] = None
+    by_placement_truncated: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether by_placement was truncated. Sellers MUST return this flag whenever by_placement is present (false means the list is complete).&#39;
+        ),
+    ] = None
+    daily_breakdown: Annotated[
+        list[DailyBreakdownItem] | None,
+        Field(
+            description=&#39;Day-by-day delivery for this package. Only present when include_package_daily_breakdown is true in the request. Enables per-package pacing analysis and line-item monitoring.&#39;
+        ),
+    ] = None
     spend: Any</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -953,6 +975,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.is_final"><code class="name">var <span class="ident">is_final</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.measurement_window"><code class="name">var <span class="ident">measurement_window</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -978,6 +1008,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.spend"><code class="name">var <span class="ident">spend</span> : Any</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.supersedes_window"><code class="name">var <span class="ident">supersedes_window</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1073,14 +1107,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    conversion_value: Annotated[
-        float | None, Field(description=&#39;Daily conversion value for this package&#39;, ge=0.0)
-    ] = None
+    date: Annotated[str, Field(description=&#39;Date (YYYY-MM-DD)&#39;, pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;)]
+    impressions: Annotated[float, Field(description=&#39;Daily impressions for this package&#39;, ge=0.0)]
+    spend: Annotated[float, Field(description=&#39;Daily spend for this package&#39;, ge=0.0)]
     conversions: Annotated[
         float | None, Field(description=&#39;Daily conversions for this package&#39;, ge=0.0)
     ] = None
-    date: Annotated[str, Field(description=&#39;Date (YYYY-MM-DD)&#39;, pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;)]
-    impressions: Annotated[float, Field(description=&#39;Daily impressions for this package&#39;, ge=0.0)]
+    conversion_value: Annotated[
+        float | None, Field(description=&#39;Daily conversion value for this package&#39;, ge=0.0)
+    ] = None
+    roas: Annotated[
+        float | None,
+        Field(description=&#39;Daily return on ad spend (conversion_value / spend)&#39;, ge=0.0),
+    ] = None
     new_to_brand_rate: Annotated[
         float | None,
         Field(
@@ -1088,12 +1127,7 @@ validated to form a valid model.</p>
             ge=0.0,
             le=1.0,
         ),
-    ] = None
-    roas: Annotated[
-        float | None,
-        Field(description=&#39;Daily return on ad spend (conversion_value / spend)&#39;, ge=0.0),
-    ] = None
-    spend: Annotated[float, Field(description=&#39;Daily spend for this package&#39;, ge=0.0)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1169,12 +1203,17 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    date: Annotated[str, Field(description=&#39;Date (YYYY-MM-DD)&#39;, pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;)]
+    impressions: Annotated[float, Field(description=&#39;Daily impressions&#39;, ge=0.0)]
+    spend: Annotated[float, Field(description=&#39;Daily spend&#39;, ge=0.0)]
+    conversions: Annotated[float | None, Field(description=&#39;Daily conversions&#39;, ge=0.0)] = None
     conversion_value: Annotated[
         float | None, Field(description=&#39;Daily conversion value&#39;, ge=0.0)
     ] = None
-    conversions: Annotated[float | None, Field(description=&#39;Daily conversions&#39;, ge=0.0)] = None
-    date: Annotated[str, Field(description=&#39;Date (YYYY-MM-DD)&#39;, pattern=&#39;^\\d{4}-\\d{2}-\\d{2}$&#39;)]
-    impressions: Annotated[float, Field(description=&#39;Daily impressions&#39;, ge=0.0)]
+    roas: Annotated[
+        float | None,
+        Field(description=&#39;Daily return on ad spend (conversion_value / spend)&#39;, ge=0.0),
+    ] = None
     new_to_brand_rate: Annotated[
         float | None,
         Field(
@@ -1182,12 +1221,7 @@ validated to form a valid model.</p>
             ge=0.0,
             le=1.0,
         ),
-    ] = None
-    roas: Annotated[
-        float | None,
-        Field(description=&#39;Daily return on ad spend (conversion_value / spend)&#39;, ge=0.0),
-    ] = None
-    spend: Annotated[float, Field(description=&#39;Daily spend&#39;, ge=0.0)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1342,43 +1376,10 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    aggregated_totals: Annotated[
-        AggregatedTotals | None,
-        Field(
-            description=&#39;Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.&#39;
-        ),
-    ] = None
-    attribution_window: Annotated[
-        attribution_window_1.AttributionWindow | None,
-        Field(
-            description=&#39;Attribution methodology and lookback windows used for conversion metrics in this response. All media buys from a single seller share the same attribution methodology. Enables cross-platform comparison (e.g., Amazon 14-day click vs. Criteo 30-day click).&#39;
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(
-            description=&#39;Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    media_buy_deliveries: Annotated[
-        list[MediaBuyDelivery],
-        Field(
-            description=&#39;Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.&#39;
-        ),
-    ]
-    next_expected_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#34;ISO 8601 timestamp for next expected notification (only present in webhook deliveries when notification_type is not &#39;final&#39;)&#34;
-        ),
-    ] = None
     notification_type: Annotated[
         NotificationType | None,
         Field(
-            description=&#39;Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with updated data&#39;
+            description=&#39;Type of webhook notification (only present in webhook deliveries): scheduled = regular periodic update, final = campaign completed, delayed = data not yet available, adjusted = resending period with corrected data (same window), window_update = resending period with a wider measurement window (e.g., C3 superseding live, C7 superseding C3)&#39;
         ),
     ] = None
     partial_data: Annotated[
@@ -1387,13 +1388,12 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Indicates if any media buys in this webhook have missing/delayed data (only present in webhook deliveries)&#39;
         ),
     ] = None
-    reporting_period: Annotated[
-        ReportingPeriod,
-        Field(description=&#39;Date range for the report. All periods use UTC timezone.&#39;),
-    ]
-    sandbox: Annotated[
-        bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    unavailable_count: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)&#39;,
+            ge=0,
+        ),
     ] = None
     sequence_number: Annotated[
         int | None,
@@ -1402,13 +1402,47 @@ attributes &ndash; see the documentation for details.</p></div>
             ge=1,
         ),
     ] = None
-    unavailable_count: Annotated[
-        int | None,
+    next_expected_at: Annotated[
+        AwareDatetime | None,
         Field(
-            description=&#39;Number of media buys with reporting_delayed or failed status (only present in webhook deliveries when partial_data is true)&#39;,
-            ge=0,
+            description=&#34;ISO 8601 timestamp for next expected notification (only present in webhook deliveries when notification_type is not &#39;final&#39;)&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    reporting_period: Annotated[
+        ReportingPeriod,
+        Field(description=&#39;Date range for the report. All periods use UTC timezone.&#39;),
+    ]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    attribution_window: Annotated[
+        attribution_window_1.AttributionWindow | None,
+        Field(
+            description=&#39;Attribution methodology and lookback windows used for conversion metrics in this response. All media buys from a single seller share the same attribution methodology. Enables cross-platform comparison (e.g., Amazon 14-day click vs. Criteo 30-day click).&#39;
+        ),
+    ] = None
+    aggregated_totals: Annotated[
+        AggregatedTotals | None,
+        Field(
+            description=&#39;Combined metrics across all returned media buys. Only included in API responses (get_media_buy_delivery), not in webhook notifications.&#39;
+        ),
+    ] = None
+    media_buy_deliveries: Annotated[
+        list[MediaBuyDelivery],
+        Field(
+            description=&#39;Array of delivery data for media buys. When used in webhook notifications, may contain multiple media buys aggregated by publisher. When used in get_media_buy_delivery API responses, typically contains requested media buys.&#39;
+        ),
+    ]
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(
+            description=&#39;Task-specific errors and warnings (e.g., missing delivery data, reporting platform issues)&#39;
+        ),
+    ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1581,10 +1615,13 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    by_package: Annotated[list[ByPackageItem], Field(description=&#39;Metrics broken down by package&#39;)]
-    daily_breakdown: Annotated[
-        list[DailyBreakdownItem1] | None, Field(description=&#39;Day-by-day delivery&#39;)
-    ] = None
+    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s media buy identifier&#34;)]
+    status: Annotated[
+        Status,
+        Field(
+            description=&#39;Current media buy status. Lifecycle states use the same taxonomy as media-buy-status (`pending_creatives`, `pending_start`, `active`, `paused`, `completed`, `rejected`, `canceled`). In webhook context, reporting_delayed indicates data temporarily unavailable. `pending` is accepted as a legacy alias for pending_start.&#39;
+        ),
+    ]
     expected_availability: Annotated[
         AwareDatetime | None,
         Field(
@@ -1597,18 +1634,15 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Indicates this delivery contains updated data for a previously reported period. Buyer should replace previous period data with these totals.&#39;
         ),
     ] = None
-    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s media buy identifier&#34;)]
     pricing_model: Annotated[
         pricing_model_1.PricingModel | None,
         Field(description=&#39;Pricing model used for this media buy&#39;),
     ] = None
-    status: Annotated[
-        Status,
-        Field(
-            description=&#39;Current media buy status. Lifecycle states use the same taxonomy as media-buy-status (`pending_activation`, `active`, `paused`, `completed`, `rejected`, `canceled`). In webhook context, reporting_delayed indicates data temporarily unavailable. `pending` is accepted as a legacy alias for pending_activation.&#39;
-        ),
-    ]
-    totals: Totals</code></pre>
+    totals: Totals
+    by_package: Annotated[list[ByPackageItem], Field(description=&#39;Metrics broken down by package&#39;)]
+    daily_breakdown: Annotated[
+        list[DailyBreakdownItem1] | None, Field(description=&#39;Day-by-day delivery&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1688,7 +1722,8 @@ validated to form a valid model.</p>
     scheduled = &#39;scheduled&#39;
     final = &#39;final&#39;
     delayed = &#39;delayed&#39;
-    adjusted = &#39;adjusted&#39;</code></pre>
+    adjusted = &#39;adjusted&#39;
+    window_update = &#39;window_update&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1747,6 +1782,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.window_update"><code class="name">var <span class="ident">window_update</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ReportingPeriod"><code class="flex name class">
@@ -1762,13 +1801,13 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    end: Annotated[
-        AwareDatetime,
-        Field(description=&#39;ISO 8601 end timestamp in UTC (e.g., 2024-02-05T23:59:59Z)&#39;),
-    ]
     start: Annotated[
         AwareDatetime,
         Field(description=&#39;ISO 8601 start timestamp in UTC (e.g., 2024-02-05T00:00:00Z)&#39;),
+    ]
+    end: Annotated[
+        AwareDatetime,
+        Field(description=&#39;ISO 8601 end timestamp in UTC (e.g., 2024-02-05T23:59:59Z)&#39;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1822,7 +1861,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    pending_activation = &#39;pending_activation&#39;
+    pending_creatives = &#39;pending_creatives&#39;
+    pending_start = &#39;pending_start&#39;
     pending = &#39;pending&#39;
     active = &#39;active&#39;
     paused = &#39;paused&#39;
@@ -1897,7 +1937,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_activation"><code class="name">var <span class="ident">pending_activation</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_creatives"><code class="name">var <span class="ident">pending_creatives</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_start"><code class="name">var <span class="ident">pending_start</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2098,6 +2142,8 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.currency" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.daily_breakdown" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.daily_breakdown">daily_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.delivery_status" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.delivery_status">delivery_status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.is_final" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.is_final">is_final</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.measurement_window" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.measurement_window">measurement_window</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.pacing_index" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.pacing_index">pacing_index</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.package_id" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.package_id">package_id</a></code></li>
@@ -2105,6 +2151,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.pricing_model" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.pricing_model">pricing_model</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.rate" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.rate">rate</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.spend" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.spend">spend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.supersedes_window" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.ByPackageItem.supersedes_window">supersedes_window</a></code></li>
 </ul>
 </li>
 <li>
@@ -2202,6 +2249,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.delayed" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.delayed">delayed</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.final" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.final">final</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.scheduled" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.scheduled">scheduled</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.window_update" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.NotificationType.window_update">window_update</a></code></li>
 </ul>
 </li>
 <li>
@@ -2221,7 +2269,8 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.failed" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.failed">failed</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.paused" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.paused">paused</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending">pending</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_activation" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_activation">pending_activation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_creatives" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_creatives">pending_creatives</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_start" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.pending_start">pending_start</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.rejected" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.rejected">rejected</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.reporting_delayed" href="#adcp.types.generated_poc.media_buy.get_media_buy_delivery_response.Status.reporting_delayed">reporting_delayed</a></code></li>
 </ul>

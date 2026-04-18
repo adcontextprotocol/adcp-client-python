@@ -59,19 +59,27 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
     channels: Annotated[
         list[channels_1.MediaChannel] | None, Field(description=&#39;Filter by channel&#39;, min_length=1)
     ] = None
-    context: context_1.ContextObject | None = None
+    languages: Annotated[
+        list[str] | None, Field(description=&#39;Filter by BCP 47 language tags&#39;, min_length=1)
+    ] = None
     countries: Annotated[
         list[str] | None,
         Field(description=&#39;Filter by ISO 3166-1 alpha-2 country codes&#39;, min_length=1),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    languages: Annotated[
-        list[str] | None, Field(description=&#39;Filter by BCP 47 language tags&#39;, min_length=1)
-    ] = None
-    pagination: pagination_request.PaginationRequest | None = None</code></pre>
+    pagination: pagination_request.PaginationRequest | None = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -90,6 +98,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.channels"><code class="name">var <span class="ident">channels</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -148,6 +160,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest">ListContentStandardsRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.adcp_major_version" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.channels" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.channels">channels</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.context" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.countries" href="#adcp.types.generated_poc.content_standards.list_content_standards_request.ListContentStandardsRequest.countries">countries</a></code></li>

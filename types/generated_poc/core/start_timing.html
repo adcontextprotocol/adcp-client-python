@@ -55,9 +55,9 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class StartTiming(RootModel[str | AwareDatetime]):
+<pre><code class="python">class StartTiming(RootModel[Literal[&#39;asap&#39;] | AwareDatetime]):
     root: Annotated[
-        str | AwareDatetime,
+        Literal[&#39;asap&#39;] | AwareDatetime,
         Field(
             description=&#34;Campaign start timing: &#39;asap&#39; or ISO 8601 date-time&#34;, title=&#39;Start Timing&#39;
         ),
@@ -91,7 +91,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[str, AwareDatetime]]</li>
+<li>pydantic.root_model.RootModel[Union[Literal['asap'], AwareDatetime]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
@@ -102,7 +102,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.start_timing.StartTiming.root"><code class="name">var <span class="ident">root</span> : str | pydantic.types.AwareDatetime</code></dt>
+<dt id="adcp.types.generated_poc.core.start_timing.StartTiming.root"><code class="name">var <span class="ident">root</span> : Literal['asap'] | pydantic.types.AwareDatetime</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

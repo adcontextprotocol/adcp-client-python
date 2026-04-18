@@ -130,8 +130,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    artifacts: Annotated[
-        list[Artifact], Field(description=&#39;Content artifacts from delivered impressions&#39;)
+    media_buy_id: Annotated[
+        str, Field(description=&#39;Media buy identifier these artifacts belong to&#39;)
     ]
     batch_id: Annotated[
         str,
@@ -139,16 +139,16 @@ validated to form a valid model.</p>
             description=&#39;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#39;
         ),
     ]
-    ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[
-        str, Field(description=&#39;Media buy identifier these artifacts belong to&#39;)
+    timestamp: Annotated[
+        AwareDatetime, Field(description=&#39;When this batch was generated (ISO 8601)&#39;)
+    ]
+    artifacts: Annotated[
+        list[Artifact], Field(description=&#39;Content artifacts from delivered impressions&#39;)
     ]
     pagination: Annotated[
         Pagination | None, Field(description=&#39;Pagination info when batching large artifact sets&#39;)
     ] = None
-    timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;When this batch was generated (ISO 8601)&#39;)
-    ]</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -217,12 +217,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
-    batch_number: Annotated[int | None, Field(description=&#39;Current batch number (1-indexed)&#39;)] = (
-        None
-    )
     total_artifacts: Annotated[
         int | None, Field(description=&#39;Total artifacts in the delivery period&#39;)
     ] = None
+    batch_number: Annotated[int | None, Field(description=&#39;Current batch number (1-indexed)&#39;)] = (
+        None
+    )
     total_batches: Annotated[
         int | None, Field(description=&#39;Total batches for this delivery period&#39;)
     ] = None</code></pre>

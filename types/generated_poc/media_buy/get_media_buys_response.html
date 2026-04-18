@@ -114,8 +114,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1"><code class="flex name class">
-<span>class <span class="ident">Cancellation1</span></span>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2"><code class="flex name class">
+<span>class <span class="ident">Cancellation2</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -123,7 +123,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Cancellation1(AdCPBaseModel):
+<pre><code class="python">class Cancellation2(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
@@ -155,19 +155,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.canceled_at"><code class="name">var <span class="ident">canceled_at</span> : pydantic.types.AwareDatetime</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.canceled_at"><code class="name">var <span class="ident">canceled_at</span> : pydantic.types.AwareDatetime</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.canceled_by"><code class="name">var <span class="ident">canceled_by</span> : <a title="adcp.types.generated_poc.enums.canceled_by.CanceledBy" href="../enums/canceled_by.html#adcp.types.generated_poc.enums.canceled_by.CanceledBy">CanceledBy</a></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.canceled_by"><code class="name">var <span class="ident">canceled_by</span> : <a title="adcp.types.generated_poc.enums.canceled_by.CanceledBy" href="../enums/canceled_by.html#adcp.types.generated_poc.enums.canceled_by.CanceledBy">CanceledBy</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.reason"><code class="name">var <span class="ident">reason</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.reason"><code class="name">var <span class="ident">reason</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -196,8 +196,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    approval_status: creative_approval_status.CreativeApprovalStatus
     creative_id: Annotated[str, Field(description=&#39;Creative identifier&#39;)]
+    approval_status: creative_approval_status.CreativeApprovalStatus
     rejection_reason: Annotated[
         str | None,
         Field(
@@ -347,18 +347,16 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(description=&#39;Task-specific errors (e.g., media buy not found)&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     media_buys: Annotated[
         list[MediaBuy],
         Field(
             description=&#39;Array of media buys with status, creative approval state, and optional delivery snapshots&#39;
         ),
     ]
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(description=&#39;Task-specific errors (e.g., media buy not found)&#39;),
+    ] = None
     pagination: Annotated[
         pagination_response.PaginationResponse | None,
         Field(description=&#39;Pagination metadata for the media_buys array.&#39;),
@@ -366,7 +364,9 @@ attributes &ndash; see the documentation for details.</p></div>
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -438,25 +438,21 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    action: Annotated[
-        str,
-        Field(
-            description=&#39;What happened. Standard actions: created, activated, paused, resumed, canceled, rejected, completed, updated_budget, updated_dates, updated_packages, package_canceled, package_paused, package_resumed. Sellers MAY use additional platform-specific actions (e.g., creative_approved, targeting_updated) — use ext on the history entry for structured metadata about custom actions.&#39;
-        ),
+    revision: Annotated[
+        int, Field(description=&#39;Revision number after this change was applied.&#39;, ge=1)
     ]
+    timestamp: Annotated[AwareDatetime, Field(description=&#39;When this change occurred.&#39;)]
     actor: Annotated[
         str | None,
         Field(
             description=&#39;Identity of who made the change — derived from authentication context, not caller-provided. Format is seller-defined (e.g., agent URL, user email, API key label).&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    package_id: Annotated[
-        str | None,
-        Field(description=&#39;Package affected, when the change targeted a specific package.&#39;),
-    ] = None
-    revision: Annotated[
-        int, Field(description=&#39;Revision number after this change was applied.&#39;, ge=1)
+    action: Annotated[
+        str,
+        Field(
+            description=&#39;What happened. Standard actions: created, activated, paused, resumed, canceled, rejected, completed, updated_budget, updated_dates, updated_packages, package_canceled, package_paused, package_resumed. Sellers MAY use additional platform-specific actions (e.g., creative_approved, targeting_updated) — use ext on the history entry for structured metadata about custom actions.&#39;
+        ),
     ]
     summary: Annotated[
         str | None,
@@ -465,7 +461,11 @@ validated to form a valid model.</p>
             max_length=500,
         ),
     ] = None
-    timestamp: Annotated[AwareDatetime, Field(description=&#39;When this change occurred.&#39;)]</code></pre>
+    package_id: Annotated[
+        str | None,
+        Field(description=&#39;Package affected, when the change targeted a specific package.&#39;),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -541,42 +541,9 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s unique identifier for the media buy&#34;)]
     account: Annotated[
         account_1.Account | None, Field(description=&#39;Account billed for this media buy&#39;)
-    ] = None
-    cancellation: Annotated[
-        Cancellation | None,
-        Field(description=&#34;Cancellation metadata. Present only when status is &#39;canceled&#39;.&#34;),
-    ] = None
-    confirmed_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 timestamp when the seller confirmed this media buy. A successful create_media_buy response constitutes order confirmation.&#39;
-        ),
-    ] = None
-    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
-    creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
-    ] = None
-    currency: Annotated[
-        str,
-        Field(
-            description=&#39;ISO 4217 currency code (e.g., USD, EUR, GBP) for monetary values at this media buy level. total_budget is always denominated in this currency. Package-level fields may override with package.currency.&#39;,
-            pattern=&#39;^[A-Z]{3}$&#39;,
-        ),
-    ]
-    end_time: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 flight end time for this media buy (latest package end_time). Avoids requiring buyers to compute max(packages[].end_time).&#39;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    history: Annotated[
-        list[HistoryItem] | None,
-        Field(
-            description=&#39;Revision history entries, most recent first. Only present when include_history &gt; 0 in the request. Each entry represents a state change or update to the media buy. Entries are append-only: sellers MUST NOT modify or delete previously emitted history entries. Callers MAY cache entries by revision number. Returns min(N, available entries) when include_history exceeds the total.&#39;
-        ),
     ] = None
     invoice_recipient: Annotated[
         business_entity.BusinessEntity | None,
@@ -584,27 +551,14 @@ validated to form a valid model.</p>
             description=&#39;Per-buy invoice recipient when provided at creation. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#39;
         ),
     ] = None
-    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s unique identifier for the media buy&#34;)]
-    packages: Annotated[
-        list[Package],
+    status: media_buy_status.MediaBuyStatus
+    currency: Annotated[
+        str,
         Field(
-            description=&#39;Packages within this media buy, augmented with creative approval status and optional delivery snapshots&#39;
+            description=&#39;ISO 4217 currency code (e.g., USD, EUR, GBP) for monetary values at this media buy level. total_budget is always denominated in this currency. Package-level fields may override with package.currency.&#39;,
+            pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
-    revision: Annotated[
-        int | None,
-        Field(
-            description=&#39;Current revision number. Pass this in update_media_buy for optimistic concurrency.&#39;,
-            ge=1,
-        ),
-    ] = None
-    start_time: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 flight start time for this media buy (earliest package start_time). Avoids requiring buyers to compute min(packages[].start_time).&#39;
-        ),
-    ] = None
-    status: media_buy_status.MediaBuyStatus
     total_budget: Annotated[
         float,
         Field(
@@ -612,13 +566,59 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ]
+    start_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 flight start time for this media buy (earliest package start_time). Avoids requiring buyers to compute min(packages[].start_time).&#39;
+        ),
+    ] = None
+    end_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 flight end time for this media buy (latest package end_time). Avoids requiring buyers to compute max(packages[].end_time).&#39;
+        ),
+    ] = None
+    creative_deadline: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+    ] = None
+    confirmed_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when the seller confirmed this media buy. A successful create_media_buy response constitutes order confirmation.&#39;
+        ),
+    ] = None
+    cancellation: Annotated[
+        Cancellation | None,
+        Field(description=&#34;Cancellation metadata. Present only when status is &#39;canceled&#39;.&#34;),
+    ] = None
+    revision: Annotated[
+        int | None,
+        Field(
+            description=&#39;Current revision number. Pass this in update_media_buy for optimistic concurrency.&#39;,
+            ge=1,
+        ),
+    ] = None
+    created_at: Annotated[AwareDatetime | None, Field(description=&#39;Creation timestamp&#39;)] = None
     updated_at: Annotated[AwareDatetime | None, Field(description=&#39;Last update timestamp&#39;)] = None
     valid_actions: Annotated[
         list[ValidAction] | None,
         Field(
             description=&#39;Actions the buyer can perform on this media buy in its current state. Eliminates the need for agents to internalize the state machine — the seller declares what is permitted right now.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    history: Annotated[
+        list[HistoryItem] | None,
+        Field(
+            description=&#39;Revision history entries, most recent first. Only present when include_history &gt; 0 in the request. Each entry represents a state change or update to the media buy. Entries are append-only: sellers MUST NOT modify or delete previously emitted history entries. Callers MAY cache entries by revision number. Returns min(N, available entries) when include_history exceeds the total.&#39;
+        ),
+    ] = None
+    packages: Annotated[
+        list[Package],
+        Field(
+            description=&#39;Packages within this media buy, augmented with creative approval status and optional delivery snapshots&#39;
+        ),
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -738,40 +738,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    bid_price: Annotated[
-        float | None,
-        Field(
-            description=&#39;Current bid price for auction-based packages. Denominated in package.currency when present, otherwise media_buy.currency. Relevant for automated price optimization loops.&#39;,
-            ge=0.0,
-        ),
+    package_id: Annotated[str, Field(description=&#34;Seller&#39;s package identifier&#34;)]
+    product_id: Annotated[
+        str | None, Field(description=&#39;Product identifier this package is purchased from&#39;)
     ] = None
     budget: Annotated[
         float | None,
         Field(
             description=&#39;Package budget amount, denominated in package.currency when present, otherwise media_buy.currency&#39;,
             ge=0.0,
-        ),
-    ] = None
-    canceled: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether this package has been canceled. Canceled packages stop delivery and cannot be reactivated.&#39;
-        ),
-    ] = None
-    cancellation: Annotated[
-        Cancellation1 | None,
-        Field(description=&#39;Cancellation metadata. Present only when canceled is true.&#39;),
-    ] = None
-    creative_approvals: Annotated[
-        list[CreativeApproval] | None,
-        Field(
-            description=&#39;Approval status for each creative assigned to this package. Absent when no creatives have been assigned.&#39;
-        ),
-    ] = None
-    creative_deadline: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#34;ISO 8601 timestamp for creative upload or change deadline for this package. After this deadline, creative changes are rejected. When absent, the media buy&#39;s creative_deadline applies.&#34;
         ),
     ] = None
     currency: Annotated[
@@ -781,31 +756,55 @@ validated to form a valid model.</p>
             pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ] = None
-    end_time: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 flight end time for this package&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    format_ids_pending: Annotated[
-        list[format_id.FormatId] | None,
+    bid_price: Annotated[
+        float | None,
         Field(
-            description=&#39;Format IDs from the original create_media_buy format_ids_to_provide that have not yet been uploaded via sync_creatives. When empty or absent, all required formats have been provided.&#39;
+            description=&#39;Current bid price for auction-based packages. Denominated in package.currency when present, otherwise media_buy.currency. Relevant for automated price optimization loops.&#39;,
+            ge=0.0,
         ),
     ] = None
     impressions: Annotated[
         float | None,
         Field(description=&#39;Goal impression count for impression-based packages&#39;, ge=0.0),
     ] = None
-    package_id: Annotated[str, Field(description=&#34;Seller&#39;s package identifier&#34;)]
+    start_time: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 flight start time for this package. Use to determine whether the package is within its scheduled flight before interpreting delivery status.&#39;
+        ),
+    ] = None
+    end_time: Annotated[
+        AwareDatetime | None, Field(description=&#39;ISO 8601 flight end time for this package&#39;)
+    ] = None
     paused: Annotated[
         bool | None, Field(description=&#39;Whether this package is currently paused by the buyer&#39;)
     ] = None
-    product_id: Annotated[
-        str | None, Field(description=&#39;Product identifier this package is purchased from&#39;)
-    ] = None
-    snapshot: Annotated[
-        Snapshot | None,
+    canceled: Annotated[
+        bool | None,
         Field(
-            description=&#39;Near-real-time delivery snapshot for this package. Only present when include_snapshot was true in the request. Represents the latest available entity-level stats from the platform — not billing-grade data.&#39;
+            description=&#39;Whether this package has been canceled. Canceled packages stop delivery and cannot be reactivated.&#39;
+        ),
+    ] = None
+    cancellation: Annotated[
+        Cancellation2 | None,
+        Field(description=&#39;Cancellation metadata. Present only when canceled is true.&#39;),
+    ] = None
+    creative_deadline: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#34;ISO 8601 timestamp for creative upload or change deadline for this package. After this deadline, creative changes are rejected. When absent, the media buy&#39;s creative_deadline applies.&#34;
+        ),
+    ] = None
+    creative_approvals: Annotated[
+        list[CreativeApproval] | None,
+        Field(
+            description=&#39;Approval status for each creative assigned to this package. Absent when no creatives have been assigned.&#39;
+        ),
+    ] = None
+    format_ids_pending: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#39;Format IDs from the original create_media_buy format_ids_to_provide that have not yet been uploaded via sync_creatives. When empty or absent, all required formats have been provided.&#39;
         ),
     ] = None
     snapshot_unavailable_reason: Annotated[
@@ -814,12 +813,13 @@ validated to form a valid model.</p>
             description=&#39;Machine-readable reason the snapshot is omitted. Present only when include_snapshot was true and snapshot is unavailable for this package.&#39;
         ),
     ] = None
-    start_time: Annotated[
-        AwareDatetime | None,
+    snapshot: Annotated[
+        Snapshot | None,
         Field(
-            description=&#39;ISO 8601 flight start time for this package. Use to determine whether the package is within its scheduled flight before interpreting delivery status.&#39;
+            description=&#39;Near-real-time delivery snapshot for this package. Only present when include_snapshot was true in the request. Represents the latest available entity-level stats from the platform — not billing-grade data.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -850,7 +850,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Package.cancellation"><code class="name">var <span class="ident">cancellation</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1">Cancellation1</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_media_buys_response.Package.cancellation"><code class="name">var <span class="ident">cancellation</span> : <a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2">Cancellation2</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -939,14 +939,38 @@ validated to form a valid model.</p>
         AwareDatetime,
         Field(description=&#39;ISO 8601 timestamp when this snapshot was captured by the platform&#39;),
     ]
-    clicks: Annotated[
-        float | None, Field(description=&#39;Total clicks since package start (when available)&#39;, ge=0.0)
-    ] = None
+    staleness_seconds: Annotated[
+        int,
+        Field(
+            description=&#39;Maximum age of this data in seconds. For example, 900 means the data may be up to 15 minutes old. Use this to interpret zero delivery: a value of 900 means zero impressions is likely real; a value of 14400 means reporting may still be catching up.&#39;,
+            ge=0,
+        ),
+    ]
+    impressions: Annotated[
+        float, Field(description=&#39;Total impressions delivered since package start&#39;, ge=0.0)
+    ]
+    spend: Annotated[
+        float,
+        Field(
+            description=&#39;Total spend since package start, denominated in snapshot.currency when present, otherwise package.currency or media_buy.currency&#39;,
+            ge=0.0,
+        ),
+    ]
     currency: Annotated[
         str | None,
         Field(
             description=&#39;ISO 4217 currency code for spend in this snapshot. Optional when unchanged from package.currency or media_buy.currency.&#39;,
             pattern=&#39;^[A-Z]{3}$&#39;,
+        ),
+    ] = None
+    clicks: Annotated[
+        float | None, Field(description=&#39;Total clicks since package start (when available)&#39;, ge=0.0)
+    ] = None
+    pacing_index: Annotated[
+        float | None,
+        Field(
+            description=&#39;Current delivery pace relative to expected (1.0 = on track, &lt;1.0 = behind, &gt;1.0 = ahead). Absent when pacing cannot be determined.&#39;,
+            ge=0.0,
         ),
     ] = None
     delivery_status: Annotated[
@@ -958,31 +982,7 @@ validated to form a valid model.</p>
     ext: Annotated[
         ext_1.ExtensionObject | None,
         Field(description=&#39;Optional extension object for seller-specific snapshot fields.&#39;),
-    ] = None
-    impressions: Annotated[
-        float, Field(description=&#39;Total impressions delivered since package start&#39;, ge=0.0)
-    ]
-    pacing_index: Annotated[
-        float | None,
-        Field(
-            description=&#39;Current delivery pace relative to expected (1.0 = on track, &lt;1.0 = behind, &gt;1.0 = ahead). Absent when pacing cannot be determined.&#39;,
-            ge=0.0,
-        ),
-    ] = None
-    spend: Annotated[
-        float,
-        Field(
-            description=&#39;Total spend since package start, denominated in snapshot.currency when present, otherwise package.currency or media_buy.currency&#39;,
-            ge=0.0,
-        ),
-    ]
-    staleness_seconds: Annotated[
-        int,
-        Field(
-            description=&#39;Maximum age of this data in seconds. For example, 900 means the data may be up to 15 minutes old. Use this to interpret zero delivery: a value of 900 means zero impressions is likely real; a value of 14400 means reporting may still be catching up.&#39;,
-            ge=0,
-        ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1241,12 +1241,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1">Cancellation1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2">Cancellation2</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.canceled_at" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.canceled_at">canceled_at</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.canceled_by" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.canceled_by">canceled_by</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.reason" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation1.reason">reason</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.canceled_at" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.canceled_at">canceled_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.canceled_by" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.canceled_by">canceled_by</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.model_config" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.reason" href="#adcp.types.generated_poc.media_buy.get_media_buys_response.Cancellation2.reason">reason</a></code></li>
 </ul>
 </li>
 <li>

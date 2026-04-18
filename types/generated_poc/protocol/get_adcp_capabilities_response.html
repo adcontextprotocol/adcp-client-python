@@ -56,10 +56,10 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Account(AdCPBaseModel):
-    account_financials: Annotated[
+    require_operator_auth: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether this seller supports the get_account_financials task for querying account-level financial status (spend, credit, invoices). Only applicable to operator-billed accounts.&#39;
+            description=&#34;Whether the seller requires operator-level credentials. When true (explicit accounts), operators authenticate independently with the seller and the buyer discovers accounts via list_accounts. When false (default, implicit accounts), the seller trusts the agent&#39;s identity claims — the agent authenticates once and declares brands/operators via sync_accounts.&#34;
         ),
     ] = False
     authorization_endpoint: Annotated[
@@ -68,16 +68,23 @@ el.replaceWith(d);
             description=&#39;OAuth authorization endpoint for obtaining operator-level credentials. Present when the seller supports OAuth for operator authentication. The agent directs the operator to this URL to authenticate and obtain a bearer token. If absent and require_operator_auth is true, operators obtain credentials out-of-band (e.g., seller portal, API key).&#39;
         ),
     ] = None
-    require_operator_auth: Annotated[
-        bool | None,
+    supported_billing: Annotated[
+        list[SupportedBillingEnum],
         Field(
-            description=&#34;Whether the seller requires operator-level credentials. When true (explicit accounts), operators authenticate independently with the seller and the buyer discovers accounts via list_accounts. When false (default, implicit accounts), the seller trusts the agent&#39;s identity claims — the agent authenticates once and declares brands/operators via sync_accounts.&#34;
+            description=&#39;Billing models this seller supports. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The buyer must pass one of these values in sync_accounts.&#39;,
+            min_length=1,
         ),
-    ] = False
+    ]
     required_for_products: Annotated[
         bool | None,
         Field(
             description=&#39;Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account — useful for price comparison and discovery before committing to a seller.&#39;
+        ),
+    ] = False
+    account_financials: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this seller supports the get_account_financials task for querying account-level financial status (spend, credit, invoices). Only applicable to operator-billed accounts.&#39;
         ),
     ] = False
     sandbox: Annotated[
@@ -85,14 +92,7 @@ el.replaceWith(d);
         Field(
             description=&#39;Whether this seller supports sandbox accounts for testing. Buyers can provision a sandbox account via sync_accounts with sandbox: true, and all requests using that account_id will be treated as sandbox — no real platform calls or spend.&#39;
         ),
-    ] = False
-    supported_billing: Annotated[
-        list[SupportedBillingEnum],
-        Field(
-            description=&#39;Billing models this seller supports. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The buyer must pass one of these values in sync_accounts.&#39;,
-            min_length=1,
-        ),
-    ]</code></pre>
+    ] = False</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -164,8 +164,14 @@ validated to form a valid model.</p>
     major_versions: Annotated[
         list[MajorVersion],
         Field(
-            description=&#39;AdCP major versions supported by this seller. Major versions indicate breaking changes. When multiple versions are listed, the buyer declares its version during the capabilities handshake or via the adcp_version field on requests.&#39;,
+            description=&#39;AdCP major versions supported by this seller. Major versions indicate breaking changes. When multiple versions are listed, the buyer declares its version via the adcp_major_version field on requests.&#39;,
             min_length=1,
+        ),
+    ]
+    idempotency: Annotated[
+        Idempotency,
+        Field(
+            description=&#39;Idempotency semantics for mutating requests. Sellers MUST declare their replay window so buyers can reason about safe retry behavior. Clients MUST NOT assume a default — a seller without this declaration is non-compliant and should be treated as unsafe for retry-sensitive operations.&#39;
         ),
     ]</code></pre>
 </details>
@@ -186,6 +192,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp.idempotency"><code class="name">var <span class="ident">idempotency</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency">Idempotency</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp.major_versions"><code class="name">var <span class="ident">major_versions</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MajorVersion" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MajorVersion">MajorVersion</a>]</code></dt>
 <dd>
 <div class="desc"></div>
@@ -355,10 +365,24 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    matching_latency_hours: Annotated[
-        MatchingLatencyHours | None,
+    supported_identifier_types: Annotated[
+        list[SupportedIdentifierType],
         Field(
-            description=&#39;Expected matching latency range in hours after upload. Use to calibrate polling cadence and set appropriate expectations before configuring push_notification_config.&#39;
+            description=&#39;PII-derived identifier types accepted for audience matching. Buyers should only send identifiers the seller supports.&#39;,
+            min_length=1,
+        ),
+    ]
+    supports_platform_customer_id: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether the seller accepts the buyer&#39;s CRM/loyalty ID as a matchable identifier. Only applicable when the seller operates a closed ecosystem with a shared ID namespace (e.g., a retailer matching against their loyalty program). When true, buyers can include platform_customer_id values in AudienceMember.identifiers for matching against the seller&#39;s identity graph. Reporting on matched platform_customer_ids typically requires a clean room or the seller&#39;s own reporting surface.&#34;
+        ),
+    ] = None
+    supported_uid_types: Annotated[
+        list[uid_type.UidType] | None,
+        Field(
+            description=&#39;Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform — check this field before sending uids with type: maid.&#39;,
+            min_length=1,
         ),
     ] = None
     minimum_audience_size: Annotated[
@@ -368,24 +392,10 @@ validated to form a valid model.</p>
             ge=1,
         ),
     ]
-    supported_identifier_types: Annotated[
-        list[SupportedIdentifierType],
+    matching_latency_hours: Annotated[
+        MatchingLatencyHours | None,
         Field(
-            description=&#39;PII-derived identifier types accepted for audience matching. Buyers should only send identifiers the seller supports.&#39;,
-            min_length=1,
-        ),
-    ]
-    supported_uid_types: Annotated[
-        list[uid_type.UidType] | None,
-        Field(
-            description=&#39;Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform — check this field before sending uids with type: maid.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    supports_platform_customer_id: Annotated[
-        bool | None,
-        Field(
-            description=&#34;Whether the seller accepts the buyer&#39;s CRM/loyalty ID as a matchable identifier. Only applicable when the seller operates a closed ecosystem with a shared ID namespace (e.g., a retailer matching against their loyalty program). When true, buyers can include platform_customer_id values in AudienceMember.identifiers for matching against the seller&#39;s identity graph. Reporting on matched platform_customer_ids typically requires a clean room or the seller&#39;s own reporting surface.&#34;
+            description=&#39;Expected matching latency range in hours after upload. Use to calibrate polling cadence and set appropriate expectations before configuring push_notification_config.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -442,100 +452,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension"><code class="flex name class">
-<span>class <span class="ident">AvailableDimension</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AvailableDimension(Enum):
-    geo = &#39;geo&#39;
-    device_type = &#39;device_type&#39;
-    device_platform = &#39;device_platform&#39;
-    audience = &#39;audience&#39;
-    placement = &#39;placement&#39;
-    creative = &#39;creative&#39;
-    keyword = &#39;keyword&#39;
-    catalog_item = &#39;catalog_item&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.audience"><code class="name">var <span class="ident">audience</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.catalog_item"><code class="name">var <span class="ident">catalog_item</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.creative"><code class="name">var <span class="ident">creative</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.device_platform"><code class="name">var <span class="ident">device_platform</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.device_type"><code class="name">var <span class="ident">device_type</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.geo"><code class="name">var <span class="ident">geo</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.keyword"><code class="name">var <span class="ident">keyword</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.placement"><code class="name">var <span class="ident">placement</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand"><code class="flex name class">
 <span>class <span class="ident">Brand</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -549,34 +465,30 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    rights: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Supports get_rights and acquire_rights for rights discovery and clearance&#39;
+        ),
+    ] = False
+    right_types: Annotated[
+        list[right_type.RightType] | None,
+        Field(description=&#39;Types of rights available through this agent&#39;),
+    ] = None
     available_uses: Annotated[
         list[right_use.RightUse] | None,
         Field(description=&#34;Rights uses available across this agent&#39;s roster&#34;),
+    ] = None
+    generation_providers: Annotated[
+        list[str] | None,
+        Field(description=&#39;LLM/generation providers this agent can issue credentials for&#39;),
     ] = None
     description: Annotated[
         str | None,
         Field(
             description=&#34;Description of the agent&#39;s brand protocol capabilities&#34;, max_length=5000
         ),
-    ] = None
-    generation_providers: Annotated[
-        list[str] | None,
-        Field(description=&#39;LLM/generation providers this agent can issue credentials for&#39;),
-    ] = None
-    identity: Annotated[
-        bool | None,
-        Field(description=&#39;Supports get_brand_identity for retrieving brand identity data&#39;),
-    ] = True
-    right_types: Annotated[
-        list[right_type.RightType] | None,
-        Field(description=&#39;Types of rights available through this agent&#39;),
-    ] = None
-    rights: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Supports get_rights and acquire_rights for rights discovery and clearance&#39;
-        ),
-    ] = False</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -607,10 +519,6 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.identity"><code class="name">var <span class="ident">identity</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -635,8 +543,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail"><code class="flex name class">
-<span>class <span class="ident">ContentStandardsDetail</span></span>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting"><code class="flex name class">
+<span>class <span class="ident">ComplianceTesting</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -644,18 +552,76 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ContentStandardsDetail(AdCPBaseModel):
+<pre><code class="python">class ComplianceTesting(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    scenarios: Annotated[
+        list[Scenario],
+        Field(
+            description=&#34;Compliance testing scenarios this agent supports. Must be non-empty — at least one scenario. Callers can also use comply_test_controller with scenario: &#39;list_scenarios&#39; to discover supported scenarios at runtime.&#34;,
+            min_length=1,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting.scenarios"><code class="name">var <span class="ident">scenarios</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario">Scenario</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards"><code class="flex name class">
+<span>class <span class="ident">ContentStandards</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ContentStandards(AdCPBaseModel):
+    supports_local_evaluation: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether the seller runs a local evaluation model. When false, all artifacts will have local_verdict: &#39;unevaluated&#39; and the failures_only filter on get_media_buy_artifacts is not useful.&#34;
+        ),
+    ] = None
     supported_channels: Annotated[
         list[channels.MediaChannel] | None,
         Field(
             description=&#39;Channels for which the seller can provide content artifacts. Helps buyers understand which parts of a mixed-channel buy will have content standards coverage.&#39;,
             min_length=1,
-        ),
-    ] = None
-    supports_local_evaluation: Annotated[
-        bool | None,
-        Field(
-            description=&#34;Whether the seller runs a local evaluation model. When false, all artifacts will have local_verdict: &#39;unevaluated&#39; and the failures_only filter on get_media_buy_artifacts is not useful.&#34;
         ),
     ] = None
     supports_webhook_delivery: Annotated[
@@ -682,19 +648,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supported_channels"><code class="name">var <span class="ident">supported_channels</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supported_channels"><code class="name">var <span class="ident">supported_channels</span> : list[<a title="adcp.types.generated_poc.enums.channels.MediaChannel" href="../enums/channels.html#adcp.types.generated_poc.enums.channels.MediaChannel">MediaChannel</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supports_local_evaluation"><code class="name">var <span class="ident">supports_local_evaluation</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supports_local_evaluation"><code class="name">var <span class="ident">supports_local_evaluation</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supports_webhook_delivery"><code class="name">var <span class="ident">supports_webhook_delivery</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supports_webhook_delivery"><code class="name">var <span class="ident">supports_webhook_delivery</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -723,21 +689,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    attribution_windows: Annotated[
-        list[AttributionWindow] | None,
-        Field(
-            description=&#39;Attribution windows available from this seller. Single-element arrays indicate fixed windows; multi-element arrays indicate configurable options the buyer can choose from via attribution_window on optimization goals.&#39;
-        ),
-    ] = None
     multi_source_event_dedup: Annotated[
         bool | None,
         Field(
             description=&#39;Whether this seller can deduplicate conversion events across multiple event sources within a single goal. When true, the seller honors the deduplication semantics in optimization_goals event_sources arrays — the same event_id from multiple sources counts once. When false or absent, buyers should use a single event source per goal; multi-source arrays will be treated as first-source-wins. Most social platforms cannot deduplicate across independently-managed pixel and CAPI sources.&#39;
         ),
-    ] = None
-    supported_action_sources: Annotated[
-        list[action_source.ActionSource] | None,
-        Field(description=&#39;Action sources this seller accepts events from&#39;, min_length=1),
     ] = None
     supported_event_types: Annotated[
         list[event_type_1.EventType] | None,
@@ -746,6 +702,10 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    supported_uid_types: Annotated[
+        list[uid_type.UidType] | None,
+        Field(description=&#39;Universal ID types accepted for user matching&#39;, min_length=1),
+    ] = None
     supported_hashed_identifiers: Annotated[
         list[SupportedIdentifierType] | None,
         Field(
@@ -753,9 +713,15 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    supported_uid_types: Annotated[
-        list[uid_type.UidType] | None,
-        Field(description=&#39;Universal ID types accepted for user matching&#39;, min_length=1),
+    supported_action_sources: Annotated[
+        list[action_source.ActionSource] | None,
+        Field(description=&#39;Action sources this seller accepts events from&#39;, min_length=1),
+    ] = None
+    attribution_windows: Annotated[
+        list[AttributionWindow] | None,
+        Field(
+            description=&#39;Attribution windows available from this seller. Single-element arrays indicate fixed windows; multi-element arrays indicate configurable options the buyer can choose from via attribution_window on optimization goals.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -815,6 +781,75 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest"><code class="flex name class">
+<span>class <span class="ident">CoversContentDigest</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CoversContentDigest(Enum):
+    required = &#39;required&#39;
+    forbidden = &#39;forbidden&#39;
+    either = &#39;either&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.either"><code class="name">var <span class="ident">either</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.forbidden"><code class="name">var <span class="ident">forbidden</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.required"><code class="name">var <span class="ident">required</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Creative"><code class="flex name class">
 <span>class <span class="ident">Creative</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -828,18 +863,18 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    has_creative_library: Annotated[
-        bool | None,
-        Field(
-            description=&#39;When true, this agent hosts a creative library and supports list_creatives and creative_id references in build_creative. Creative agents with a library should also implement the accounts protocol (sync_accounts / list_accounts) so buyers can establish access.&#39;
-        ),
-    ] = False
     supports_compliance: Annotated[
         bool | None,
         Field(
             description=&#39;When true, this creative agent can process briefs with compliance requirements (required_disclosures, prohibited_claims) and will validate that disclosures can be satisfied by the target format.&#39;
         ),
     ] = None
+    has_creative_library: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, this agent hosts a creative library and supports list_creatives and creative_id references in build_creative. Creative agents with a library should also implement the accounts protocol (sync_accounts / list_accounts) so buyers can establish access.&#39;
+        ),
+    ] = False
     supports_generation: Annotated[
         bool | None,
         Field(
@@ -912,33 +947,33 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CreativeFeature(AdCPBaseModel):
-    categories: Annotated[
-        list[str] | None, Field(description=&#39;For categorical features, the valid values&#39;)
-    ] = None
-    description: Annotated[
-        str | None, Field(description=&#39;Human-readable description of what this feature measures&#39;)
-    ] = None
     feature_id: Annotated[
         str,
         Field(
             description=&#34;Unique identifier for this feature (e.g., &#39;auto_redirect&#39;, &#39;brand_consistency&#39;, &#39;iab_casinos_gambling&#39;)&#34;
         ),
     ]
-    methodology_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;URL to documentation explaining how this feature is calculated or measured.&#39;
-        ),
-    ] = None
-    range: Annotated[
-        Range | None, Field(description=&#39;For quantitative features, the valid range&#39;)
-    ] = None
     type: Annotated[
         Type,
         Field(
             description=&#34;Data type: &#39;binary&#39; for yes/no, &#39;quantitative&#39; for numeric scores, &#39;categorical&#39; for enum values&#34;
         ),
-    ]</code></pre>
+    ]
+    range: Annotated[
+        Range | None, Field(description=&#39;For quantitative features, the valid range&#39;)
+    ] = None
+    categories: Annotated[
+        list[str] | None, Field(description=&#39;For categorical features, the valid values&#39;)
+    ] = None
+    description: Annotated[
+        str | None, Field(description=&#39;Human-readable description of what this feature measures&#39;)
+    ] = None
+    methodology_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;URL to documentation explaining how this feature is calculated or measured.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1007,17 +1042,17 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CreativeSpecs(AdCPBaseModel):
+    vast_versions: Annotated[
+        list[VastVersion] | None, Field(description=&#39;VAST versions supported for video creatives&#39;)
+    ] = None
     mraid_versions: Annotated[
         list[MraidVersion] | None,
         Field(description=&#39;MRAID versions supported for rich media mobile creatives&#39;),
     ] = None
-    simid: Annotated[bool | None, Field(description=&#39;SIMID support for interactive video ads&#39;)] = (
+    vpaid: Annotated[bool | None, Field(description=&#39;VPAID support for interactive video ads&#39;)] = (
         None
     )
-    vast_versions: Annotated[
-        list[VastVersion] | None, Field(description=&#39;VAST versions supported for video creatives&#39;)
-    ] = None
-    vpaid: Annotated[bool | None, Field(description=&#39;VPAID support for interactive video ads&#39;)] = (
+    simid: Annotated[bool | None, Field(description=&#39;SIMID support for interactive video ads&#39;)] = (
         None
     )</code></pre>
 </details>
@@ -1128,16 +1163,16 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Endpoint(AdCPBaseModel):
-    preferred: Annotated[
-        Preferred | None, Field(description=&#39;Preferred transport when host supports multiple&#39;)
-    ] = None
     transports: Annotated[
         list[Transport],
         Field(
             description=&#39;Available protocol transports. Hosts select based on their capabilities.&#39;,
             min_length=1,
         ),
-    ]</code></pre>
+    ]
+    preferred: Annotated[
+        Type28 | None, Field(description=&#39;Preferred transport when host supports multiple&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1160,7 +1195,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Endpoint.preferred"><code class="name">var <span class="ident">preferred</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred">Preferred</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Endpoint.preferred"><code class="name">var <span class="ident">preferred</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28">Type28</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1190,6 +1225,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Execution(AdCPBaseModel):
+    trusted_match: Annotated[
+        TrustedMatch | None,
+        Field(
+            description=&#39;Trusted Match Protocol (TMP) support. Presence of this object indicates the seller has TMP infrastructure deployed. Check individual products via get_products for per-product TMP capabilities.&#39;
+        ),
+    ] = None
     axe_integrations: Annotated[
         list[AnyUrl] | None,
         Field(
@@ -1203,12 +1244,6 @@ validated to form a valid model.</p>
         Targeting | None,
         Field(
             description=&#39;Targeting capabilities. If declared true/supported, buyer can use these targeting parameters and seller MUST honor them.&#39;
-        ),
-    ] = None
-    trusted_match: Annotated[
-        TrustedMatch | None,
-        Field(
-            description=&#39;Trusted Match Protocol (TMP) support. When present, this seller supports real-time contextual and/or identity matching. Check individual products via get_products for per-product TMP capabilities.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -1274,7 +1309,7 @@ validated to form a valid model.</p>
     root: Annotated[
         str,
         Field(
-            description=&#34;Extension namespace (lowercase alphanumeric with underscores, e.g., &#39;scope3&#39;, &#39;garm&#39;, &#39;iab_tcf&#39;)&#34;,
+            description=&#34;Extension namespace (lowercase alphanumeric with underscores, e.g., &#39;iab_tcf&#39;, &#39;iab_gpp&#39;)&#34;,
             pattern=&#39;^[a-z][a-z0-9_]*$&#39;,
         ),
     ]</code></pre>
@@ -1382,15 +1417,13 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GeoMetros(AdCPBaseModel):
-    eurostat_nuts2: Annotated[
-        bool | None, Field(description=&#39;Supports Eurostat NUTS Level 2 regions (EU)&#39;)
-    ] = None
-    nielsen_dma: Annotated[
-        bool | None,
-        Field(description=&#34;Supports Nielsen DMA codes (US market, e.g., &#39;501&#39; for NYC)&#34;),
-    ] = None
-    uk_itl1: Annotated[bool | None, Field(description=&#39;Supports UK ITL Level 1 regions&#39;)] = None
-    uk_itl2: Annotated[bool | None, Field(description=&#39;Supports UK ITL Level 2 regions&#39;)] = None</code></pre>
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    nielsen_dma: bool | None = None
+    uk_itl1: bool | None = None
+    uk_itl2: bool | None = None
+    eurostat_nuts2: bool | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1451,35 +1484,20 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GeoPostalAreas(AdCPBaseModel):
-    at_plz: Annotated[
-        bool | None, Field(description=&#34;Austrian Postleitzahl, 4 digits (e.g., &#39;1010&#39;)&#34;)
-    ] = None
-    au_postcode: Annotated[
-        bool | None, Field(description=&#34;Australian postcode, 4 digits (e.g., &#39;2000&#39;)&#34;)
-    ] = None
-    ca_fsa: Annotated[
-        bool | None, Field(description=&#34;Canadian Forward Sortation Area (e.g., &#39;K1A&#39;)&#34;)
-    ] = None
-    ca_full: Annotated[
-        bool | None, Field(description=&#34;Canadian full postal code (e.g., &#39;K1A 0B1&#39;)&#34;)
-    ] = None
-    ch_plz: Annotated[
-        bool | None, Field(description=&#34;Swiss Postleitzahl, 4 digits (e.g., &#39;8000&#39;)&#34;)
-    ] = None
-    de_plz: Annotated[
-        bool | None, Field(description=&#34;German Postleitzahl, 5 digits (e.g., &#39;10115&#39;)&#34;)
-    ] = None
-    fr_code_postal: Annotated[
-        bool | None, Field(description=&#34;French code postal, 5 digits (e.g., &#39;75001&#39;)&#34;)
-    ] = None
-    gb_full: Annotated[bool | None, Field(description=&#34;UK full postcode (e.g., &#39;SW1A 1AA&#39;)&#34;)] = None
-    gb_outward: Annotated[
-        bool | None, Field(description=&#34;UK postcode district / outward code (e.g., &#39;SW1&#39;, &#39;EC1&#39;)&#34;)
-    ] = None
-    us_zip: Annotated[bool | None, Field(description=&#34;US 5-digit ZIP codes (e.g., &#39;10001&#39;)&#34;)] = None
-    us_zip_plus_four: Annotated[
-        bool | None, Field(description=&#34;US 9-digit ZIP+4 codes (e.g., &#39;10001-1234&#39;)&#34;)
-    ] = None</code></pre>
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    us_zip: bool | None = None
+    us_zip_plus_four: bool | None = None
+    gb_outward: bool | None = None
+    gb_full: bool | None = None
+    ca_fsa: bool | None = None
+    ca_full: bool | None = None
+    de_plz: bool | None = None
+    fr_code_postal: bool | None = None
+    au_postcode: bool | None = None
+    ch_plz: bool | None = None
+    at_plz: bool | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1568,16 +1586,22 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GeoProximity(AdCPBaseModel):
-    geometry: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether seller supports pre-computed GeoJSON geometry (buyer provides the polygon)&#39;
-        ),
-    ] = None
     radius: Annotated[
         bool | None,
         Field(
             description=&#39;Whether seller supports simple radius targeting (distance circle from a point)&#39;
+        ),
+    ] = None
+    travel_time: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether seller supports travel time isochrone targeting (requires a routing engine)&#39;
+        ),
+    ] = None
+    geometry: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether seller supports pre-computed GeoJSON geometry (buyer provides the polygon)&#39;
         ),
     ] = None
     transport_modes: Annotated[
@@ -1585,12 +1609,6 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Transport modes supported for travel_time isochrones. Only relevant when travel_time is true.&#39;,
             min_length=1,
-        ),
-    ] = None
-    travel_time: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether seller supports travel time isochrone targeting (requires a routing engine)&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -1656,52 +1674,24 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp: Annotated[Adcp, Field(description=&#39;Core AdCP protocol information&#39;)]
+    supported_protocols: Annotated[
+        list[SupportedProtocol],
+        Field(
+            description=&#39;AdCP protocols this agent supports. Each value both (a) declares which tools the agent implements and (b) commits the agent to pass the baseline compliance storyboard at /compliance/{version}/protocols/{protocol}/ (with snake_case → kebab-case path mapping, e.g. media_buy → /compliance/.../protocols/media-buy/). Compliance testing support is declared separately via the `compliance_testing` capability block (below), not as a protocol claim.&#39;,
+            min_length=1,
+        ),
+    ]
     account: Annotated[
         Account | None,
         Field(
             description=&#39;Account management capabilities. Describes how accounts are established, what billing models are supported, and whether an account is required before browsing products.&#39;
         ),
     ] = None
-    adcp: Annotated[Adcp, Field(description=&#39;Core AdCP protocol information&#39;)]
-    brand: Annotated[
-        Brand | None,
-        Field(
-            description=&#39;Brand protocol capabilities. Only present if brand is in supported_protocols. Brand agents provide identity data (logos, colors, tone, assets) and optionally rights clearance for licensable content (talent, music, stock media).&#39;
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    creative: Annotated[
-        Creative | None,
-        Field(
-            description=&#39;Creative protocol capabilities. Only present if creative is in supported_protocols.&#39;
-        ),
-    ] = None
-    errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    extensions_supported: Annotated[
-        list[ExtensionsSupportedItem] | None,
-        Field(
-            description=&#39;Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.&#39;
-        ),
-    ] = None
-    governance: Annotated[
-        Governance | None,
-        Field(
-            description=&#39;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property and creative data like compliance scores, brand safety ratings, sustainability metrics, and creative quality assessments.&#39;
-        ),
-    ] = None
-    last_updated: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 timestamp of when capabilities were last updated. Buyers can use this for cache invalidation.&#39;
-        ),
-    ] = None
     media_buy: Annotated[
         MediaBuy | None,
         Field(
-            description=&#39;Media-buy protocol capabilities. Only present if media_buy is in supported_protocols.&#39;
+            description=&#39;Media-buy protocol capabilities. Expected when media_buy is in supported_protocols. Sellers declaring media_buy should also include account with supported_billing.&#39;
         ),
     ] = None
     signals: Annotated[
@@ -1710,16 +1700,65 @@ validated to form a valid model.</p>
             description=&#39;Signals protocol capabilities. Only present if signals is in supported_protocols.&#39;
         ),
     ] = None
+    governance: Annotated[
+        Governance | None,
+        Field(
+            description=&#39;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property and creative data like compliance scores, brand safety ratings, sustainability metrics, and creative quality assessments.&#39;
+        ),
+    ] = None
     sponsored_intelligence: Annotated[
         SponsoredIntelligence | None,
         Field(
             description=&#39;Sponsored Intelligence protocol capabilities. Only present if sponsored_intelligence is in supported_protocols. SI agents handle conversational brand experiences.&#39;
         ),
     ] = None
-    supported_protocols: Annotated[
-        list[SupportedProtocol],
-        Field(description=&#39;Which AdCP domain protocols this seller supports&#39;, min_length=1),
-    ]</code></pre>
+    brand: Annotated[
+        Brand | None,
+        Field(
+            description=&#39;Brand protocol capabilities. Only present if brand is in supported_protocols. Brand agents provide identity data (logos, colors, tone, assets) and optionally rights clearance for licensable content (talent, music, stock media).&#39;
+        ),
+    ] = None
+    creative: Annotated[
+        Creative | None,
+        Field(
+            description=&#39;Creative protocol capabilities. Only present if creative is in supported_protocols.&#39;
+        ),
+    ] = None
+    request_signing: Annotated[
+        RequestSigning | None,
+        Field(
+            description=&#39;RFC 9421 HTTP Signatures support for incoming requests. Optional in 3.0 — capability-advertised so counterparties can opt into signing selectively. Required for spend-committing operations in 4.0 (the next breaking-changes accumulation window). The full profile is defined in docs/building/implementation/security.mdx (Signed Requests (Transport Layer)).&#39;
+        ),
+    ] = None
+    compliance_testing: Annotated[
+        ComplianceTesting | None,
+        Field(
+            description=&#39;Compliance testing capabilities. The presence of this block declares that the agent supports deterministic testing via comply_test_controller for lifecycle state machine validation. Omit the block entirely if the agent does not support compliance testing.&#39;
+        ),
+    ] = None
+    specialisms: Annotated[
+        list[specialism.AdcpSpecialism] | None,
+        Field(
+            description=&#39;Optional — specialized compliance claims this agent supports. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols — the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements — the AAO Verified badge enumerates which specialisms were demonstrably passed.&#39;
+        ),
+    ] = None
+    extensions_supported: Annotated[
+        list[ExtensionsSupportedItem] | None,
+        Field(
+            description=&#39;Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.&#39;
+        ),
+    ] = None
+    last_updated: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp of when capabilities were last updated. Buyers can use this for cache invalidation.&#39;
+        ),
+    ] = None
+    errors: Annotated[
+        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1747,6 +1786,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand">Brand</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.compliance_testing"><code class="name">var <span class="ident">compliance_testing</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting">ComplianceTesting</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1786,7 +1829,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.request_signing"><code class="name">var <span class="ident">request_signing</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning">RequestSigning</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.signals"><code class="name">var <span class="ident">signals</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Signals" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Signals">Signals</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.specialisms"><code class="name">var <span class="ident">specialisms</span> : list[<a title="adcp.types.generated_poc.enums.specialism.AdcpSpecialism" href="../enums/specialism.html#adcp.types.generated_poc.enums.specialism.AdcpSpecialism">AdcpSpecialism</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1820,16 +1871,16 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Governance(AdCPBaseModel):
-    creative_features: Annotated[
-        list[CreativeFeature] | None,
-        Field(
-            description=&#39;Creative features this governance agent can evaluate. Each feature describes a score, rating, or assessment the agent can provide for creatives (e.g., security scanning, creative quality, content categorization).&#39;
-        ),
-    ] = None
     property_features: Annotated[
         list[PropertyFeature] | None,
         Field(
             description=&#39;Property features this governance agent can evaluate. Each feature describes a score, rating, or certification the agent can provide for properties.&#39;
+        ),
+    ] = None
+    creative_features: Annotated[
+        list[CreativeFeature] | None,
+        Field(
+            description=&#39;Creative features this governance agent can evaluate. Each feature describes a score, rating, or assessment the agent can provide for creatives (e.g., security scanning, creative quality, content categorization).&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -1859,6 +1910,62 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.property_features"><code class="name">var <span class="ident">property_features</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.PropertyFeature" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.PropertyFeature">PropertyFeature</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency"><code class="flex name class">
+<span>class <span class="ident">Idempotency</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Idempotency(AdCPBaseModel):
+    replay_ttl_seconds: Annotated[
+        int,
+        Field(
+            description=&#34;How long the seller retains a canonical response for an idempotency_key. Within this window, a replay with the same key + equivalent canonical payload returns the cached response; a replay with a different canonical payload returns IDEMPOTENCY_CONFLICT; a replay past the window returns IDEMPOTENCY_EXPIRED when the seller can still distinguish &#39;seen and evicted&#39; from &#39;never seen&#39;. Minimum 3600 (1h); recommended 86400 (24h). Maximum 604800 (7 days) — longer windows force buyers to retain secret keys at rest for extended periods and grow the seller&#39;s cache table without bounded benefit.&#34;,
+            ge=3600,
+            le=604800,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency.replay_ttl_seconds"><code class="name">var <span class="ident">replay_ttl_seconds</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1993,8 +2100,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    max: Annotated[int | None, Field(ge=0)] = None
-    min: Annotated[int | None, Field(ge=0)] = None</code></pre>
+    min: Annotated[int | None, Field(ge=0)] = None
+    max: Annotated[int | None, Field(ge=0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2047,43 +2154,53 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class MediaBuy(AdCPBaseModel):
-    audience_targeting: Annotated[
-        AudienceTargeting | None,
-        Field(
-            description=&#39;Audience targeting capabilities. Only present when features.audience_targeting is true.&#39;
-        ),
-    ] = None
-    content_standards_detail: Annotated[
-        ContentStandardsDetail | None,
-        Field(
-            description=&#39;Content standards implementation details. Only meaningful when features.content_standards is true. Gives buyers pre-buy visibility into local evaluation and artifact delivery capabilities.&#39;
-        ),
-    ] = None
-    conversion_tracking: Annotated[
-        ConversionTracking | None,
-        Field(
-            description=&#39;Seller-level conversion tracking capabilities. Only present when features.conversion_tracking is true.&#39;
-        ),
-    ] = None
-    execution: Annotated[
-        Execution | None, Field(description=&#39;Technical execution capabilities for media buying&#39;)
-    ] = None
-    features: media_buy_features.MediaBuyFeatures | None = None
-    portfolio: Annotated[
-        Portfolio | None,
-        Field(description=&#34;Information about the seller&#39;s media inventory portfolio&#34;),
-    ] = None
-    reporting: Annotated[
-        Reporting | None,
-        Field(
-            description=&#34;Seller-level reporting capabilities. Summarizes what reporting features are available across the seller&#39;s product portfolio. Individual products may vary — check product-level reporting_capabilities for specifics.&#34;
-        ),
-    ] = None
     supported_pricing_models: Annotated[
         list[pricing_model.PricingModel] | None,
         Field(
             description=&#39;Pricing models this seller supports across its product portfolio. Buyers can use this for pre-flight filtering before querying individual products. Individual products may support a subset of these models.&#39;,
             min_length=1,
+        ),
+    ] = None
+    reporting_delivery_methods: Annotated[
+        list[ReportingDeliveryMethod] | None,
+        Field(
+            description=&#34;How this seller delivers reporting data to buyers. Polling via get_media_buy_delivery is always available as a baseline regardless of this field. This array declares additional push-based delivery methods the seller supports. &#39;webhook&#39;: seller pushes to buyer-provided URL (configured per buy via reporting_webhook). &#39;offline&#39;: seller pushes batch files to a cloud storage bucket (seller-provisioned per account via reporting_bucket on the account object). When absent, only polling is available.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    offline_delivery_protocols: Annotated[
+        list[cloud_storage_protocol.CloudStorageProtocol] | None,
+        Field(
+            description=&#34;Cloud storage protocols this seller supports for offline file delivery. Only meaningful when reporting_delivery_methods includes &#39;offline&#39;. Buyers express a protocol preference in sync_accounts; the seller provisions the account&#39;s reporting_bucket using a supported protocol.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    features: media_buy_features.MediaBuyFeatures | None = None
+    execution: Annotated[
+        Execution | None, Field(description=&#39;Technical execution capabilities for media buying&#39;)
+    ] = None
+    audience_targeting: Annotated[
+        AudienceTargeting | None,
+        Field(
+            description=&#39;Audience targeting capabilities. Presence of this object indicates the seller supports audience targeting, including sync_audiences and audience_include/audience_exclude in targeting overlays.&#39;
+        ),
+    ] = None
+    conversion_tracking: Annotated[
+        ConversionTracking | None,
+        Field(
+            description=&#39;Seller-level conversion tracking capabilities. Presence of this object indicates the seller supports sync_event_sources and log_event for conversion event tracking.&#39;
+        ),
+    ] = None
+    content_standards: Annotated[
+        ContentStandards | None,
+        Field(
+            description=&#39;Content standards implementation details. Presence of this object indicates the seller supports content_standards configuration including sampling rates and category filtering. Gives buyers pre-buy visibility into local evaluation and artifact delivery capabilities.&#39;
+        ),
+    ] = None
+    portfolio: Annotated[
+        Portfolio | None,
+        Field(
+            description=&#34;Information about the seller&#39;s media inventory portfolio. Expected for media_buy sellers — buyers use this to understand inventory coverage and verify authorization via adagents.json.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -2108,7 +2225,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.content_standards_detail"><code class="name">var <span class="ident">content_standards_detail</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail">ContentStandardsDetail</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.content_standards"><code class="name">var <span class="ident">content_standards</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards">ContentStandards</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2128,11 +2245,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.offline_delivery_protocols"><code class="name">var <span class="ident">offline_delivery_protocols</span> : list[<a title="adcp.types.generated_poc.enums.cloud_storage_protocol.CloudStorageProtocol" href="../enums/cloud_storage_protocol.html#adcp.types.generated_poc.enums.cloud_storage_protocol.CloudStorageProtocol">CloudStorageProtocol</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.portfolio"><code class="name">var <span class="ident">portfolio</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Portfolio" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Portfolio">Portfolio</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.reporting"><code class="name">var <span class="ident">reporting</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting">Reporting</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.reporting_delivery_methods"><code class="name">var <span class="ident">reporting_delivery_methods</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod">ReportingDeliveryMethod</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2161,8 +2282,8 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MraidVersion(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[0-9]+\\.[0-9]+$&#39;)]</code></pre>
+<pre><code class="python">class MraidVersion(VastVersion):
+    pass</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -2186,22 +2307,15 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
+<li><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion">VastVersion</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
 </ul>
-<h3>Subclasses</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion">VastVersion</a></li>
-</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2272,19 +2386,13 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Portfolio(AdCPBaseModel):
-    advertising_policies: Annotated[
-        str | None,
+    publisher_domains: Annotated[
+        list[PublisherDomain],
         Field(
-            description=&#39;Advertising content policies, restrictions, and guidelines&#39;,
-            max_length=10000,
+            description=&#34;Publisher domains this seller is authorized to represent. Buyers should fetch each publisher&#39;s adagents.json for property definitions.&#34;,
+            min_length=1,
         ),
-    ] = None
-    description: Annotated[
-        str | None,
-        Field(
-            description=&#39;Markdown-formatted description of the inventory portfolio&#39;, max_length=5000
-        ),
-    ] = None
+    ]
     primary_channels: Annotated[
         list[channels.MediaChannel] | None,
         Field(description=&#39;Primary advertising channels in this portfolio&#39;),
@@ -2293,13 +2401,19 @@ validated to form a valid model.</p>
         list[PrimaryCountry] | None,
         Field(description=&#39;Primary countries (ISO 3166-1 alpha-2) where inventory is concentrated&#39;),
     ] = None
-    publisher_domains: Annotated[
-        list[PublisherDomain],
+    description: Annotated[
+        str | None,
         Field(
-            description=&#34;Publisher domains this seller is authorized to represent. Buyers should fetch each publisher&#39;s adagents.json for property definitions.&#34;,
-            min_length=1,
+            description=&#39;Markdown-formatted description of the inventory portfolio&#39;, max_length=5000
         ),
-    ]</code></pre>
+    ] = None
+    advertising_policies: Annotated[
+        str | None,
+        Field(
+            description=&#39;Advertising content policies, restrictions, and guidelines&#39;,
+            max_length=10000,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2353,70 +2467,6 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred"><code class="flex name class">
-<span>class <span class="ident">Preferred</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Preferred(Enum):
-    mcp = &#39;mcp&#39;
-    a2a = &#39;a2a&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred.a2a"><code class="name">var <span class="ident">a2a</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred.mcp"><code class="name">var <span class="ident">mcp</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
 </dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.PrimaryCountry"><code class="flex name class">
 <span>class <span class="ident">PrimaryCountry</span></span>
@@ -2479,33 +2529,33 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PropertyFeature(AdCPBaseModel):
-    categories: Annotated[
-        list[str] | None, Field(description=&#39;For categorical features, the valid values&#39;)
-    ] = None
-    description: Annotated[
-        str | None, Field(description=&#39;Human-readable description of what this feature measures&#39;)
-    ] = None
     feature_id: Annotated[
         str,
         Field(
             description=&#34;Unique identifier for this feature (e.g., &#39;consent_quality&#39;, &#39;coppa_certified&#39;, &#39;carbon_score&#39;)&#34;
         ),
     ]
-    methodology_url: Annotated[
-        AnyUrl | None,
-        Field(
-            description=&#39;URL to documentation explaining how this feature is calculated or measured. Helps buyers understand and compare methodologies across vendors.&#39;
-        ),
-    ] = None
-    range: Annotated[
-        Range | None, Field(description=&#39;For quantitative features, the valid range&#39;)
-    ] = None
     type: Annotated[
         Type,
         Field(
             description=&#34;Data type: &#39;binary&#39; for yes/no, &#39;quantitative&#39; for numeric scores, &#39;categorical&#39; for enum values&#34;
         ),
-    ]</code></pre>
+    ]
+    range: Annotated[
+        Range | None, Field(description=&#39;For quantitative features, the valid range&#39;)
+    ] = None
+    categories: Annotated[
+        list[str] | None, Field(description=&#39;For categorical features, the valid values&#39;)
+    ] = None
+    description: Annotated[
+        str | None, Field(description=&#39;Human-readable description of what this feature measures&#39;)
+    ] = None
+    methodology_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;URL to documentation explaining how this feature is calculated or measured. Helps buyers understand and compare methodologies across vendors.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2631,8 +2681,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Range(AdCPBaseModel):
-    max: Annotated[float, Field(description=&#39;Maximum value&#39;)]
-    min: Annotated[float, Field(description=&#39;Minimum value&#39;)]</code></pre>
+    min: Annotated[float, Field(description=&#39;Minimum value&#39;)]
+    max: Annotated[float, Field(description=&#39;Maximum value&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2675,8 +2725,72 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting"><code class="flex name class">
-<span>class <span class="ident">Reporting</span></span>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod"><code class="flex name class">
+<span>class <span class="ident">ReportingDeliveryMethod</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ReportingDeliveryMethod(Enum):
+    webhook = &#39;webhook&#39;
+    offline = &#39;offline&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod.offline"><code class="name">var <span class="ident">offline</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod.webhook"><code class="name">var <span class="ident">webhook</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning"><code class="flex name class">
+<span>class <span class="ident">RequestSigning</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2684,28 +2798,36 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Reporting(AdCPBaseModel):
-    available_dimensions: Annotated[
-        list[AvailableDimension] | None,
+<pre><code class="python">class RequestSigning(AdCPBaseModel):
+    supported: Annotated[
+        bool,
         Field(
-            description=&#34;Reporting dimensions available across the seller&#39;s portfolio. Individual products may support a subset. Dimensions geo, device_type, device_platform, audience, and placement are opt-in via reporting_dimensions on the delivery request. Dimensions creative, keyword, and catalog_item are included automatically when the seller supports them (not controlled by reporting_dimensions).&#34;
+            description=&#39;Whether this agent verifies RFC 9421 signatures on incoming requests. When true, signatures present on requests are validated per the AdCP request-signing profile. When false or absent, signatures are ignored (requests are bearer-authenticated only).&#39;
         ),
-    ] = None
-    supports_daily_breakdown: Annotated[
-        bool | None,
+    ]
+    covers_content_digest: Annotated[
+        CoversContentDigest | None,
         Field(
-            description=&#39;Whether delivery reporting includes daily_breakdown at the media buy and/or package level.&#39;
+            description=&#34;Policy for content-digest coverage in request signatures. &#39;required&#39;: signers MUST cover content-digest (body is bound to the signature); body-unbound signatures rejected with request_signature_components_incomplete. &#39;forbidden&#39;: signers MUST NOT cover content-digest; body-bound signatures rejected with request_signature_components_unexpected. This is an opt-out for the narrow case of legacy infrastructure that cannot preserve body bytes. &#39;either&#39; (default): signer chooses per-request; verifier accepts both covered and uncovered forms. &#39;required&#39; is recommended for spend-committing operations in production; 4.0 recommends &#39;required&#39; for those operations.&#34;
         ),
-    ] = None
-    supports_date_range: Annotated[
-        bool | None,
+    ] = CoversContentDigest.either
+    required_for: Annotated[
+        list[str] | None,
         Field(
-            description=&#34;Whether any products support date range filtering (date_range_support: &#39;date_range&#39;). When false, all products return lifetime-only data.&#34;
+            description=&#34;AdCP protocol operation names (e.g., &#39;create_media_buy&#39;) for which this agent rejects unsigned requests with request_signature_required. Not MCP tool names, A2A skill names, or any transport-specific rename — verifiers MUST NOT accept operation names that are not defined by the AdCP protocol spec. Empty in 3.0 by default; sellers populate selectively during per-counterparty pilots. In 4.0 this list MUST include all spend-committing operations the agent supports (create_media_buy, acquire_*, etc.). Counterparties MUST sign any listed operation.&#34;
         ),
-    ] = None
-    supports_webhooks: Annotated[
-        bool | None,
-        Field(description=&#39;Whether any products support webhook-based reporting notifications.&#39;),
+    ] = []
+    warn_for: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;AdCP protocol operation names for which this agent verifies signatures when present and logs failures but does NOT reject the request. Used as a shadow-mode bridge between supported_for and required_for: the verifier surfaces failure rates in monitoring before flipping an operation to required. Precedence: required_for &gt; warn_for &gt; supported_for. An operation in required_for ignores warn_for. Counterparties SHOULD sign operations in warn_for; verifiers MUST NOT reject if the signature is missing or invalid.&#39;
+        ),
+    ] = []
+    supported_for: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;AdCP protocol operation names for which this agent verifies signatures when present but does not require them. Counterparties SHOULD sign operations in this list. Typically a superset of required_for and warn_for.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2725,23 +2847,27 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.available_dimensions"><code class="name">var <span class="ident">available_dimensions</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension">AvailableDimension</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.covers_content_digest"><code class="name">var <span class="ident">covers_content_digest</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest">CoversContentDigest</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_daily_breakdown"><code class="name">var <span class="ident">supports_daily_breakdown</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.required_for"><code class="name">var <span class="ident">required_for</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_date_range"><code class="name">var <span class="ident">supports_date_range</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.supported"><code class="name">var <span class="ident">supported</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_webhooks"><code class="name">var <span class="ident">supports_webhooks</span> : bool | None</code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.supported_for"><code class="name">var <span class="ident">supported_for</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.warn_for"><code class="name">var <span class="ident">warn_for</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2756,6 +2882,90 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario"><code class="flex name class">
+<span>class <span class="ident">Scenario</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Scenario(Enum):
+    force_creative_status = &#39;force_creative_status&#39;
+    force_account_status = &#39;force_account_status&#39;
+    force_media_buy_status = &#39;force_media_buy_status&#39;
+    force_session_status = &#39;force_session_status&#39;
+    simulate_delivery = &#39;simulate_delivery&#39;
+    simulate_budget_spend = &#39;simulate_budget_spend&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_account_status"><code class="name">var <span class="ident">force_account_status</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_creative_status"><code class="name">var <span class="ident">force_creative_status</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_media_buy_status"><code class="name">var <span class="ident">force_media_buy_status</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_session_status"><code class="name">var <span class="ident">force_session_status</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.simulate_budget_spend"><code class="name">var <span class="ident">simulate_budget_spend</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.simulate_delivery"><code class="name">var <span class="ident">simulate_delivery</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Signals"><code class="flex name class">
 <span>class <span class="ident">Signals</span></span>
@@ -2829,14 +3039,14 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SponsoredIntelligence(AdCPBaseModel):
-    brand_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to brand.json with colors, fonts, logos, tone&#39;)
-    ] = None
+    endpoint: Annotated[Endpoint, Field(description=&#39;SI agent endpoint configuration&#39;)]
     capabilities: Annotated[
         si_capabilities.SiCapabilities,
         Field(description=&#39;Modalities, components, and commerce capabilities&#39;),
     ]
-    endpoint: Annotated[Endpoint, Field(description=&#39;SI agent endpoint configuration&#39;)]</code></pre>
+    brand_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to brand.json with colors, fonts, logos, tone&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -3278,63 +3488,34 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Targeting(AdCPBaseModel):
-    age_restriction: Annotated[
-        AgeRestriction | None,
-        Field(description=&#39;Age restriction capabilities for compliance (alcohol, gambling)&#39;),
-    ] = None
-    audience_exclude: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether seller supports audience_exclude in targeting overlays (requires features.audience_targeting)&#39;
-        ),
-    ] = None
-    audience_include: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether seller supports audience_include in targeting overlays (requires features.audience_targeting)&#39;
-        ),
-    ] = None
-    device_platform: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether seller supports device platform targeting (Sec-CH-UA-Platform values)&#39;
-        ),
-    ] = None
-    device_type: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether seller supports device type targeting (form factor: desktop, mobile, tablet, ctv, dooh, unknown). When true, seller supports both device_type (include) and device_type_exclude (exclude) in targeting overlays.&#39;
-        ),
-    ] = None
     geo_countries: Annotated[
+        bool | None, Field(description=&#39;Country-level targeting using ISO 3166-1 alpha-2 codes&#39;)
+    ] = None
+    geo_regions: Annotated[
         bool | None,
         Field(
-            description=&#34;Supports country-level geo targeting using ISO 3166-1 alpha-2 codes (e.g., &#39;US&#39;, &#39;GB&#39;, &#39;DE&#39;)&#34;
+            description=&#39;Region/state-level targeting using ISO 3166-2 codes (e.g., US-NY, GB-SCT)&#39;
         ),
     ] = None
     geo_metros: Annotated[
         GeoMetros | None,
         Field(
-            description=&#39;Metro area targeting support. Specifies which classification systems are supported.&#39;
+            description=&#39;Metro area targeting. Properties indicate which classification systems are supported.&#39;
         ),
     ] = None
     geo_postal_areas: Annotated[
         GeoPostalAreas | None,
         Field(
-            description=&#39;Postal area targeting support. Specifies which postal code systems are supported. System names encode country and precision.&#39;
+            description=&#39;Postal area targeting. Properties indicate which postal code systems are supported.&#39;
         ),
     ] = None
-    geo_proximity: Annotated[
-        GeoProximity | None,
-        Field(
-            description=&#39;Proximity targeting capabilities from arbitrary coordinates via targeting_overlay.geo_proximity.&#39;
-        ),
+    age_restriction: Annotated[
+        AgeRestriction | None,
+        Field(description=&#39;Age restriction capabilities for compliance (alcohol, gambling)&#39;),
     ] = None
-    geo_regions: Annotated[
+    language: Annotated[
         bool | None,
-        Field(
-            description=&#34;Supports region/state-level geo targeting using ISO 3166-2 subdivision codes (e.g., &#39;US-NY&#39;, &#39;GB-SCT&#39;, &#39;DE-BY&#39;)&#34;
-        ),
+        Field(description=&#39;Whether seller supports language targeting (ISO 639-1 codes)&#39;),
     ] = None
     keyword_targets: Annotated[
         KeywordTargets | None,
@@ -3342,14 +3523,16 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Keyword targeting capabilities. Presence indicates support for targeting_overlay.keyword_targets and keyword_targets_add/remove in update_media_buy.&#39;
         ),
     ] = None
-    language: Annotated[
-        bool | None,
-        Field(description=&#39;Whether seller supports language targeting (ISO 639-1 codes)&#39;),
-    ] = None
     negative_keywords: Annotated[
         NegativeKeywords | None,
         Field(
             description=&#39;Negative keyword capabilities. Presence indicates support for targeting_overlay.negative_keywords and negative_keywords_add/remove in update_media_buy.&#39;
+        ),
+    ] = None
+    geo_proximity: Annotated[
+        GeoProximity | None,
+        Field(
+            description=&#39;Proximity targeting capabilities from arbitrary coordinates via targeting_overlay.geo_proximity.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -3371,22 +3554,6 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.age_restriction"><code class="name">var <span class="ident">age_restriction</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AgeRestriction" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AgeRestriction">AgeRestriction</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_exclude"><code class="name">var <span class="ident">audience_exclude</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_include"><code class="name">var <span class="ident">audience_include</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.device_platform"><code class="name">var <span class="ident">device_platform</span> : bool | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.device_type"><code class="name">var <span class="ident">device_type</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3451,7 +3618,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    type: Annotated[Preferred, Field(description=&#39;Protocol transport type&#39;)]
+    type: Annotated[Type28, Field(description=&#39;Protocol transport type&#39;)]
     url: Annotated[AnyUrl, Field(description=&#39;Agent endpoint URL for this transport&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -3475,7 +3642,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Transport.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred">Preferred</a></code></dt>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Transport.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28">Type28</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3505,9 +3672,6 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TrustedMatch(AdCPBaseModel):
-    supported: Annotated[
-        bool | None, Field(description=&#39;Whether this seller has TMP infrastructure deployed.&#39;)
-    ] = False
     surfaces: Annotated[
         list[Surface] | None, Field(description=&#39;Surface types this seller supports via TMP.&#39;)
     ] = None</code></pre>
@@ -3530,10 +3694,6 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch.supported"><code class="name">var <span class="ident">supported</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3622,6 +3782,70 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28"><code class="flex name class">
+<span>class <span class="ident">Type28</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type28(Enum):
+    mcp = &#39;mcp&#39;
+    a2a = &#39;a2a&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28.a2a"><code class="name">var <span class="ident">a2a</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28.mcp"><code class="name">var <span class="ident">mcp</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion"><code class="flex name class">
 <span>class <span class="ident">VastVersion</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
@@ -3631,8 +3855,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class VastVersion(MraidVersion):
-    pass</code></pre>
+<pre><code class="python">class VastVersion(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[0-9]+\\.[0-9]+$&#39;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -3656,15 +3880,22 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion">MraidVersion</a></li>
 <li>pydantic.root_model.RootModel[str]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
 </ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion">MraidVersion</a></li>
+</ul>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3700,6 +3931,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp">Adcp</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp.idempotency" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp.idempotency">idempotency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp.major_versions" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp.major_versions">major_versions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Adcp.model_config">model_config</a></code></li>
 </ul>
@@ -3733,37 +3965,30 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension">AvailableDimension</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.audience" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.audience">audience</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.catalog_item" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.catalog_item">catalog_item</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.creative" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.creative">creative</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.device_platform" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.device_platform">device_platform</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.device_type" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.device_type">device_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.geo" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.geo">geo</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.keyword" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.keyword">keyword</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.placement" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.AvailableDimension.placement">placement</a></code></li>
-</ul>
-</li>
-<li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand">Brand</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.available_uses" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.available_uses">available_uses</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.description" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.generation_providers" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.generation_providers">generation_providers</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.identity" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.identity">identity</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.right_types" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.right_types">right_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.rights" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Brand.rights">rights</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail">ContentStandardsDetail</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting">ComplianceTesting</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supported_channels" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supported_channels">supported_channels</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supports_local_evaluation" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supports_local_evaluation">supports_local_evaluation</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supports_webhook_delivery" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandardsDetail.supports_webhook_delivery">supports_webhook_delivery</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting.scenarios" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ComplianceTesting.scenarios">scenarios</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards">ContentStandards</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supported_channels" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supported_channels">supported_channels</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supports_local_evaluation" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supports_local_evaluation">supports_local_evaluation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supports_webhook_delivery" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ContentStandards.supports_webhook_delivery">supports_webhook_delivery</a></code></li>
 </ul>
 </li>
 <li>
@@ -3776,6 +4001,14 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.supported_event_types" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.supported_event_types">supported_event_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.supported_hashed_identifiers" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.supported_hashed_identifiers">supported_hashed_identifiers</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.supported_uid_types" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ConversionTracking.supported_uid_types">supported_uid_types</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest">CoversContentDigest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.either" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.either">either</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.forbidden" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.forbidden">forbidden</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.required" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.CoversContentDigest.required">required</a></code></li>
 </ul>
 </li>
 <li>
@@ -3891,6 +4124,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.account" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.adcp" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.adcp">adcp</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.brand" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.compliance_testing" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.compliance_testing">compliance_testing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.context" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.creative" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.creative">creative</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.errors" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.errors">errors</a></code></li>
@@ -3900,7 +4134,9 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.last_updated" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.last_updated">last_updated</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.media_buy" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.media_buy">media_buy</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.request_signing" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.request_signing">request_signing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.signals" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.signals">signals</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.specialisms" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.specialisms">specialisms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.sponsored_intelligence" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.sponsored_intelligence">sponsored_intelligence</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.supported_protocols" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.supported_protocols">supported_protocols</a></code></li>
 </ul>
@@ -3911,6 +4147,13 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.creative_features" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.creative_features">creative_features</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.property_features" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Governance.property_features">property_features</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency">Idempotency</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency.replay_ttl_seconds" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Idempotency.replay_ttl_seconds">replay_ttl_seconds</a></code></li>
 </ul>
 </li>
 <li>
@@ -3939,13 +4182,14 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy">MediaBuy</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.audience_targeting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.audience_targeting">audience_targeting</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.content_standards_detail" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.content_standards_detail">content_standards_detail</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.content_standards" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.content_standards">content_standards</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.conversion_tracking" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.conversion_tracking">conversion_tracking</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.execution" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.execution">execution</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.features" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.features">features</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.offline_delivery_protocols" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.offline_delivery_protocols">offline_delivery_protocols</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.portfolio" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.portfolio">portfolio</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.reporting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.reporting">reporting</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.reporting_delivery_methods" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.reporting_delivery_methods">reporting_delivery_methods</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.supported_pricing_models" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MediaBuy.supported_pricing_models">supported_pricing_models</a></code></li>
 </ul>
 </li>
@@ -3953,7 +4197,6 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion">MraidVersion</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion.root" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.MraidVersion.root">root</a></code></li>
 </ul>
 </li>
 <li>
@@ -3972,13 +4215,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Portfolio.primary_channels" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Portfolio.primary_channels">primary_channels</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Portfolio.primary_countries" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Portfolio.primary_countries">primary_countries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Portfolio.publisher_domains" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Portfolio.publisher_domains">publisher_domains</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred">Preferred</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred.a2a" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred.a2a">a2a</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred.mcp" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Preferred.mcp">mcp</a></code></li>
 </ul>
 </li>
 <li>
@@ -4016,13 +4252,32 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting">Reporting</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod">ReportingDeliveryMethod</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.available_dimensions" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.available_dimensions">available_dimensions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_daily_breakdown" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_daily_breakdown">supports_daily_breakdown</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_date_range" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_date_range">supports_date_range</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_webhooks" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Reporting.supports_webhooks">supports_webhooks</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod.offline" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod.offline">offline</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod.webhook" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ReportingDeliveryMethod.webhook">webhook</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning">RequestSigning</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.covers_content_digest" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.covers_content_digest">covers_content_digest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.required_for" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.required_for">required_for</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.supported" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.supported">supported</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.supported_for" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.supported_for">supported_for</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.warn_for" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.RequestSigning.warn_for">warn_for</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario">Scenario</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_account_status" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_account_status">force_account_status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_creative_status" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_creative_status">force_creative_status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_media_buy_status" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_media_buy_status">force_media_buy_status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_session_status" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.force_session_status">force_session_status</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.simulate_budget_spend" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.simulate_budget_spend">simulate_budget_spend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.simulate_delivery" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Scenario.simulate_delivery">simulate_delivery</a></code></li>
 </ul>
 </li>
 <li>
@@ -4094,10 +4349,6 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting">Targeting</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.age_restriction" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.age_restriction">age_restriction</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_exclude" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_exclude">audience_exclude</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_include" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.audience_include">audience_include</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.device_platform" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.device_platform">device_platform</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.device_type" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.device_type">device_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_countries" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_countries">geo_countries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_metros" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_metros">geo_metros</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_postal_areas" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Targeting.geo_postal_areas">geo_postal_areas</a></code></li>
@@ -4121,7 +4372,6 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch">TrustedMatch</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch.supported" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch.supported">supported</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch.surfaces" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.TrustedMatch.surfaces">surfaces</a></code></li>
 </ul>
 </li>
@@ -4134,9 +4384,17 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28">Type28</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28.a2a" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28.a2a">a2a</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28.mcp" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.Type28.mcp">mcp</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion">VastVersion</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion.root" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.VastVersion.root">root</a></code></li>
 </ul>
 </li>
 </ul>

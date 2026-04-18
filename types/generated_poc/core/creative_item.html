@@ -122,9 +122,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    asset_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
-    ]
     asset_kind: Annotated[
         Literal[&#39;media&#39;],
         Field(description=&#39;Discriminator indicating this is a media asset with content_uri&#39;),
@@ -134,6 +131,9 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Type of asset. Common types: thumbnail_image, product_image, featured_image, logo&#39;
         ),
+    ]
+    asset_id: Annotated[
+        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
     ]
     content_uri: Annotated[AnyUrl, Field(description=&#39;URL for media assets (images, videos, etc.)&#39;)]</code></pre>
 </details>
@@ -199,9 +199,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    asset_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
-    ]
     asset_kind: Annotated[
         Literal[&#39;text&#39;],
         Field(description=&#39;Discriminator indicating this is a text asset with content&#39;),
@@ -211,6 +208,9 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Type of asset. Common types: headline, body_text, cta_text, price_text, sponsor_name, author_name, click_url&#39;
         ),
+    ]
+    asset_id: Annotated[
+        str, Field(description=&#39;Unique identifier for the asset within the creative&#39;)
     ]
     content: Annotated[
         str | list[str],

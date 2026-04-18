@@ -66,62 +66,6 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    assigned_to_packages: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Filter creatives assigned to any of these packages. Sales-agent-specific — standalone creative agents SHOULD ignore this filter.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    concept_ids: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Filter by creative concept IDs. Concepts group related creatives across sizes and formats (e.g., Flashtalking concepts, Celtra campaign folders, CM360 creative groups).&#39;,
-            min_length=1,
-        ),
-    ] = None
-    created_after: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Filter creatives created after this date (ISO 8601)&#39;),
-    ] = None
-    created_before: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Filter creatives created before this date (ISO 8601)&#39;),
-    ] = None
-    creative_ids: Annotated[
-        list[str] | None,
-        Field(description=&#39;Filter by specific creative IDs&#39;, max_length=100, min_length=1),
-    ] = None
-    format_ids: Annotated[
-        list[format_id.FormatId] | None,
-        Field(
-            description=&#39;Filter by structured format IDs. Returns creatives that match any of these formats.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    has_served: Annotated[
-        bool | None,
-        Field(
-            description=&#39;When true, return only creatives that have served at least one impression. When false, return only creatives that have never served.&#39;
-        ),
-    ] = None
-    has_variables: Annotated[
-        bool | None,
-        Field(
-            description=&#39;When true, return only creatives with dynamic variables (DCO). When false, return only static creatives.&#39;
-        ),
-    ] = None
-    media_buy_ids: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Filter creatives assigned to any of these media buys. Sales-agent-specific — standalone creative agents SHOULD ignore this filter.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    name_contains: Annotated[
-        str | None,
-        Field(description=&#39;Filter by creative names containing this text (case-insensitive)&#39;),
-    ] = None
     statuses: Annotated[
         list[creative_status.CreativeStatus] | None,
         Field(description=&#39;Filter by creative approval statuses&#39;, min_length=1),
@@ -134,11 +78,21 @@ el.replaceWith(d);
         list[str] | None,
         Field(description=&#39;Filter by creative tags (any tag must match)&#39;, min_length=1),
     ] = None
-    unassigned: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Filter for unassigned creatives when true, assigned creatives when false. Sales-agent-specific — standalone creative agents SHOULD ignore this filter.&#39;
-        ),
+    name_contains: Annotated[
+        str | None,
+        Field(description=&#39;Filter by creative names containing this text (case-insensitive)&#39;),
+    ] = None
+    creative_ids: Annotated[
+        list[str] | None,
+        Field(description=&#39;Filter by specific creative IDs&#39;, max_length=100, min_length=1),
+    ] = None
+    created_after: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Filter creatives created after this date (ISO 8601)&#39;),
+    ] = None
+    created_before: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Filter creatives created before this date (ISO 8601)&#39;),
     ] = None
     updated_after: Annotated[
         AwareDatetime | None,
@@ -147,6 +101,52 @@ el.replaceWith(d);
     updated_before: Annotated[
         AwareDatetime | None,
         Field(description=&#39;Filter creatives last updated before this date (ISO 8601)&#39;),
+    ] = None
+    assigned_to_packages: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter creatives assigned to any of these packages. Sales-agent-specific — standalone creative agents SHOULD ignore this filter.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    media_buy_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter creatives assigned to any of these media buys. Sales-agent-specific — standalone creative agents SHOULD ignore this filter.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    unassigned: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Filter for unassigned creatives when true, assigned creatives when false. Sales-agent-specific — standalone creative agents SHOULD ignore this filter.&#39;
+        ),
+    ] = None
+    has_served: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, return only creatives that have served at least one impression. When false, return only creatives that have never served.&#39;
+        ),
+    ] = None
+    concept_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter by creative concept IDs. Concepts group related creatives across sizes and formats (e.g., Flashtalking concepts, Celtra campaign folders, CM360 creative groups).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#39;Filter by structured format IDs. Returns creatives that match any of these formats.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    has_variables: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, return only creatives with dynamic variables (DCO). When false, return only static creatives.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

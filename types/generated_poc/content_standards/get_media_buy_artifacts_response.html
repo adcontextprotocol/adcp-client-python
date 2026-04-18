@@ -56,29 +56,29 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Artifact(AdCPBaseModel):
+    record_id: Annotated[str, Field(description=&#39;Unique identifier for this delivery record&#39;)]
+    timestamp: Annotated[AwareDatetime | None, Field(description=&#39;When the delivery occurred&#39;)] = (
+        None
+    )
+    package_id: Annotated[
+        str | None, Field(description=&#39;Which package this delivery belongs to&#39;)
+    ] = None
     artifact: Annotated[artifact_1.Artifact, Field(description=&#39;Full artifact with content assets&#39;)]
+    country: Annotated[
+        str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code where delivery occurred&#39;)
+    ] = None
+    channel: Annotated[
+        str | None, Field(description=&#39;Channel type (e.g., display, video, audio, social)&#39;)
+    ] = None
     brand_context: Annotated[
         BrandContext | None,
         Field(
             description=&#39;Brand information for policy evaluation. Schema TBD - placeholder for brand identifiers.&#39;
         ),
     ] = None
-    channel: Annotated[
-        str | None, Field(description=&#39;Channel type (e.g., display, video, audio, social)&#39;)
-    ] = None
-    country: Annotated[
-        str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code where delivery occurred&#39;)
-    ] = None
     local_verdict: Annotated[
         LocalVerdict | None, Field(description=&#34;Seller&#39;s local model verdict for this artifact&#34;)
-    ] = None
-    package_id: Annotated[
-        str | None, Field(description=&#39;Which package this delivery belongs to&#39;)
-    ] = None
-    record_id: Annotated[str, Field(description=&#39;Unique identifier for this delivery record&#39;)]
-    timestamp: Annotated[AwareDatetime | None, Field(description=&#39;When the delivery occurred&#39;)] = (
-        None
-    )</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -209,9 +209,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CollectionInfo(AdCPBaseModel):
-    effective_rate: Annotated[
-        float | None,
-        Field(description=&#39;Actual collection rate achieved (total_collected / total_deliveries)&#39;),
+    total_deliveries: Annotated[
+        int | None, Field(description=&#39;Total deliveries in the requested time range&#39;)
+    ] = None
+    total_collected: Annotated[
+        int | None,
+        Field(description=&#34;Total artifacts collected (per the buy&#39;s sampling configuration)&#34;),
     ] = None
     returned_count: Annotated[
         int | None,
@@ -219,12 +222,9 @@ validated to form a valid model.</p>
             description=&#39;Number of artifacts in this response (may be less than total_collected due to pagination or filters)&#39;
         ),
     ] = None
-    total_collected: Annotated[
-        int | None,
-        Field(description=&#34;Total artifacts collected (per the buy&#39;s sampling configuration)&#34;),
-    ] = None
-    total_deliveries: Annotated[
-        int | None, Field(description=&#39;Total deliveries in the requested time range&#39;)
+    effective_rate: Annotated[
+        float | None,
+        Field(description=&#39;Actual collection rate achieved (total_collected / total_deliveries)&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -286,6 +286,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GetMediaBuyArtifactsResponse1(AdCPBaseModel):
+    media_buy_id: Annotated[str, Field(description=&#39;Media buy these artifacts belong to&#39;)]
     artifacts: Annotated[
         list[Artifact], Field(description=&#39;Delivery records with full artifact content&#39;)
     ]
@@ -295,10 +296,9 @@ validated to form a valid model.</p>
             description=&#39;Information about artifact collection for this media buy. Sampling is configured at buy creation time — this reports what was actually collected.&#39;
         ),
     ] = None
+    pagination: pagination_response.PaginationResponse | None = None
     context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[str, Field(description=&#39;Media buy these artifacts belong to&#39;)]
-    pagination: pagination_response.PaginationResponse | None = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -367,8 +367,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GetMediaBuyArtifactsResponse2(AdCPBaseModel):
-    context: context_1.ContextObject | None = None
     errors: list[error.Error]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

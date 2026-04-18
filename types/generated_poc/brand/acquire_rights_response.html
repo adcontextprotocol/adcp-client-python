@@ -59,18 +59,12 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    approval_webhook: Annotated[
-        push_notification_config.PushNotificationConfig | None,
-        Field(
-            description=&#39;Authenticated webhook for submitting creatives for approval. POST a creative-approval-request to the URL using the provided authentication. The response is a creative-approval-response.&#39;
-        ),
-    ] = None
+    rights_id: Annotated[str, Field(description=&#39;Rights grant identifier&#39;)]
+    status: Annotated[
+        Literal[&#39;acquired&#39;], Field(description=&#39;Rights have been cleared and credentials issued&#39;)
+    ]
     brand_id: Annotated[str, Field(description=&#39;Brand identifier of the rights subject&#39;)]
-    context: context_1.ContextObject | None = None
-    disclosure: Annotated[
-        Disclosure | None, Field(description=&#39;Required disclosure for creatives using these rights&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
+    terms: Annotated[rights_terms.RightsTerms, Field(description=&#39;Agreed contractual terms&#39;)]
     generation_credentials: Annotated[
         list[generation_credential.GenerationCredential],
         Field(description=&#39;Scoped credentials for generating rights-cleared content&#39;),
@@ -78,20 +72,26 @@ el.replaceWith(d);
     restrictions: Annotated[
         list[str] | None, Field(description=&#39;Usage restrictions and requirements&#39;)
     ] = None
+    disclosure: Annotated[
+        Disclosure | None, Field(description=&#39;Required disclosure for creatives using these rights&#39;)
+    ] = None
+    approval_webhook: Annotated[
+        push_notification_config.PushNotificationConfig | None,
+        Field(
+            description=&#39;Authenticated webhook for submitting creatives for approval. POST a creative-approval-request to the URL using the provided authentication. The response is a creative-approval-response.&#39;
+        ),
+    ] = None
+    usage_reporting_url: Annotated[
+        AnyUrl | None, Field(description=&#39;Endpoint for reporting usage against these rights&#39;)
+    ] = None
     rights_constraint: Annotated[
         rights_constraint_1.RightsConstraint,
         Field(
             description=&#39;Pre-built rights constraint for embedding in creative manifests. Populated from the agreed terms — the buyer does not need to construct it manually.&#39;
         ),
     ]
-    rights_id: Annotated[str, Field(description=&#39;Rights grant identifier&#39;)]
-    status: Annotated[
-        Literal[&#39;acquired&#39;], Field(description=&#39;Rights have been cleared and credentials issued&#39;)
-    ]
-    terms: Annotated[rights_terms.RightsTerms, Field(description=&#39;Agreed contractual terms&#39;)]
-    usage_reporting_url: Annotated[
-        AnyUrl | None, Field(description=&#39;Endpoint for reporting usage against these rights&#39;)
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -187,19 +187,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    rights_id: str
+    status: Annotated[
+        Literal[&#39;pending_approval&#39;],
+        Field(description=&#39;Rights require approval from the rights holder&#39;),
+    ]
     brand_id: str
-    context: context_1.ContextObject | None = None
     detail: Annotated[str | None, Field(description=&#39;Explanation of what requires approval&#39;)] = None
     estimated_response_time: Annotated[
         str | None,
         Field(description=&#34;Expected time for approval decision (e.g., &#39;48h&#39;, &#39;3 business days&#39;)&#34;),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    rights_id: str
-    status: Annotated[
-        Literal[&#39;pending_approval&#39;],
-        Field(description=&#39;Rights require approval from the rights holder&#39;),
-    ]</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -275,23 +275,23 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    rights_id: str
+    status: Annotated[Literal[&#39;rejected&#39;], Field(description=&#39;Rights request was rejected&#39;)]
     brand_id: str
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
     reason: Annotated[
         str,
         Field(
             description=&#34;Why the rights request was rejected. May be sanitized to protect confidential brand rules — e.g., &#39;This violates our public figures brand guidelines&#39; rather than naming the specific rule.&#34;
         ),
     ]
-    rights_id: str
-    status: Annotated[Literal[&#39;rejected&#39;], Field(description=&#39;Rights request was rejected&#39;)]
     suggestions: Annotated[
         list[str] | None,
         Field(
             description=&#39;Actionable alternatives the buyer can try. If present, the rejection is fixable — the buyer can adjust their request. If absent, the rejection is final for this talent/rights combination.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -367,8 +367,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     errors: Annotated[list[error.Error], Field(min_length=1)]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

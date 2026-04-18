@@ -59,6 +59,12 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    pricing_option_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
+    ]
+    pricing_model: Annotated[
+        Literal[&#39;cpcv&#39;], Field(description=&#39;Cost per completed view (100% completion)&#39;)
+    ]
     currency: Annotated[
         str,
         Field(
@@ -67,12 +73,6 @@ el.replaceWith(d);
             pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
-    eligible_adjustments: Annotated[
-        list[adjustment_kind.PriceAdjustmentKind] | None,
-        Field(
-            description=&#39;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#39;
-        ),
-    ] = None
     fixed_price: Annotated[
         float | None,
         Field(
@@ -93,6 +93,10 @@ el.replaceWith(d);
             description=&#34;When true, bid_price is interpreted as the buyer&#39;s maximum willingness to pay (ceiling) rather than an exact price. Sellers may optimize actual clearing prices between floor_price and bid_price based on delivery pacing. When false or absent, bid_price (if provided) is the exact bid/price to honor.&#34;
         ),
     ] = False
+    price_guidance: Annotated[
+        price_guidance_1.PriceGuidance | None,
+        Field(description=&#39;Optional pricing guidance for auction-based bidding&#39;),
+    ] = None
     min_spend_per_package: Annotated[
         float | None,
         Field(
@@ -106,16 +110,12 @@ el.replaceWith(d);
             description=&#39;Breakdown of how fixed_price was derived from the list (rate card) price. Only meaningful when fixed_price is present.&#39;
         ),
     ] = None
-    price_guidance: Annotated[
-        price_guidance_1.PriceGuidance | None,
-        Field(description=&#39;Optional pricing guidance for auction-based bidding&#39;),
-    ] = None
-    pricing_model: Annotated[
-        Literal[&#39;cpcv&#39;], Field(description=&#39;Cost per completed view (100% completion)&#39;)
-    ]
-    pricing_option_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
-    ]</code></pre>
+    eligible_adjustments: Annotated[
+        list[adjustment_kind.PriceAdjustmentKind] | None,
+        Field(
+            description=&#39;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

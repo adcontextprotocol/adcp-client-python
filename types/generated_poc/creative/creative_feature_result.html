@@ -59,42 +59,48 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    confidence: Annotated[
-        float | None, Field(description=&#39;Confidence score for this value (0-1)&#39;, ge=0.0, le=1.0)
-    ] = None
-    details: Annotated[
-        dict[str, Any] | None,
-        Field(description=&#39;Additional vendor-specific details about this evaluation&#39;),
-    ] = None
-    expires_at: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;When this evaluation expires and should be refreshed&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     feature_id: Annotated[
         str,
         Field(
             description=&#34;The feature that was evaluated (e.g., &#39;auto_redirect&#39;, &#39;brand_consistency&#39;). Features prefixed with &#39;registry:&#39; reference standardized policies from the shared policy registry (e.g., &#39;registry:eu_ai_act_article_50&#39;). Unprefixed feature IDs are agent-defined.&#34;
         ),
     ]
-    measured_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this feature was evaluated&#39;)
-    ] = None
-    methodology_version: Annotated[
-        str | None, Field(description=&#39;Version of the methodology used to evaluate this feature&#39;)
-    ] = None
+    value: Annotated[
+        bool | float | str,
+        Field(
+            description=&#39;The feature value. Type depends on feature definition: boolean for binary, number for quantitative, string for categorical.&#39;
+        ),
+    ]
     unit: Annotated[
         str | None,
         Field(
             description=&#34;Unit of measurement for quantitative values (e.g., &#39;percentage&#39;, &#39;score&#39;)&#34;
         ),
     ] = None
-    value: Annotated[
-        bool | float | str,
+    confidence: Annotated[
+        float | None, Field(description=&#39;Confidence score for this value (0-1)&#39;, ge=0.0, le=1.0)
+    ] = None
+    measured_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this feature was evaluated&#39;)
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When this evaluation expires and should be refreshed&#39;),
+    ] = None
+    methodology_version: Annotated[
+        str | None, Field(description=&#39;Version of the methodology used to evaluate this feature&#39;)
+    ] = None
+    details: Annotated[
+        dict[str, Any] | None,
+        Field(description=&#39;Additional vendor-specific details about this evaluation&#39;),
+    ] = None
+    policy_id: Annotated[
+        str | None,
         Field(
-            description=&#39;The feature value. Type depends on feature definition: boolean for binary, number for quantitative, string for categorical.&#39;
+            description=&#39;Optional attribution — when this feature was evaluated to satisfy a specific policy, policy_id references the authorizing PolicyEntry. Reserved field; populated by producers in 3.1 and later (see issue #2303). Governance agents MAY ignore in 3.0.&#39;
         ),
-    ]</code></pre>
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -145,6 +151,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.policy_id"><code class="name">var <span class="ident">policy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.unit"><code class="name">var <span class="ident">unit</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -191,6 +201,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.measured_at" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.measured_at">measured_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.methodology_version" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.methodology_version">methodology_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.model_config" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.policy_id" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.policy_id">policy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.unit" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.unit">unit</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.value" href="#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult.value">value</a></code></li>
 </ul>

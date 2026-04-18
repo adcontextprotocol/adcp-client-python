@@ -59,11 +59,10 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    allowed_domains: Annotated[
-        list[str] | None,
-        Field(description=&#39;Domains authorized to send events for this event source&#39;, min_length=1),
-    ] = None
     event_source_id: Annotated[str, Field(description=&#39;Unique identifier for this event source&#39;)]
+    name: Annotated[str | None, Field(description=&#39;Human-readable name for this event source&#39;)] = (
+        None
+    )
     event_types: Annotated[
         list[event_type.EventType] | None,
         Field(
@@ -71,9 +70,10 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    name: Annotated[str | None, Field(description=&#39;Human-readable name for this event source&#39;)] = (
-        None
-    )</code></pre>
+    allowed_domains: Annotated[
+        list[str] | None,
+        Field(description=&#39;Domains authorized to send events for this event source&#39;, min_length=1),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -137,14 +137,26 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated unique key for at-most-once execution. `event_source_id` gives resource-level dedup per source, but the sync envelope emits audit events and can trigger downstream pixel provisioning — this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `event_sources` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
     account: Annotated[
         account_ref.AccountReference, Field(description=&#39;Account to configure event sources for.&#39;)
     ]
-    context: context_1.ContextObject | None = None
-    delete_missing: Annotated[
-        bool | None,
-        Field(description=&#39;When true, event sources not included in this sync will be removed&#39;),
-    ] = False
     event_sources: Annotated[
         list[EventSource] | None,
         Field(
@@ -152,6 +164,11 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    delete_missing: Annotated[
+        bool | None,
+        Field(description=&#39;When true, event sources not included in this sync will be removed&#39;),
+    ] = False
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -175,6 +192,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -188,6 +209,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -236,10 +261,12 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest">SyncEventSourcesRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.account" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.adcp_major_version" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.context" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.delete_missing" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.delete_missing">delete_missing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.event_sources" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.event_sources">event_sources</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.ext" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.idempotency_key" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.model_config" href="#adcp.types.generated_poc.media_buy.sync_event_sources_request.SyncEventSourcesRequest.model_config">model_config</a></code></li>
 </ul>
 </li>

@@ -59,6 +59,13 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    stage: Annotated[
+        str,
+        Field(
+            description=&#34;Submission stage identifier. Use &#39;draft&#39; for materials that need seller processing and &#39;final&#39; for production-ready assets. Sellers may define additional stages.&#34;,
+            examples=[&#39;draft&#39;, &#39;final&#39;],
+        ),
+    ]
     due_at: Annotated[
         AwareDatetime, Field(description=&#39;When materials for this stage are due (ISO 8601)&#39;)
     ]
@@ -67,14 +74,7 @@ el.replaceWith(d);
         Field(
             description=&#34;What the seller needs at this stage (e.g., &#39;Talking points and brand guidelines&#39;, &#39;Press-ready PDF with bleed&#39;)&#34;
         ),
-    ] = None
-    stage: Annotated[
-        str,
-        Field(
-            description=&#34;Submission stage identifier. Use &#39;draft&#39; for materials that need seller processing and &#39;final&#39; for production-ready assets. Sellers may define additional stages.&#34;,
-            examples=[&#39;draft&#39;, &#39;final&#39;],
-        ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

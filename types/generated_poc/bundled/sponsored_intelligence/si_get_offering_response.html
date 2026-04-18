@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error"><code class="flex name class">
+<span>class <span class="ident">Error</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Error(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    code: Annotated[
+        str,
+        Field(
+            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;,
+            max_length=64,
+            min_length=1,
+        ),
+    ]
+    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    field: Annotated[
+        str | None,
+        Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
+    ] = None
+    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
+    retry_after: Annotated[
+        float | None,
+        Field(
+            description=&#39;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#39;,
+            ge=1.0,
+            le=3600.0,
+        ),
+    ] = None
+    details: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+    ] = None
+    recovery: Annotated[
+        Recovery | None,
+        Field(
+            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.code"><code class="name">var <span class="ident">code</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.details"><code class="name">var <span class="ident">details</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.field"><code class="name">var <span class="ident">field</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.message"><code class="name">var <span class="ident">message</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.recovery"><code class="name">var <span class="ident">recovery</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery">Recovery</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.retry_after"><code class="name">var <span class="ident">retry_after</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.suggestion"><code class="name">var <span class="ident">suggestion</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct"><code class="flex name class">
+<span>class <span class="ident">MatchingProduct</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MatchingProduct(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    product_id: Annotated[str, Field(description=&#39;Product identifier&#39;)]
+    name: Annotated[str, Field(description=&#39;Product name&#39;)]
+    price: Annotated[str | None, Field(description=&#34;Display price (e.g., &#39;$129&#39;, &#39;$89.99&#39;)&#34;)] = None
+    original_price: Annotated[str | None, Field(description=&#39;Original price if on sale&#39;)] = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Product image&#39;)] = None
+    availability_summary: Annotated[
+        str | None,
+        Field(
+            description=&#34;Brief availability info (e.g., &#39;In stock&#39;, &#39;Size 14 available&#39;, &#39;3 left&#39;)&#34;
+        ),
+    ] = None
+    url: Annotated[AnyUrl | None, Field(description=&#39;Product detail page URL&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.availability_summary"><code class="name">var <span class="ident">availability_summary</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.image_url"><code class="name">var <span class="ident">image_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.original_price"><code class="name">var <span class="ident">original_price</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.price"><code class="name">var <span class="ident">price</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.product_id"><code class="name">var <span class="ident">product_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering"><code class="flex name class">
+<span>class <span class="ident">Offering</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Offering(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    offering_id: Annotated[str | None, Field(description=&#39;Offering identifier&#39;)] = None
+    title: Annotated[str | None, Field(description=&#39;Offering title&#39;)] = None
+    summary: Annotated[str | None, Field(description=&#39;Brief summary of the offering&#39;)] = None
+    tagline: Annotated[str | None, Field(description=&#39;Short promotional tagline&#39;)] = None
+    expires_at: Annotated[AwareDatetime | None, Field(description=&#39;When this offering expires&#39;)] = (
+        None
+    )
+    price_hint: Annotated[
+        str | None, Field(description=&#34;Price indication (e.g., &#39;from $199&#39;, &#39;50% off&#39;)&#34;)
+    ] = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Hero image for the offering&#39;)] = None
+    landing_url: Annotated[AnyUrl | None, Field(description=&#39;Landing page URL&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.image_url"><code class="name">var <span class="ident">image_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.landing_url"><code class="name">var <span class="ident">landing_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.offering_id"><code class="name">var <span class="ident">offering_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.price_hint"><code class="name">var <span class="ident">price_hint</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.summary"><code class="name">var <span class="ident">summary</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.tagline"><code class="name">var <span class="ident">tagline</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.title"><code class="name">var <span class="ident">title</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery"><code class="flex name class">
+<span>class <span class="ident">Recovery</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Recovery(Enum):
+    transient = &#39;transient&#39;
+    correctable = &#39;correctable&#39;
+    terminal = &#39;terminal&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.correctable"><code class="name">var <span class="ident">correctable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.terminal"><code class="name">var <span class="ident">terminal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.transient"><code class="name">var <span class="ident">transient</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse"><code class="flex name class">
+<span>class <span class="ident">SiGetOfferingResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SiGetOfferingResponse(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    available: Annotated[bool, Field(description=&#39;Whether the offering is currently available&#39;)]
+    offering_token: Annotated[
+        str | None,
+        Field(
+            description=&#34;Token to pass to si_initiate_session for session continuity. Brand stores the full query context server-side (products shown, order, context) so they can resolve references like &#39;the second one&#39; when the session starts.&#34;
+        ),
+    ] = None
+    ttl_seconds: Annotated[
+        int | None,
+        Field(
+            description=&#39;How long this offering information is valid (seconds). Host should re-fetch after TTL expires.&#39;,
+            ge=0,
+        ),
+    ] = None
+    checked_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this offering information was retrieved&#39;)
+    ] = None
+    offering: Annotated[Offering | None, Field(description=&#39;Offering details&#39;)] = None
+    matching_products: Annotated[
+        list[MatchingProduct] | None,
+        Field(
+            description=&#39;Products matching the request context. Only included if include_products was true.&#39;
+        ),
+    ] = None
+    total_matching: Annotated[
+        int | None,
+        Field(
+            description=&#39;Total number of products matching the context (may be more than returned in matching_products)&#39;,
+            ge=0,
+        ),
+    ] = None
+    unavailable_reason: Annotated[
+        str | None,
+        Field(
+            description=&#34;If not available, why (e.g., &#39;expired&#39;, &#39;sold_out&#39;, &#39;region_restricted&#39;)&#34;
+        ),
+    ] = None
+    alternative_offering_ids: Annotated[
+        list[str] | None,
+        Field(description=&#39;Alternative offerings to consider if this one is unavailable&#39;),
+    ] = None
+    errors: Annotated[list[Error] | None, Field(description=&#39;Errors during offering lookup&#39;)] = None
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
+            title=&#39;Context Object&#39;,
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
+            title=&#39;Extension Object&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.alternative_offering_ids"><code class="name">var <span class="ident">alternative_offering_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.available"><code class="name">var <span class="ident">available</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.checked_at"><code class="name">var <span class="ident">checked_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error">Error</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.matching_products"><code class="name">var <span class="ident">matching_products</span> : list[<a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct">MatchingProduct</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.offering"><code class="name">var <span class="ident">offering</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering">Offering</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.offering_token"><code class="name">var <span class="ident">offering_token</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.total_matching"><code class="name">var <span class="ident">total_matching</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.ttl_seconds"><code class="name">var <span class="ident">ttl_seconds</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.unavailable_reason"><code class="name">var <span class="ident">unavailable_reason</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence" href="index.html">adcp.types.generated_poc.bundled.sponsored_intelligence</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error">Error</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.code" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.code">code</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.details" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.details">details</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.field" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.field">field</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.message" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.message">message</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.recovery" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.recovery">recovery</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.retry_after" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.retry_after">retry_after</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.suggestion" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Error.suggestion">suggestion</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct">MatchingProduct</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.availability_summary" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.availability_summary">availability_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.image_url" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.image_url">image_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.name" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.original_price" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.original_price">original_price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.price" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.price">price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.product_id" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.product_id">product_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.url" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.MatchingProduct.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering">Offering</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.expires_at" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.image_url" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.image_url">image_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.landing_url" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.landing_url">landing_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.offering_id" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.offering_id">offering_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.price_hint" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.price_hint">price_hint</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.summary" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.summary">summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.tagline" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.tagline">tagline</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.title" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Offering.title">title</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery">Recovery</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.correctable" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.correctable">correctable</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.terminal" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.terminal">terminal</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.transient" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.Recovery.transient">transient</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse">SiGetOfferingResponse</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.alternative_offering_ids" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.alternative_offering_ids">alternative_offering_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.available" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.available">available</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.checked_at" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.checked_at">checked_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.context" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.errors" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.ext" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.matching_products" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.matching_products">matching_products</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.offering" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.offering">offering</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.offering_token" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.offering_token">offering_token</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.total_matching" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.total_matching">total_matching</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.ttl_seconds" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.ttl_seconds">ttl_seconds</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.unavailable_reason" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_get_offering_response.SiGetOfferingResponse.unavailable_reason">unavailable_reason</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

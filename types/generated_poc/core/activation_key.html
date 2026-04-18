@@ -55,9 +55,9 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ActivationKey(RootModel[ActivationKey1 | ActivationKey2]):
+<pre><code class="python">class ActivationKey(RootModel[ActivationKey4 | ActivationKey5]):
     root: Annotated[
-        ActivationKey1 | ActivationKey2,
+        ActivationKey4 | ActivationKey5,
         Field(
             description=&#34;Universal identifier for using a signal on a destination platform. Can be either a segment ID or a key-value pair depending on the platform&#39;s targeting mechanism.&#34;,
             title=&#39;Activation Key&#39;,
@@ -92,7 +92,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[ActivationKey1, ActivationKey2]]</li>
+<li>pydantic.root_model.RootModel[Union[ActivationKey4, ActivationKey5]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
@@ -103,14 +103,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a></code></dt>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.activation_key.ActivationKey4" href="#adcp.types.generated_poc.core.activation_key.ActivationKey4">ActivationKey4</a> | <a title="adcp.types.generated_poc.core.activation_key.ActivationKey5" href="#adcp.types.generated_poc.core.activation_key.ActivationKey5">ActivationKey5</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey1"><code class="flex name class">
-<span>class <span class="ident">ActivationKey1</span></span>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey4"><code class="flex name class">
+<span>class <span class="ident">ActivationKey4</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -118,15 +118,15 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ActivationKey1(AdCPBaseModel):
+<pre><code class="python">class ActivationKey4(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    type: Annotated[Literal[&#39;segment_id&#39;], Field(description=&#39;Segment ID based targeting&#39;)]
     segment_id: Annotated[
         str,
         Field(description=&#39;The platform-specific segment identifier to use in campaign targeting&#39;),
-    ]
-    type: Annotated[Literal[&#39;segment_id&#39;], Field(description=&#39;Segment ID based targeting&#39;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -145,15 +145,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey1.segment_id"><code class="name">var <span class="ident">segment_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey4.segment_id"><code class="name">var <span class="ident">segment_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey1.type"><code class="name">var <span class="ident">type</span> : Literal['segment_id']</code></dt>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey4.type"><code class="name">var <span class="ident">type</span> : Literal['segment_id']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -169,8 +169,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey2"><code class="flex name class">
-<span>class <span class="ident">ActivationKey2</span></span>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey5"><code class="flex name class">
+<span>class <span class="ident">ActivationKey5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -178,12 +178,12 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class ActivationKey2(AdCPBaseModel):
+<pre><code class="python">class ActivationKey5(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
     type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
+    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
     value: Annotated[str, Field(description=&#39;The targeting parameter value&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -203,19 +203,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey2.key"><code class="name">var <span class="ident">key</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey5.key"><code class="name">var <span class="ident">key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey2.type"><code class="name">var <span class="ident">type</span> : Literal['key_value']</code></dt>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey5.type"><code class="name">var <span class="ident">type</span> : Literal['key_value']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey2.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.activation_key.ActivationKey5.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -254,20 +254,20 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey1" href="#adcp.types.generated_poc.core.activation_key.ActivationKey1">ActivationKey1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey4" href="#adcp.types.generated_poc.core.activation_key.ActivationKey4">ActivationKey4</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey1.model_config" href="#adcp.types.generated_poc.core.activation_key.ActivationKey1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey1.segment_id" href="#adcp.types.generated_poc.core.activation_key.ActivationKey1.segment_id">segment_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey1.type" href="#adcp.types.generated_poc.core.activation_key.ActivationKey1.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey4.model_config" href="#adcp.types.generated_poc.core.activation_key.ActivationKey4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey4.segment_id" href="#adcp.types.generated_poc.core.activation_key.ActivationKey4.segment_id">segment_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey4.type" href="#adcp.types.generated_poc.core.activation_key.ActivationKey4.type">type</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey2" href="#adcp.types.generated_poc.core.activation_key.ActivationKey2">ActivationKey2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey5" href="#adcp.types.generated_poc.core.activation_key.ActivationKey5">ActivationKey5</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey2.key" href="#adcp.types.generated_poc.core.activation_key.ActivationKey2.key">key</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey2.model_config" href="#adcp.types.generated_poc.core.activation_key.ActivationKey2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey2.type" href="#adcp.types.generated_poc.core.activation_key.ActivationKey2.type">type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey2.value" href="#adcp.types.generated_poc.core.activation_key.ActivationKey2.value">value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey5.key" href="#adcp.types.generated_poc.core.activation_key.ActivationKey5.key">key</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey5.model_config" href="#adcp.types.generated_poc.core.activation_key.ActivationKey5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey5.type" href="#adcp.types.generated_poc.core.activation_key.ActivationKey5.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.activation_key.ActivationKey5.value" href="#adcp.types.generated_poc.core.activation_key.ActivationKey5.value">value</a></code></li>
 </ul>
 </li>
 </ul>

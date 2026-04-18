@@ -362,8 +362,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    unit: Annotated[Unit, Field(description=&#39;Distance unit.&#39;)]
-    value: Annotated[float, Field(description=&#39;Mileage value.&#39;, ge=0.0)]</code></pre>
+    value: Annotated[float, Field(description=&#39;Mileage value.&#39;, ge=0.0)]
+    unit: Annotated[Unit, Field(description=&#39;Distance unit.&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -552,25 +552,28 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    assets: Annotated[
-        list[offering_asset_group.OfferingAssetGroup] | None,
-        Field(
-            description=&#34;Typed creative asset pools for this vehicle. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (exterior hero), &#39;images_vertical&#39; (9:16 for Stories), &#39;images_square&#39; (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
-            min_length=1,
-        ),
-    ] = None
-    body_style: Annotated[BodyStyle | None, Field(description=&#39;Vehicle body style.&#39;)] = None
+    vehicle_id: Annotated[str, Field(description=&#39;Unique identifier for this vehicle listing.&#39;)]
+    title: Annotated[str, Field(description=&#34;Listing title (e.g., &#39;2024 Honda Civic EX Sedan&#39;).&#34;)]
+    make: Annotated[str, Field(description=&#34;Vehicle manufacturer (e.g., &#39;Honda&#39;, &#39;Ford&#39;, &#39;BMW&#39;).&#34;)]
+    model: Annotated[str, Field(description=&#34;Vehicle model (e.g., &#39;Civic&#39;, &#39;F-150&#39;, &#39;X5&#39;).&#34;)]
+    year: Annotated[int, Field(description=&#39;Model year.&#39;, ge=1900)]
+    price: Annotated[price_1.Price | None, Field(description=&#39;Vehicle price.&#39;)] = None
     condition: Annotated[Condition | None, Field(description=&#39;Vehicle condition.&#39;)] = None
-    ext: ext_1.ExtensionObject | None = None
-    exterior_color: Annotated[str | None, Field(description=&#39;Exterior color.&#39;)] = None
+    vin: Annotated[
+        str | None, Field(description=&#39;Vehicle Identification Number (17-character VIN).&#39;)
+    ] = None
+    trim: Annotated[
+        str | None, Field(description=&#34;Trim level (e.g., &#39;EX&#39;, &#39;Limited&#39;, &#39;Sport&#39;).&#34;)
+    ] = None
+    mileage: Annotated[Mileage | None, Field(description=&#39;Odometer reading.&#39;)] = None
+    body_style: Annotated[BodyStyle | None, Field(description=&#39;Vehicle body style.&#39;)] = None
+    transmission: Annotated[Transmission | None, Field(description=&#39;Transmission type.&#39;)] = None
     fuel_type: Annotated[FuelType | None, Field(description=&#39;Fuel or powertrain type.&#39;)] = None
-    image_url: Annotated[AnyUrl | None, Field(description=&#39;Primary vehicle image URL.&#39;)] = None
+    exterior_color: Annotated[str | None, Field(description=&#39;Exterior color.&#39;)] = None
     interior_color: Annotated[str | None, Field(description=&#39;Interior color.&#39;)] = None
     location: Annotated[Location | None, Field(description=&#39;Dealer or vehicle location.&#39;)] = None
-    make: Annotated[str, Field(description=&#34;Vehicle manufacturer (e.g., &#39;Honda&#39;, &#39;Ford&#39;, &#39;BMW&#39;).&#34;)]
-    mileage: Annotated[Mileage | None, Field(description=&#39;Odometer reading.&#39;)] = None
-    model: Annotated[str, Field(description=&#34;Vehicle model (e.g., &#39;Civic&#39;, &#39;F-150&#39;, &#39;X5&#39;).&#34;)]
-    price: Annotated[price_1.Price | None, Field(description=&#39;Vehicle price.&#39;)] = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Primary vehicle image URL.&#39;)] = None
+    url: Annotated[AnyUrl | None, Field(description=&#39;Vehicle listing page URL.&#39;)] = None
     tags: Annotated[
         list[str] | None,
         Field(
@@ -578,17 +581,14 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    title: Annotated[str, Field(description=&#34;Listing title (e.g., &#39;2024 Honda Civic EX Sedan&#39;).&#34;)]
-    transmission: Annotated[Transmission | None, Field(description=&#39;Transmission type.&#39;)] = None
-    trim: Annotated[
-        str | None, Field(description=&#34;Trim level (e.g., &#39;EX&#39;, &#39;Limited&#39;, &#39;Sport&#39;).&#34;)
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this vehicle. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (exterior hero), &#39;images_vertical&#39; (9:16 for Stories), &#39;images_square&#39; (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
+            min_length=1,
+        ),
     ] = None
-    url: Annotated[AnyUrl | None, Field(description=&#39;Vehicle listing page URL.&#39;)] = None
-    vehicle_id: Annotated[str, Field(description=&#39;Unique identifier for this vehicle listing.&#39;)]
-    vin: Annotated[
-        str | None, Field(description=&#39;Vehicle Identification Number (17-character VIN).&#39;)
-    ] = None
-    year: Annotated[int, Field(description=&#39;Model year.&#39;, ge=1900)]</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

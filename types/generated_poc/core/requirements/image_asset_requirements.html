@@ -111,10 +111,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    bottom: Annotated[float, Field(ge=0.0)]
-    left: Annotated[float, Field(ge=0.0)]
+    top: Annotated[float, Field(ge=0.0)]
     right: Annotated[float, Field(ge=0.0)]
-    top: Annotated[float, Field(ge=0.0)]</code></pre>
+    bottom: Annotated[float, Field(ge=0.0)]
+    left: Annotated[float, Field(ge=0.0)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -351,14 +351,53 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    animation_allowed: Annotated[
-        bool | None, Field(description=&#39;Whether animated images (GIF, animated WebP) are accepted&#39;)
+    min_width: Annotated[
+        float | None,
+        Field(
+            description=&#39;Minimum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width.&#39;,
+            gt=0.0,
+        ),
+    ] = None
+    max_width: Annotated[
+        float | None,
+        Field(
+            description=&#39;Maximum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width.&#39;,
+            gt=0.0,
+        ),
+    ] = None
+    min_height: Annotated[
+        float | None,
+        Field(
+            description=&#39;Minimum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height.&#39;,
+            gt=0.0,
+        ),
+    ] = None
+    max_height: Annotated[
+        float | None,
+        Field(
+            description=&#39;Maximum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height.&#39;,
+            gt=0.0,
+        ),
+    ] = None
+    unit: Annotated[
+        dimension_unit.DimensionUnit | None,
+        Field(
+            description=&#34;Unit of measurement for width/height values. Defaults to &#39;px&#39; when absent. Print formats use &#39;inches&#39; or &#39;cm&#39;.&#34;
+        ),
     ] = None
     aspect_ratio: Annotated[
         str | None,
         Field(
             description=&#34;Required aspect ratio (e.g., &#39;16:9&#39;, &#39;1:1&#39;, &#39;1.91:1&#39;)&#34;,
             pattern=&#39;^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?$&#39;,
+        ),
+    ] = None
+    formats: Annotated[list[Format] | None, Field(description=&#39;Accepted image file formats&#39;)] = None
+    min_dpi: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum resolution in dots per inch. Always in DPI regardless of the dimension unit. Standard print requires 300 DPI, newspaper 150 DPI.&#39;,
+            ge=1,
         ),
     ] = None
     bleed: Annotated[
@@ -370,58 +409,8 @@ attributes &ndash; see the documentation for details.</p></div>
     color_space: Annotated[
         ColorSpace | None, Field(description=&#39;Required color space. Print typically requires CMYK.&#39;)
     ] = None
-    formats: Annotated[list[Format] | None, Field(description=&#39;Accepted image file formats&#39;)] = None
-    max_animation_duration_ms: Annotated[
-        int | None,
-        Field(
-            description=&#39;Maximum animation duration in milliseconds (if animation_allowed is true)&#39;,
-            ge=0,
-        ),
-    ] = None
     max_file_size_kb: Annotated[
         int | None, Field(description=&#39;Maximum file size in kilobytes&#39;, ge=1)
-    ] = None
-    max_height: Annotated[
-        float | None,
-        Field(
-            description=&#39;Maximum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height.&#39;,
-            gt=0.0,
-        ),
-    ] = None
-    max_weight_grams: Annotated[
-        int | None,
-        Field(
-            description=&#39;Maximum weight in grams for the finished physical piece (print inserts, flyers). Affects postage calculations and production constraints. Only applicable to print channels.&#39;,
-            gt=0,
-        ),
-    ] = None
-    max_width: Annotated[
-        float | None,
-        Field(
-            description=&#39;Maximum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width.&#39;,
-            gt=0.0,
-        ),
-    ] = None
-    min_dpi: Annotated[
-        int | None,
-        Field(
-            description=&#39;Minimum resolution in dots per inch. Always in DPI regardless of the dimension unit. Standard print requires 300 DPI, newspaper 150 DPI.&#39;,
-            ge=1,
-        ),
-    ] = None
-    min_height: Annotated[
-        float | None,
-        Field(
-            description=&#39;Minimum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height.&#39;,
-            gt=0.0,
-        ),
-    ] = None
-    min_width: Annotated[
-        float | None,
-        Field(
-            description=&#39;Minimum width. Interpretation depends on unit (default: pixels). For exact dimensions, set min_width = max_width.&#39;,
-            gt=0.0,
-        ),
     ] = None
     transparency_required: Annotated[
         bool | None,
@@ -429,10 +418,21 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Whether the image must support transparency (requires PNG, WebP, or GIF)&#39;
         ),
     ] = None
-    unit: Annotated[
-        dimension_unit.DimensionUnit | None,
+    animation_allowed: Annotated[
+        bool | None, Field(description=&#39;Whether animated images (GIF, animated WebP) are accepted&#39;)
+    ] = None
+    max_animation_duration_ms: Annotated[
+        int | None,
         Field(
-            description=&#34;Unit of measurement for width/height values. Defaults to &#39;px&#39; when absent. Print formats use &#39;inches&#39; or &#39;cm&#39;.&#34;
+            description=&#39;Maximum animation duration in milliseconds (if animation_allowed is true)&#39;,
+            ge=0,
+        ),
+    ] = None
+    max_weight_grams: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum weight in grams for the finished physical piece (print inserts, flyers). Affects postage calculations and production constraints. Only applicable to print channels.&#39;,
+            gt=0,
         ),
     ] = None</code></pre>
 </details>

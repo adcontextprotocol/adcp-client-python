@@ -59,22 +59,22 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    time_unit: Annotated[
+        TimeUnit,
+        Field(
+            description=&#39;The time unit for pricing. Total cost = fixed_price × number of time_units in the campaign flight.&#39;
+        ),
+    ]
+    min_duration: Annotated[
+        int | None, Field(description=&#39;Minimum booking duration in time_units&#39;, ge=1)
+    ] = None
     max_duration: Annotated[
         int | None,
         Field(
             description=&#39;Maximum booking duration in time_units. Must be &gt;= min_duration when both are present.&#39;,
             ge=1,
         ),
-    ] = None
-    min_duration: Annotated[
-        int | None, Field(description=&#39;Minimum booking duration in time_units&#39;, ge=1)
-    ] = None
-    time_unit: Annotated[
-        TimeUnit,
-        Field(
-            description=&#39;The time unit for pricing. Total cost = fixed_price × number of time_units in the campaign flight.&#39;
-        ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -134,6 +134,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    pricing_option_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
+    ]
+    pricing_model: Annotated[
+        Literal[&#39;time&#39;],
+        Field(description=&#39;Cost per time unit - rate scales with campaign duration&#39;),
+    ]
     currency: Annotated[
         str,
         Field(
@@ -142,12 +149,6 @@ validated to form a valid model.</p>
             pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
-    eligible_adjustments: Annotated[
-        list[adjustment_kind.PriceAdjustmentKind] | None,
-        Field(
-            description=&#39;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#39;
-        ),
-    ] = None
     fixed_price: Annotated[
         float | None,
         Field(
@@ -162,6 +163,11 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
+    price_guidance: Annotated[
+        price_guidance_1.PriceGuidance | None,
+        Field(description=&#39;Optional pricing guidance for auction-based bidding&#39;),
+    ] = None
+    parameters: Annotated[Parameters, Field(description=&#39;Time-based pricing parameters&#39;)]
     min_spend_per_package: Annotated[
         float | None,
         Field(
@@ -169,24 +175,18 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    parameters: Annotated[Parameters, Field(description=&#39;Time-based pricing parameters&#39;)]
     price_breakdown: Annotated[
         price_breakdown_1.PriceBreakdown | None,
         Field(
             description=&#39;Breakdown of how fixed_price was derived from the list (rate card) price. Only meaningful when fixed_price is present.&#39;
         ),
     ] = None
-    price_guidance: Annotated[
-        price_guidance_1.PriceGuidance | None,
-        Field(description=&#39;Optional pricing guidance for auction-based bidding&#39;),
-    ] = None
-    pricing_model: Annotated[
-        Literal[&#39;time&#39;],
-        Field(description=&#39;Cost per time unit - rate scales with campaign duration&#39;),
-    ]
-    pricing_option_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
-    ]</code></pre>
+    eligible_adjustments: Annotated[
+        list[adjustment_kind.PriceAdjustmentKind] | None,
+        Field(
+            description=&#39;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -412,6 +412,44 @@ el.replaceWith(d);
         pass
 
     # ========================================================================
+    # V3 Protocol Methods - Governance (Collection Lists)
+    # ========================================================================
+
+    @abstractmethod
+    async def create_collection_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Create a collection list for governance.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def get_collection_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Get a collection list with optional resolution.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def list_collection_lists(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;List collection lists.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def update_collection_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update a collection list.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def delete_collection_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Delete a collection list.&#34;&#34;&#34;
+        pass
+
+    # ========================================================================
+    # V3 Protocol Methods - Governance (Sync Governance)
+    # ========================================================================
+
+    @abstractmethod
+    async def sync_governance(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Sync governance agents attached to an account.&#34;&#34;&#34;
+        pass
+
+    # ========================================================================
     # V3 Protocol Methods - Temporal Matching Protocol (TMP)
     # ========================================================================
 
@@ -594,6 +632,21 @@ async def context_match(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
 </details>
 <div class="desc"><p>Match ad context to buyer packages.</p></div>
 </dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.create_collection_list"><code class="name flex">
+<span>async def <span class="ident">create_collection_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def create_collection_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Create a collection list for governance.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Create a collection list for governance.</p></div>
+</dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.create_content_standards"><code class="name flex">
 <span>async def <span class="ident">create_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -638,6 +691,21 @@ async def create_property_list(self, params: dict[str, Any]) -&gt; TaskResult[An
     pass</code></pre>
 </details>
 <div class="desc"><p>Create a property list for governance.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.delete_collection_list"><code class="name flex">
+<span>async def <span class="ident">delete_collection_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def delete_collection_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Delete a collection list.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Delete a collection list.</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.delete_property_list"><code class="name flex">
 <span>async def <span class="ident">delete_property_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
@@ -731,6 +799,21 @@ async def get_brand_identity(self, params: dict[str, Any]) -&gt; TaskResult[Any]
     pass</code></pre>
 </details>
 <div class="desc"><p>Get brand identity information.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.get_collection_list"><code class="name flex">
+<span>async def <span class="ident">get_collection_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get_collection_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Get a collection list with optional resolution.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Get a collection list with optional resolution.</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.get_content_standards"><code class="name flex">
 <span>async def <span class="ident">get_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
@@ -926,6 +1009,21 @@ async def list_accounts(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
     pass</code></pre>
 </details>
 <div class="desc"><p>List accounts.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.list_collection_lists"><code class="name flex">
+<span>async def <span class="ident">list_collection_lists</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def list_collection_lists(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;List collection lists.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>List collection lists.</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.list_content_standards"><code class="name flex">
 <span>async def <span class="ident">list_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
@@ -1219,6 +1317,21 @@ async def sync_event_sources(self, params: dict[str, Any]) -&gt; TaskResult[Any]
 </details>
 <div class="desc"><p>Sync event sources.</p></div>
 </dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.sync_governance"><code class="name flex">
+<span>async def <span class="ident">sync_governance</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def sync_governance(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Sync governance agents attached to an account.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Sync governance agents attached to an account.</p></div>
+</dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.sync_plans"><code class="name flex">
 <span>async def <span class="ident">sync_plans</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -1233,6 +1346,21 @@ async def sync_plans(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
     pass</code></pre>
 </details>
 <div class="desc"><p>Sync campaign governance plans.</p></div>
+</dd>
+<dt id="adcp.protocols.base.ProtocolAdapter.update_collection_list"><code class="name flex">
+<span>async def <span class="ident">update_collection_list</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def update_collection_list(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Update a collection list.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Update a collection list.</p></div>
 </dd>
 <dt id="adcp.protocols.base.ProtocolAdapter.update_content_standards"><code class="name flex">
 <span>async def <span class="ident">update_content_standards</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
@@ -1322,14 +1450,17 @@ async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResu
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.close" href="#adcp.protocols.base.ProtocolAdapter.close">close</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.comply_test_controller" href="#adcp.protocols.base.ProtocolAdapter.comply_test_controller">comply_test_controller</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.context_match" href="#adcp.protocols.base.ProtocolAdapter.context_match">context_match</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.create_collection_list" href="#adcp.protocols.base.ProtocolAdapter.create_collection_list">create_collection_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_content_standards" href="#adcp.protocols.base.ProtocolAdapter.create_content_standards">create_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_media_buy" href="#adcp.protocols.base.ProtocolAdapter.create_media_buy">create_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.create_property_list" href="#adcp.protocols.base.ProtocolAdapter.create_property_list">create_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.delete_collection_list" href="#adcp.protocols.base.ProtocolAdapter.delete_collection_list">delete_collection_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.delete_property_list" href="#adcp.protocols.base.ProtocolAdapter.delete_property_list">delete_property_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_account_financials" href="#adcp.protocols.base.ProtocolAdapter.get_account_financials">get_account_financials</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities" href="#adcp.protocols.base.ProtocolAdapter.get_adcp_capabilities">get_adcp_capabilities</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_agent_info" href="#adcp.protocols.base.ProtocolAdapter.get_agent_info">get_agent_info</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_brand_identity" href="#adcp.protocols.base.ProtocolAdapter.get_brand_identity">get_brand_identity</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.get_collection_list" href="#adcp.protocols.base.ProtocolAdapter.get_collection_list">get_collection_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_content_standards" href="#adcp.protocols.base.ProtocolAdapter.get_content_standards">get_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_delivery" href="#adcp.protocols.base.ProtocolAdapter.get_creative_delivery">get_creative_delivery</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_creative_features" href="#adcp.protocols.base.ProtocolAdapter.get_creative_features">get_creative_features</a></code></li>
@@ -1343,6 +1474,7 @@ async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResu
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.get_signals" href="#adcp.protocols.base.ProtocolAdapter.get_signals">get_signals</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.identity_match" href="#adcp.protocols.base.ProtocolAdapter.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_accounts" href="#adcp.protocols.base.ProtocolAdapter.list_accounts">list_accounts</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.list_collection_lists" href="#adcp.protocols.base.ProtocolAdapter.list_collection_lists">list_collection_lists</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_content_standards" href="#adcp.protocols.base.ProtocolAdapter.list_content_standards">list_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creative_formats" href="#adcp.protocols.base.ProtocolAdapter.list_creative_formats">list_creative_formats</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.list_creatives" href="#adcp.protocols.base.ProtocolAdapter.list_creatives">list_creatives</a></code></li>
@@ -1362,7 +1494,9 @@ async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResu
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_catalogs" href="#adcp.protocols.base.ProtocolAdapter.sync_catalogs">sync_catalogs</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_creatives" href="#adcp.protocols.base.ProtocolAdapter.sync_creatives">sync_creatives</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_event_sources" href="#adcp.protocols.base.ProtocolAdapter.sync_event_sources">sync_event_sources</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_governance" href="#adcp.protocols.base.ProtocolAdapter.sync_governance">sync_governance</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.sync_plans" href="#adcp.protocols.base.ProtocolAdapter.sync_plans">sync_plans</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.update_collection_list" href="#adcp.protocols.base.ProtocolAdapter.update_collection_list">update_collection_list</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_content_standards" href="#adcp.protocols.base.ProtocolAdapter.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_media_buy" href="#adcp.protocols.base.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_property_list" href="#adcp.protocols.base.ProtocolAdapter.update_property_list">update_property_list</a></code></li>

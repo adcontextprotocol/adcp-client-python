@@ -59,32 +59,34 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    creative_id: Annotated[
-        str | None,
+    adcp_major_version: Annotated[
+        int | None,
         Field(
-            description=&#39;Specific creative asset (if feedback is creative-specific)&#39;, min_length=1
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    feedback_source: Annotated[
-        feedback_source_1.FeedbackSource | None, Field(description=&#39;Source of the performance data&#39;)
-    ] = feedback_source_1.FeedbackSource.buyer_attribution
+    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s media buy identifier&#34;, min_length=1)]
     idempotency_key: Annotated[
-        str | None,
+        str,
         Field(
             description=&#39;Client-generated unique key for this request. Prevents duplicate feedback submissions on retries. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
             max_length=255,
             min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
         ),
-    ] = None
+    ]
     measurement_period: Annotated[
         datetime_range.DatetimeRange, Field(description=&#39;Time period for performance measurement&#39;)
     ]
-    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s media buy identifier&#34;, min_length=1)]
-    metric_type: Annotated[
-        metric_type_1.MetricType | None, Field(description=&#39;The business metric being measured&#39;)
-    ] = metric_type_1.MetricType.overall_performance
+    performance_index: Annotated[
+        float,
+        Field(
+            description=&#39;Normalized performance score (0.0 = no value, 1.0 = expected, &gt;1.0 = above expected)&#39;,
+            ge=0.0,
+        ),
+    ]
     package_id: Annotated[
         str | None,
         Field(
@@ -92,13 +94,20 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    performance_index: Annotated[
-        float,
+    creative_id: Annotated[
+        str | None,
         Field(
-            description=&#39;Normalized performance score (0.0 = no value, 1.0 = expected, &gt;1.0 = above expected)&#39;,
-            ge=0.0,
+            description=&#39;Specific creative asset (if feedback is creative-specific)&#39;, min_length=1
         ),
-    ]</code></pre>
+    ] = None
+    metric_type: Annotated[
+        metric_type_1.MetricType | None, Field(description=&#39;The business metric being measured&#39;)
+    ] = metric_type_1.MetricType.overall_performance
+    feedback_source: Annotated[
+        feedback_source_1.FeedbackSource | None, Field(description=&#39;Source of the performance data&#39;)
+    ] = feedback_source_1.FeedbackSource.buyer_attribution
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -117,6 +126,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -133,7 +146,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -191,6 +204,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest" href="#adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest">ProvidePerformanceFeedbackRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.adcp_major_version" href="#adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.context" href="#adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.creative_id" href="#adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.creative_id">creative_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.ext" href="#adcp.types.generated_poc.media_buy.provide_performance_feedback_request.ProvidePerformanceFeedbackRequest.ext">ext</a></code></li>

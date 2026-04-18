@@ -146,7 +146,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     supported_targets: Annotated[
-        list[SupportedTarget1] | None,
+        list[SupportedTarget3] | None,
         Field(
             description=&#39;Target kinds available for event goals on this product. Values match target.kind on the optimization goal. cost_per: target cost per conversion event. per_ad_spend: target return on ad spend (requires value_field on event sources). maximize_value: maximize total conversion value without a specific ratio target (requires value_field). Only these target kinds are accepted — goals with unlisted target kinds will be rejected. A goal without a target implicitly maximizes conversion count within budget — no declaration needed for that mode. When omitted, buyers can still set target-less event goals.&#39;,
             min_length=1,
@@ -188,7 +188,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.ConversionTracking.supported_targets"><code class="name">var <span class="ident">supported_targets</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedTarget1" href="#adcp.types.generated_poc.core.product.SupportedTarget1">SupportedTarget1</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product.ConversionTracking.supported_targets"><code class="name">var <span class="ident">supported_targets</span> : list[<a title="adcp.types.generated_poc.core.product.SupportedTarget3" href="#adcp.types.generated_poc.core.product.SupportedTarget3">SupportedTarget3</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -203,6 +203,57 @@ validated to form a valid model.</p>
 </ul>
 </li>
 </ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Country"><code class="flex name class">
+<span>class <span class="ident">Country</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Country(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product.Country.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Country.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
 </dd>
 <dt id="adcp.types.generated_poc.core.product.DeliveryMeasurement"><code class="flex name class">
 <span>class <span class="ident">DeliveryMeasurement</span></span>
@@ -1042,7 +1093,21 @@ validated to form a valid model.</p>
     identity_match: Annotated[
         bool | None,
         Field(description=&#39;Whether this provider handles identity match for this product.&#39;),
-    ] = False</code></pre>
+    ] = False
+    countries: Annotated[
+        list[Country] | None,
+        Field(
+            description=&#34;ISO 3166-1 alpha-2 country codes this provider serves for identity match. The router uses this to select the correct regional provider based on the request&#39;s country field. Required when identity_match is true.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    uid_types: Annotated[
+        list[uid_type.UidType] | None,
+        Field(
+            description=&#34;Identity types this regional provider can resolve. The router filters providers whose uid_types includes the request&#39;s uid_type. Required when identity_match is true.&#34;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1069,11 +1134,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.core.product.Provider.countries"><code class="name">var <span class="ident">countries</span> : list[<a title="adcp.types.generated_poc.core.product.Country" href="#adcp.types.generated_poc.core.product.Country">Country</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.core.product.Provider.identity_match"><code class="name">var <span class="ident">identity_match</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product.Provider.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product.Provider.uid_types"><code class="name">var <span class="ident">uid_types</span> : list[<a title="adcp.types.generated_poc.enums.uid_type.UidType" href="../enums/uid_type.html#adcp.types.generated_poc.enums.uid_type.UidType">UidType</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1262,8 +1335,8 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedTarget1"><code class="flex name class">
-<span>class <span class="ident">SupportedTarget1</span></span>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget3"><code class="flex name class">
+<span>class <span class="ident">SupportedTarget3</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -1271,7 +1344,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SupportedTarget1(Enum):
+<pre><code class="python">class SupportedTarget3(Enum):
     cost_per = &#39;cost_per&#39;
     per_ad_spend = &#39;per_ad_spend&#39;
     maximize_value = &#39;maximize_value&#39;</code></pre>
@@ -1317,15 +1390,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.product.SupportedTarget1.cost_per"><code class="name">var <span class="ident">cost_per</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget3.cost_per"><code class="name">var <span class="ident">cost_per</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedTarget1.maximize_value"><code class="name">var <span class="ident">maximize_value</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget3.maximize_value"><code class="name">var <span class="ident">maximize_value</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product.SupportedTarget1.per_ad_spend"><code class="name">var <span class="ident">per_ad_spend</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product.SupportedTarget3.per_ad_spend"><code class="name">var <span class="ident">per_ad_spend</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1513,6 +1586,13 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.product.Country" href="#adcp.types.generated_poc.core.product.Country">Country</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.product.Country.model_config" href="#adcp.types.generated_poc.core.product.Country.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Country.root" href="#adcp.types.generated_poc.core.product.Country.root">root</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.product.DeliveryMeasurement" href="#adcp.types.generated_poc.core.product.DeliveryMeasurement">DeliveryMeasurement</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.product.DeliveryMeasurement.model_config" href="#adcp.types.generated_poc.core.product.DeliveryMeasurement.model_config">model_config</a></code></li>
@@ -1610,11 +1690,13 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.product.Provider" href="#adcp.types.generated_poc.core.product.Provider">Provider</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.product.Provider.agent_url" href="#adcp.types.generated_poc.core.product.Provider.agent_url">agent_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Provider.context_match" href="#adcp.types.generated_poc.core.product.Provider.context_match">context_match</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Provider.countries" href="#adcp.types.generated_poc.core.product.Provider.countries">countries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Provider.identity_match" href="#adcp.types.generated_poc.core.product.Provider.identity_match">identity_match</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product.Provider.model_config" href="#adcp.types.generated_poc.core.product.Provider.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.Provider.uid_types" href="#adcp.types.generated_poc.core.product.Provider.uid_types">uid_types</a></code></li>
 </ul>
 </li>
 <li>
@@ -1641,11 +1723,11 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1" href="#adcp.types.generated_poc.core.product.SupportedTarget1">SupportedTarget1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product.SupportedTarget3" href="#adcp.types.generated_poc.core.product.SupportedTarget3">SupportedTarget3</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.cost_per" href="#adcp.types.generated_poc.core.product.SupportedTarget1.cost_per">cost_per</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.maximize_value" href="#adcp.types.generated_poc.core.product.SupportedTarget1.maximize_value">maximize_value</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget1.per_ad_spend" href="#adcp.types.generated_poc.core.product.SupportedTarget1.per_ad_spend">per_ad_spend</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget3.cost_per" href="#adcp.types.generated_poc.core.product.SupportedTarget3.cost_per">cost_per</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget3.maximize_value" href="#adcp.types.generated_poc.core.product.SupportedTarget3.maximize_value">maximize_value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product.SupportedTarget3.per_ad_spend" href="#adcp.types.generated_poc.core.product.SupportedTarget3.per_ad_spend">per_ad_spend</a></code></li>
 </ul>
 </li>
 <li>

@@ -60,7 +60,7 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     category_id: Annotated[str, Field(description=&#39;Validation category identifier.&#39;)]
-    status: Annotated[Status, Field(description=&#39;Whether this category is active for this plan.&#39;)]</code></pre>
+    status: Annotated[Status37, Field(description=&#39;Whether this category is active for this plan.&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -87,7 +87,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_response.Category.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.sync_plans_response.Status" href="#adcp.types.generated_poc.governance.sync_plans_response.Status">Status</a></code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_response.Category.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.sync_plans_response.Status37" href="#adcp.types.generated_poc.governance.sync_plans_response.Status37">Status37</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -116,23 +116,23 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    plan_id: Annotated[str, Field(description=&#39;Plan identifier.&#39;)]
+    status: Annotated[
+        Status,
+        Field(
+            description=&#34;Sync result status. &#39;active&#39; means sync succeeded; &#39;error&#39; means sync failed.&#34;
+        ),
+    ]
+    version: Annotated[int, Field(description=&#39;Plan version (increments on each sync).&#39;)]
     categories: Annotated[
         list[Category] | None, Field(description=&#39;Validation categories active for this plan.&#39;)
     ] = None
-    plan_id: Annotated[str, Field(description=&#39;Plan identifier.&#39;)]
     resolved_policies: Annotated[
         list[ResolvedPolicy] | None,
         Field(
             description=&#39;Policies the governance agent will enforce for this plan. Includes explicitly referenced policies from the brand compliance configuration and auto-applied policies matched by jurisdiction or policy category. Present when the governance agent supports policy resolution.&#39;
         ),
-    ] = None
-    status: Annotated[
-        Status15,
-        Field(
-            description=&#34;Sync result status. &#39;active&#39; means sync succeeded; &#39;error&#39; means sync failed.&#34;
-        ),
-    ]
-    version: Annotated[int, Field(description=&#39;Plan version (increments on each sync).&#39;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -167,7 +167,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_response.Plan.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.sync_plans_response.Status15" href="#adcp.types.generated_poc.governance.sync_plans_response.Status15">Status15</a></code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_response.Plan.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.sync_plans_response.Status" href="#adcp.types.generated_poc.governance.sync_plans_response.Status">Status</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -200,23 +200,23 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    enforcement: Annotated[
-        policy_enforcement.PolicyEnforcementLevel,
-        Field(description=&#39;Enforcement level for this policy.&#39;),
-    ]
     policy_id: Annotated[str, Field(description=&#39;Registry policy ID.&#39;)]
-    reason: Annotated[
-        str | None,
-        Field(
-            description=&#34;Why this policy was included (e.g., &#39;Matched jurisdiction US and policy category pharmaceutical_advertising&#39;).&#34;
-        ),
-    ] = None
     source: Annotated[
         Source,
         Field(
             description=&#34;How this policy was included. &#39;explicit&#39;: referenced in the brand compliance configuration. &#39;auto_applied&#39;: matched automatically by jurisdiction or policy category.&#34;
         ),
-    ]</code></pre>
+    ]
+    enforcement: Annotated[
+        policy_enforcement.PolicyEnforcementLevel,
+        Field(description=&#39;Enforcement level for this policy.&#39;),
+    ]
+    reason: Annotated[
+        str | None,
+        Field(
+            description=&#34;Why this policy was included (e.g., &#39;Matched jurisdiction US and policy category pharmaceutical_advertising&#39;).&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -342,7 +342,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Status(Enum):
     active = &#39;active&#39;
-    inactive = &#39;inactive&#39;</code></pre>
+    error = &#39;error&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -389,14 +389,14 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_response.Status.inactive"><code class="name">var <span class="ident">inactive</span></code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_response.Status.error"><code class="name">var <span class="ident">error</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_response.Status15"><code class="flex name class">
-<span>class <span class="ident">Status15</span></span>
+<dt id="adcp.types.generated_poc.governance.sync_plans_response.Status37"><code class="flex name class">
+<span>class <span class="ident">Status37</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -404,9 +404,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Status15(Enum):
+<pre><code class="python">class Status37(Enum):
     active = &#39;active&#39;
-    error = &#39;error&#39;</code></pre>
+    inactive = &#39;inactive&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -449,11 +449,11 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.governance.sync_plans_response.Status15.active"><code class="name">var <span class="ident">active</span></code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_response.Status37.active"><code class="name">var <span class="ident">active</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_response.Status15.error"><code class="name">var <span class="ident">error</span></code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_response.Status37.inactive"><code class="name">var <span class="ident">inactive</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -472,7 +472,9 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    plans: Annotated[list[Plan], Field(description=&#39;Status for each synced plan.&#39;)]</code></pre>
+    plans: Annotated[list[Plan], Field(description=&#39;Status for each synced plan.&#39;)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -491,6 +493,14 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -566,19 +576,21 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status" href="#adcp.types.generated_poc.governance.sync_plans_response.Status">Status</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status.active" href="#adcp.types.generated_poc.governance.sync_plans_response.Status.active">active</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status.inactive" href="#adcp.types.generated_poc.governance.sync_plans_response.Status.inactive">inactive</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status.error" href="#adcp.types.generated_poc.governance.sync_plans_response.Status.error">error</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status15" href="#adcp.types.generated_poc.governance.sync_plans_response.Status15">Status15</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status37" href="#adcp.types.generated_poc.governance.sync_plans_response.Status37">Status37</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status15.active" href="#adcp.types.generated_poc.governance.sync_plans_response.Status15.active">active</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status15.error" href="#adcp.types.generated_poc.governance.sync_plans_response.Status15.error">error</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status37.active" href="#adcp.types.generated_poc.governance.sync_plans_response.Status37.active">active</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.Status37.inactive" href="#adcp.types.generated_poc.governance.sync_plans_response.Status37.inactive">inactive</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse" href="#adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse">SyncPlansResponse</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.context" href="#adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.ext" href="#adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.model_config" href="#adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.plans" href="#adcp.types.generated_poc.governance.sync_plans_response.SyncPlansResponse.plans">plans</a></code></li>
 </ul>

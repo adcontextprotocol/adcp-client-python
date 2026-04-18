@@ -59,20 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    catalogs: Annotated[
-        list[catalog.Catalog] | None,
-        Field(
-            description=&#34;The buyer&#39;s catalogs attached to this package, with selectors (ids, gtins, tags, category, query) scoping which items are in play. References synced catalogs by catalog_id. The provider resolves items from its cached copy.&#34;
-        ),
-    ] = None
+    package_id: Annotated[str, Field(description=&#39;Unique identifier for the package&#39;)]
+    media_buy_id: Annotated[str, Field(description=&#39;Media buy that this package belongs to&#39;)]
     format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
             description=&#39;Creative format identifiers eligible for this package. Uses the standard AdCP format-id object with agent_url and id for unambiguous format resolution across namespaces.&#39;
         ),
     ] = None
-    media_buy_id: Annotated[str, Field(description=&#39;Media buy that this package belongs to&#39;)]
-    package_id: Annotated[str, Field(description=&#39;Unique identifier for the package&#39;)]</code></pre>
+    catalogs: Annotated[
+        list[catalog.Catalog] | None,
+        Field(
+            description=&#34;The buyer&#39;s catalogs attached to this package, with selectors (ids, gtins, tags, category, query) scoping which items are in play. References synced catalogs by catalog_id. The provider resolves items from its cached copy.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -56,13 +56,13 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CalibrationExemplars(AdCPBaseModel):
-    fail: Annotated[
-        list[artifact.Artifact] | None,
-        Field(description=&#39;Artifacts that fail the content standards&#39;),
-    ] = None
     pass_: Annotated[
         list[artifact.Artifact] | None,
         Field(alias=&#39;pass&#39;, description=&#39;Artifacts that pass the content standards&#39;),
+    ] = None
+    fail: Annotated[
+        list[artifact.Artifact] | None,
+        Field(description=&#39;Artifacts that fail the content standards&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -116,10 +116,17 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ContentStandards(AdCPBaseModel):
-    calibration_exemplars: Annotated[
-        CalibrationExemplars | None,
+    standards_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this standards configuration&#39;)
+    ]
+    name: Annotated[
+        str | None, Field(description=&#39;Human-readable name for this standards configuration&#39;)
+    ] = None
+    countries_all: Annotated[
+        list[str] | None,
         Field(
-            description=&#39;Training/test set to calibrate policy interpretation. Provides concrete examples of pass/fail decisions.&#39;
+            description=&#39;ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).&#39;,
+            min_length=1,
         ),
     ] = None
     channels_any: Annotated[
@@ -129,14 +136,6 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    countries_all: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;ISO 3166-1 alpha-2 country codes. Standards apply in ALL listed countries (AND logic).&#39;,
-            min_length=1,
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     languages_any: Annotated[
         list[str] | None,
         Field(
@@ -144,25 +143,27 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    name: Annotated[
-        str | None, Field(description=&#39;Human-readable name for this standards configuration&#39;)
-    ] = None
-    policy: Annotated[
-        str | None,
+    policies: Annotated[
+        list[policy_entry.PolicyEntry] | None,
         Field(
-            description=&#39;Natural language policy describing acceptable and unacceptable content contexts. Used by LLMs and human reviewers to make judgments.&#39;
+            description=&#39;Bespoke policies for this content-standards configuration, using the same shape as registry entries. Each policy is addressable by policy_id; governance findings reference the policy_id that triggered them.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    calibration_exemplars: Annotated[
+        CalibrationExemplars | None,
+        Field(
+            description=&#39;Training/test set to calibrate policy interpretation. Provides concrete examples of pass/fail decisions.&#39;
         ),
     ] = None
     pricing_options: Annotated[
-        list[pricing_option.PricingOption] | None,
+        list[vendor_pricing_option.VendorPricingOption] | None,
         Field(
             description=&#39;Pricing options for this content standards service. The buyer passes the selected pricing_option_id in report_usage for billing verification.&#39;,
             min_length=1,
         ),
     ] = None
-    standards_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this standards configuration&#39;)
-    ]</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -213,11 +214,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.policy"><code class="name">var <span class="ident">policy</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.policies"><code class="name">var <span class="ident">policies</span> : list[<a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry" href="../governance/policy_entry.html#adcp.types.generated_poc.governance.policy_entry.PolicyEntry">PolicyEntry</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.core.pricing_option.PricingOption" href="../core/pricing_option.html#adcp.types.generated_poc.core.pricing_option.PricingOption">PricingOption</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption" href="../core/vendor_pricing_option.html#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption">VendorPricingOption</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -270,7 +271,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.languages_any" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.languages_any">languages_any</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.model_config" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.name" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.name">name</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.policy" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.policy">policy</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.policies" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.policies">policies</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.pricing_options" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.pricing_options">pricing_options</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.content_standards.ContentStandards.standards_id" href="#adcp.types.generated_poc.content_standards.content_standards.ContentStandards.standards_id">standards_id</a></code></li>
 </ul>

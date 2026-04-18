@@ -59,6 +59,21 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#39;Return only these specific format IDs (e.g., from get_products response)&#39;,
+            min_length=1,
+        ),
+    ] = None
     asset_types: Annotated[
         list[asset_content_type.AssetContentType] | None,
         Field(
@@ -66,12 +81,43 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    disclosure_persistence: Annotated[
-        list[disclosure_persistence_1.DisclosurePersistence] | None,
+    max_width: Annotated[
+        int | None,
         Field(
-            description=&#39;Filter to formats where each requested persistence mode is supported by at least one position in disclosure_capabilities. Different positions may satisfy different modes. Use to find formats compatible with jurisdiction-specific persistence requirements (e.g., continuous for EU AI Act).&#39;,
-            min_length=1,
+            description=&#39;Maximum width in pixels (inclusive). Returns formats where ANY render has width &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
+        ),
+    ] = None
+    max_height: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum height in pixels (inclusive). Returns formats where ANY render has height &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
+        ),
+    ] = None
+    min_width: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum width in pixels (inclusive). Returns formats where ANY render has width &gt;= this value.&#39;
+        ),
+    ] = None
+    min_height: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum height in pixels (inclusive). Returns formats where ANY render has height &gt;= this value.&#39;
+        ),
+    ] = None
+    is_responsive: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#39;
+        ),
+    ] = None
+    name_search: Annotated[
+        str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
+    ] = None
+    wcag_level: Annotated[
+        wcag_level_1.WcagLevel | None,
+        Field(
+            description=&#39;Filter to formats that meet at least this WCAG conformance level (A &lt; AA &lt; AAA)&#39;
         ),
     ] = None
     disclosure_positions: Annotated[
@@ -81,11 +127,17 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    format_ids: Annotated[
+    disclosure_persistence: Annotated[
+        list[disclosure_persistence_1.DisclosurePersistence] | None,
+        Field(
+            description=&#39;Filter to formats where each requested persistence mode is supported by at least one position in disclosure_capabilities. Different positions may satisfy different modes. Use to find formats compatible with jurisdiction-specific persistence requirements (e.g., continuous for EU AI Act).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    output_format_ids: Annotated[
         list[format_id.FormatId] | None,
         Field(
-            description=&#39;Return only these specific format IDs (e.g., from get_products response)&#39;,
+            description=&#34;Filter to formats whose output_format_ids includes any of these format IDs. Returns formats that can produce these outputs — inspect each result&#39;s input_format_ids to see what inputs they accept.&#34;,
             min_length=1,
         ),
     ] = None
@@ -96,53 +148,9 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    is_responsive: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#39;
-        ),
-    ] = None
-    max_height: Annotated[
-        int | None,
-        Field(
-            description=&#39;Maximum height in pixels (inclusive). Returns formats where ANY render has height &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
-        ),
-    ] = None
-    max_width: Annotated[
-        int | None,
-        Field(
-            description=&#39;Maximum width in pixels (inclusive). Returns formats where ANY render has width &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
-        ),
-    ] = None
-    min_height: Annotated[
-        int | None,
-        Field(
-            description=&#39;Minimum height in pixels (inclusive). Returns formats where ANY render has height &gt;= this value.&#39;
-        ),
-    ] = None
-    min_width: Annotated[
-        int | None,
-        Field(
-            description=&#39;Minimum width in pixels (inclusive). Returns formats where ANY render has width &gt;= this value.&#39;
-        ),
-    ] = None
-    name_search: Annotated[
-        str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
-    ] = None
-    output_format_ids: Annotated[
-        list[format_id.FormatId] | None,
-        Field(
-            description=&#34;Filter to formats whose output_format_ids includes any of these format IDs. Returns formats that can produce these outputs — inspect each result&#39;s input_format_ids to see what inputs they accept.&#34;,
-            min_length=1,
-        ),
-    ] = None
     pagination: pagination_request.PaginationRequest | None = None
-    wcag_level: Annotated[
-        wcag_level_1.WcagLevel | None,
-        Field(
-            description=&#39;Filter to formats that meet at least this WCAG conformance level (A &lt; AA &lt; AAA)&#39;
-        ),
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -161,6 +169,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.asset_types"><code class="name">var <span class="ident">asset_types</span> : list[<a title="adcp.types.generated_poc.enums.asset_content_type.AssetContentType" href="../enums/asset_content_type.html#adcp.types.generated_poc.enums.asset_content_type.AssetContentType">AssetContentType</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -259,6 +271,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest">ListCreativeFormatsRequest</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.adcp_major_version" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.asset_types" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.asset_types">asset_types</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.context" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.disclosure_persistence" href="#adcp.types.generated_poc.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.disclosure_persistence">disclosure_persistence</a></code></li>

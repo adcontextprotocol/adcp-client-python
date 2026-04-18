@@ -59,15 +59,23 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. When provided, the seller validates this against its supported major_versions and returns VERSION_UNSUPPORTED if the version is not in range. When omitted, the seller assumes the highest major version it supports.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
     protocols: Annotated[
         list[Protocol] | None,
         Field(
             description=&#39;Specific protocols to query capabilities for. If omitted, returns capabilities for all supported protocols.&#39;,
             min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -86,6 +94,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -211,6 +223,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest">GetAdcpCapabilitiesRequest</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.adcp_major_version" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.context" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.ext" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_request.GetAdcpCapabilitiesRequest.model_config">model_config</a></code></li>

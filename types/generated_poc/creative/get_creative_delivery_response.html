@@ -60,14 +60,14 @@ el.replaceWith(d);
         extra=&#39;allow&#39;,
     )
     creative_id: Annotated[str, Field(description=&#39;Creative identifier&#39;)]
-    format_id: Annotated[
-        format_id_1.FormatId | None, Field(description=&#39;Format of this creative&#39;)
-    ] = None
     media_buy_id: Annotated[
         str | None,
         Field(
             description=&#34;Publisher&#39;s media buy identifier for this creative. Present when the request spanned multiple media buys, so the buyer can correlate each creative to its media buy.&#34;
         ),
+    ] = None
+    format_id: Annotated[
+        format_id_1.FormatId | None, Field(description=&#39;Format of this creative&#39;)
     ] = None
     totals: Annotated[
         delivery_metrics.DeliveryMetrics | None,
@@ -163,10 +163,12 @@ validated to form a valid model.</p>
             description=&#39;Account identifier. Present when the response spans or is scoped to a specific account.&#39;
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    creatives: Annotated[
-        list[Creative], Field(description=&#39;Creative delivery data with variant breakdowns&#39;)
-    ]
+    media_buy_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;Publisher&#39;s media buy identifier. Present when the request was scoped to a single media buy.&#34;
+        ),
+    ] = None
     currency: Annotated[
         str,
         Field(
@@ -174,23 +176,21 @@ validated to form a valid model.</p>
             pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
-    errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    media_buy_id: Annotated[
-        str | None,
-        Field(
-            description=&#34;Publisher&#39;s media buy identifier. Present when the request was scoped to a single media buy.&#34;
-        ),
-    ] = None
+    reporting_period: Annotated[ReportingPeriod, Field(description=&#39;Date range for the report.&#39;)]
+    creatives: Annotated[
+        list[Creative], Field(description=&#39;Creative delivery data with variant breakdowns&#39;)
+    ]
     pagination: Annotated[
         Pagination | None,
         Field(
             description=&#39;Pagination information. Present when the request included pagination parameters.&#39;
         ),
     ] = None
-    reporting_period: Annotated[ReportingPeriod, Field(description=&#39;Date range for the report.&#39;)]</code></pre>
+    errors: Annotated[
+        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -274,11 +274,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    limit: Annotated[int, Field(description=&#39;Maximum number of creatives requested&#39;, ge=1)]
+    offset: Annotated[int, Field(description=&#39;Number of creatives skipped&#39;, ge=0)]
     has_more: Annotated[
         bool, Field(description=&#39;Whether more creatives are available beyond this page&#39;)
     ]
-    limit: Annotated[int, Field(description=&#39;Maximum number of creatives requested&#39;, ge=1)]
-    offset: Annotated[int, Field(description=&#39;Number of creatives skipped&#39;, ge=0)]
     total: Annotated[
         int | None,
         Field(description=&#39;Total number of creatives matching the request filters&#39;, ge=0),
@@ -346,8 +346,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    end: Annotated[AwareDatetime, Field(description=&#39;ISO 8601 end timestamp&#39;)]
     start: Annotated[AwareDatetime, Field(description=&#39;ISO 8601 start timestamp&#39;)]
+    end: Annotated[AwareDatetime, Field(description=&#39;ISO 8601 end timestamp&#39;)]
     timezone: Annotated[
         str | None,
         Field(

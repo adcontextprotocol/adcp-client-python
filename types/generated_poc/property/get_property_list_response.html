@@ -59,6 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    list: Annotated[
+        property_list.PropertyList,
+        Field(description=&#39;The property list metadata (always returned)&#39;),
+    ]
+    identifiers: Annotated[
+        _list[identifier.Identifier] | None,
+        Field(
+            description=&#39;Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.&#39;
+        ),
+    ] = None
+    pagination: pagination_response.PaginationResponse | None = None
+    resolved_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When the list was resolved&#39;)
+    ] = None
     cache_valid_until: Annotated[
         AwareDatetime | None,
         Field(
@@ -71,21 +85,8 @@ el.replaceWith(d);
             description=&#34;Properties included in the list despite missing feature data. Only present when a feature_requirement has if_not_covered=&#39;include&#39;. Maps feature_id to list of identifiers not covered for that feature.&#34;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    identifiers: Annotated[
-        _list[identifier.Identifier] | None,
-        Field(
-            description=&#39;Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.&#39;
-        ),
-    ] = None
-    list: Annotated[
-        property_list.PropertyList,
-        Field(description=&#39;The property list metadata (always returned)&#39;),
-    ]
-    pagination: pagination_response.PaginationResponse | None = None
-    resolved_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When the list was resolved&#39;)
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -105,6 +106,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.cache_valid_until"><code class="name">var <span class="ident">cache_valid_until</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -167,6 +172,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse" href="#adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse">GetPropertyListResponse</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.cache_valid_until" href="#adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.cache_valid_until">cache_valid_until</a></code></li>
+<li><code><a title="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.context" href="#adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.coverage_gaps" href="#adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.coverage_gaps">coverage_gaps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.ext" href="#adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.identifiers" href="#adcp.types.generated_poc.property.get_property_list_response.GetPropertyListResponse.identifiers">identifiers</a></code></li>

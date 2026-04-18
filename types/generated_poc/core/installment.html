@@ -120,22 +120,69 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    ad_inventory: Annotated[
-        ad_inventory_config.AdInventoryConfiguration | None,
-        Field(
-            description=&#39;Break-based ad inventory for this installment. For non-break formats (host reads, integrations), use product placements.&#39;
-        ),
-    ] = None
+    installment_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this installment within the collection&#39;)
+    ]
     collection_id: Annotated[
         str | None,
         Field(
             description=&#34;Parent collection reference. Required when the product spans multiple collections. Maps to a collection_id declared in one of the publishers&#39; adagents.json files referenced by the product&#39;s collection selectors.&#34;
         ),
     ] = None
+    name: Annotated[str | None, Field(description=&#39;Installment title&#39;)] = None
+    season: Annotated[
+        str | None, Field(description=&#34;Season identifier (e.g., &#39;1&#39;, &#39;2024&#39;, &#39;spring_2026&#39;)&#34;)
+    ] = None
+    installment_number: Annotated[
+        str | None, Field(description=&#34;Installment number within the season (e.g., &#39;3&#39;, &#39;47&#39;)&#34;)
+    ] = None
+    scheduled_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When the installment airs or publishes (ISO 8601)&#39;)
+    ] = None
+    status: Annotated[
+        installment_status.InstallmentStatus | None,
+        Field(description=&#39;Lifecycle status of the installment&#39;),
+    ] = None
+    duration_seconds: Annotated[
+        int | None, Field(description=&#39;Expected duration of the installment in seconds&#39;, ge=0)
+    ] = None
+    flexible_end: Annotated[
+        bool | None, Field(description=&#39;Whether the end time is approximate (live events, sports)&#39;)
+    ] = None
+    valid_until: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When this installment data expires and should be re-queried. Agents should re-query before committing budget to products with tentative installments.&#39;
+        ),
+    ] = None
     content_rating: Annotated[
         content_rating_1.ContentRating | None,
         Field(
             description=&#34;Installment-specific content rating. Overrides the collection&#39;s baseline content_rating when present.&#34;
+        ),
+    ] = None
+    topics: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Content topics for this installment. Uses the same taxonomy as the collection&#39;s genre_taxonomy when present. Enables installment-level brand safety evaluation beyond content_rating.&#34;
+        ),
+    ] = None
+    special: Annotated[
+        special_1.Special | None,
+        Field(
+            description=&#39;Installment-specific event context. When present, this installment is anchored to a real-world event. Overrides the collection-level special when present.&#39;
+        ),
+    ] = None
+    guest_talent: Annotated[
+        list[talent.Talent] | None,
+        Field(
+            description=&#34;Installment-specific guests and talent. Additive to the collection&#39;s recurring talent.&#34;
+        ),
+    ] = None
+    ad_inventory: Annotated[
+        ad_inventory_config.AdInventoryConfiguration | None,
+        Field(
+            description=&#39;Break-based ad inventory for this installment. For non-break formats (host reads, integrations), use product placements.&#39;
         ),
     ] = None
     deadlines: Annotated[
@@ -150,54 +197,7 @@ validated to form a valid model.</p>
             description=&#39;When this installment is a clip, highlight, or recap derived from a full installment. The source installment_id must reference an installment within the same response.&#39;
         ),
     ] = None
-    duration_seconds: Annotated[
-        int | None, Field(description=&#39;Expected duration of the installment in seconds&#39;, ge=0)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    flexible_end: Annotated[
-        bool | None, Field(description=&#39;Whether the end time is approximate (live events, sports)&#39;)
-    ] = None
-    guest_talent: Annotated[
-        list[talent.Talent] | None,
-        Field(
-            description=&#34;Installment-specific guests and talent. Additive to the collection&#39;s recurring talent.&#34;
-        ),
-    ] = None
-    installment_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this installment within the collection&#39;)
-    ]
-    installment_number: Annotated[
-        str | None, Field(description=&#34;Installment number within the season (e.g., &#39;3&#39;, &#39;47&#39;)&#34;)
-    ] = None
-    name: Annotated[str | None, Field(description=&#39;Installment title&#39;)] = None
-    scheduled_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When the installment airs or publishes (ISO 8601)&#39;)
-    ] = None
-    season: Annotated[
-        str | None, Field(description=&#34;Season identifier (e.g., &#39;1&#39;, &#39;2024&#39;, &#39;spring_2026&#39;)&#34;)
-    ] = None
-    special: Annotated[
-        special_1.Special | None,
-        Field(
-            description=&#39;Installment-specific event context. When present, this installment is anchored to a real-world event. Overrides the collection-level special when present.&#39;
-        ),
-    ] = None
-    status: Annotated[
-        installment_status.InstallmentStatus | None,
-        Field(description=&#39;Lifecycle status of the installment&#39;),
-    ] = None
-    topics: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Content topics for this installment. Uses the same taxonomy as the collection&#39;s genre_taxonomy when present. Enables installment-level brand safety evaluation beyond content_rating.&#34;
-        ),
-    ] = None
-    valid_until: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;When this installment data expires and should be re-queried. Agents should re-query before committing budget to products with tentative installments.&#39;
-        ),
-    ] = None</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

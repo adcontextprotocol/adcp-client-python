@@ -59,6 +59,18 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]
+    description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
+        None
+    )
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
         Field(
@@ -66,30 +78,27 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
+    filters: Annotated[
+        property_list_filters.PropertyListFilters | None,
+        Field(description=&#39;Dynamic filters to apply when resolving the list&#39;),
+    ] = None
     brand: Annotated[
         brand_ref.BrandReference | None,
         Field(
             description=&#39;Brand reference. When provided, the agent automatically applies appropriate rules based on brand characteristics (industry, target_audience, etc.). Resolved at execution time.&#39;
         ),
     ] = None
-    context: context_1.ContextObject | None = None
-    description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
-        None
-    )
-    ext: ext_1.ExtensionObject | None = None
-    filters: Annotated[
-        property_list_filters.PropertyListFilters | None,
-        Field(description=&#39;Dynamic filters to apply when resolving the list&#39;),
-    ] = None
     idempotency_key: Annotated[
-        str | None,
+        str,
         Field(
             description=&#39;Client-generated unique key for this request. Prevents duplicate property list creation on retries. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
             max_length=255,
             min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
         ),
-    ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]</code></pre>
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -108,6 +117,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.base_properties"><code class="name">var <span class="ident">base_properties</span> : list[<a title="adcp.types.generated_poc.property.base_property_source.BasePropertySource" href="base_property_source.html#adcp.types.generated_poc.property.base_property_source.BasePropertySource">BasePropertySource</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -132,7 +145,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -174,6 +187,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest">CreatePropertyListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.adcp_major_version" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.base_properties" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.base_properties">base_properties</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.brand" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.context" href="#adcp.types.generated_poc.property.create_property_list_request.CreatePropertyListRequest.context">context</a></code></li>

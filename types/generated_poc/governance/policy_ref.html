@@ -59,12 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    config: Annotated[
-        dict[str, Any] | None,
-        Field(
-            description=&#34;Brand-specific parameter overrides for configurable policies. The accepted shape depends on the policy&#39;s config_schema.&#34;
-        ),
-    ] = None
     policy_id: Annotated[
         str,
         Field(
@@ -75,6 +69,12 @@ el.replaceWith(d);
         str | None,
         Field(
             description=&#39;Pin a specific policy version (semver). If omitted, the current version is used.&#39;
+        ),
+    ] = None
+    config: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Brand-specific parameter overrides for configurable policies. The accepted shape depends on the policy&#39;s config_schema.&#34;
         ),
     ] = None</code></pre>
 </details>

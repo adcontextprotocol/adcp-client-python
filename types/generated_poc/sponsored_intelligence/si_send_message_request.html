@@ -118,13 +118,31 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated unique key for at-most-once execution. Each conversational turn is a distinct mutation of session transcript — without this key, a timeout-and-retry produces a duplicate turn and a duplicate model response. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each user turn.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
+    session_id: Annotated[str, Field(description=&#39;Active session identifier&#39;)]
+    message: Annotated[str | None, Field(description=&#34;User&#39;s message to the brand agent&#34;)] = None
     action_response: Annotated[
         ActionResponse | None,
         Field(description=&#39;Response to a previous action_button (e.g., user clicked checkout)&#39;),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    message: Annotated[str | None, Field(description=&#34;User&#39;s message to the brand agent&#34;)] = None
-    session_id: Annotated[str, Field(description=&#39;Active session identifier&#39;)]</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -147,7 +165,19 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -200,9 +230,12 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest">SiSendMessageRequest</a></code></h4>
-<ul class="">
+<ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.action_response" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.action_response">action_response</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.adcp_major_version" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.adcp_major_version">adcp_major_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.context" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.ext" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.idempotency_key" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.message" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.message">message</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.model_config" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.session_id" href="#adcp.types.generated_poc.sponsored_intelligence.si_send_message_request.SiSendMessageRequest.session_id">session_id</a></code></li>

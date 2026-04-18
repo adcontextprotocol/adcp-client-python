@@ -59,40 +59,35 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    assets: Annotated[
-        list[offering_asset_group.OfferingAssetGroup] | None,
-        Field(
-            description=&#34;Typed creative asset pools for this destination. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (destination hero), &#39;images_vertical&#39; (9:16 for Snap, Stories), &#39;images_square&#39; (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
-            min_length=1,
-        ),
-    ] = None
-    city: Annotated[str | None, Field(description=&#39;City name, if applicable.&#39;)] = None
-    country: Annotated[
-        str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code.&#39;, pattern=&#39;^[A-Z]{2}$&#39;)
-    ] = None
+    destination_id: Annotated[str, Field(description=&#39;Unique identifier for this destination.&#39;)]
+    name: Annotated[
+        str, Field(description=&#34;Destination name (e.g., &#39;Barcelona&#39;, &#39;Bali&#39;, &#39;Swiss Alps&#39;).&#34;)
+    ]
     description: Annotated[
         str | None,
         Field(description=&#39;Destination description highlighting attractions and appeal.&#39;),
     ] = None
-    destination_id: Annotated[str, Field(description=&#39;Unique identifier for this destination.&#39;)]
-    destination_type: Annotated[
-        DestinationType | None, Field(description=&#39;Destination category.&#39;)
+    city: Annotated[str | None, Field(description=&#39;City name, if applicable.&#39;)] = None
+    region: Annotated[str | None, Field(description=&#39;State, province, or region name.&#39;)] = None
+    country: Annotated[
+        str | None, Field(description=&#39;ISO 3166-1 alpha-2 country code.&#39;, pattern=&#39;^[A-Z]{2}$&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    image_url: Annotated[AnyUrl | None, Field(description=&#39;Destination hero image URL.&#39;)] = None
     location: Annotated[
         Location | None, Field(description=&#39;Geographic coordinates of the destination.&#39;)
     ] = None
-    name: Annotated[
-        str, Field(description=&#34;Destination name (e.g., &#39;Barcelona&#39;, &#39;Bali&#39;, &#39;Swiss Alps&#39;).&#34;)
-    ]
+    destination_type: Annotated[
+        DestinationType | None, Field(description=&#39;Destination category.&#39;)
+    ] = None
     price: Annotated[
         price_1.Price | None, Field(description=&#39;Starting price for a trip to this destination.&#39;)
     ] = None
+    image_url: Annotated[AnyUrl | None, Field(description=&#39;Destination hero image URL.&#39;)] = None
+    url: Annotated[AnyUrl | None, Field(description=&#39;Destination landing page or booking URL.&#39;)] = (
+        None
+    )
     rating: Annotated[
         float | None, Field(description=&#39;Destination rating (1–5).&#39;, ge=1.0, le=5.0)
     ] = None
-    region: Annotated[str | None, Field(description=&#39;State, province, or region name.&#39;)] = None
     tags: Annotated[
         list[str] | None,
         Field(
@@ -100,9 +95,14 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    url: Annotated[AnyUrl | None, Field(description=&#39;Destination landing page or booking URL.&#39;)] = (
-        None
-    )</code></pre>
+    assets: Annotated[
+        list[offering_asset_group.OfferingAssetGroup] | None,
+        Field(
+            description=&#34;Typed creative asset pools for this destination. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: &#39;images_landscape&#39; (destination hero), &#39;images_vertical&#39; (9:16 for Snap, Stories), &#39;images_square&#39; (1:1). Enables formats to declare typed image requirements that map unambiguously to the right asset regardless of platform.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

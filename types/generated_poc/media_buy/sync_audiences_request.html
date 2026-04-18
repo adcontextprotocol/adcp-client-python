@@ -59,6 +59,31 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    audience_id: Annotated[
+        str,
+        Field(
+            description=&#34;Buyer&#39;s identifier for this audience. Used to reference the audience in targeting overlays.&#34;
+        ),
+    ]
+    name: Annotated[str | None, Field(description=&#39;Human-readable name for this audience&#39;)] = None
+    description: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable description of this audience&#39;s composition or purpose (e.g., &#39;High-value customers who purchased in the last 90 days&#39;).&#34;
+        ),
+    ] = None
+    audience_type: Annotated[
+        AudienceType | None,
+        Field(
+            description=&#34;Intended use for this audience. &#39;crm&#39;: target these users. &#39;suppression&#39;: exclude these users from delivery. &#39;lookalike_seed&#39;: use as a seed for the seller&#39;s lookalike modeling. Sellers may handle audiences differently based on type (e.g., suppression lists bypass minimum size requirements on some platforms).&#34;
+        ),
+    ] = None
+    tags: Annotated[
+        list[Tag] | None,
+        Field(
+            description=&#34;Buyer-defined tags for organizing and filtering audiences (e.g., &#39;holiday_2026&#39;, &#39;high_ltv&#39;). Tags are stored by the seller and returned in discovery-only calls.&#34;
+        ),
+    ] = None
     add: Annotated[
         list[audience_member.AudienceMember] | None,
         Field(
@@ -66,22 +91,11 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    audience_id: Annotated[
-        str,
+    remove: Annotated[
+        list[audience_member.AudienceMember] | None,
         Field(
-            description=&#34;Buyer&#39;s identifier for this audience. Used to reference the audience in targeting overlays.&#34;
-        ),
-    ]
-    audience_type: Annotated[
-        AudienceType | None,
-        Field(
-            description=&#34;Intended use for this audience. &#39;crm&#39;: target these users. &#39;suppression&#39;: exclude these users from delivery. &#39;lookalike_seed&#39;: use as a seed for the seller&#39;s lookalike modeling. Sellers may handle audiences differently based on type (e.g., suppression lists bypass minimum size requirements on some platforms).&#34;
-        ),
-    ] = None
-    consent_basis: Annotated[
-        consent_basis_1.ConsentBasis | None,
-        Field(
-            description=&#39;GDPR lawful basis for processing this audience list. Informational — not validated by the protocol, but required by some sellers operating in regulated markets (e.g. EU). When omitted, the buyer asserts they have a lawful basis appropriate to their jurisdiction.&#39;
+            description=&#39;Members to remove from this audience. If the same identifier appears in both add and remove in a single request, remove takes precedence.&#39;,
+            min_length=1,
         ),
     ] = None
     delete: Annotated[
@@ -90,24 +104,10 @@ el.replaceWith(d);
             description=&#39;When true, delete this audience from the account entirely. All other fields on this audience object are ignored. Use this to delete a specific audience without affecting others.&#39;
         ),
     ] = None
-    description: Annotated[
-        str | None,
+    consent_basis: Annotated[
+        consent_basis_1.ConsentBasis | None,
         Field(
-            description=&#34;Human-readable description of this audience&#39;s composition or purpose (e.g., &#39;High-value customers who purchased in the last 90 days&#39;).&#34;
-        ),
-    ] = None
-    name: Annotated[str | None, Field(description=&#39;Human-readable name for this audience&#39;)] = None
-    remove: Annotated[
-        list[audience_member.AudienceMember] | None,
-        Field(
-            description=&#39;Members to remove from this audience. If the same identifier appears in both add and remove in a single request, remove takes precedence.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    tags: Annotated[
-        list[Tag] | None,
-        Field(
-            description=&#34;Buyer-defined tags for organizing and filtering audiences (e.g., &#39;holiday_2026&#39;, &#39;high_ltv&#39;). Tags are stored by the seller and returned in discovery-only calls.&#34;
+            description=&#39;GDPR lawful basis for processing this audience list. Informational — not validated by the protocol, but required by some sellers operating in regulated markets (e.g. EU). When omitted, the buyer asserts they have a lawful basis appropriate to their jurisdiction.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -262,6 +262,23 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated unique key for at-most-once execution. `audience_id` gives resource-level dedup per audience, but the sync envelope emits audit events and may trigger downstream refreshes — this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `audiences` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
     account: Annotated[
         account_ref.AccountReference, Field(description=&#39;Account to manage audiences for.&#39;)
     ]
@@ -272,13 +289,13 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    context: context_1.ContextObject | None = None
     delete_missing: Annotated[
         bool | None,
         Field(
             description=&#39;When true, buyer-managed audiences on the account not included in this sync will be removed. Does not affect seller-managed audiences. Do not combine with an omitted audiences array or all buyer-managed audiences will be deleted.&#39;
         ),
     ] = False
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -302,6 +319,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.audiences"><code class="name">var <span class="ident">audiences</span> : list[<a title="adcp.types.generated_poc.media_buy.sync_audiences_request.Audience" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.Audience">Audience</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -315,6 +336,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -427,10 +452,12 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest">SyncAudiencesRequest</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.account" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.adcp_major_version" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.audiences" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.audiences">audiences</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.context" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.delete_missing" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.delete_missing">delete_missing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.ext" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.idempotency_key" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.model_config" href="#adcp.types.generated_poc.media_buy.sync_audiences_request.SyncAudiencesRequest.model_config">model_config</a></code></li>
 </ul>
 </li>

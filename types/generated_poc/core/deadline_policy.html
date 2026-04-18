@@ -63,12 +63,6 @@ el.replaceWith(d);
         int | None,
         Field(description=&#39;Days before scheduled_at by which the placement must be booked&#39;, ge=0),
     ] = None
-    business_days_only: Annotated[
-        bool | None,
-        Field(
-            description=&#39;When true, lead_days counts business days (Mon-Fri) rather than calendar days. Defaults to false.&#39;
-        ),
-    ] = False
     cancellation_lead_days: Annotated[
         int | None,
         Field(description=&#39;Days before scheduled_at by which cancellation is penalty-free&#39;, ge=0),
@@ -79,7 +73,13 @@ el.replaceWith(d);
             description=&#39;Default material submission stages. Items MUST be in chronological order (earliest due first). Agents compute due_at as: installment.scheduled_at minus lead_days.&#39;,
             min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    business_days_only: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, lead_days counts business days (Mon-Fri) rather than calendar days. Defaults to false.&#39;
+        ),
+    ] = False</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -143,15 +143,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    label: Annotated[str | None, Field(description=&#39;What the seller needs at this stage&#39;)] = None
-    lead_days: Annotated[int, Field(description=&#39;Days before scheduled_at this stage is due&#39;, ge=0)]
     stage: Annotated[
         str,
         Field(
             description=&#34;Stage identifier. Standard values: &#39;draft&#39; (needs seller processing), &#39;final&#39; (production-ready).&#34;,
             examples=[&#39;draft&#39;, &#39;final&#39;],
         ),
-    ]</code></pre>
+    ]
+    lead_days: Annotated[int, Field(description=&#39;Days before scheduled_at this stage is due&#39;, ge=0)]
+    label: Annotated[str | None, Field(description=&#39;What the seller needs at this stage&#39;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

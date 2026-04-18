@@ -59,18 +59,18 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    collection_ids: Annotated[
-        list[str],
-        Field(
-            description=&#39;Collection IDs from the adagents.json collections array. Each ID must match a collection_id declared in that file.&#39;,
-            min_length=1,
-        ),
-    ]
     publisher_domain: Annotated[
         str,
         Field(
             description=&#34;Domain where the adagents.json declaring these collections is hosted (e.g., &#39;mrbeast.com&#39;). The collections array in that file contains the authoritative collection definitions.&#34;,
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    collection_ids: Annotated[
+        list[str],
+        Field(
+            description=&#39;Collection IDs from the adagents.json collections array. Each ID must match a collection_id declared in that file.&#39;,
+            min_length=1,
         ),
     ]</code></pre>
 </details>

@@ -59,18 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    billing: Annotated[
-        Billing,
-        Field(
-            description=&#39;Who should be invoiced. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing across brands. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The seller must either accept this billing model or reject the request.&#39;
-        ),
-    ]
-    billing_entity: Annotated[
-        business_entity.BusinessEntity | None,
-        Field(
-            description=&#39;Business entity details for the party responsible for payment. The agent provides this so the seller has the legal name, tax IDs, address, and bank details needed for formal B2B invoicing.&#39;
-        ),
-    ] = None
     brand: Annotated[
         brand_ref.BrandReference,
         Field(
@@ -84,6 +72,18 @@ el.replaceWith(d);
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ]
+    billing: Annotated[
+        Billing,
+        Field(
+            description=&#39;Who should be invoiced. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing across brands. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The seller must either accept this billing model or reject the request.&#39;
+        ),
+    ]
+    billing_entity: Annotated[
+        business_entity.BusinessEntity | None,
+        Field(
+            description=&#39;Business entity details for the party responsible for payment. The agent provides this so the seller has the legal name, tax IDs, address, and bank details needed for formal B2B invoicing.&#39;
+        ),
+    ] = None
     payment_terms: Annotated[
         PaymentTerms | None,
         Field(
@@ -94,6 +94,12 @@ el.replaceWith(d);
         bool | None,
         Field(
             description=&#39;When true, provision this as a sandbox account with no real platform calls or billing. Only applicable to implicit accounts (require_operator_auth: false). For explicit accounts, sandbox accounts are pre-existing test accounts discovered via list_accounts.&#39;
+        ),
+    ] = None
+    preferred_reporting_protocol: Annotated[
+        cloud_storage_protocol.CloudStorageProtocol | None,
+        Field(
+            description=&#34;Buyer&#39;s preferred cloud storage protocol for offline reporting delivery. The seller provisions the account&#39;s reporting_bucket using this protocol if supported. When omitted, the seller chooses from its supported offline_delivery_protocols. Only meaningful when the seller&#39;s reporting_delivery_methods includes &#39;offline&#39;.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -135,6 +141,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.payment_terms"><code class="name">var <span class="ident">payment_terms</span> : <a title="adcp.types.generated_poc.account.sync_accounts_request.PaymentTerms" href="#adcp.types.generated_poc.account.sync_accounts_request.PaymentTerms">PaymentTerms</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_request.Account.preferred_reporting_protocol"><code class="name">var <span class="ident">preferred_reporting_protocol</span> : <a title="adcp.types.generated_poc.enums.cloud_storage_protocol.CloudStorageProtocol" href="../enums/cloud_storage_protocol.html#adcp.types.generated_poc.enums.cloud_storage_protocol.CloudStorageProtocol">CloudStorageProtocol</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -320,10 +330,26 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated unique key for at-most-once execution. Natural per-account upsert keys (brand, operator) handle resource-level dedup, but the envelope triggers onboarding webhooks, billing setup, and audit events — this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
     accounts: Annotated[
         list[Account], Field(description=&#39;Advertiser accounts to sync&#39;, max_length=1000)
     ]
-    context: context_1.ContextObject | None = None
     delete_missing: Annotated[
         bool | None,
         Field(
@@ -336,13 +362,14 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;When true, preview what would change without applying. Returns what would be created/updated/deactivated.&#39;
         ),
     ] = False
-    ext: ext_1.ExtensionObject | None = None
     push_notification_config: Annotated[
         push_notification_config_1.PushNotificationConfig | None,
         Field(
             description=&#39;Webhook for async notifications when account status changes (e.g., pending_approval transitions to active).&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -365,6 +392,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -378,6 +409,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -418,13 +453,14 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account" href="#adcp.types.generated_poc.account.sync_accounts_request.Account">Account</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.billing" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.billing">billing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.billing_entity" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.billing_entity">billing_entity</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.brand" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.model_config" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.operator" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.operator">operator</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.payment_terms" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.payment_terms">payment_terms</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.preferred_reporting_protocol" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.preferred_reporting_protocol">preferred_reporting_protocol</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.Account.sandbox" href="#adcp.types.generated_poc.account.sync_accounts_request.Account.sandbox">sandbox</a></code></li>
 </ul>
 </li>
@@ -451,10 +487,12 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest">SyncAccountsRequest</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.accounts" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.accounts">accounts</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.adcp_major_version" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.context" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.delete_missing" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.delete_missing">delete_missing</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.dry_run" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.dry_run">dry_run</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.ext" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.idempotency_key" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.model_config" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.push_notification_config" href="#adcp.types.generated_poc.account.sync_accounts_request.SyncAccountsRequest.push_notification_config">push_notification_config</a></code></li>
 </ul>

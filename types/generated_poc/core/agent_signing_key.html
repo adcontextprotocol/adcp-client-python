@@ -59,20 +59,18 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    kid: Annotated[str, Field(description=&#39;Key identifier for selecting the correct signing key.&#39;)]
+    kty: Annotated[str, Field(description=&#34;JWK key type, such as &#39;OKP&#39;, &#39;EC&#39;, or &#39;RSA&#39;.&#34;)]
     alg: Annotated[
         str | None,
         Field(description=&#34;Expected signing algorithm for this key, such as &#39;EdDSA&#39; or &#39;RS256&#39;.&#34;),
     ] = None
+    use: Annotated[
+        str | None, Field(description=&#34;Optional JWK use value. Typically &#39;sig&#39; for signing keys.&#34;)
+    ] = None
     crv: Annotated[
         str | None,
         Field(description=&#34;Curve name for OKP or EC keys, such as &#39;Ed25519&#39; or &#39;P-256&#39;.&#34;),
-    ] = None
-    e: Annotated[str | None, Field(description=&#39;Base64url-encoded RSA public exponent.&#39;)] = None
-    kid: Annotated[str, Field(description=&#39;Key identifier for selecting the correct signing key.&#39;)]
-    kty: Annotated[str, Field(description=&#34;JWK key type, such as &#39;OKP&#39;, &#39;EC&#39;, or &#39;RSA&#39;.&#34;)]
-    n: Annotated[str | None, Field(description=&#39;Base64url-encoded RSA modulus.&#39;)] = None
-    use: Annotated[
-        str | None, Field(description=&#34;Optional JWK use value. Typically &#39;sig&#39; for signing keys.&#34;)
     ] = None
     x: Annotated[
         str | None,
@@ -82,6 +80,14 @@ el.replaceWith(d);
     ] = None
     y: Annotated[
         str | None, Field(description=&#39;Base64url-encoded public key y coordinate for EC keys.&#39;)
+    ] = None
+    n: Annotated[str | None, Field(description=&#39;Base64url-encoded RSA modulus.&#39;)] = None
+    e: Annotated[str | None, Field(description=&#39;Base64url-encoded RSA public exponent.&#39;)] = None
+    revoked_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;Optional revocation timestamp. When present, verifiers MUST reject any signature produced with this key whose signing epoch (or equivalent time reference) is at or after this timestamp. The key may continue to appear in the trust anchor during a grace period so caches that have not yet refreshed still find the key and can evaluate the revocation marker. Keys past their revocation can be removed once the cache TTL (recommended: 5 minutes) has elapsed across all verifiers.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -126,6 +132,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.n"><code class="name">var <span class="ident">n</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.revoked_at"><code class="name">var <span class="ident">revoked_at</span> : pydantic.types.AwareDatetime | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -178,6 +188,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.kty" href="#adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.kty">kty</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.model_config" href="#adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.n" href="#adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.n">n</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.revoked_at" href="#adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.revoked_at">revoked_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.use" href="#adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.use">use</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.x" href="#adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.x">x</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.y" href="#adcp.types.generated_poc.core.agent_signing_key.AgentSigningKey.y">y</a></code></li>

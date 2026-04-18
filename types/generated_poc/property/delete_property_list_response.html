@@ -60,8 +60,9 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     deleted: Annotated[bool, Field(description=&#39;Whether the list was successfully deleted&#39;)]
-    ext: ext_1.ExtensionObject | None = None
-    list_id: Annotated[str, Field(description=&#39;ID of the deleted list&#39;)]</code></pre>
+    list_id: Annotated[str, Field(description=&#39;ID of the deleted list&#39;)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -80,6 +81,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.deleted"><code class="name">var <span class="ident">deleted</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
@@ -126,6 +131,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse" href="#adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse">DeletePropertyListResponse</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.context" href="#adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.deleted" href="#adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.deleted">deleted</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.ext" href="#adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.list_id" href="#adcp.types.generated_poc.property.delete_property_list_response.DeletePropertyListResponse.list_id">list_id</a></code></li>

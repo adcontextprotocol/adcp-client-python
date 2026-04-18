@@ -59,19 +59,19 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    brand_id: Annotated[
-        brand_id_1.BrandId | None,
-        Field(
-            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;
-        ),
-    ] = None
     domain: Annotated[
         str,
         Field(
             description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
             pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
-    ]</code></pre>
+    ]
+    brand_id: Annotated[
+        brand_id_1.BrandId | None,
+        Field(
+            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -123,6 +123,29 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    available_reporting_frequencies: Annotated[
+        list[reporting_frequency.ReportingFrequency],
+        Field(description=&#39;Supported reporting frequency options&#39;, min_length=1),
+    ]
+    expected_delay_minutes: Annotated[
+        int,
+        Field(
+            description=&#39;Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)&#39;,
+            examples=[240, 300, 1440],
+            ge=0,
+        ),
+    ]
+    timezone: Annotated[
+        str,
+        Field(
+            description=&#34;Timezone for reporting periods. Use &#39;UTC&#39; or IANA timezone (e.g., &#39;America/New_York&#39;). Critical for daily/monthly frequency alignment.&#34;,
+            examples=[&#39;UTC&#39;, &#39;America/New_York&#39;, &#39;Europe/London&#39;, &#39;America/Los_Angeles&#39;],
+        ),
+    ]
+    supports_webhooks: Annotated[
+        bool,
+        Field(description=&#39;Whether this product supports webhook-based reporting notifications&#39;),
+    ]
     available_metrics: Annotated[
         list[available_metric.AvailableMetric],
         Field(
@@ -133,52 +156,10 @@ attributes &ndash; see the documentation for details.</p></div>
             ],
         ),
     ]
-    available_reporting_frequencies: Annotated[
-        list[reporting_frequency.ReportingFrequency],
-        Field(description=&#39;Supported reporting frequency options&#39;, min_length=1),
-    ]
-    date_range_support: Annotated[
-        DateRangeSupport,
-        Field(
-            description=&#34;Whether delivery data can be filtered to arbitrary date ranges. &#39;date_range&#39; means the platform supports start_date/end_date parameters. &#39;lifetime_only&#39; means the platform returns campaign lifetime totals and date range parameters are not accepted.&#34;
-        ),
-    ]
-    expected_delay_minutes: Annotated[
-        int,
-        Field(
-            description=&#39;Expected delay in minutes before reporting data becomes available (e.g., 240 for 4-hour delay)&#39;,
-            examples=[240, 300, 1440],
-            ge=0,
-        ),
-    ]
-    supports_audience_breakdown: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether this product supports audience segment breakdowns in delivery reporting (by_audience within by_package)&#39;
-        ),
-    ] = None
     supports_creative_breakdown: Annotated[
         bool | None,
         Field(
             description=&#39;Whether this product supports creative-level metric breakdowns in delivery reporting (by_creative within by_package)&#39;
-        ),
-    ] = None
-    supports_device_platform_breakdown: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether this product supports device platform breakdowns in delivery reporting (by_device_platform within by_package)&#39;
-        ),
-    ] = None
-    supports_device_type_breakdown: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether this product supports device type breakdowns in delivery reporting (by_device_type within by_package)&#39;
-        ),
-    ] = None
-    supports_geo_breakdown: Annotated[
-        geo_breakdown_support.GeographicBreakdownSupport | None,
-        Field(
-            description=&#39;Geographic breakdown support for this product. Declares which geo levels and systems are available for by_geo reporting within by_package.&#39;
         ),
     ] = None
     supports_keyword_breakdown: Annotated[
@@ -187,23 +168,49 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;Whether this product supports keyword-level metric breakdowns in delivery reporting (by_keyword within by_package)&#39;
         ),
     ] = None
+    supports_geo_breakdown: Annotated[
+        geo_breakdown_support.GeographicBreakdownSupport | None,
+        Field(
+            description=&#39;Geographic breakdown support for this product. Declares which geo levels and systems are available for by_geo reporting within by_package.&#39;
+        ),
+    ] = None
+    supports_device_type_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports device type breakdowns in delivery reporting (by_device_type within by_package)&#39;
+        ),
+    ] = None
+    supports_device_platform_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports device platform breakdowns in delivery reporting (by_device_platform within by_package)&#39;
+        ),
+    ] = None
+    supports_audience_breakdown: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether this product supports audience segment breakdowns in delivery reporting (by_audience within by_package)&#39;
+        ),
+    ] = None
     supports_placement_breakdown: Annotated[
         bool | None,
         Field(
             description=&#39;Whether this product supports placement breakdowns in delivery reporting (by_placement within by_package)&#39;
         ),
     ] = None
-    supports_webhooks: Annotated[
-        bool,
-        Field(description=&#39;Whether this product supports webhook-based reporting notifications&#39;),
-    ]
-    timezone: Annotated[
-        str,
+    date_range_support: Annotated[
+        DateRangeSupport,
         Field(
-            description=&#34;Timezone for reporting periods. Use &#39;UTC&#39; or IANA timezone (e.g., &#39;America/New_York&#39;). Critical for daily/monthly frequency alignment.&#34;,
-            examples=[&#39;UTC&#39;, &#39;America/New_York&#39;, &#39;Europe/London&#39;, &#39;America/Los_Angeles&#39;],
+            description=&#34;Whether delivery data can be filtered to arbitrary date ranges. &#39;date_range&#39; means the platform supports start_date/end_date parameters. &#39;lifetime_only&#39; means the platform returns campaign lifetime totals and date range parameters are not accepted.&#34;
         ),
-    ]</code></pre>
+    ]
+    measurement_windows: Annotated[
+        list[measurement_window.MeasurementWindow] | None,
+        Field(
+            description=&#39;Measurement maturation stages available for this product. Used by any channel where billing-grade data is produced in phases rather than arriving final on day one. Examples: broadcast/linear TV (Live → C3 → C7 DVR accumulation), DOOH (tentative plays → post-IVT/fraud-check final), digital with IVT filtering (raw → GIVT filtered → SIVT filtered), podcast (7-day downloads → 30-day downloads). Each window defines an accumulation period and expected data availability. When present, delivery reports reference a specific window_id. Sellers whose data is final on first delivery typically omit this.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -235,6 +242,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.expected_delay_minutes"><code class="name">var <span class="ident">expected_delay_minutes</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.measurement_windows"><code class="name">var <span class="ident">measurement_windows</span> : list[<a title="adcp.types.generated_poc.core.measurement_window.MeasurementWindow" href="measurement_window.html#adcp.types.generated_poc.core.measurement_window.MeasurementWindow">MeasurementWindow</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -319,6 +330,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.available_reporting_frequencies" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.available_reporting_frequencies">available_reporting_frequencies</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.date_range_support" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.date_range_support">date_range_support</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.expected_delay_minutes" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.expected_delay_minutes">expected_delay_minutes</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.measurement_windows" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.measurement_windows">measurement_windows</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.model_config" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_audience_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_audience_breakdown">supports_audience_breakdown</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_creative_breakdown" href="#adcp.types.generated_poc.core.reporting_capabilities.ReportingCapabilities.supports_creative_breakdown">supports_creative_breakdown</a></code></li>

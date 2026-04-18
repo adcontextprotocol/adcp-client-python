@@ -120,8 +120,8 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing"><code class="flex name class">
-<span>class <span class="ident">SignalPricing</span></span>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing"><code class="flex name class">
+<span>class <span class="ident">VendorPricing</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
 </code></dt>
 <dd>
@@ -129,12 +129,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalPricing(RootModel[SignalPricing1 | SignalPricing2 | SignalPricing3]):
+<pre><code class="python">class VendorPricing(RootModel[VendorPricing1 | VendorPricing2 | VendorPricing3 | VendorPricing4]):
     root: Annotated[
-        SignalPricing1 | SignalPricing2 | SignalPricing3,
+        VendorPricing1 | VendorPricing2 | VendorPricing3 | VendorPricing4,
         Field(
-            description=&#34;Pricing model for a signal. Discriminated by model: &#39;cpm&#39; (fixed CPM), &#39;percent_of_media&#39; (percentage of spend with optional CPM cap), or &#39;flat_fee&#39; (fixed charge per reporting period, e.g. monthly licensed segments).&#34;,
-            title=&#39;Signal Pricing&#39;,
+            description=&#34;Pricing model for a vendor service. Discriminated by model: &#39;cpm&#39; (fixed CPM), &#39;percent_of_media&#39; (percentage of spend with optional CPM cap), &#39;flat_fee&#39; (fixed charge per reporting period), or &#39;per_unit&#39; (fixed price per unit of work).&#34;,
+            title=&#39;Vendor Pricing&#39;,
         ),
     ]
 
@@ -166,25 +166,25 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[SignalPricing1, SignalPricing2, SignalPricing3]]</li>
+<li>pydantic.root_model.RootModel[Union[VendorPricing1, VendorPricing2, VendorPricing3, VendorPricing4]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing1" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing1">SignalPricing1</a> | <a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing2" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing2">SignalPricing2</a> | <a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing3" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing3">SignalPricing3</a></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing1" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing1">VendorPricing1</a> | <a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing2" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing2">VendorPricing2</a> | <a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing3" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing3">VendorPricing3</a> | <a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing4" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing4">VendorPricing4</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing1"><code class="flex name class">
-<span>class <span class="ident">SignalPricing1</span></span>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing1"><code class="flex name class">
+<span>class <span class="ident">VendorPricing1</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -192,14 +192,14 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalPricing1(AdCPBaseModel):
+<pre><code class="python">class VendorPricing1(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    model: Literal[&#39;cpm&#39;]
     cpm: Annotated[float, Field(description=&#39;Cost per thousand impressions&#39;, ge=0.0)]
     currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
-    ext: ext_1.ExtensionObject | None = None
-    model: Literal[&#39;cpm&#39;]</code></pre>
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -218,23 +218,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.cpm"><code class="name">var <span class="ident">cpm</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.cpm"><code class="name">var <span class="ident">cpm</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.model"><code class="name">var <span class="ident">model</span> : Literal['cpm']</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.model"><code class="name">var <span class="ident">model</span> : Literal['cpm']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -250,8 +250,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing2"><code class="flex name class">
-<span>class <span class="ident">SignalPricing2</span></span>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing2"><code class="flex name class">
+<span>class <span class="ident">VendorPricing2</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -259,15 +259,14 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalPricing2(AdCPBaseModel):
+<pre><code class="python">class VendorPricing2(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    currency: Annotated[
-        str,
-        Field(description=&#39;ISO 4217 currency code for the resulting charge&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+    model: Literal[&#39;percent_of_media&#39;]
+    percent: Annotated[
+        float, Field(description=&#39;Percentage of media spend, e.g. 15 = 15%&#39;, ge=0.0, le=100.0)
     ]
-    ext: ext_1.ExtensionObject | None = None
     max_cpm: Annotated[
         float | None,
         Field(
@@ -275,10 +274,11 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ] = None
-    model: Literal[&#39;percent_of_media&#39;]
-    percent: Annotated[
-        float, Field(description=&#39;Percentage of media spend, e.g. 15 = 15%&#39;, ge=0.0, le=100.0)
-    ]</code></pre>
+    currency: Annotated[
+        str,
+        Field(description=&#39;ISO 4217 currency code for the resulting charge&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+    ]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -297,27 +297,27 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.max_cpm"><code class="name">var <span class="ident">max_cpm</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.max_cpm"><code class="name">var <span class="ident">max_cpm</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.model"><code class="name">var <span class="ident">model</span> : Literal['percent_of_media']</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.model"><code class="name">var <span class="ident">model</span> : Literal['percent_of_media']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.percent"><code class="name">var <span class="ident">percent</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.percent"><code class="name">var <span class="ident">percent</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -333,8 +333,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing3"><code class="flex name class">
-<span>class <span class="ident">SignalPricing3</span></span>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing3"><code class="flex name class">
+<span>class <span class="ident">VendorPricing3</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -342,15 +342,15 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalPricing3(AdCPBaseModel):
+<pre><code class="python">class VendorPricing3(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    amount: Annotated[float, Field(description=&#39;Fixed charge for the billing period&#39;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
-    ext: ext_1.ExtensionObject | None = None
     model: Literal[&#39;flat_fee&#39;]
-    period: Annotated[Period, Field(description=&#39;Billing period for the flat fee.&#39;)]</code></pre>
+    amount: Annotated[float, Field(description=&#39;Fixed charge for the billing period&#39;, ge=0.0)]
+    period: Annotated[Period, Field(description=&#39;Billing period for the flat fee.&#39;)]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -369,27 +369,104 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.model"><code class="name">var <span class="ident">model</span> : Literal['flat_fee']</code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.model"><code class="name">var <span class="ident">model</span> : Literal['flat_fee']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.core.signal_pricing.Period" href="#adcp.types.generated_poc.core.signal_pricing.Period">Period</a></code></dt>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.core.signal_pricing.Period" href="#adcp.types.generated_poc.core.signal_pricing.Period">Period</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing4"><code class="flex name class">
+<span>class <span class="ident">VendorPricing4</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VendorPricing4(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    model: Literal[&#39;per_unit&#39;]
+    unit: Annotated[
+        str,
+        Field(
+            description=&#34;What is counted — e.g. &#39;format&#39;, &#39;image&#39;, &#39;token&#39;, &#39;variant&#39;, &#39;render&#39;, &#39;evaluation&#39;.&#34;
+        ),
+    ]
+    unit_price: Annotated[float, Field(description=&#39;Cost per one unit&#39;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.model"><code class="name">var <span class="ident">model</span> : Literal['per_unit']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.unit"><code class="name">var <span class="ident">unit</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.unit_price"><code class="name">var <span class="ident">unit_price</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -430,42 +507,53 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing">SignalPricing</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing">VendorPricing</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing.model_config" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing.root" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing.root">root</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing.model_config" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing.root" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing.root">root</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing1" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing1">SignalPricing1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing1" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing1">VendorPricing1</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.cpm" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing1.cpm">cpm</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.currency" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing1.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.ext" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing1.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.model" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing1.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing1.model_config" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.cpm" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing1.cpm">cpm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.currency" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing1.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.ext" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing1.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.model" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing1.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing1.model_config" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing1.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing2" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing2">SignalPricing2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing2" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing2">VendorPricing2</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.currency" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing2.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.ext" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing2.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.max_cpm" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing2.max_cpm">max_cpm</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.model" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing2.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.model_config" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing2.percent" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing2.percent">percent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.currency" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing2.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.ext" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing2.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.max_cpm" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing2.max_cpm">max_cpm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.model" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing2.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.model_config" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing2.percent" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing2.percent">percent</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing3" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing3">SignalPricing3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing3" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing3">VendorPricing3</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.amount" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing3.amount">amount</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.currency" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing3.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.ext" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing3.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.model" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing3.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.model_config" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.signal_pricing.SignalPricing3.period" href="#adcp.types.generated_poc.core.signal_pricing.SignalPricing3.period">period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.amount" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing3.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.currency" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing3.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.ext" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing3.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.model" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing3.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.model_config" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing3.period" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing3.period">period</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing4" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing4">VendorPricing4</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.currency" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing4.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.ext" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing4.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.model" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing4.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.model_config" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.unit" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing4.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.signal_pricing.VendorPricing4.unit_price" href="#adcp.types.generated_poc.core.signal_pricing.VendorPricing4.unit_price">unit_price</a></code></li>
 </ul>
 </li>
 </ul>

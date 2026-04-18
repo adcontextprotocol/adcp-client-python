@@ -59,17 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    prohibited_claims: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Claims that must not appear in creatives for this campaign. Creative agents should ensure generated content avoids these claims.&#39;,
-            min_length=1,
-        ),
-    ] = None
     required_disclosures: Annotated[
         list[RequiredDisclosure] | None,
         Field(
             description=&#39;Disclosures that must appear in creatives for this campaign. Each disclosure specifies the text, where it should appear, and which jurisdictions require it.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    prohibited_claims: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Claims that must not appear in creatives for this campaign. Creative agents should ensure generated content avoids these claims.&#39;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -128,18 +128,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    audience: Annotated[
-        str | None, Field(description=&#39;Target audience description for this campaign&#39;)
-    ] = None
-    compliance: Annotated[
-        Compliance | None,
-        Field(
-            description=&#39;Regulatory and legal compliance requirements for this campaign. Campaign-specific, regional, and product-based — distinct from brand-level disclaimers in brand.json.&#39;
-        ),
-    ] = None
-    messaging: Annotated[
-        Messaging | None, Field(description=&#39;Messaging framework for the campaign&#39;)
-    ] = None
     name: Annotated[str, Field(description=&#39;Campaign or flight name for identification&#39;)]
     objective: Annotated[
         Objective | None,
@@ -147,20 +135,32 @@ validated to form a valid model.</p>
             description=&#39;Campaign objective that guides creative tone and call-to-action strategy&#39;
         ),
     ] = None
+    tone: Annotated[
+        str | None,
+        Field(
+            description=&#34;Desired tone for this campaign, modulating the brand&#39;s base tone (e.g., &#39;playful and festive&#39;, &#39;premium and aspirational&#39;)&#34;
+        ),
+    ] = None
+    audience: Annotated[
+        str | None, Field(description=&#39;Target audience description for this campaign&#39;)
+    ] = None
+    territory: Annotated[
+        str | None,
+        Field(description=&#39;Creative territory or positioning the campaign should occupy&#39;),
+    ] = None
+    messaging: Annotated[
+        Messaging | None, Field(description=&#39;Messaging framework for the campaign&#39;)
+    ] = None
     reference_assets: Annotated[
         list[reference_asset.ReferenceAsset] | None,
         Field(
             description=&#39;Visual and strategic reference materials such as mood boards, product shots, example creatives, and strategy documents&#39;
         ),
     ] = None
-    territory: Annotated[
-        str | None,
-        Field(description=&#39;Creative territory or positioning the campaign should occupy&#39;),
-    ] = None
-    tone: Annotated[
-        str | None,
+    compliance: Annotated[
+        Compliance | None,
         Field(
-            description=&#34;Desired tone for this campaign, modulating the brand&#39;s base tone (e.g., &#39;playful and festive&#39;, &#39;premium and aspirational&#39;)&#34;
+            description=&#39;Regulatory and legal compliance requirements for this campaign. Campaign-specific, regional, and product-based — distinct from brand-level disclaimers in brand.json.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -178,6 +178,10 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.assets.brief_asset.BriefAsset" href="assets/brief_asset.html#adcp.types.generated_poc.core.assets.brief_asset.BriefAsset">BriefAsset</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -293,12 +297,12 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    cta: Annotated[str | None, Field(description=&#39;Call-to-action text&#39;)] = None
     headline: Annotated[str | None, Field(description=&#39;Primary headline&#39;)] = None
+    tagline: Annotated[str | None, Field(description=&#39;Supporting tagline or sub-headline&#39;)] = None
+    cta: Annotated[str | None, Field(description=&#39;Call-to-action text&#39;)] = None
     key_messages: Annotated[
         list[str] | None, Field(description=&#39;Key messages to communicate in priority order&#39;)
-    ] = None
-    tagline: Annotated[str | None, Field(description=&#39;Supporting tagline or sub-headline&#39;)] = None</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -441,6 +445,13 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    text: Annotated[str, Field(description=&#39;The disclosure text that must appear in the creative&#39;)]
+    position: Annotated[
+        disclosure_position.DisclosurePosition | None,
+        Field(
+            description=&#39;Where the disclosure should appear within the creative. prominent: clearly visible in the main creative area; footer: at the bottom of visual creatives; audio: spoken in audio/video creatives; subtitle: displayed in the subtitle or closed-caption track; overlay: superimposed on video content; end_card: displayed on video end card; pre_roll: spoken or displayed before main content; companion: in companion ad unit alongside primary creative&#39;
+        ),
+    ] = None
     jurisdictions: Annotated[
         list[Jurisdiction] | None,
         Field(
@@ -448,10 +459,10 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    language: Annotated[
+    regulation: Annotated[
         str | None,
         Field(
-            description=&#34;Language of the disclosure text as a BCP 47 language tag (e.g., &#39;en&#39;, &#39;fr-CA&#39;, &#39;es&#39;). When omitted, the disclosure is assumed to match the creative&#39;s language.&#34;
+            description=&#34;The regulation or legal authority requiring this disclosure (e.g., &#39;SEC Rule 156&#39;, &#39;FCA COBS 4.5&#39;, &#39;FDA 21 CFR 202&#39;)&#34;
         ),
     ] = None
     min_duration_ms: Annotated[
@@ -461,25 +472,18 @@ attributes &ndash; see the documentation for details.</p></div>
             ge=1,
         ),
     ] = None
+    language: Annotated[
+        str | None,
+        Field(
+            description=&#34;Language of the disclosure text as a BCP 47 language tag (e.g., &#39;en&#39;, &#39;fr-CA&#39;, &#39;es&#39;). When omitted, the disclosure is assumed to match the creative&#39;s language.&#34;
+        ),
+    ] = None
     persistence: Annotated[
         disclosure_persistence.DisclosurePersistence | None,
         Field(
             description=&#39;How long the disclosure must persist during content playback or display. When omitted, the creative agent should use the most restrictive persistence mode supported by the target format.&#39;
         ),
-    ] = None
-    position: Annotated[
-        disclosure_position.DisclosurePosition | None,
-        Field(
-            description=&#39;Where the disclosure should appear within the creative. prominent: clearly visible in the main creative area; footer: at the bottom of visual creatives; audio: spoken in audio/video creatives; subtitle: displayed in the subtitle or closed-caption track; overlay: superimposed on video content; end_card: displayed on video end card; pre_roll: spoken or displayed before main content; companion: in companion ad unit alongside primary creative&#39;
-        ),
-    ] = None
-    regulation: Annotated[
-        str | None,
-        Field(
-            description=&#34;The regulation or legal authority requiring this disclosure (e.g., &#39;SEC Rule 156&#39;, &#39;FCA COBS 4.5&#39;, &#39;FDA 21 CFR 202&#39;)&#34;
-        ),
-    ] = None
-    text: Annotated[str, Field(description=&#39;The disclosure text that must appear in the creative&#39;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.bundled.creative.get_creative_features_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.bundled.creative.get_creative_features_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption"><code class="flex name class">
+<span>class <span class="ident">Consumption</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Consumption(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    tokens: Annotated[
+        int | None,
+        Field(description=&#39;LLM or generation tokens consumed during creative generation.&#39;, ge=0),
+    ] = None
+    images_generated: Annotated[
+        int | None, Field(description=&#39;Number of images produced during generation.&#39;, ge=0)
+    ] = None
+    renders: Annotated[
+        int | None, Field(description=&#39;Number of render passes performed (video, animation).&#39;, ge=0)
+    ] = None
+    duration_seconds: Annotated[
+        float | None,
+        Field(
+            description=&#39;Processing time billed, in seconds. For compute-time pricing models.&#39;,
+            ge=0.0,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.duration_seconds"><code class="name">var <span class="ident">duration_seconds</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.images_generated"><code class="name">var <span class="ident">images_generated</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.renders"><code class="name">var <span class="ident">renders</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.tokens"><code class="name">var <span class="ident">tokens</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error"><code class="flex name class">
+<span>class <span class="ident">Error</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Error(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    code: Annotated[
+        str,
+        Field(
+            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;,
+            max_length=64,
+            min_length=1,
+        ),
+    ]
+    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    field: Annotated[
+        str | None,
+        Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
+    ] = None
+    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
+    retry_after: Annotated[
+        float | None,
+        Field(
+            description=&#39;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#39;,
+            ge=1.0,
+            le=3600.0,
+        ),
+    ] = None
+    details: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+    ] = None
+    recovery: Annotated[
+        Recovery | None,
+        Field(
+            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.code"><code class="name">var <span class="ident">code</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.details"><code class="name">var <span class="ident">details</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.field"><code class="name">var <span class="ident">field</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.message"><code class="name">var <span class="ident">message</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.recovery"><code class="name">var <span class="ident">recovery</span> : <a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery">Recovery</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.retry_after"><code class="name">var <span class="ident">retry_after</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.suggestion"><code class="name">var <span class="ident">suggestion</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3"><code class="flex name class">
+<span>class <span class="ident">GetCreativeFeaturesResponse3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetCreativeFeaturesResponse3(AdCPBaseModel):
+    results: Annotated[list[Result], Field(description=&#39;Feature values for the evaluated creative&#39;)]
+    detail_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#34;URL to the vendor&#39;s full assessment report. The vendor controls what information is disclosed and access control.&#34;
+        ),
+    ] = None
+    pricing_option_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Which rate card pricing option was applied for this evaluation. Present when the governance agent charges for evaluations and account was provided in the request.&#39;
+        ),
+    ] = None
+    vendor_cost: Annotated[
+        float | None,
+        Field(description=&#39;Cost incurred for this evaluation, denominated in currency.&#39;, ge=0.0),
+    ] = None
+    currency: Annotated[
+        str | None,
+        Field(description=&#39;ISO 4217 currency code for vendor_cost.&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+    ] = None
+    consumption: Annotated[
+        Consumption | None,
+        Field(
+            description=&#39;Structured consumption details for this evaluation. Informational — lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth.&#39;,
+            title=&#39;Creative Consumption&#39;,
+        ),
+    ] = None
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
+            title=&#39;Context Object&#39;,
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
+            title=&#39;Extension Object&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.consumption"><code class="name">var <span class="ident">consumption</span> : <a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption">Consumption</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.currency"><code class="name">var <span class="ident">currency</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.detail_url"><code class="name">var <span class="ident">detail_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.results"><code class="name">var <span class="ident">results</span> : list[<a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result">Result</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.vendor_cost"><code class="name">var <span class="ident">vendor_cost</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4"><code class="flex name class">
+<span>class <span class="ident">GetCreativeFeaturesResponse4</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetCreativeFeaturesResponse4(AdCPBaseModel):
+    errors: list[Error]
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
+            title=&#39;Context Object&#39;,
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
+            title=&#39;Extension Object&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error">Error</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery"><code class="flex name class">
+<span>class <span class="ident">Recovery</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Recovery(Enum):
+    transient = &#39;transient&#39;
+    correctable = &#39;correctable&#39;
+    terminal = &#39;terminal&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.correctable"><code class="name">var <span class="ident">correctable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.terminal"><code class="name">var <span class="ident">terminal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.transient"><code class="name">var <span class="ident">transient</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result"><code class="flex name class">
+<span>class <span class="ident">Result</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Result(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    feature_id: Annotated[
+        str,
+        Field(
+            description=&#34;The feature that was evaluated (e.g., &#39;auto_redirect&#39;, &#39;brand_consistency&#39;). Features prefixed with &#39;registry:&#39; reference standardized policies from the shared policy registry (e.g., &#39;registry:eu_ai_act_article_50&#39;). Unprefixed feature IDs are agent-defined.&#34;
+        ),
+    ]
+    value: Annotated[
+        bool | float | str,
+        Field(
+            description=&#39;The feature value. Type depends on feature definition: boolean for binary, number for quantitative, string for categorical.&#39;
+        ),
+    ]
+    unit: Annotated[
+        str | None,
+        Field(
+            description=&#34;Unit of measurement for quantitative values (e.g., &#39;percentage&#39;, &#39;score&#39;)&#34;
+        ),
+    ] = None
+    confidence: Annotated[
+        float | None, Field(description=&#39;Confidence score for this value (0-1)&#39;, ge=0.0, le=1.0)
+    ] = None
+    measured_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this feature was evaluated&#39;)
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;When this evaluation expires and should be refreshed&#39;),
+    ] = None
+    methodology_version: Annotated[
+        str | None, Field(description=&#39;Version of the methodology used to evaluate this feature&#39;)
+    ] = None
+    details: Annotated[
+        dict[str, Any] | None,
+        Field(description=&#39;Additional vendor-specific details about this evaluation&#39;),
+    ] = None
+    policy_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Optional attribution — when this feature was evaluated to satisfy a specific policy, policy_id references the authorizing PolicyEntry. Reserved field; populated by producers in 3.1 and later (see issue #2303). Governance agents MAY ignore in 3.0.&#39;
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
+            title=&#39;Extension Object&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.confidence"><code class="name">var <span class="ident">confidence</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.details"><code class="name">var <span class="ident">details</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.expires_at"><code class="name">var <span class="ident">expires_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.feature_id"><code class="name">var <span class="ident">feature_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.measured_at"><code class="name">var <span class="ident">measured_at</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.methodology_version"><code class="name">var <span class="ident">methodology_version</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.policy_id"><code class="name">var <span class="ident">policy_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.unit"><code class="name">var <span class="ident">unit</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.value"><code class="name">var <span class="ident">value</span> : bool | float | str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.bundled.creative" href="index.html">adcp.types.generated_poc.bundled.creative</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption">Consumption</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.duration_seconds" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.duration_seconds">duration_seconds</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.images_generated" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.images_generated">images_generated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.model_config" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.renders" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.renders">renders</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.tokens" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Consumption.tokens">tokens</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error">Error</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.code" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.code">code</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.details" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.details">details</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.field" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.field">field</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.message" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.message">message</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.model_config" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.recovery" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.recovery">recovery</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.retry_after" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.retry_after">retry_after</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.suggestion" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Error.suggestion">suggestion</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3">GetCreativeFeaturesResponse3</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.consumption" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.consumption">consumption</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.context" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.currency" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.detail_url" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.detail_url">detail_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.ext" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.model_config" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.pricing_option_id" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.pricing_option_id">pricing_option_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.results" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.results">results</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.vendor_cost" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse3.vendor_cost">vendor_cost</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4">GetCreativeFeaturesResponse4</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.context" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.errors" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.ext" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.model_config" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.GetCreativeFeaturesResponse4.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery">Recovery</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.correctable" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.correctable">correctable</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.terminal" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.terminal">terminal</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.transient" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Recovery.transient">transient</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result">Result</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.confidence" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.confidence">confidence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.details" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.details">details</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.expires_at" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.expires_at">expires_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.ext" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.feature_id" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.feature_id">feature_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.measured_at" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.measured_at">measured_at</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.methodology_version" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.methodology_version">methodology_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.model_config" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.policy_id" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.policy_id">policy_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.unit" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.value" href="#adcp.types.generated_poc.bundled.creative.get_creative_features_response.Result.value">value</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

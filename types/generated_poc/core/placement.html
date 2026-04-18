@@ -59,29 +59,29 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    description: Annotated[
-        str | None, Field(description=&#39;Detailed description of where and how the placement appears&#39;)
-    ] = None
-    format_ids: Annotated[
-        list[format_id.FormatId] | None,
-        Field(
-            description=&#39;Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).&#39;,
-            min_length=1,
-        ),
-    ] = None
+    placement_id: Annotated[
+        str, Field(description=&#39;Unique identifier for the placement within the product&#39;)
+    ]
     name: Annotated[
         str,
         Field(
             description=&#34;Human-readable name for the placement (e.g., &#39;Homepage Banner&#39;, &#39;Article Sidebar&#39;)&#34;
         ),
     ]
-    placement_id: Annotated[
-        str, Field(description=&#39;Unique identifier for the placement within the product&#39;)
-    ]
+    description: Annotated[
+        str | None, Field(description=&#39;Detailed description of where and how the placement appears&#39;)
+    ] = None
     tags: Annotated[
         list[str] | None,
         Field(
             description=&#34;Optional tags for grouping placements within a product (e.g., &#39;homepage&#39;, &#39;native&#39;, &#39;premium&#39;). When the placement_id comes from the publisher registry, these should align with the registry tags unless the product is narrowing scope.&#34;
+        ),
+    ] = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#39;Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).&#39;,
+            min_length=1,
         ),
     ] = None</code></pre>
 </details>

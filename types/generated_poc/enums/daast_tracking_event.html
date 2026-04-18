@@ -56,17 +56,29 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class DaastTrackingEvent(Enum):
+    impression = &#39;impression&#39;
+    creativeView = &#39;creativeView&#39;
+    loaded = &#39;loaded&#39;
     start = &#39;start&#39;
     firstQuartile = &#39;firstQuartile&#39;
     midpoint = &#39;midpoint&#39;
     thirdQuartile = &#39;thirdQuartile&#39;
     complete = &#39;complete&#39;
-    impression = &#39;impression&#39;
+    mute = &#39;mute&#39;
+    unmute = &#39;unmute&#39;
     pause = &#39;pause&#39;
     resume = &#39;resume&#39;
     skip = &#39;skip&#39;
-    mute = &#39;mute&#39;
-    unmute = &#39;unmute&#39;</code></pre>
+    progress = &#39;progress&#39;
+    clickTracking = &#39;clickTracking&#39;
+    customClick = &#39;customClick&#39;
+    close = &#39;close&#39;
+    error = &#39;error&#39;
+    viewable = &#39;viewable&#39;
+    notViewable = &#39;notViewable&#39;
+    viewUndetermined = &#39;viewUndetermined&#39;
+    measurableImpression = &#39;measurableImpression&#39;
+    viewableImpression = &#39;viewableImpression&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -109,7 +121,27 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.clickTracking"><code class="name">var <span class="ident">clickTracking</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.close"><code class="name">var <span class="ident">close</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.complete"><code class="name">var <span class="ident">complete</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.creativeView"><code class="name">var <span class="ident">creativeView</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.customClick"><code class="name">var <span class="ident">customClick</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.error"><code class="name">var <span class="ident">error</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -121,6 +153,14 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.loaded"><code class="name">var <span class="ident">loaded</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.measurableImpression"><code class="name">var <span class="ident">measurableImpression</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.midpoint"><code class="name">var <span class="ident">midpoint</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -129,7 +169,15 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.notViewable"><code class="name">var <span class="ident">notViewable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.pause"><code class="name">var <span class="ident">pause</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.progress"><code class="name">var <span class="ident">progress</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -153,6 +201,18 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewUndetermined"><code class="name">var <span class="ident">viewUndetermined</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewable"><code class="name">var <span class="ident">viewable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewableImpression"><code class="name">var <span class="ident">viewableImpression</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 </dl>
 </dd>
 </dl>
@@ -172,18 +232,30 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent">DaastTrackingEvent</a></code></h4>
-<ul class="two-column">
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.clickTracking" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.clickTracking">clickTracking</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.close" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.close">close</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.complete" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.complete">complete</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.creativeView" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.creativeView">creativeView</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.customClick" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.customClick">customClick</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.error" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.error">error</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.firstQuartile" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.firstQuartile">firstQuartile</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.impression" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.impression">impression</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.loaded" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.loaded">loaded</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.measurableImpression" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.measurableImpression">measurableImpression</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.midpoint" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.midpoint">midpoint</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.mute" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.mute">mute</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.notViewable" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.notViewable">notViewable</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.pause" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.pause">pause</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.progress" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.progress">progress</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.resume" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.resume">resume</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.skip" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.skip">skip</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.start" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.start">start</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.thirdQuartile" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.thirdQuartile">thirdQuartile</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.unmute" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.unmute">unmute</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewUndetermined" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewUndetermined">viewUndetermined</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewable" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewable">viewable</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewableImpression" href="#adcp.types.generated_poc.enums.daast_tracking_event.DaastTrackingEvent.viewableImpression">viewableImpression</a></code></li>
 </ul>
 </li>
 </ul>

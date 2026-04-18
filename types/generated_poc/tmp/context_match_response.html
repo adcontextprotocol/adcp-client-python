@@ -59,6 +59,19 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    type: Annotated[
+        Literal[&#39;context_match_response&#39;],
+        Field(description=&#39;Message type discriminator for deserialization.&#39;),
+    ]
+    request_id: Annotated[
+        str, Field(description=&#39;Echoed request identifier from the context match request&#39;)
+    ]
+    offers: Annotated[
+        list[offer.Offer],
+        Field(
+            description=&#39;Offers from the buyer, one per activated package. An empty array means no packages matched. For simple activation, each offer has just package_id. For richer responses, offers include brand, price, summary, and creative manifest.&#39;
+        ),
+    ]
     cache_ttl: Annotated[
         int | None,
         Field(
@@ -67,25 +80,12 @@ el.replaceWith(d);
             le=86400,
         ),
     ] = None
-    offers: Annotated[
-        list[offer.Offer],
-        Field(
-            description=&#39;Offers from the buyer, one per activated package. An empty array means no packages matched. For simple activation, each offer has just package_id. For richer responses, offers include brand, price, summary, and creative manifest.&#39;
-        ),
-    ]
-    request_id: Annotated[
-        str, Field(description=&#39;Echoed request identifier from the context match request&#39;)
-    ]
     signals: Annotated[
         Signals | None,
         Field(
             description=&#39;Response-level targeting signals for ad server pass-through. In the GAM case, these carry the key-value pairs that trigger line items. Not per-offer — applies to the response as a whole.&#39;
         ),
-    ] = None
-    type: Annotated[
-        Literal[&#39;context_match_response&#39;],
-        Field(description=&#39;Message type discriminator for deserialization.&#39;),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

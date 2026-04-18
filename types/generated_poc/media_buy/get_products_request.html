@@ -115,8 +115,8 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action2"><code class="flex name class">
-<span>class <span class="ident">Action2</span></span>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action3"><code class="flex name class">
+<span>class <span class="ident">Action3</span></span>
 <span>(</span><span>*args, **kwds)</span>
 </code></dt>
 <dd>
@@ -124,7 +124,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Action2(Enum):
+<pre><code class="python">class Action3(Enum):
     include = &#39;include&#39;
     omit = &#39;omit&#39;
     finalize = &#39;finalize&#39;</code></pre>
@@ -170,15 +170,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action2.finalize"><code class="name">var <span class="ident">finalize</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action3.finalize"><code class="name">var <span class="ident">finalize</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action2.include"><code class="name">var <span class="ident">include</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action3.include"><code class="name">var <span class="ident">include</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action2.omit"><code class="name">var <span class="ident">omit</span></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Action3.omit"><code class="name">var <span class="ident">omit</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -470,22 +470,12 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    account: Annotated[
-        account_ref.AccountReference | None,
+    adcp_major_version: Annotated[
+        int | None,
         Field(
-            description=&#34;Account for product lookup. Returns products with pricing specific to this account&#39;s rate card.&#34;
-        ),
-    ] = None
-    brand: Annotated[
-        brand_ref.BrandReference | None,
-        Field(
-            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
-        ),
-    ] = None
-    brief: Annotated[
-        str | None,
-        Field(
-            description=&#34;Natural language description of campaign requirements. Required when buying_mode is &#39;brief&#39;. Must not be provided when buying_mode is &#39;wholesale&#39; or &#39;refine&#39;.&#34;
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
         ),
     ] = None
     buying_mode: Annotated[
@@ -494,34 +484,10 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Declares buyer intent for this request. &#39;brief&#39;: publisher curates product recommendations from the provided brief. &#39;wholesale&#39;: buyer requests raw inventory to apply their own audiences — brief must not be provided, and proposals are omitted. &#39;refine&#39;: iterate on products and proposals from a previous get_products response using the refine array of change requests. v3 clients MUST include buying_mode. Sellers receiving requests from pre-v3 clients without buying_mode SHOULD default to &#39;brief&#39;.&#34;
         ),
     ]
-    catalog: Annotated[
-        catalog_1.Catalog | None,
+    brief: Annotated[
+        str | None,
         Field(
-            description=&#39;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#39;
-        ),
-    ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
-    fields: Annotated[
-        list[Field1] | None,
-        Field(
-            description=&#39;Specific product fields to include in the response. When omitted, all fields are returned. Use for lightweight discovery calls where only a subset of product data is needed (e.g., just IDs and pricing for comparison). Required fields (product_id, name) are always included regardless of selection.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    filters: product_filters.ProductFilters | None = None
-    pagination: pagination_request.PaginationRequest | None = None
-    preferred_delivery_types: Annotated[
-        list[delivery_type_1.DeliveryType] | None,
-        Field(
-            description=&#39;Delivery types the buyer prefers, in priority order. Unlike filters.delivery_type which excludes non-matching products, this signals preference for curation — the publisher may still include other delivery types when they match the brief well.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    property_list: Annotated[
-        property_list_ref.PropertyListReference | None,
-        Field(
-            description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
+            description=&#34;Natural language description of campaign requirements. Required when buying_mode is &#39;brief&#39;. Must not be provided when buying_mode is &#39;wholesale&#39; or &#39;refine&#39;.&#34;
         ),
     ] = None
     refine: Annotated[
@@ -531,10 +497,43 @@ attributes &ndash; see the documentation for details.</p></div>
             min_length=1,
         ),
     ] = None
-    required_policies: Annotated[
-        list[str] | None,
+    brand: Annotated[
+        brand_ref.BrandReference | None,
         Field(
-            description=&#39;Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies.&#39;
+            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;
+        ),
+    ] = None
+    catalog: Annotated[
+        catalog_1.Catalog | None,
+        Field(
+            description=&#39;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#39;
+        ),
+    ] = None
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#34;Account for product lookup. Returns products with pricing specific to this account&#39;s rate card.&#34;
+        ),
+    ] = None
+    preferred_delivery_types: Annotated[
+        list[delivery_type_1.DeliveryType] | None,
+        Field(
+            description=&#39;Delivery types the buyer prefers, in priority order. Unlike filters.delivery_type which excludes non-matching products, this signals preference for curation — the publisher may still include other delivery types when they match the brief well.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    filters: product_filters.ProductFilters | None = None
+    property_list: Annotated[
+        property_list_ref.PropertyListReference | None,
+        Field(
+            description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;
+        ),
+    ] = None
+    fields: Annotated[
+        list[Field1] | None,
+        Field(
+            description=&#39;Specific product fields to include in the response. When omitted, all fields are returned. Use for lightweight discovery calls where only a subset of product data is needed (e.g., just IDs and pricing for comparison). Required fields (product_id, name) are always included regardless of selection.&#39;,
+            min_length=1,
         ),
     ] = None
     time_budget: Annotated[
@@ -542,7 +541,16 @@ attributes &ndash; see the documentation for details.</p></div>
         Field(
             description=&#39;Maximum time the buyer will commit to this request. The seller returns the best results achievable within this budget and does not start processes (human approvals, expensive external queries) that cannot complete in time. When omitted, the seller decides timing.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    pagination: pagination_request.PaginationRequest | None = None
+    context: context_1.ContextObject | None = None
+    required_policies: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies.&#39;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -562,6 +570,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -650,17 +662,17 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    scope: Annotated[
+        Literal[&#39;request&#39;],
+        Field(
+            description=&#39;Change scoped to the overall request — direction for the selection as a whole.&#39;
+        ),
+    ]
     ask: Annotated[
         str,
         Field(
             description=&#34;What the buyer is asking for at the request level (e.g., &#39;more video options and less display&#39;, &#39;suggest how to combine these products&#39;).&#34;,
             min_length=1,
-        ),
-    ]
-    scope: Annotated[
-        Literal[&#39;request&#39;],
-        Field(
-            description=&#39;Change scoped to the overall request — direction for the selection as a whole.&#39;
         ),
     ]</code></pre>
 </details>
@@ -718,6 +730,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    scope: Annotated[Literal[&#39;product&#39;], Field(description=&#39;Change scoped to a specific product.&#39;)]
+    id: Annotated[
+        str, Field(description=&#39;Product ID from a previous get_products response.&#39;, min_length=1)
+    ]
     action: Annotated[
         Action,
         Field(
@@ -730,11 +746,7 @@ validated to form a valid model.</p>
             description=&#34;What the buyer is asking for on this product. For &#39;include&#39;: specific changes to request (e.g., &#39;add 16:9 format&#39;). For &#39;more_like_this&#39;: what &#39;similar&#39; means (e.g., &#39;same audience but video format&#39;). Ignored when action is &#39;omit&#39;.&#34;,
             min_length=1,
         ),
-    ] = None
-    id: Annotated[
-        str, Field(description=&#39;Product ID from a previous get_products response.&#39;, min_length=1)
-    ]
-    scope: Annotated[Literal[&#39;product&#39;], Field(description=&#39;Change scoped to a specific product.&#39;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -798,8 +810,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    scope: Annotated[
+        Literal[&#39;proposal&#39;], Field(description=&#39;Change scoped to a specific proposal.&#39;)
+    ]
+    id: Annotated[
+        str, Field(description=&#39;Proposal ID from a previous get_products response.&#39;, min_length=1)
+    ]
     action: Annotated[
-        Action2,
+        Action3,
         Field(
             description=&#34;&#39;include&#39;: return this proposal with updated allocations and pricing. &#39;omit&#39;: exclude this proposal from the response. &#39;finalize&#39;: request firm pricing and inventory hold — transitions a draft proposal to committed with an expires_at hold window. May trigger seller-side approval (HITL). The buyer should not set a time_budget for finalize requests — they represent a commitment to wait for the result.&#34;
         ),
@@ -810,13 +828,7 @@ validated to form a valid model.</p>
             description=&#34;What the buyer is asking for on this proposal (e.g., &#39;shift more budget toward video&#39;, &#39;reduce total by 10%&#39;). Ignored when action is &#39;omit&#39;.&#34;,
             min_length=1,
         ),
-    ] = None
-    id: Annotated[
-        str, Field(description=&#39;Proposal ID from a previous get_products response.&#39;, min_length=1)
-    ]
-    scope: Annotated[
-        Literal[&#39;proposal&#39;], Field(description=&#39;Change scoped to a specific proposal.&#39;)
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -835,7 +847,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.media_buy.get_products_request.Refine2.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.media_buy.get_products_request.Action2" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2">Action2</a></code></dt>
+<dt id="adcp.types.generated_poc.media_buy.get_products_request.Refine2.action"><code class="name">var <span class="ident">action</span> : <a title="adcp.types.generated_poc.media_buy.get_products_request.Action3" href="#adcp.types.generated_poc.media_buy.get_products_request.Action3">Action3</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -891,11 +903,11 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action2" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2">Action2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action3" href="#adcp.types.generated_poc.media_buy.get_products_request.Action3">Action3</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action2.finalize" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2.finalize">finalize</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action2.include" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2.include">include</a></code></li>
-<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action2.omit" href="#adcp.types.generated_poc.media_buy.get_products_request.Action2.omit">omit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action3.finalize" href="#adcp.types.generated_poc.media_buy.get_products_request.Action3.finalize">finalize</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action3.include" href="#adcp.types.generated_poc.media_buy.get_products_request.Action3.include">include</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.Action3.omit" href="#adcp.types.generated_poc.media_buy.get_products_request.Action3.omit">omit</a></code></li>
 </ul>
 </li>
 <li>
@@ -945,6 +957,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest">GetProductsRequest</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.adcp_major_version" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.brief">brief</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.buying_mode" href="#adcp.types.generated_poc.media_buy.get_products_request.GetProductsRequest.buying_mode">buying_mode</a></code></li>

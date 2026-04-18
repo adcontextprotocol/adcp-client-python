@@ -1,0 +1,1286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component"><code class="flex name class">
+<span>class <span class="ident">Component</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Component(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    id: Annotated[str, Field(description=&#39;Unique identifier for this component within the surface&#39;)]
+    parentId: Annotated[
+        str | None, Field(description=&#39;ID of the parent component (null for root)&#39;)
+    ] = None
+    component: Annotated[
+        dict[str, dict[str, Any]],
+        Field(description=&#39;Component definition (keyed by component type)&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.component"><code class="name">var <span class="ident">component</span> : dict[str, dict[str, typing.Any]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.parentId"><code class="name">var <span class="ident">parentId</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout"><code class="flex name class">
+<span>class <span class="ident">ContextForCheckout</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ContextForCheckout(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    conversation_summary: Annotated[
+        str | None, Field(description=&#39;Summary of the conversation leading to purchase&#39;)
+    ] = None
+    applied_offers: Annotated[
+        list[str] | None, Field(description=&#39;Offer IDs that were applied during the conversation&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.applied_offers"><code class="name">var <span class="ident">applied_offers</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.conversation_summary"><code class="name">var <span class="ident">conversation_summary</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error"><code class="flex name class">
+<span>class <span class="ident">Error</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Error(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    code: Annotated[
+        str,
+        Field(
+            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;,
+            max_length=64,
+            min_length=1,
+        ),
+    ]
+    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    field: Annotated[
+        str | None,
+        Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
+    ] = None
+    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
+    retry_after: Annotated[
+        float | None,
+        Field(
+            description=&#39;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#39;,
+            ge=1.0,
+            le=3600.0,
+        ),
+    ] = None
+    details: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+    ] = None
+    recovery: Annotated[
+        Recovery | None,
+        Field(
+            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.code"><code class="name">var <span class="ident">code</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.details"><code class="name">var <span class="ident">details</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.field"><code class="name">var <span class="ident">field</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.message"><code class="name">var <span class="ident">message</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.recovery"><code class="name">var <span class="ident">recovery</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery">Recovery</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.retry_after"><code class="name">var <span class="ident">retry_after</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.suggestion"><code class="name">var <span class="ident">suggestion</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff"><code class="flex name class">
+<span>class <span class="ident">Handoff</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Handoff(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    type: Annotated[
+        Type78 | None,
+        Field(
+            description=&#39;Type of handoff: transaction (ready for ACP checkout) or complete (conversation done)&#39;
+        ),
+    ] = None
+    intent: Annotated[
+        Intent | None,
+        Field(description=&#39;For transaction handoffs: what the user wants to purchase&#39;),
+    ] = None
+    context_for_checkout: Annotated[
+        ContextForCheckout | None, Field(description=&#39;Context to pass to ACP for seamless checkout&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.context_for_checkout"><code class="name">var <span class="ident">context_for_checkout</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout">ContextForCheckout</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.intent"><code class="name">var <span class="ident">intent</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent">Intent</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78">Type78</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent"><code class="flex name class">
+<span>class <span class="ident">Intent</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Intent(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    action: Annotated[str | None, Field(description=&#34;The commerce action (e.g., &#39;purchase&#39;)&#34;)] = (
+        None
+    )
+    product: Annotated[dict[str, Any] | None, Field(description=&#39;Product details for checkout&#39;)] = (
+        None
+    )
+    price: Annotated[Price | None, Field(description=&#39;Price information&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.action"><code class="name">var <span class="ident">action</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.price"><code class="name">var <span class="ident">price</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price">Price</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.product"><code class="name">var <span class="ident">product</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price"><code class="flex name class">
+<span>class <span class="ident">Price</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Price(AdCPBaseModel):
+    amount: float | None = None
+    currency: str | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.amount"><code class="name">var <span class="ident">amount</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.currency"><code class="name">var <span class="ident">currency</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery"><code class="flex name class">
+<span>class <span class="ident">Recovery</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Recovery(Enum):
+    transient = &#39;transient&#39;
+    correctable = &#39;correctable&#39;
+    terminal = &#39;terminal&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.correctable"><code class="name">var <span class="ident">correctable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.terminal"><code class="name">var <span class="ident">terminal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.transient"><code class="name">var <span class="ident">transient</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response"><code class="flex name class">
+<span>class <span class="ident">Response</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Response(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    message: Annotated[str | None, Field(description=&#39;Conversational message from brand agent&#39;)] = (
+        None
+    )
+    surface: Annotated[
+        Surface | None,
+        Field(description=&#39;A2UI surface with interactive components&#39;, title=&#39;A2UI Surface&#39;),
+    ] = None
+    ui_elements: Annotated[
+        list[UiElement] | None,
+        Field(
+            deprecated=True,
+            description=&#39;Visual components to render (DEPRECATED: use surface instead)&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.surface"><code class="name">var <span class="ident">surface</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface">Surface</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.ui_elements"><code class="name">var <span class="ident">ui_elements</span> : list[<a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement">UiElement</a>] | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus"><code class="flex name class">
+<span>class <span class="ident">SessionStatus</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SessionStatus(Enum):
+    active = &#39;active&#39;
+    pending_handoff = &#39;pending_handoff&#39;
+    complete = &#39;complete&#39;
+    terminated = &#39;terminated&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.active"><code class="name">var <span class="ident">active</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.complete"><code class="name">var <span class="ident">complete</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.pending_handoff"><code class="name">var <span class="ident">pending_handoff</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.terminated"><code class="name">var <span class="ident">terminated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse"><code class="flex name class">
+<span>class <span class="ident">SiSendMessageResponse</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SiSendMessageResponse(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    session_id: Annotated[str, Field(description=&#39;Session identifier&#39;)]
+    response: Annotated[Response | None, Field(description=&#34;Brand agent&#39;s response&#34;)] = None
+    mcp_resource_uri: Annotated[
+        str | None,
+        Field(
+            description=&#39;MCP resource URI for hosts with MCP Apps support (e.g., ui://si/session-abc123)&#39;
+        ),
+    ] = None
+    session_status: Annotated[
+        SessionStatus,
+        Field(
+            description=&#39;Current session status. On a successful response, one of: active, pending_handoff, or complete. Terminated sessions return error codes (SESSION_NOT_FOUND or SESSION_TERMINATED) instead of a success response.&#39;,
+            title=&#39;SI Session Status&#39;,
+        ),
+    ]
+    handoff: Annotated[
+        Handoff | None, Field(description=&#39;Handoff request when session_status is pending_handoff&#39;)
+    ] = None
+    errors: list[Error] | None = None
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
+            title=&#39;Context Object&#39;,
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
+            title=&#39;Extension Object&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error">Error</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.handoff"><code class="name">var <span class="ident">handoff</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff">Handoff</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.mcp_resource_uri"><code class="name">var <span class="ident">mcp_resource_uri</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.response"><code class="name">var <span class="ident">response</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response">Response</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_id"><code class="name">var <span class="ident">session_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_status"><code class="name">var <span class="ident">session_status</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus">SessionStatus</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface"><code class="flex name class">
+<span>class <span class="ident">Surface</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Surface(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    surfaceId: Annotated[str, Field(description=&#39;Unique identifier for this surface&#39;)]
+    catalogId: Annotated[
+        str | None, Field(description=&#39;Component catalog to use for rendering&#39;)
+    ] = &#39;standard&#39;
+    components: Annotated[
+        list[Component], Field(description=&#39;Flat list of components (adjacency list structure)&#39;)
+    ]
+    rootId: Annotated[
+        str | None,
+        Field(description=&#39;ID of the root component (if not specified, first component is root)&#39;),
+    ] = None
+    dataModel: Annotated[
+        dict[str, Any] | None, Field(description=&#39;Application data that components can bind to&#39;)
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.catalogId"><code class="name">var <span class="ident">catalogId</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.components"><code class="name">var <span class="ident">components</span> : list[<a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component">Component</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.dataModel"><code class="name">var <span class="ident">dataModel</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.rootId"><code class="name">var <span class="ident">rootId</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.surfaceId"><code class="name">var <span class="ident">surfaceId</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type"><code class="flex name class">
+<span>class <span class="ident">Type</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type(Enum):
+    text = &#39;text&#39;
+    link = &#39;link&#39;
+    image = &#39;image&#39;
+    product_card = &#39;product_card&#39;
+    carousel = &#39;carousel&#39;
+    action_button = &#39;action_button&#39;
+    app_handoff = &#39;app_handoff&#39;
+    integration_actions = &#39;integration_actions&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.action_button"><code class="name">var <span class="ident">action_button</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.app_handoff"><code class="name">var <span class="ident">app_handoff</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.carousel"><code class="name">var <span class="ident">carousel</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.image"><code class="name">var <span class="ident">image</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.integration_actions"><code class="name">var <span class="ident">integration_actions</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.link"><code class="name">var <span class="ident">link</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.product_card"><code class="name">var <span class="ident">product_card</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.text"><code class="name">var <span class="ident">text</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78"><code class="flex name class">
+<span>class <span class="ident">Type78</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type78(Enum):
+    transaction = &#39;transaction&#39;
+    complete = &#39;complete&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78.complete"><code class="name">var <span class="ident">complete</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78.transaction"><code class="name">var <span class="ident">transaction</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement"><code class="flex name class">
+<span>class <span class="ident">UiElement</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UiElement(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    type: Annotated[Type, Field(description=&#39;Component type&#39;)]
+    data: Annotated[dict[str, Any] | None, Field(description=&#39;Component-specific data&#39;)] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.data"><code class="name">var <span class="ident">data</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence" href="index.html">adcp.types.generated_poc.bundled.sponsored_intelligence</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component">Component</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.component" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.component">component</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.id" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.id">id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.parentId" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Component.parentId">parentId</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout">ContextForCheckout</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.applied_offers" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.applied_offers">applied_offers</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.conversation_summary" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.conversation_summary">conversation_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.ContextForCheckout.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error">Error</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.code" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.code">code</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.details" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.details">details</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.field" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.field">field</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.message" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.message">message</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.recovery" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.recovery">recovery</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.retry_after" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.retry_after">retry_after</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.suggestion" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Error.suggestion">suggestion</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff">Handoff</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.context_for_checkout" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.context_for_checkout">context_for_checkout</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.intent" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.intent">intent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.type" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Handoff.type">type</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent">Intent</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.action" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.action">action</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.price" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.price">price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.product" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Intent.product">product</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price">Price</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.amount" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.currency" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Price.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery">Recovery</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.correctable" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.correctable">correctable</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.terminal" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.terminal">terminal</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.transient" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Recovery.transient">transient</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response">Response</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.message" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.message">message</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.surface" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.surface">surface</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.ui_elements" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Response.ui_elements">ui_elements</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus">SessionStatus</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.active" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.active">active</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.complete" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.complete">complete</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.pending_handoff" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.pending_handoff">pending_handoff</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.terminated" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SessionStatus.terminated">terminated</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse">SiSendMessageResponse</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.context" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.errors" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.ext" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.handoff" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.handoff">handoff</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.mcp_resource_uri" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.mcp_resource_uri">mcp_resource_uri</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.response" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.response">response</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_id" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_id">session_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_status" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.SiSendMessageResponse.session_status">session_status</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface">Surface</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.catalogId" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.catalogId">catalogId</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.components" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.components">components</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.dataModel" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.dataModel">dataModel</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.rootId" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.rootId">rootId</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.surfaceId" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Surface.surfaceId">surfaceId</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type">Type</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.action_button" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.action_button">action_button</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.app_handoff" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.app_handoff">app_handoff</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.carousel" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.carousel">carousel</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.image" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.image">image</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.integration_actions" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.integration_actions">integration_actions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.link" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.link">link</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.product_card" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.product_card">product_card</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.text" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type.text">text</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78">Type78</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78.complete" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78.complete">complete</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78.transaction" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.Type78.transaction">transaction</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement">UiElement</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.data" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.data">data</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.model_config" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.type" href="#adcp.types.generated_poc.bundled.sponsored_intelligence.si_send_message_response.UiElement.type">type</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

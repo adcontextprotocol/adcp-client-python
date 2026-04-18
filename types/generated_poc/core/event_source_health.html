@@ -59,22 +59,22 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    label: Annotated[
-        str | None,
-        Field(
-            description=&#34;Seller&#39;s name for this score (e.g., &#39;Event Quality Score&#39;, &#39;Event Match Quality&#39;).&#34;
-        ),
-    ] = None
-    max_score: Annotated[
-        float, Field(description=&#34;Maximum possible score on this seller&#39;s scale.&#34;, ge=1.0)
-    ]
     score: Annotated[
         float,
         Field(
             description=&#39;Seller-defined quality score. Scale varies by seller — only compare within the same seller.&#39;,
             ge=0.0,
         ),
-    ]</code></pre>
+    ]
+    max_score: Annotated[
+        float, Field(description=&#34;Maximum possible score on this seller&#39;s scale.&#34;, ge=1.0)
+    ]
+    label: Annotated[
+        str | None,
+        Field(
+            description=&#34;Seller&#39;s name for this score (e.g., &#39;Event Quality Score&#39;, &#39;Event Match Quality&#39;).&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -134,10 +134,30 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    status: Annotated[
+        assessment_status.AssessmentStatus,
+        Field(
+            description=&#39;Overall health status. Use this for cross-seller decisions — do not rely on detail.score for comparability.&#39;
+        ),
+    ]
     detail: Annotated[
         Detail | None,
         Field(
             description=&#39;Seller-specific scoring detail. Only present when the seller has a native quality score to relay. Buyer agents should use status (not detail) for cross-seller decisions. Detail is supplementary context for human review or advanced diagnostics.&#39;
+        ),
+    ] = None
+    match_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fraction of events from this source that the seller successfully matched to ad interactions (0.0-1.0). Low match rates indicate weak user_match identifiers. Absent when the seller does not compute match rates.&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    last_event_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp of the most recent event received from this source. Absent when no events have been received.&#39;
         ),
     ] = None
     evaluated_at: Annotated[
@@ -158,27 +178,7 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Actionable issues detected with this event source. Sellers should limit to the top 3-5 most actionable items. Buyer agents should sort by severity rather than relying on array position.&#39;
         ),
-    ] = None
-    last_event_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 timestamp of the most recent event received from this source. Absent when no events have been received.&#39;
-        ),
-    ] = None
-    match_rate: Annotated[
-        float | None,
-        Field(
-            description=&#39;Fraction of events from this source that the seller successfully matched to ad interactions (0.0-1.0). Low match rates indicate weak user_match identifiers. Absent when the seller does not compute match rates.&#39;,
-            ge=0.0,
-            le=1.0,
-        ),
-    ] = None
-    status: Annotated[
-        assessment_status.AssessmentStatus,
-        Field(
-            description=&#39;Overall health status. Use this for cross-seller decisions — do not rely on detail.score for comparability.&#39;
-        ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

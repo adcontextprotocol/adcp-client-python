@@ -1,0 +1,2019 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account"><code class="flex name class">
+<span>class <span class="ident">Account</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Account(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    account_id: Annotated[
+        str,
+        Field(
+            description=&#39;Seller-assigned account identifier (from sync_accounts or list_accounts)&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account.account_id"><code class="name">var <span class="ident">account_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35"><code class="flex name class">
+<span>class <span class="ident">Account35</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Account35(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    brand: Annotated[
+        Brand,
+        Field(
+            description=&#39;Brand reference identifying the advertiser&#39;,
+            examples=[
+                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
+                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
+                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+            ],
+            title=&#39;Brand Reference&#39;,
+        ),
+    ]
+    operator: Annotated[
+        str,
+        Field(
+            description=&#34;Domain of the entity operating on the brand&#39;s behalf. When the brand operates directly, this is the brand&#39;s domain.&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    sandbox: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, references the sandbox account for this brand/operator pair. Defaults to false (production account).&#39;
+        ),
+    ] = False</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand">Brand</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.operator"><code class="name">var <span class="ident">operator</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication"><code class="flex name class">
+<span>class <span class="ident">Authentication</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Authentication(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    schemes: Annotated[
+        list[Scheme],
+        Field(
+            description=&#34;Array of authentication schemes. Supported: [&#39;Bearer&#39;] for simple token auth, [&#39;HMAC-SHA256&#39;] for signature verification (recommended for production)&#34;,
+            max_length=1,
+            min_length=1,
+        ),
+    ]
+    credentials: Annotated[
+        str,
+        Field(
+            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
+            min_length=32,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.credentials"><code class="name">var <span class="ident">credentials</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.schemes"><code class="name">var <span class="ident">schemes</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme">Scheme</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand"><code class="flex name class">
+<span>class <span class="ident">Brand</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Brand(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    domain: Annotated[
+        str,
+        Field(
+            description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    brand_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
+            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
+            pattern=&#39;^[a-z0-9_]+$&#39;,
+            title=&#39;Brand ID&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.brand_id"><code class="name">var <span class="ident">brand_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.domain"><code class="name">var <span class="ident">domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog"><code class="flex name class">
+<span>class <span class="ident">Catalog</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Catalog(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    catalog_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;Buyer&#39;s identifier for this catalog. Required when syncing via sync_catalogs. When used in creatives, references a previously synced catalog on the account.&#34;
+        ),
+    ] = None
+    name: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable name for this catalog (e.g., &#39;Summer Products 2025&#39;, &#39;Amsterdam Store Locations&#39;).&#34;
+        ),
+    ] = None
+    type: Annotated[
+        Type,
+        Field(
+            description=&#34;Catalog type. Structural types: &#39;offering&#39; (AdCP Offering objects), &#39;product&#39; (ecommerce entries), &#39;inventory&#39; (stock per location), &#39;store&#39; (physical locations), &#39;promotion&#39; (deals and pricing). Vertical types: &#39;hotel&#39;, &#39;flight&#39;, &#39;job&#39;, &#39;vehicle&#39;, &#39;real_estate&#39;, &#39;education&#39;, &#39;destination&#39;, &#39;app&#39; — each with an industry-specific item schema.&#34;,
+            title=&#39;Catalog Type&#39;,
+        ),
+    ]
+    url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#34;URL to an external catalog feed. The platform fetches and resolves items from this URL. For offering-type catalogs, the feed contains an array of Offering objects. For other types, the feed format is determined by feed_format. When omitted with type &#39;product&#39;, the platform uses its synced copy of the brand&#39;s product catalog.&#34;
+        ),
+    ] = None
+    feed_format: Annotated[
+        FeedFormat | None,
+        Field(
+            description=&#39;Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.&#39;,
+            title=&#39;Feed Format&#39;,
+        ),
+    ] = None
+    update_frequency: Annotated[
+        UpdateFrequency | None,
+        Field(
+            description=&#39;How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.&#39;,
+            title=&#39;Update Frequency&#39;,
+        ),
+    ] = None
+    items: Annotated[
+        list[dict[str, Any]] | None,
+        Field(
+            description=&#34;Inline catalog data. The item schema depends on the catalog type: Offering objects for &#39;offering&#39;, StoreItem for &#39;store&#39;, HotelItem for &#39;hotel&#39;, FlightItem for &#39;flight&#39;, JobItem for &#39;job&#39;, VehicleItem for &#39;vehicle&#39;, RealEstateItem for &#39;real_estate&#39;, EducationItem for &#39;education&#39;, DestinationItem for &#39;destination&#39;, AppItem for &#39;app&#39;, or freeform objects for &#39;product&#39;, &#39;inventory&#39;, and &#39;promotion&#39;. Mutually exclusive with url — provide one or the other, not both. Implementations should validate items against the type-specific schema.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter catalog to specific item IDs. For offering-type catalogs, these are offering_id values. For product-type catalogs, these are SKU identifiers.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    gtins: Annotated[
+        list[Gtin] | None,
+        Field(
+            description=&#34;Filter product-type catalogs by GTIN identifiers for cross-retailer catalog matching. Accepts standard GTIN formats (GTIN-8, UPC-A/GTIN-12, EAN-13/GTIN-13, GTIN-14). Only applicable when type is &#39;product&#39;.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Filter catalog to items with these tags. Tags are matched using OR logic — items matching any tag are included.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    category: Annotated[
+        str | None,
+        Field(
+            description=&#34;Filter catalog to items in this category (e.g., &#39;beverages/soft-drinks&#39;, &#39;chef-positions&#39;).&#34;
+        ),
+    ] = None
+    query: Annotated[
+        str | None,
+        Field(
+            description=&#34;Natural language filter for catalog items (e.g., &#39;all pasta sauces under $5&#39;, &#39;amsterdam vacancies&#39;).&#34;
+        ),
+    ] = None
+    conversion_events: Annotated[
+        list[ConversionEvent] | None,
+        Field(
+            description=&#34;Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items — e.g., a job catalog converts via submit_application, a product catalog via purchase. The event&#39;s content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    content_id_type: Annotated[
+        ContentIdType | None,
+        Field(
+            description=&#34;Identifier type that the event&#39;s content_ids field should be matched against for items in this catalog. For example, &#39;gtin&#39; means content_ids values are Global Trade Item Numbers, &#39;sku&#39; means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum.&#34;,
+            title=&#39;Content ID Type&#39;,
+        ),
+    ] = None
+    feed_field_mappings: Annotated[
+        list[FeedFieldMapping] | None,
+        Field(
+            description=&#39;Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.catalog_id"><code class="name">var <span class="ident">catalog_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.category"><code class="name">var <span class="ident">category</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.content_id_type"><code class="name">var <span class="ident">content_id_type</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType">ContentIdType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.conversion_events"><code class="name">var <span class="ident">conversion_events</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent">ConversionEvent</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.feed_field_mappings"><code class="name">var <span class="ident">feed_field_mappings</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping">FeedFieldMapping</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.feed_format"><code class="name">var <span class="ident">feed_format</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat">FeedFormat</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.gtins"><code class="name">var <span class="ident">gtins</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin">Gtin</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.ids"><code class="name">var <span class="ident">ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.items"><code class="name">var <span class="ident">items</span> : list[dict[str, typing.Any]] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.name"><code class="name">var <span class="ident">name</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.query"><code class="name">var <span class="ident">query</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.tags"><code class="name">var <span class="ident">tags</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type">Type</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.update_frequency"><code class="name">var <span class="ident">update_frequency</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency">UpdateFrequency</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType"><code class="flex name class">
+<span>class <span class="ident">ContentIdType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ContentIdType(Enum):
+    sku = &#39;sku&#39;
+    gtin = &#39;gtin&#39;
+    offering_id = &#39;offering_id&#39;
+    job_id = &#39;job_id&#39;
+    hotel_id = &#39;hotel_id&#39;
+    flight_id = &#39;flight_id&#39;
+    vehicle_id = &#39;vehicle_id&#39;
+    listing_id = &#39;listing_id&#39;
+    store_id = &#39;store_id&#39;
+    program_id = &#39;program_id&#39;
+    destination_id = &#39;destination_id&#39;
+    app_id = &#39;app_id&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.app_id"><code class="name">var <span class="ident">app_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.destination_id"><code class="name">var <span class="ident">destination_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.flight_id"><code class="name">var <span class="ident">flight_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.gtin"><code class="name">var <span class="ident">gtin</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.hotel_id"><code class="name">var <span class="ident">hotel_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.job_id"><code class="name">var <span class="ident">job_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.listing_id"><code class="name">var <span class="ident">listing_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.offering_id"><code class="name">var <span class="ident">offering_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.program_id"><code class="name">var <span class="ident">program_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.sku"><code class="name">var <span class="ident">sku</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.store_id"><code class="name">var <span class="ident">store_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.vehicle_id"><code class="name">var <span class="ident">vehicle_id</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent"><code class="flex name class">
+<span>class <span class="ident">ConversionEvent</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ConversionEvent(Enum):
+    page_view = &#39;page_view&#39;
+    view_content = &#39;view_content&#39;
+    select_content = &#39;select_content&#39;
+    select_item = &#39;select_item&#39;
+    search = &#39;search&#39;
+    share = &#39;share&#39;
+    add_to_cart = &#39;add_to_cart&#39;
+    remove_from_cart = &#39;remove_from_cart&#39;
+    viewed_cart = &#39;viewed_cart&#39;
+    add_to_wishlist = &#39;add_to_wishlist&#39;
+    initiate_checkout = &#39;initiate_checkout&#39;
+    add_payment_info = &#39;add_payment_info&#39;
+    purchase = &#39;purchase&#39;
+    refund = &#39;refund&#39;
+    lead = &#39;lead&#39;
+    qualify_lead = &#39;qualify_lead&#39;
+    close_convert_lead = &#39;close_convert_lead&#39;
+    disqualify_lead = &#39;disqualify_lead&#39;
+    complete_registration = &#39;complete_registration&#39;
+    subscribe = &#39;subscribe&#39;
+    start_trial = &#39;start_trial&#39;
+    app_install = &#39;app_install&#39;
+    app_launch = &#39;app_launch&#39;
+    contact = &#39;contact&#39;
+    schedule = &#39;schedule&#39;
+    donate = &#39;donate&#39;
+    submit_application = &#39;submit_application&#39;
+    custom = &#39;custom&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_payment_info"><code class="name">var <span class="ident">add_payment_info</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_to_cart"><code class="name">var <span class="ident">add_to_cart</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_to_wishlist"><code class="name">var <span class="ident">add_to_wishlist</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.app_install"><code class="name">var <span class="ident">app_install</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.app_launch"><code class="name">var <span class="ident">app_launch</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.close_convert_lead"><code class="name">var <span class="ident">close_convert_lead</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.complete_registration"><code class="name">var <span class="ident">complete_registration</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.contact"><code class="name">var <span class="ident">contact</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.custom"><code class="name">var <span class="ident">custom</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.disqualify_lead"><code class="name">var <span class="ident">disqualify_lead</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.donate"><code class="name">var <span class="ident">donate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.initiate_checkout"><code class="name">var <span class="ident">initiate_checkout</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.lead"><code class="name">var <span class="ident">lead</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.page_view"><code class="name">var <span class="ident">page_view</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.purchase"><code class="name">var <span class="ident">purchase</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.qualify_lead"><code class="name">var <span class="ident">qualify_lead</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.refund"><code class="name">var <span class="ident">refund</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.remove_from_cart"><code class="name">var <span class="ident">remove_from_cart</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.schedule"><code class="name">var <span class="ident">schedule</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.search"><code class="name">var <span class="ident">search</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.select_content"><code class="name">var <span class="ident">select_content</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.select_item"><code class="name">var <span class="ident">select_item</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.share"><code class="name">var <span class="ident">share</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.start_trial"><code class="name">var <span class="ident">start_trial</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.submit_application"><code class="name">var <span class="ident">submit_application</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.subscribe"><code class="name">var <span class="ident">subscribe</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.view_content"><code class="name">var <span class="ident">view_content</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.viewed_cart"><code class="name">var <span class="ident">viewed_cart</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping"><code class="flex name class">
+<span>class <span class="ident">FeedFieldMapping</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FeedFieldMapping(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    feed_field: Annotated[
+        str | None,
+        Field(
+            description=&#39;Field name in the external feed record. Omit when injecting a static literal value (use the value property instead).&#39;
+        ),
+    ] = None
+    catalog_field: Annotated[
+        str | None,
+        Field(
+            description=&#34;Target field on the catalog item schema, using dot notation for nested fields (e.g., &#39;name&#39;, &#39;price.amount&#39;, &#39;location.city&#39;). Mutually exclusive with asset_group_id.&#34;
+        ),
+    ] = None
+    asset_group_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;Places the feed field value (a URL) into a typed asset pool on the catalog item&#39;s assets array. The value is wrapped as an image or video asset in a group with this ID. Use standard group IDs: &#39;images_landscape&#39;, &#39;images_vertical&#39;, &#39;images_square&#39;, &#39;logo&#39;, &#39;video&#39;. Mutually exclusive with catalog_field.&#34;
+        ),
+    ] = None
+    value: Annotated[
+        Any | None,
+        Field(
+            description=&#39;Static literal value to inject into catalog_field for every item, regardless of what the feed contains. Mutually exclusive with feed_field. Useful for fields the feed omits (e.g., currency when price is always USD, or a constant category value).&#39;
+        ),
+    ] = None
+    transform: Annotated[
+        Transform | None,
+        Field(
+            description=&#39;Named transform to apply to the feed field value before writing to the catalog schema. See transform-specific parameters (format, timezone, by, separator).&#39;
+        ),
+    ] = None
+    format: Annotated[
+        str | None,
+        Field(
+            description=&#34;For transform &#39;date&#39;: the input date format string (e.g., &#39;YYYYMMDD&#39;, &#39;MM/DD/YYYY&#39;, &#39;DD-MM-YYYY&#39;). Output is always ISO 8601 (e.g., &#39;2025-03-01&#39;). Uses Unicode date pattern tokens.&#34;
+        ),
+    ] = None
+    timezone: Annotated[
+        str | None,
+        Field(
+            description=&#34;For transform &#39;date&#39;: the timezone of the input value. IANA timezone identifier (e.g., &#39;UTC&#39;, &#39;America/New_York&#39;, &#39;Europe/Amsterdam&#39;). Defaults to UTC when omitted.&#34;
+        ),
+    ] = None
+    by: Annotated[
+        float | None,
+        Field(
+            description=&#34;For transform &#39;divide&#39;: the divisor to apply (e.g., 100 to convert integer cents to decimal dollars).&#34;,
+            gt=0.0,
+        ),
+    ] = None
+    separator: Annotated[
+        str | None,
+        Field(
+            description=&#34;For transform &#39;split&#39;: the separator character or string to split on. Defaults to &#39;,&#39;.&#34;
+        ),
+    ] = &#39;,&#39;
+    default: Annotated[
+        Any | None,
+        Field(
+            description=&#39;Fallback value to use when feed_field is absent, null, or empty. Applied after any transform would have been applied. Allows optional feed fields to have a guaranteed baseline value.&#39;
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
+            title=&#39;Extension Object&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.asset_group_id"><code class="name">var <span class="ident">asset_group_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.by"><code class="name">var <span class="ident">by</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.catalog_field"><code class="name">var <span class="ident">catalog_field</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.default"><code class="name">var <span class="ident">default</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.feed_field"><code class="name">var <span class="ident">feed_field</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.format"><code class="name">var <span class="ident">format</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.separator"><code class="name">var <span class="ident">separator</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.timezone"><code class="name">var <span class="ident">timezone</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.transform"><code class="name">var <span class="ident">transform</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform">Transform</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.value"><code class="name">var <span class="ident">value</span> : typing.Any | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat"><code class="flex name class">
+<span>class <span class="ident">FeedFormat</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FeedFormat(Enum):
+    google_merchant_center = &#39;google_merchant_center&#39;
+    facebook_catalog = &#39;facebook_catalog&#39;
+    shopify = &#39;shopify&#39;
+    linkedin_jobs = &#39;linkedin_jobs&#39;
+    custom = &#39;custom&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.custom"><code class="name">var <span class="ident">custom</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.facebook_catalog"><code class="name">var <span class="ident">facebook_catalog</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.google_merchant_center"><code class="name">var <span class="ident">google_merchant_center</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.linkedin_jobs"><code class="name">var <span class="ident">linkedin_jobs</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.shopify"><code class="name">var <span class="ident">shopify</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin"><code class="flex name class">
+<span>class <span class="ident">Gtin</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Gtin(RootModel[str]):
+    root: Annotated[str, Field(pattern=&#39;^[0-9]{8,14}$&#39;)]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig"><code class="flex name class">
+<span>class <span class="ident">PushNotificationConfig</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
+    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]
+    token: Annotated[
+        str | None,
+        Field(
+            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            min_length=16,
+        ),
+    ] = None
+    authentication: Annotated[
+        Authentication,
+        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication">Authentication</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.token"><code class="name">var <span class="ident">token</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme"><code class="flex name class">
+<span>class <span class="ident">Scheme</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Scheme(Enum):
+    Bearer = &#39;Bearer&#39;
+    HMAC_SHA256 = &#39;HMAC-SHA256&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme.Bearer"><code class="name">var <span class="ident">Bearer</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme.HMAC_SHA256"><code class="name">var <span class="ident">HMAC_SHA256</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest"><code class="flex name class">
+<span>class <span class="ident">SyncCatalogsRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncCatalogsRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated unique key for at-most-once execution. `catalog_id` gives resource-level dedup per catalog, but the sync envelope emits audit events and triggers platform review for large feeds — this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `catalogs` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
+    account: Annotated[
+        Account | Account35,
+        Field(
+            description=&#39;Account that owns these catalogs.&#39;,
+            examples=[
+                {&#39;account_id&#39;: &#39;acc_acme_001&#39;},
+                {&#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;}, &#39;operator&#39;: &#39;acme-corp.com&#39;},
+                {
+                    &#39;brand&#39;: {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
+                    &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
+                },
+                {
+                    &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                    &#39;operator&#39;: &#39;acme-corp.com&#39;,
+                    &#39;sandbox&#39;: True,
+                },
+            ],
+            title=&#39;Account Reference&#39;,
+        ),
+    ]
+    catalogs: Annotated[
+        list[Catalog] | None,
+        Field(
+            description=&#39;Array of catalog feeds to sync (create or update). When omitted, the call is discovery-only and returns all existing catalogs on the account without modification.&#39;,
+            max_length=50,
+            min_length=1,
+        ),
+    ] = None
+    catalog_ids: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Optional filter to limit sync scope to specific catalog IDs. When provided, only these catalogs will be created/updated. Other catalogs on the account are unaffected.&#39;,
+            max_length=50,
+            min_length=1,
+        ),
+    ] = None
+    delete_missing: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, buyer-managed catalogs on the account not included in this sync will be removed. Does not affect seller-managed catalogs. Do not combine with an omitted catalogs array or all buyer-managed catalogs will be deleted.&#39;
+        ),
+    ] = False
+    dry_run: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, preview changes without applying them. Returns what would be created/updated/deleted.&#39;
+        ),
+    ] = False
+    validation_mode: Annotated[
+        ValidationMode | None,
+        Field(
+            description=&#34;Validation strictness. &#39;strict&#39; fails entire sync on any validation error. &#39;lenient&#39; processes valid catalogs and reports errors.&#34;,
+            title=&#39;Validation Mode&#39;,
+        ),
+    ] = ValidationMode.strict
+    push_notification_config: Annotated[
+        PushNotificationConfig | None,
+        Field(
+            description=&#39;Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (common for large feeds requiring platform review).&#39;,
+            title=&#39;Push Notification Config&#39;,
+        ),
+    ] = None
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
+            title=&#39;Context Object&#39;,
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
+            title=&#39;Extension Object&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account">Account</a> | <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35">Account35</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.catalog_ids"><code class="name">var <span class="ident">catalog_ids</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.catalogs"><code class="name">var <span class="ident">catalogs</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog">Catalog</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.delete_missing"><code class="name">var <span class="ident">delete_missing</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.dry_run"><code class="name">var <span class="ident">dry_run</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.validation_mode"><code class="name">var <span class="ident">validation_mode</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode">ValidationMode</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform"><code class="flex name class">
+<span>class <span class="ident">Transform</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Transform(Enum):
+    date = &#39;date&#39;
+    divide = &#39;divide&#39;
+    boolean = &#39;boolean&#39;
+    split = &#39;split&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.boolean"><code class="name">var <span class="ident">boolean</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.date"><code class="name">var <span class="ident">date</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.divide"><code class="name">var <span class="ident">divide</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.split"><code class="name">var <span class="ident">split</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type"><code class="flex name class">
+<span>class <span class="ident">Type</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Type(Enum):
+    offering = &#39;offering&#39;
+    product = &#39;product&#39;
+    inventory = &#39;inventory&#39;
+    store = &#39;store&#39;
+    promotion = &#39;promotion&#39;
+    hotel = &#39;hotel&#39;
+    flight = &#39;flight&#39;
+    job = &#39;job&#39;
+    vehicle = &#39;vehicle&#39;
+    real_estate = &#39;real_estate&#39;
+    education = &#39;education&#39;
+    destination = &#39;destination&#39;
+    app = &#39;app&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.app"><code class="name">var <span class="ident">app</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.destination"><code class="name">var <span class="ident">destination</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.education"><code class="name">var <span class="ident">education</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.flight"><code class="name">var <span class="ident">flight</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.hotel"><code class="name">var <span class="ident">hotel</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.inventory"><code class="name">var <span class="ident">inventory</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.job"><code class="name">var <span class="ident">job</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.offering"><code class="name">var <span class="ident">offering</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.product"><code class="name">var <span class="ident">product</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.promotion"><code class="name">var <span class="ident">promotion</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.real_estate"><code class="name">var <span class="ident">real_estate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.store"><code class="name">var <span class="ident">store</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.vehicle"><code class="name">var <span class="ident">vehicle</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency"><code class="flex name class">
+<span>class <span class="ident">UpdateFrequency</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UpdateFrequency(Enum):
+    realtime = &#39;realtime&#39;
+    hourly = &#39;hourly&#39;
+    daily = &#39;daily&#39;
+    weekly = &#39;weekly&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.daily"><code class="name">var <span class="ident">daily</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.hourly"><code class="name">var <span class="ident">hourly</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.realtime"><code class="name">var <span class="ident">realtime</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.weekly"><code class="name">var <span class="ident">weekly</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode"><code class="flex name class">
+<span>class <span class="ident">ValidationMode</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ValidationMode(Enum):
+    strict = &#39;strict&#39;
+    lenient = &#39;lenient&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode.lenient"><code class="name">var <span class="ident">lenient</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode.strict"><code class="name">var <span class="ident">strict</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy" href="index.html">adcp.types.generated_poc.bundled.media_buy</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account">Account</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account.account_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35">Account35</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.brand" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.operator" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.operator">operator</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.sandbox" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Account35.sandbox">sandbox</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication">Authentication</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.credentials" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.credentials">credentials</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.schemes" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication.schemes">schemes</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand">Brand</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.brand_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.domain" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.domain">domain</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Brand.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog">Catalog</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.catalog_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.catalog_id">catalog_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.category" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.category">category</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.content_id_type" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.content_id_type">content_id_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.conversion_events" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.conversion_events">conversion_events</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.feed_field_mappings" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.feed_field_mappings">feed_field_mappings</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.feed_format" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.feed_format">feed_format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.gtins" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.gtins">gtins</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.ids" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.ids">ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.items" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.items">items</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.name" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.query" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.query">query</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.tags" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.tags">tags</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.type" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.update_frequency" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.update_frequency">update_frequency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.url" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Catalog.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType">ContentIdType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.app_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.app_id">app_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.destination_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.destination_id">destination_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.flight_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.flight_id">flight_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.gtin" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.gtin">gtin</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.hotel_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.hotel_id">hotel_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.job_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.job_id">job_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.listing_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.listing_id">listing_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.offering_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.offering_id">offering_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.program_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.program_id">program_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.sku" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.sku">sku</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.store_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.store_id">store_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.vehicle_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ContentIdType.vehicle_id">vehicle_id</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent">ConversionEvent</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_payment_info" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_payment_info">add_payment_info</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_to_cart" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_to_cart">add_to_cart</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_to_wishlist" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.add_to_wishlist">add_to_wishlist</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.app_install" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.app_install">app_install</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.app_launch" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.app_launch">app_launch</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.close_convert_lead" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.close_convert_lead">close_convert_lead</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.complete_registration" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.complete_registration">complete_registration</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.contact" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.contact">contact</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.custom" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.custom">custom</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.disqualify_lead" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.disqualify_lead">disqualify_lead</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.donate" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.donate">donate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.initiate_checkout" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.initiate_checkout">initiate_checkout</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.lead" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.lead">lead</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.page_view" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.page_view">page_view</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.purchase" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.purchase">purchase</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.qualify_lead" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.qualify_lead">qualify_lead</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.refund" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.refund">refund</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.remove_from_cart" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.remove_from_cart">remove_from_cart</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.schedule" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.schedule">schedule</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.search" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.search">search</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.select_content" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.select_content">select_content</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.select_item" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.select_item">select_item</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.share" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.share">share</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.start_trial" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.start_trial">start_trial</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.submit_application" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.submit_application">submit_application</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.subscribe" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.subscribe">subscribe</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.view_content" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.view_content">view_content</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.viewed_cart" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ConversionEvent.viewed_cart">viewed_cart</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping">FeedFieldMapping</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.asset_group_id" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.asset_group_id">asset_group_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.by" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.by">by</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.catalog_field" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.catalog_field">catalog_field</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.default" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.default">default</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.ext" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.feed_field" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.feed_field">feed_field</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.format" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.format">format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.separator" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.separator">separator</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.timezone" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.timezone">timezone</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.transform" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.transform">transform</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.value" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFieldMapping.value">value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat">FeedFormat</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.custom" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.custom">custom</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.facebook_catalog" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.facebook_catalog">facebook_catalog</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.google_merchant_center" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.google_merchant_center">google_merchant_center</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.linkedin_jobs" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.linkedin_jobs">linkedin_jobs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.shopify" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.FeedFormat.shopify">shopify</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin">Gtin</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin.root" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Gtin.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig">PushNotificationConfig</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.authentication" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.authentication">authentication</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.token" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.token">token</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.url" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme">Scheme</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme.Bearer" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme.Bearer">Bearer</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme.HMAC_SHA256" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Scheme.HMAC_SHA256">HMAC_SHA256</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest">SyncCatalogsRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.account" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.account">account</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.adcp_major_version" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.adcp_major_version">adcp_major_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.catalog_ids" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.catalog_ids">catalog_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.catalogs" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.catalogs">catalogs</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.context" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.delete_missing" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.delete_missing">delete_missing</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.dry_run" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.dry_run">dry_run</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.ext" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.idempotency_key" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.push_notification_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.push_notification_config">push_notification_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.validation_mode" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.SyncCatalogsRequest.validation_mode">validation_mode</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform">Transform</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.boolean" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.boolean">boolean</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.date" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.date">date</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.divide" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.divide">divide</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.split" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Transform.split">split</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type">Type</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.app" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.app">app</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.destination" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.destination">destination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.education" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.education">education</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.flight" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.flight">flight</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.hotel" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.hotel">hotel</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.inventory" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.inventory">inventory</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.job" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.job">job</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.offering" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.offering">offering</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.product" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.product">product</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.promotion" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.promotion">promotion</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.real_estate" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.real_estate">real_estate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.store" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.store">store</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.vehicle" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Type.vehicle">vehicle</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency">UpdateFrequency</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.daily" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.daily">daily</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.hourly" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.hourly">hourly</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.realtime" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.realtime">realtime</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.weekly" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.UpdateFrequency.weekly">weekly</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode">ValidationMode</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode.lenient" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode.lenient">lenient</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode.strict" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.ValidationMode.strict">strict</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

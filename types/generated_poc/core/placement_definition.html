@@ -59,33 +59,24 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    collection_ids: Annotated[
-        list[str] | None,
-        Field(
-            description=&#39;Optional collection IDs in this adagents.json where this placement is valid. Use to narrow a placement to specific content programs carried on the selected properties.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    description: Annotated[
-        str | None, Field(description=&#39;Description of where and how this placement appears.&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    format_ids: Annotated[
-        list[format_id.FormatId] | None,
-        Field(
-            description=&#39;Optional format IDs supported by this placement across the scoped properties and collections. Lets buyers answer which formats are available on which placements without relying on product-local definitions alone.&#39;,
-            min_length=1,
-        ),
-    ] = None
+    placement_id: Annotated[
+        str, Field(description=&#39;Stable placement identifier unique within this adagents.json file.&#39;)
+    ]
     name: Annotated[
         str,
         Field(
             description=&#34;Human-readable placement name (e.g., &#39;Homepage Banner&#39;, &#39;Pre-roll&#39;, &#39;Sponsored Listing Slot 1&#39;).&#34;
         ),
     ]
-    placement_id: Annotated[
-        str, Field(description=&#39;Stable placement identifier unique within this adagents.json file.&#39;)
-    ]
+    description: Annotated[
+        str | None, Field(description=&#39;Description of where and how this placement appears.&#39;)
+    ] = None
+    tags: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Tags for grouping and querying placements across properties and products (e.g., &#39;homepage&#39;, &#39;native&#39;, &#39;premium&#39;, &#39;pre_roll&#39;).&#34;
+        ),
+    ] = None
     property_ids: Annotated[
         list[property_id.PropertyId] | None,
         Field(
@@ -100,12 +91,21 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    tags: Annotated[
+    collection_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#34;Tags for grouping and querying placements across properties and products (e.g., &#39;homepage&#39;, &#39;native&#39;, &#39;premium&#39;, &#39;pre_roll&#39;).&#34;
+            description=&#39;Optional collection IDs in this adagents.json where this placement is valid. Use to narrow a placement to specific content programs carried on the selected properties.&#39;,
+            min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(
+            description=&#39;Optional format IDs supported by this placement across the scoped properties and collections. Lets buyers answer which formats are available on which placements without relying on product-local definitions alone.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

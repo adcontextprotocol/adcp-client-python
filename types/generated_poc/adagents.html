@@ -62,307 +62,287 @@ el.replaceWith(d);
             description=&#39;Declaration of authorized agents for advertising inventory and data signals. Hosted at /.well-known/adagents.json on publisher domains (for properties) or data provider domains (for signals). Can either contain the full structure inline or reference an authoritative URL.&#39;,
             examples=[
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.3/adagents.json&#39;,
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;authoritative_location&#39;: &#39;https://cdn.example.com/adagents/v2/adagents.json&#39;,
                     &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.3/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
+                    &#39;properties&#39;: [
                         {
-                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;Official sales agent&#39;,
-                            &#39;countries&#39;: [&#39;US&#39;, &#39;CA&#39;],
-                            &#39;delegation_type&#39;: &#39;direct&#39;,
-                            &#39;effective_from&#39;: &#39;2025-01-01T00:00:00Z&#39;,
-                            &#39;exclusive&#39;: True,
-                            &#39;placement_ids&#39;: [&#39;homepage_banner&#39;],
-                            &#39;property_tags&#39;: [&#39;all&#39;],
-                            &#39;url&#39;: &#39;https://agent.example.com&#39;,
+                            &#39;property_id&#39;: &#39;example_site&#39;,
+                            &#39;property_type&#39;: &#39;website&#39;,
+                            &#39;name&#39;: &#39;Example Site&#39;,
+                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;example.com&#39;}],
+                            &#39;publisher_domain&#39;: &#39;example.com&#39;,
                         }
                     ],
-                    &#39;last_updated&#39;: &#39;2025-01-10T12:00:00Z&#39;,
-                    &#39;placement_tags&#39;: {
-                        &#39;display&#39;: {
-                            &#39;description&#39;: &#39;Standard display placements&#39;,
-                            &#39;name&#39;: &#39;Display&#39;,
-                        },
-                        &#39;homepage&#39;: {
-                            &#39;description&#39;: &#39;Placements that render on the homepage&#39;,
-                            &#39;name&#39;: &#39;Homepage&#39;,
-                        },
-                        &#39;premium&#39;: {
-                            &#39;description&#39;: &#39;Premium monetization placements&#39;,
-                            &#39;name&#39;: &#39;Premium&#39;,
-                        },
-                    },
                     &#39;placements&#39;: [
                         {
+                            &#39;placement_id&#39;: &#39;homepage_banner&#39;,
+                            &#39;name&#39;: &#39;Homepage Banner&#39;,
+                            &#39;tags&#39;: [&#39;homepage&#39;, &#39;display&#39;, &#39;premium&#39;],
+                            &#39;property_ids&#39;: [&#39;example_site&#39;],
                             &#39;format_ids&#39;: [
                                 {
                                     &#39;agent_url&#39;: &#39;https://creative.example.com&#39;,
                                     &#39;id&#39;: &#39;display_728x90&#39;,
                                 }
                             ],
-                            &#39;name&#39;: &#39;Homepage Banner&#39;,
-                            &#39;placement_id&#39;: &#39;homepage_banner&#39;,
-                            &#39;property_ids&#39;: [&#39;example_site&#39;],
-                            &#39;tags&#39;: [&#39;homepage&#39;, &#39;display&#39;, &#39;premium&#39;],
                         }
                     ],
-                    &#39;properties&#39;: [
+                    &#39;placement_tags&#39;: {
+                        &#39;homepage&#39;: {
+                            &#39;name&#39;: &#39;Homepage&#39;,
+                            &#39;description&#39;: &#39;Placements that render on the homepage&#39;,
+                        },
+                        &#39;display&#39;: {
+                            &#39;name&#39;: &#39;Display&#39;,
+                            &#39;description&#39;: &#39;Standard display placements&#39;,
+                        },
+                        &#39;premium&#39;: {
+                            &#39;name&#39;: &#39;Premium&#39;,
+                            &#39;description&#39;: &#39;Premium monetization placements&#39;,
+                        },
+                    },
+                    &#39;authorized_agents&#39;: [
                         {
-                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;example.com&#39;}],
-                            &#39;name&#39;: &#39;Example Site&#39;,
-                            &#39;property_id&#39;: &#39;example_site&#39;,
-                            &#39;property_type&#39;: &#39;website&#39;,
-                            &#39;publisher_domain&#39;: &#39;example.com&#39;,
+                            &#39;url&#39;: &#39;https://agent.example.com&#39;,
+                            &#39;authorized_for&#39;: &#39;Official sales agent&#39;,
+                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
+                            &#39;property_tags&#39;: [&#39;all&#39;],
+                            &#39;placement_ids&#39;: [&#39;homepage_banner&#39;],
+                            &#39;delegation_type&#39;: &#39;direct&#39;,
+                            &#39;exclusive&#39;: True,
+                            &#39;countries&#39;: [&#39;US&#39;, &#39;CA&#39;],
+                            &#39;effective_from&#39;: &#39;2025-01-01T00:00:00Z&#39;,
                         }
                     ],
                     &#39;tags&#39;: {
                         &#39;all&#39;: {
-                            &#39;description&#39;: &#39;All properties in this file&#39;,
                             &#39;name&#39;: &#39;All Properties&#39;,
+                            &#39;description&#39;: &#39;All properties in this file&#39;,
                         }
                     },
+                    &#39;last_updated&#39;: &#39;2025-01-10T12:00:00Z&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.3/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
-                        {
-                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;All Meta properties&#39;,
-                            &#39;property_tags&#39;: [&#39;meta_network&#39;],
-                            &#39;url&#39;: &#39;https://meta-ads.com&#39;,
-                        }
-                    ],
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;contact&#39;: {
-                        &#39;domain&#39;: &#39;meta.com&#39;,
-                        &#39;email&#39;: &#39;adops@meta.com&#39;,
                         &#39;name&#39;: &#39;Meta Advertising Operations&#39;,
-                        &#39;privacy_policy_url&#39;: &#39;https://www.meta.com/privacy/policy&#39;,
+                        &#39;email&#39;: &#39;adops@meta.com&#39;,
+                        &#39;domain&#39;: &#39;meta.com&#39;,
                         &#39;seller_id&#39;: &#39;pub-meta-12345&#39;,
                         &#39;tag_id&#39;: &#39;12345&#39;,
+                        &#39;privacy_policy_url&#39;: &#39;https://www.meta.com/privacy/policy&#39;,
                     },
-                    &#39;last_updated&#39;: &#39;2025-01-10T15:30:00Z&#39;,
                     &#39;properties&#39;: [
                         {
+                            &#39;property_type&#39;: &#39;mobile_app&#39;,
+                            &#39;name&#39;: &#39;Instagram&#39;,
                             &#39;identifiers&#39;: [
                                 {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;com.burbn.instagram&#39;},
                                 {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.instagram.android&#39;},
                             ],
-                            &#39;name&#39;: &#39;Instagram&#39;,
-                            &#39;property_type&#39;: &#39;mobile_app&#39;,
-                            &#39;publisher_domain&#39;: &#39;instagram.com&#39;,
-                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;, &#39;olv&#39;],
                             &#39;tags&#39;: [&#39;meta_network&#39;, &#39;social_media&#39;],
+                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;, &#39;olv&#39;],
+                            &#39;publisher_domain&#39;: &#39;instagram.com&#39;,
                         },
                         {
+                            &#39;property_type&#39;: &#39;mobile_app&#39;,
+                            &#39;name&#39;: &#39;Facebook&#39;,
                             &#39;identifiers&#39;: [
                                 {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;com.facebook.Facebook&#39;},
                                 {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.facebook.katana&#39;},
                             ],
-                            &#39;name&#39;: &#39;Facebook&#39;,
-                            &#39;property_type&#39;: &#39;mobile_app&#39;,
-                            &#39;publisher_domain&#39;: &#39;facebook.com&#39;,
-                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;, &#39;olv&#39;],
                             &#39;tags&#39;: [&#39;meta_network&#39;, &#39;social_media&#39;],
+                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;, &#39;olv&#39;],
+                            &#39;publisher_domain&#39;: &#39;facebook.com&#39;,
                         },
                         {
+                            &#39;property_type&#39;: &#39;mobile_app&#39;,
+                            &#39;name&#39;: &#39;WhatsApp&#39;,
                             &#39;identifiers&#39;: [
                                 {&#39;type&#39;: &#39;ios_bundle&#39;, &#39;value&#39;: &#39;net.whatsapp.WhatsApp&#39;},
                                 {&#39;type&#39;: &#39;android_package&#39;, &#39;value&#39;: &#39;com.whatsapp&#39;},
                             ],
-                            &#39;name&#39;: &#39;WhatsApp&#39;,
-                            &#39;property_type&#39;: &#39;mobile_app&#39;,
-                            &#39;publisher_domain&#39;: &#39;whatsapp.com&#39;,
-                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;],
                             &#39;tags&#39;: [&#39;meta_network&#39;, &#39;messaging&#39;],
+                            &#39;supported_channels&#39;: [&#39;social&#39;, &#39;display&#39;],
+                            &#39;publisher_domain&#39;: &#39;whatsapp.com&#39;,
                         },
                     ],
                     &#39;tags&#39;: {
-                        &#39;messaging&#39;: {
-                            &#39;description&#39;: &#39;Messaging and communication apps&#39;,
-                            &#39;name&#39;: &#39;Messaging Apps&#39;,
-                        },
                         &#39;meta_network&#39;: {
-                            &#39;description&#39;: &#39;All Meta-owned properties&#39;,
                             &#39;name&#39;: &#39;Meta Network&#39;,
+                            &#39;description&#39;: &#39;All Meta-owned properties&#39;,
                         },
                         &#39;social_media&#39;: {
-                            &#39;description&#39;: &#39;Social networking applications&#39;,
                             &#39;name&#39;: &#39;Social Media Apps&#39;,
+                            &#39;description&#39;: &#39;Social networking applications&#39;,
+                        },
+                        &#39;messaging&#39;: {
+                            &#39;name&#39;: &#39;Messaging Apps&#39;,
+                            &#39;description&#39;: &#39;Messaging and communication apps&#39;,
                         },
                     },
-                },
-                {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.3/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
+                            &#39;url&#39;: &#39;https://meta-ads.com&#39;,
+                            &#39;authorized_for&#39;: &#39;All Meta properties&#39;,
                             &#39;authorization_type&#39;: &#39;property_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;Tumblr corporate properties only&#39;,
-                            &#39;property_tags&#39;: [&#39;corporate&#39;],
-                            &#39;url&#39;: &#39;https://tumblr-sales.com&#39;,
+                            &#39;property_tags&#39;: [&#39;meta_network&#39;],
                         }
                     ],
+                    &#39;last_updated&#39;: &#39;2025-01-10T15:30:00Z&#39;,
+                },
+                {
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;contact&#39;: {&#39;name&#39;: &#39;Tumblr Advertising&#39;},
-                    &#39;last_updated&#39;: &#39;2025-01-10T16:00:00Z&#39;,
                     &#39;properties&#39;: [
                         {
-                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;tumblr.com&#39;}],
-                            &#39;name&#39;: &#39;Tumblr Corporate&#39;,
                             &#39;property_type&#39;: &#39;website&#39;,
-                            &#39;publisher_domain&#39;: &#39;tumblr.com&#39;,
+                            &#39;name&#39;: &#39;Tumblr Corporate&#39;,
+                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;tumblr.com&#39;}],
                             &#39;tags&#39;: [&#39;corporate&#39;],
+                            &#39;publisher_domain&#39;: &#39;tumblr.com&#39;,
                         }
                     ],
                     &#39;tags&#39;: {
                         &#39;corporate&#39;: {
-                            &#39;description&#39;: &#39;Tumblr-owned corporate properties (not user blogs)&#39;,
                             &#39;name&#39;: &#39;Corporate Properties&#39;,
+                            &#39;description&#39;: &#39;Tumblr-owned corporate properties (not user blogs)&#39;,
                         }
                     },
-                },
-                {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.3/adagents.json&#39;,
                     &#39;authorized_agents&#39;: [
                         {
-                            &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
+                            &#39;url&#39;: &#39;https://tumblr-sales.com&#39;,
+                            &#39;authorized_for&#39;: &#39;Tumblr corporate properties only&#39;,
+                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
+                            &#39;property_tags&#39;: [&#39;corporate&#39;],
+                        }
+                    ],
+                    &#39;last_updated&#39;: &#39;2025-01-10T16:00:00Z&#39;,
+                },
+                {
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
+                    &#39;contact&#39;: {
+                        &#39;name&#39;: &#39;Example Third-Party Sales Agent&#39;,
+                        &#39;email&#39;: &#39;sales@agent.example&#39;,
+                        &#39;domain&#39;: &#39;agent.example&#39;,
+                    },
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;url&#39;: &#39;https://agent.example/api&#39;,
                             &#39;authorized_for&#39;: &#39;CNN CTV properties via publisher authorization&#39;,
+                            &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
                             &#39;publisher_properties&#39;: [
                                 {
-                                    &#39;property_ids&#39;: [&#39;cnn_ctv_app&#39;],
                                     &#39;publisher_domain&#39;: &#39;cnn.com&#39;,
                                     &#39;selection_type&#39;: &#39;by_id&#39;,
+                                    &#39;property_ids&#39;: [&#39;cnn_ctv_app&#39;],
                                 }
                             ],
-                            &#39;url&#39;: &#39;https://agent.example/api&#39;,
                         },
                         {
-                            &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
+                            &#39;url&#39;: &#39;https://agent.example/api&#39;,
                             &#39;authorized_for&#39;: &#39;All CTV properties from multiple publishers&#39;,
+                            &#39;authorization_type&#39;: &#39;publisher_properties&#39;,
                             &#39;publisher_properties&#39;: [
                                 {
-                                    &#39;property_tags&#39;: [&#39;ctv&#39;],
                                     &#39;publisher_domain&#39;: &#39;cnn.com&#39;,
                                     &#39;selection_type&#39;: &#39;by_tag&#39;,
+                                    &#39;property_tags&#39;: [&#39;ctv&#39;],
                                 },
                                 {
-                                    &#39;property_tags&#39;: [&#39;ctv&#39;],
                                     &#39;publisher_domain&#39;: &#39;espn.com&#39;,
                                     &#39;selection_type&#39;: &#39;by_tag&#39;,
+                                    &#39;property_tags&#39;: [&#39;ctv&#39;],
                                 },
                             ],
-                            &#39;url&#39;: &#39;https://agent.example/api&#39;,
                         },
                     ],
-                    &#39;contact&#39;: {
-                        &#39;domain&#39;: &#39;agent.example&#39;,
-                        &#39;email&#39;: &#39;sales@agent.example&#39;,
-                        &#39;name&#39;: &#39;Example Third-Party Sales Agent&#39;,
-                    },
                     &#39;last_updated&#39;: &#39;2025-01-10T17:00:00Z&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.3/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
-                        {
-                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;All news properties&#39;,
-                            &#39;property_tags&#39;: [&#39;news&#39;],
-                            &#39;url&#39;: &#39;https://sales.news.example.com&#39;,
-                        }
-                    ],
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;contact&#39;: {
-                        &#39;domain&#39;: &#39;news.example.com&#39;,
-                        &#39;email&#39;: &#39;adops@news.example.com&#39;,
                         &#39;name&#39;: &#39;Premium News Publisher&#39;,
+                        &#39;email&#39;: &#39;adops@news.example.com&#39;,
+                        &#39;domain&#39;: &#39;news.example.com&#39;,
                     },
-                    &#39;last_updated&#39;: &#39;2025-01-10T18:00:00Z&#39;,
                     &#39;properties&#39;: [
                         {
-                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;news.example.com&#39;}],
-                            &#39;name&#39;: &#39;News Example&#39;,
                             &#39;property_type&#39;: &#39;website&#39;,
-                            &#39;publisher_domain&#39;: &#39;news.example.com&#39;,
+                            &#39;name&#39;: &#39;News Example&#39;,
+                            &#39;identifiers&#39;: [{&#39;type&#39;: &#39;domain&#39;, &#39;value&#39;: &#39;news.example.com&#39;}],
                             &#39;tags&#39;: [&#39;premium&#39;, &#39;news&#39;],
+                            &#39;publisher_domain&#39;: &#39;news.example.com&#39;,
+                        }
+                    ],
+                    &#39;tags&#39;: {
+                        &#39;premium&#39;: {
+                            &#39;name&#39;: &#39;Premium Properties&#39;,
+                            &#39;description&#39;: &#39;High-quality, brand-safe properties&#39;,
+                        },
+                        &#39;news&#39;: {
+                            &#39;name&#39;: &#39;News Properties&#39;,
+                            &#39;description&#39;: &#39;News and journalism content&#39;,
+                        },
+                    },
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;url&#39;: &#39;https://sales.news.example.com&#39;,
+                            &#39;authorized_for&#39;: &#39;All news properties&#39;,
+                            &#39;authorization_type&#39;: &#39;property_tags&#39;,
+                            &#39;property_tags&#39;: [&#39;news&#39;],
                         }
                     ],
                     &#39;property_features&#39;: [
                         {
-                            &#39;features&#39;: [&#39;carbon_score&#39;, &#39;sustainability_grade&#39;],
-                            &#39;name&#39;: &#39;Scope3&#39;,
-                            &#39;publisher_id&#39;: &#39;pub_news_12345&#39;,
                             &#39;url&#39;: &#39;https://api.scope3.com&#39;,
+                            &#39;name&#39;: &#39;Scope3&#39;,
+                            &#39;features&#39;: [&#39;carbon_score&#39;, &#39;sustainability_grade&#39;],
+                            &#39;publisher_id&#39;: &#39;pub_news_12345&#39;,
                         },
                         {
+                            &#39;url&#39;: &#39;https://api.tagtoday.net&#39;,
+                            &#39;name&#39;: &#39;TAG&#39;,
                             &#39;features&#39;: [
                                 &#39;tag_certified_against_fraud&#39;,
                                 &#39;tag_brand_safety_certified&#39;,
                             ],
-                            &#39;name&#39;: &#39;TAG&#39;,
-                            &#39;url&#39;: &#39;https://api.tagtoday.net&#39;,
                         },
                         {
-                            &#39;features&#39;: [&#39;gdpr_compliant&#39;, &#39;tcf_registered&#39;, &#39;ccpa_compliant&#39;],
-                            &#39;name&#39;: &#39;OneTrust&#39;,
-                            &#39;publisher_id&#39;: &#39;ot_news_67890&#39;,
                             &#39;url&#39;: &#39;https://api.onetrust.com&#39;,
+                            &#39;name&#39;: &#39;OneTrust&#39;,
+                            &#39;features&#39;: [&#39;gdpr_compliant&#39;, &#39;tcf_registered&#39;, &#39;ccpa_compliant&#39;],
+                            &#39;publisher_id&#39;: &#39;ot_news_67890&#39;,
                         },
                     ],
-                    &#39;tags&#39;: {
-                        &#39;news&#39;: {
-                            &#39;description&#39;: &#39;News and journalism content&#39;,
-                            &#39;name&#39;: &#39;News Properties&#39;,
-                        },
-                        &#39;premium&#39;: {
-                            &#39;description&#39;: &#39;High-quality, brand-safe properties&#39;,
-                            &#39;name&#39;: &#39;Premium Properties&#39;,
-                        },
-                    },
+                    &#39;last_updated&#39;: &#39;2025-01-10T18:00:00Z&#39;,
                 },
                 {
-                    &#39;$schema&#39;: &#39;/schemas/3.0.0-rc.3/adagents.json&#39;,
-                    &#39;authorized_agents&#39;: [
-                        {
-                            &#39;authorization_type&#39;: &#39;signal_tags&#39;,
-                            &#39;authorized_for&#39;: &#39;All Polk automotive signals via LiveRamp&#39;,
-                            &#39;signal_tags&#39;: [&#39;automotive&#39;],
-                            &#39;url&#39;: &#39;https://liveramp.com/.well-known/adcp/signals&#39;,
-                        },
-                        {
-                            &#39;authorization_type&#39;: &#39;signal_ids&#39;,
-                            &#39;authorized_for&#39;: &#39;Polk premium signals only&#39;,
-                            &#39;signal_ids&#39;: [&#39;likely_tesla_buyers&#39;],
-                            &#39;url&#39;: &#39;https://the-trade-desk.com/.well-known/adcp/signals&#39;,
-                        },
-                    ],
+                    &#39;$schema&#39;: &#39;/schemas/latest/adagents.json&#39;,
                     &#39;contact&#39;: {
-                        &#39;domain&#39;: &#39;polk.com&#39;,
-                        &#39;email&#39;: &#39;partnerships@polk.com&#39;,
                         &#39;name&#39;: &#39;Polk Automotive Data&#39;,
-                    },
-                    &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
-                    &#39;signal_tags&#39;: {
-                        &#39;automotive&#39;: {
-                            &#39;description&#39;: &#39;Vehicle-related audience segments&#39;,
-                            &#39;name&#39;: &#39;Automotive Signals&#39;,
-                        },
-                        &#39;premium&#39;: {
-                            &#39;description&#39;: &#39;High-value premium audience segments&#39;,
-                            &#39;name&#39;: &#39;Premium Signals&#39;,
-                        },
+                        &#39;email&#39;: &#39;partnerships@polk.com&#39;,
+                        &#39;domain&#39;: &#39;polk.com&#39;,
                     },
                     &#39;signals&#39;: [
                         {
-                            &#39;category&#39;: &#39;purchase_intent&#39;,
-                            &#39;description&#39;: &#39;Consumers modeled as likely to purchase a Tesla in the next 12 months based on vehicle registration, financial, and behavioral data&#39;,
                             &#39;id&#39;: &#39;likely_tesla_buyers&#39;,
                             &#39;name&#39;: &#39;Likely Tesla Buyers&#39;,
-                            &#39;tags&#39;: [&#39;automotive&#39;, &#39;premium&#39;],
+                            &#39;description&#39;: &#39;Consumers modeled as likely to purchase a Tesla in the next 12 months based on vehicle registration, financial, and behavioral data&#39;,
                             &#39;value_type&#39;: &#39;binary&#39;,
+                            &#39;category&#39;: &#39;purchase_intent&#39;,
+                            &#39;tags&#39;: [&#39;automotive&#39;, &#39;premium&#39;],
                         },
                         {
+                            &#39;id&#39;: &#39;vehicle_ownership&#39;,
+                            &#39;name&#39;: &#39;Current Vehicle Ownership&#39;,
+                            &#39;description&#39;: &#39;Current vehicle make owned by the consumer&#39;,
+                            &#39;value_type&#39;: &#39;categorical&#39;,
+                            &#39;category&#39;: &#39;ownership&#39;,
                             &#39;allowed_values&#39;: [
                                 &#39;tesla&#39;,
                                 &#39;bmw&#39;,
@@ -372,23 +352,43 @@ el.replaceWith(d);
                                 &#39;other_luxury&#39;,
                                 &#39;non_luxury&#39;,
                             ],
-                            &#39;category&#39;: &#39;ownership&#39;,
-                            &#39;description&#39;: &#39;Current vehicle make owned by the consumer&#39;,
-                            &#39;id&#39;: &#39;vehicle_ownership&#39;,
-                            &#39;name&#39;: &#39;Current Vehicle Ownership&#39;,
                             &#39;tags&#39;: [&#39;automotive&#39;],
-                            &#39;value_type&#39;: &#39;categorical&#39;,
                         },
                         {
-                            &#39;category&#39;: &#39;purchase_intent&#39;,
-                            &#39;description&#39;: &#39;Likelihood score of purchasing any new vehicle in the next 6 months&#39;,
                             &#39;id&#39;: &#39;purchase_propensity&#39;,
                             &#39;name&#39;: &#39;Auto Purchase Propensity&#39;,
-                            &#39;range&#39;: {&#39;max&#39;: 1, &#39;min&#39;: 0, &#39;unit&#39;: &#39;score&#39;},
-                            &#39;tags&#39;: [&#39;automotive&#39;],
+                            &#39;description&#39;: &#39;Likelihood score of purchasing any new vehicle in the next 6 months&#39;,
                             &#39;value_type&#39;: &#39;numeric&#39;,
+                            &#39;category&#39;: &#39;purchase_intent&#39;,
+                            &#39;range&#39;: {&#39;min&#39;: 0, &#39;max&#39;: 1, &#39;unit&#39;: &#39;score&#39;},
+                            &#39;tags&#39;: [&#39;automotive&#39;],
                         },
                     ],
+                    &#39;signal_tags&#39;: {
+                        &#39;automotive&#39;: {
+                            &#39;name&#39;: &#39;Automotive Signals&#39;,
+                            &#39;description&#39;: &#39;Vehicle-related audience segments&#39;,
+                        },
+                        &#39;premium&#39;: {
+                            &#39;name&#39;: &#39;Premium Signals&#39;,
+                            &#39;description&#39;: &#39;High-value premium audience segments&#39;,
+                        },
+                    },
+                    &#39;authorized_agents&#39;: [
+                        {
+                            &#39;url&#39;: &#39;https://liveramp.com/.well-known/adcp/signals&#39;,
+                            &#39;authorized_for&#39;: &#39;All Polk automotive signals via LiveRamp&#39;,
+                            &#39;authorization_type&#39;: &#39;signal_tags&#39;,
+                            &#39;signal_tags&#39;: [&#39;automotive&#39;],
+                        },
+                        {
+                            &#39;url&#39;: &#39;https://the-trade-desk.com/.well-known/adcp/signals&#39;,
+                            &#39;authorized_for&#39;: &#39;Polk premium signals only&#39;,
+                            &#39;authorization_type&#39;: &#39;signal_ids&#39;,
+                            &#39;signal_ids&#39;: [&#39;likely_tesla_buyers&#39;],
+                        },
+                    ],
+                    &#39;last_updated&#39;: &#39;2025-01-15T10:00:00Z&#39;,
                 },
             ],
             title=&#39;AdCP Agents Authorization&#39;,
@@ -460,7 +460,7 @@ validated to form a valid model.</p>
     authoritative_location: Annotated[
         AnyUrl,
         Field(
-            description=&#39;HTTPS URL of the authoritative adagents.json file. When present, this file is a reference and the authoritative location contains the actual agent authorization data.&#39;
+            description=&#39;HTTPS URL of the authoritative adagents.json file. When present, this file is a reference and the authoritative location contains the actual agent authorization data. Because one deploy can change authorization across every publisher in the network, validators MUST cap response size, refuse redirects on the fetch, enforce short timeouts, and serve the previously cached file on transient 5xx. See docs/governance/property/managed-networks#security-considerations.&#39;
         ),
     ]
     last_updated: Annotated[
@@ -530,6 +530,44 @@ validated to form a valid model.</p>
         str | None,
         Field(alias=&#39;$schema&#39;, description=&#39;JSON Schema identifier for this adagents.json file&#39;),
     ] = None
+    contact: Annotated[
+        Contact | None,
+        Field(
+            description=&#39;Contact information for the entity managing this adagents.json file (may be publisher or third-party operator)&#39;
+        ),
+    ] = None
+    properties: Annotated[
+        list[property.Property] | None,
+        Field(
+            description=&#39;Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    collections: Annotated[
+        list[collection.Collection] | None,
+        Field(
+            description=&#39;Collections produced or distributed by this publisher. Declares the content programs whose inventory is sold through authorized agents. Products in get_products responses reference these collections by collection_id.&#39;
+        ),
+    ] = None
+    placements: Annotated[
+        list[placement_definition.PlacementDefinition] | None,
+        Field(
+            description=&#39;Canonical placement definitions for properties in this file. Products SHOULD reuse these placement_id values when exposing inventory in get_products, and authorized agents can scope authorization to these placement IDs.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    tags: Annotated[
+        dict[str, Tags] | None,
+        Field(
+            description=&#39;Metadata for each tag referenced by properties. Provides human-readable context for property tag values.&#39;
+        ),
+    ] = None
+    placement_tags: Annotated[
+        dict[str, PlacementTags] | None,
+        Field(
+            description=&#39;Metadata for each tag referenced by placements. Provides human-readable context for publisher-defined placement tag values used in grouping and authorization.&#39;
+        ),
+    ] = None
     authorized_agents: Annotated[
         list[
             AuthorizedAgents
@@ -544,52 +582,14 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    collections: Annotated[
-        list[collection.Collection] | None,
-        Field(
-            description=&#39;Collections produced or distributed by this publisher. Declares the content programs whose inventory is sold through authorized agents. Products in get_products responses reference these collections by collection_id.&#39;
-        ),
-    ] = None
-    contact: Annotated[
-        Contact | None,
-        Field(
-            description=&#39;Contact information for the entity managing this adagents.json file (may be publisher or third-party operator)&#39;
-        ),
-    ] = None
     last_updated: Annotated[
         AwareDatetime | None,
         Field(description=&#39;ISO 8601 timestamp indicating when this file was last updated&#39;),
-    ] = None
-    placement_tags: Annotated[
-        dict[str, PlacementTags] | None,
-        Field(
-            description=&#39;Metadata for each tag referenced by placements. Provides human-readable context for publisher-defined placement tag values used in grouping and authorization.&#39;
-        ),
-    ] = None
-    placements: Annotated[
-        list[placement_definition.PlacementDefinition] | None,
-        Field(
-            description=&#39;Canonical placement definitions for properties in this file. Products SHOULD reuse these placement_id values when exposing inventory in get_products, and authorized agents can scope authorization to these placement IDs.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    properties: Annotated[
-        list[property.Property] | None,
-        Field(
-            description=&#39;Array of all properties covered by this adagents.json file. Defines the canonical property list that authorized agents reference.&#39;,
-            min_length=1,
-        ),
     ] = None
     property_features: Annotated[
         list[PropertyFeature] | None,
         Field(
             description=&#39;[AdCP 3.0] Optional list of agents that provide property feature data (certifications, scores, compliance status). Used for discovery - actual data is accessed through property list filters.&#39;
-        ),
-    ] = None
-    signal_tags: Annotated[
-        dict[str, SignalTags] | None,
-        Field(
-            description=&#39;Metadata for each tag referenced by signals. Provides human-readable context for signal tag values.&#39;
         ),
     ] = None
     signals: Annotated[
@@ -599,10 +599,10 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    tags: Annotated[
-        dict[str, Tags] | None,
+    signal_tags: Annotated[
+        dict[str, SignalTags] | None,
         Field(
-            description=&#39;Metadata for each tag referenced by properties. Provides human-readable context for property tag values.&#39;
+            description=&#39;Metadata for each tag referenced by signals. Provides human-readable context for signal tag values.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -671,7 +671,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.tags"><code class="name">var <span class="ident">tags</span> : dict[str, <a title="adcp.types.generated_poc.adagents.SignalTags" href="#adcp.types.generated_poc.adagents.SignalTags">SignalTags</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.adagents.AdcpAgentsAuthorization2.tags"><code class="name">var <span class="ident">tags</span> : dict[str, <a title="adcp.types.generated_poc.adagents.Tags" href="#adcp.types.generated_poc.adagents.Tags">Tags</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -700,10 +700,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    authorization_type: Annotated[
-        Literal[&#39;property_ids&#39;],
-        Field(description=&#39;Discriminator indicating authorization by specific property IDs&#39;),
-    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]
     authorized_for: Annotated[
         str,
         Field(
@@ -712,37 +709,22 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
+    authorization_type: Annotated[
+        Literal[&#39;property_ids&#39;],
+        Field(description=&#39;Discriminator indicating authorization by specific property IDs&#39;),
+    ]
+    property_ids: Annotated[
+        list[property_id.PropertyId],
+        Field(
+            description=&#39;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#39;,
+            min_length=1,
+        ),
+    ]
     collections: Annotated[
         list[collection_selector.CollectionSelector] | None,
         Field(
             description=&#39;Optional collection constraints. When present, authorization only applies to inventory associated with these collections.&#39;,
             min_length=1,
-        ),
-    ] = None
-    countries: Annotated[
-        list[Country] | None,
-        Field(
-            description=&#39;Optional ISO 3166-1 alpha-2 country codes limiting where this authorization applies. Omit for worldwide authorization.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    delegation_type: Annotated[
-        DelegationType | None,
-        Field(
-            description=&#34;Commercial relationship for this inventory path. &#39;direct&#39; means the publisher treats this as a direct way to buy from them, even if a third party operates the software. &#39;delegated&#39; means the agent is authorized to sell on the publisher&#39;s behalf. &#39;ad_network&#39; means the inventory is sold as part of a network/package context rather than as the publisher&#39;s direct endpoint.&#34;
-        ),
-    ] = None
-    effective_from: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Optional start time for this authorization window.&#39;),
-    ] = None
-    effective_until: Annotated[
-        AwareDatetime | None, Field(description=&#39;Optional end time for this authorization window.&#39;)
-    ] = None
-    exclusive: Annotated[
-        bool | None,
-        Field(
-            description=&#34;Whether this agent is the publisher&#39;s sole authorized path for the scoped inventory slice. When false or absent, other authorized agents may also sell the same inventory.&#34;
         ),
     ] = None
     placement_ids: Annotated[
@@ -759,13 +741,32 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    property_ids: Annotated[
-        list[property_id.PropertyId],
+    delegation_type: Annotated[
+        DelegationType | None,
         Field(
-            description=&#39;Property IDs this agent is authorized for. Resolved against the top-level properties array in this file&#39;,
+            description=&#34;Commercial relationship for this inventory path. &#39;direct&#39; means the publisher treats this as a direct way to buy from them, even if a third party operates the software. &#39;delegated&#39; means the agent is authorized to sell on the publisher&#39;s behalf. &#39;ad_network&#39; means the inventory is sold as part of a network/package context rather than as the publisher&#39;s direct endpoint.&#34;
+        ),
+    ] = None
+    exclusive: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether this agent is the publisher&#39;s sole authorized path for the scoped inventory slice. When false or absent, other authorized agents may also sell the same inventory.&#34;
+        ),
+    ] = None
+    countries: Annotated[
+        list[Country] | None,
+        Field(
+            description=&#39;Optional ISO 3166-1 alpha-2 country codes limiting where this authorization applies. Omit for worldwide authorization.&#39;,
             min_length=1,
         ),
-    ]
+    ] = None
+    effective_from: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Optional start time for this authorization window.&#39;),
+    ] = None
+    effective_until: Annotated[
+        AwareDatetime | None, Field(description=&#39;Optional end time for this authorization window.&#39;)
+    ] = None
     signing_keys: Annotated[
         list[agent_signing_key.AgentSigningKey] | None,
         Field(
@@ -773,7 +774,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]</code></pre>
+    encryption_keys: Annotated[
+        list[agent_encryption_key.AgentEncryptionKey] | None,
+        Field(
+            description=&#39;X25519 public keys for TMPX exposure token encryption. Each key identifies a cluster master that can decrypt TMPX tokens. Used with HPKE mode_base — read replicas encrypt with this public key, only the master can decrypt.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -817,6 +824,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.adagents.AuthorizedAgents.effective_until"><code class="name">var <span class="ident">effective_until</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents.encryption_keys"><code class="name">var <span class="ident">encryption_keys</span> : list[<a title="adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey" href="core/agent_encryption_key.html#adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey">AgentEncryptionKey</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -873,10 +884,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    authorization_type: Annotated[
-        Literal[&#39;property_tags&#39;],
-        Field(description=&#39;Discriminator indicating authorization by property tags&#39;),
-    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]
     authorized_for: Annotated[
         str,
         Field(
@@ -885,37 +893,22 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
+    authorization_type: Annotated[
+        Literal[&#39;property_tags&#39;],
+        Field(description=&#39;Discriminator indicating authorization by property tags&#39;),
+    ]
+    property_tags: Annotated[
+        list[property_tag.PropertyTag],
+        Field(
+            description=&#39;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#39;,
+            min_length=1,
+        ),
+    ]
     collections: Annotated[
         list[collection_selector.CollectionSelector] | None,
         Field(
             description=&#39;Optional collection constraints. When present, authorization only applies to inventory associated with these collections.&#39;,
             min_length=1,
-        ),
-    ] = None
-    countries: Annotated[
-        list[Country] | None,
-        Field(
-            description=&#39;Optional ISO 3166-1 alpha-2 country codes limiting where this authorization applies. Omit for worldwide authorization.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    delegation_type: Annotated[
-        DelegationType | None,
-        Field(
-            description=&#34;Commercial relationship for this inventory path. &#39;direct&#39; means the publisher treats this as a direct way to buy from them, even if a third party operates the software. &#39;delegated&#39; means the agent is authorized to sell on the publisher&#39;s behalf. &#39;ad_network&#39; means the inventory is sold as part of a network/package context rather than as the publisher&#39;s direct endpoint.&#34;
-        ),
-    ] = None
-    effective_from: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Optional start time for this authorization window.&#39;),
-    ] = None
-    effective_until: Annotated[
-        AwareDatetime | None, Field(description=&#39;Optional end time for this authorization window.&#39;)
-    ] = None
-    exclusive: Annotated[
-        bool | None,
-        Field(
-            description=&#34;Whether this agent is the publisher&#39;s sole authorized path for the scoped inventory slice. When false or absent, other authorized agents may also sell the same inventory.&#34;
         ),
     ] = None
     placement_ids: Annotated[
@@ -932,13 +925,32 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    property_tags: Annotated[
-        list[property_tag.PropertyTag],
+    delegation_type: Annotated[
+        DelegationType | None,
         Field(
-            description=&#39;Tags identifying which properties this agent is authorized for. Resolved against the top-level properties array in this file using tag matching&#39;,
+            description=&#34;Commercial relationship for this inventory path. &#39;direct&#39; means the publisher treats this as a direct way to buy from them, even if a third party operates the software. &#39;delegated&#39; means the agent is authorized to sell on the publisher&#39;s behalf. &#39;ad_network&#39; means the inventory is sold as part of a network/package context rather than as the publisher&#39;s direct endpoint.&#34;
+        ),
+    ] = None
+    exclusive: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether this agent is the publisher&#39;s sole authorized path for the scoped inventory slice. When false or absent, other authorized agents may also sell the same inventory.&#34;
+        ),
+    ] = None
+    countries: Annotated[
+        list[Country] | None,
+        Field(
+            description=&#39;Optional ISO 3166-1 alpha-2 country codes limiting where this authorization applies. Omit for worldwide authorization.&#39;,
             min_length=1,
         ),
-    ]
+    ] = None
+    effective_from: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Optional start time for this authorization window.&#39;),
+    ] = None
+    effective_until: Annotated[
+        AwareDatetime | None, Field(description=&#39;Optional end time for this authorization window.&#39;)
+    ] = None
     signing_keys: Annotated[
         list[agent_signing_key.AgentSigningKey] | None,
         Field(
@@ -946,7 +958,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]</code></pre>
+    encryption_keys: Annotated[
+        list[agent_encryption_key.AgentEncryptionKey] | None,
+        Field(
+            description=&#39;X25519 public keys for TMPX exposure token encryption. Each key identifies a cluster master that can decrypt TMPX tokens. Used with HPKE mode_base — read replicas encrypt with this public key, only the master can decrypt.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -990,6 +1008,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.adagents.AuthorizedAgents1.effective_until"><code class="name">var <span class="ident">effective_until</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents1.encryption_keys"><code class="name">var <span class="ident">encryption_keys</span> : list[<a title="adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey" href="core/agent_encryption_key.html#adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey">AgentEncryptionKey</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1046,10 +1068,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    authorization_type: Annotated[
-        Literal[&#39;inline_properties&#39;],
-        Field(description=&#39;Discriminator indicating authorization by inline property definitions&#39;),
-    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]
     authorized_for: Annotated[
         str,
         Field(
@@ -1058,37 +1077,22 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
+    authorization_type: Annotated[
+        Literal[&#39;inline_properties&#39;],
+        Field(description=&#39;Discriminator indicating authorization by inline property definitions&#39;),
+    ]
+    properties: Annotated[
+        list[property.Property],
+        Field(
+            description=&#39;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#39;,
+            min_length=1,
+        ),
+    ]
     collections: Annotated[
         list[collection_selector.CollectionSelector] | None,
         Field(
             description=&#39;Optional collection constraints. When present, authorization only applies to inventory associated with these collections.&#39;,
             min_length=1,
-        ),
-    ] = None
-    countries: Annotated[
-        list[Country] | None,
-        Field(
-            description=&#39;Optional ISO 3166-1 alpha-2 country codes limiting where this authorization applies. Omit for worldwide authorization.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    delegation_type: Annotated[
-        DelegationType | None,
-        Field(
-            description=&#34;Commercial relationship for this inventory path. &#39;direct&#39; means the publisher treats this as a direct way to buy from them, even if a third party operates the software. &#39;delegated&#39; means the agent is authorized to sell on the publisher&#39;s behalf. &#39;ad_network&#39; means the inventory is sold as part of a network/package context rather than as the publisher&#39;s direct endpoint.&#34;
-        ),
-    ] = None
-    effective_from: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Optional start time for this authorization window.&#39;),
-    ] = None
-    effective_until: Annotated[
-        AwareDatetime | None, Field(description=&#39;Optional end time for this authorization window.&#39;)
-    ] = None
-    exclusive: Annotated[
-        bool | None,
-        Field(
-            description=&#34;Whether this agent is the publisher&#39;s sole authorized path for the scoped inventory slice. When false or absent, other authorized agents may also sell the same inventory.&#34;
         ),
     ] = None
     placement_ids: Annotated[
@@ -1105,13 +1109,32 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    properties: Annotated[
-        list[property.Property],
+    delegation_type: Annotated[
+        DelegationType | None,
         Field(
-            description=&#39;Specific properties this agent is authorized for (alternative to property_ids/property_tags)&#39;,
+            description=&#34;Commercial relationship for this inventory path. &#39;direct&#39; means the publisher treats this as a direct way to buy from them, even if a third party operates the software. &#39;delegated&#39; means the agent is authorized to sell on the publisher&#39;s behalf. &#39;ad_network&#39; means the inventory is sold as part of a network/package context rather than as the publisher&#39;s direct endpoint.&#34;
+        ),
+    ] = None
+    exclusive: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether this agent is the publisher&#39;s sole authorized path for the scoped inventory slice. When false or absent, other authorized agents may also sell the same inventory.&#34;
+        ),
+    ] = None
+    countries: Annotated[
+        list[Country] | None,
+        Field(
+            description=&#39;Optional ISO 3166-1 alpha-2 country codes limiting where this authorization applies. Omit for worldwide authorization.&#39;,
             min_length=1,
         ),
-    ]
+    ] = None
+    effective_from: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Optional start time for this authorization window.&#39;),
+    ] = None
+    effective_until: Annotated[
+        AwareDatetime | None, Field(description=&#39;Optional end time for this authorization window.&#39;)
+    ] = None
     signing_keys: Annotated[
         list[agent_signing_key.AgentSigningKey] | None,
         Field(
@@ -1119,7 +1142,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]</code></pre>
+    encryption_keys: Annotated[
+        list[agent_encryption_key.AgentEncryptionKey] | None,
+        Field(
+            description=&#39;X25519 public keys for TMPX exposure token encryption. Each key identifies a cluster master that can decrypt TMPX tokens. Used with HPKE mode_base — read replicas encrypt with this public key, only the master can decrypt.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1163,6 +1192,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.adagents.AuthorizedAgents2.effective_until"><code class="name">var <span class="ident">effective_until</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents2.encryption_keys"><code class="name">var <span class="ident">encryption_keys</span> : list[<a title="adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey" href="core/agent_encryption_key.html#adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey">AgentEncryptionKey</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1219,12 +1252,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    authorization_type: Annotated[
-        Literal[&#39;publisher_properties&#39;],
-        Field(
-            description=&#39;Discriminator indicating authorization for properties from other publisher domains&#39;
-        ),
-    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]
     authorized_for: Annotated[
         str,
         Field(
@@ -1233,37 +1261,24 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
+    authorization_type: Annotated[
+        Literal[&#39;publisher_properties&#39;],
+        Field(
+            description=&#39;Discriminator indicating authorization for properties from other publisher domains&#39;
+        ),
+    ]
+    publisher_properties: Annotated[
+        list[publisher_property_selector.PublisherPropertySelector],
+        Field(
+            description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
+            min_length=1,
+        ),
+    ]
     collections: Annotated[
         list[collection_selector.CollectionSelector] | None,
         Field(
             description=&#39;Optional collection constraints. When present, authorization only applies to inventory associated with these collections.&#39;,
             min_length=1,
-        ),
-    ] = None
-    countries: Annotated[
-        list[Country] | None,
-        Field(
-            description=&#39;Optional ISO 3166-1 alpha-2 country codes limiting where this authorization applies. Omit for worldwide authorization.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    delegation_type: Annotated[
-        DelegationType | None,
-        Field(
-            description=&#34;Commercial relationship for this inventory path. &#39;direct&#39; means the publisher treats this as a direct way to buy from them, even if a third party operates the software. &#39;delegated&#39; means the agent is authorized to sell on the publisher&#39;s behalf. &#39;ad_network&#39; means the inventory is sold as part of a network/package context rather than as the publisher&#39;s direct endpoint.&#34;
-        ),
-    ] = None
-    effective_from: Annotated[
-        AwareDatetime | None,
-        Field(description=&#39;Optional start time for this authorization window.&#39;),
-    ] = None
-    effective_until: Annotated[
-        AwareDatetime | None, Field(description=&#39;Optional end time for this authorization window.&#39;)
-    ] = None
-    exclusive: Annotated[
-        bool | None,
-        Field(
-            description=&#34;Whether this agent is the publisher&#39;s sole authorized path for the scoped inventory slice. When false or absent, other authorized agents may also sell the same inventory.&#34;
         ),
     ] = None
     placement_ids: Annotated[
@@ -1280,13 +1295,32 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    publisher_properties: Annotated[
-        list[publisher_property_selector.PublisherPropertySelector],
+    delegation_type: Annotated[
+        DelegationType | None,
         Field(
-            description=&#39;Properties from other publisher domains this agent is authorized for. Each entry specifies a publisher domain and which of their properties this agent can sell&#39;,
+            description=&#34;Commercial relationship for this inventory path. &#39;direct&#39; means the publisher treats this as a direct way to buy from them, even if a third party operates the software. &#39;delegated&#39; means the agent is authorized to sell on the publisher&#39;s behalf. &#39;ad_network&#39; means the inventory is sold as part of a network/package context rather than as the publisher&#39;s direct endpoint.&#34;
+        ),
+    ] = None
+    exclusive: Annotated[
+        bool | None,
+        Field(
+            description=&#34;Whether this agent is the publisher&#39;s sole authorized path for the scoped inventory slice. When false or absent, other authorized agents may also sell the same inventory.&#34;
+        ),
+    ] = None
+    countries: Annotated[
+        list[Country] | None,
+        Field(
+            description=&#39;Optional ISO 3166-1 alpha-2 country codes limiting where this authorization applies. Omit for worldwide authorization.&#39;,
             min_length=1,
         ),
-    ]
+    ] = None
+    effective_from: Annotated[
+        AwareDatetime | None,
+        Field(description=&#39;Optional start time for this authorization window.&#39;),
+    ] = None
+    effective_until: Annotated[
+        AwareDatetime | None, Field(description=&#39;Optional end time for this authorization window.&#39;)
+    ] = None
     signing_keys: Annotated[
         list[agent_signing_key.AgentSigningKey] | None,
         Field(
@@ -1294,7 +1328,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;The authorized agent&#39;s API endpoint URL&#34;)]</code></pre>
+    encryption_keys: Annotated[
+        list[agent_encryption_key.AgentEncryptionKey] | None,
+        Field(
+            description=&#39;X25519 public keys for TMPX exposure token encryption. Each key identifies a cluster master that can decrypt TMPX tokens. Used with HPKE mode_base — read replicas encrypt with this public key, only the master can decrypt.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1338,6 +1378,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.adagents.AuthorizedAgents3.effective_until"><code class="name">var <span class="ident">effective_until</span> : pydantic.types.AwareDatetime | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents3.encryption_keys"><code class="name">var <span class="ident">encryption_keys</span> : list[<a title="adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey" href="core/agent_encryption_key.html#adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey">AgentEncryptionKey</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1394,10 +1438,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    authorization_type: Annotated[
-        Literal[&#39;signal_ids&#39;],
-        Field(description=&#39;Discriminator indicating authorization by specific signal IDs&#39;),
-    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized signals agent&#39;s API endpoint URL&#34;)]
     authorized_for: Annotated[
         str,
         Field(
@@ -1405,6 +1446,10 @@ validated to form a valid model.</p>
             max_length=500,
             min_length=1,
         ),
+    ]
+    authorization_type: Annotated[
+        Literal[&#39;signal_ids&#39;],
+        Field(description=&#39;Discriminator indicating authorization by specific signal IDs&#39;),
     ]
     signal_ids: Annotated[
         list[SignalId],
@@ -1420,7 +1465,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;The authorized signals agent&#39;s API endpoint URL&#34;)]</code></pre>
+    encryption_keys: Annotated[
+        list[agent_encryption_key.AgentEncryptionKey] | None,
+        Field(
+            description=&#39;X25519 public keys for TMPX exposure token encryption. Each key identifies a cluster master that can decrypt TMPX tokens. Used with HPKE mode_base — read replicas encrypt with this public key, only the master can decrypt.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1444,6 +1495,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.adagents.AuthorizedAgents4.authorized_for"><code class="name">var <span class="ident">authorized_for</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents4.encryption_keys"><code class="name">var <span class="ident">encryption_keys</span> : list[<a title="adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey" href="core/agent_encryption_key.html#adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey">AgentEncryptionKey</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1488,10 +1543,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    authorization_type: Annotated[
-        Literal[&#39;signal_tags&#39;],
-        Field(description=&#39;Discriminator indicating authorization by signal tags&#39;),
-    ]
+    url: Annotated[AnyUrl, Field(description=&#34;The authorized signals agent&#39;s API endpoint URL&#34;)]
     authorized_for: Annotated[
         str,
         Field(
@@ -1499,6 +1551,10 @@ validated to form a valid model.</p>
             max_length=500,
             min_length=1,
         ),
+    ]
+    authorization_type: Annotated[
+        Literal[&#39;signal_tags&#39;],
+        Field(description=&#39;Discriminator indicating authorization by signal tags&#39;),
     ]
     signal_tags: Annotated[
         list[SignalTag],
@@ -1514,7 +1570,13 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;The authorized signals agent&#39;s API endpoint URL&#34;)]</code></pre>
+    encryption_keys: Annotated[
+        list[agent_encryption_key.AgentEncryptionKey] | None,
+        Field(
+            description=&#39;X25519 public keys for TMPX exposure token encryption. Each key identifies a cluster master that can decrypt TMPX tokens. Used with HPKE mode_base — read replicas encrypt with this public key, only the master can decrypt.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1538,6 +1600,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.adagents.AuthorizedAgents5.authorized_for"><code class="name">var <span class="ident">authorized_for</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.adagents.AuthorizedAgents5.encryption_keys"><code class="name">var <span class="ident">encryption_keys</span> : list[<a title="adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey" href="core/agent_encryption_key.html#adcp.types.generated_poc.core.agent_encryption_key.AgentEncryptionKey">AgentEncryptionKey</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1582,21 +1648,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    domain: Annotated[
-        str | None,
-        Field(
-            description=&#39;Primary domain of the entity managing this file&#39;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
-        ),
-    ] = None
-    email: Annotated[
-        EmailStr | None,
-        Field(
-            description=&#39;Contact email for questions or issues with this authorization file&#39;,
-            max_length=255,
-            min_length=1,
-        ),
-    ] = None
     name: Annotated[
         str,
         Field(
@@ -1605,10 +1656,19 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    privacy_policy_url: Annotated[
-        AnyUrl | None,
+    email: Annotated[
+        EmailStr | None,
         Field(
-            description=&#34;URL to the entity&#39;s privacy policy. Used for consumer consent flows when interacting with this sales agent.&#34;
+            description=&#39;Contact email for questions or issues with this authorization file&#39;,
+            max_length=255,
+            min_length=1,
+        ),
+    ] = None
+    domain: Annotated[
+        str | None,
+        Field(
+            description=&#39;Primary domain of the entity managing this file&#39;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
         ),
     ] = None
     seller_id: Annotated[
@@ -1625,6 +1685,12 @@ validated to form a valid model.</p>
             description=&#39;TAG Certified Against Fraud ID for verification (if applicable)&#39;,
             max_length=100,
             min_length=1,
+        ),
+    ] = None
+    privacy_policy_url: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#34;URL to the entity&#39;s privacy policy. Used for consumer consent flows when interacting with this sales agent.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -1818,10 +1884,10 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    name: Annotated[str, Field(description=&#39;Human-readable name for this placement tag&#39;)]
     description: Annotated[
         str, Field(description=&#39;Description of what this placement tag represents&#39;)
-    ]
-    name: Annotated[str, Field(description=&#39;Human-readable name for this placement tag&#39;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1877,6 +1943,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    url: Annotated[AnyUrl, Field(description=&#34;The agent&#39;s API endpoint URL&#34;)]
+    name: Annotated[
+        str,
+        Field(
+            description=&#34;Human-readable name of the vendor/agent (e.g., &#39;Scope3&#39;, &#39;TAG&#39;, &#39;OneTrust&#39;)&#34;
+        ),
+    ]
     features: Annotated[
         list[str],
         Field(
@@ -1884,16 +1957,9 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    name: Annotated[
-        str,
-        Field(
-            description=&#34;Human-readable name of the vendor/agent (e.g., &#39;Scope3&#39;, &#39;TAG&#39;, &#39;OneTrust&#39;)&#34;
-        ),
-    ]
     publisher_id: Annotated[
         str | None, Field(description=&#39;Optional publisher identifier at this agent (for lookup)&#39;)
-    ] = None
-    url: Annotated[AnyUrl, Field(description=&#34;The agent&#39;s API endpoint URL&#34;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2055,12 +2121,8 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalTags(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;allow&#39;,
-    )
-    description: Annotated[str, Field(description=&#39;Description of what this tag represents&#39;)]
-    name: Annotated[str, Field(description=&#39;Human-readable name for this tag&#39;)]</code></pre>
+<pre><code class="python">class SignalTags(Tags):
+    pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2074,26 +2136,29 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
+<li><a title="adcp.types.generated_poc.adagents.Tags" href="#adcp.types.generated_poc.adagents.Tags">Tags</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.adagents.SignalTags.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="adcp.types.generated_poc.adagents.SignalTags.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.SignalTags.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 </dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.adagents.Tags" href="#adcp.types.generated_poc.adagents.Tags">Tags</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.adagents.Tags.model_dump" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.Tags.model_dump_json" href="../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.Tags.model_summary" href="../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.SignalTags"><code class="flex name class">
+<dt id="adcp.types.generated_poc.adagents.Tags"><code class="flex name class">
 <span>class <span class="ident">Tags</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
@@ -2102,12 +2167,12 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class SignalTags(AdCPBaseModel):
+<pre><code class="python">class Tags(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    description: Annotated[str, Field(description=&#39;Description of what this tag represents&#39;)]
-    name: Annotated[str, Field(description=&#39;Human-readable name for this tag&#39;)]</code></pre>
+    name: Annotated[str, Field(description=&#39;Human-readable name for this tag&#39;)]
+    description: Annotated[str, Field(description=&#39;Description of what this tag represents&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2124,17 +2189,21 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.adagents.SignalTags" href="#adcp.types.generated_poc.adagents.SignalTags">SignalTags</a></li>
+</ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.adagents.SignalTags.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.adagents.Tags.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.SignalTags.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.adagents.Tags.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.adagents.SignalTags.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.adagents.Tags.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2209,6 +2278,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents.delegation_type" href="#adcp.types.generated_poc.adagents.AuthorizedAgents.delegation_type">delegation_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents.effective_from" href="#adcp.types.generated_poc.adagents.AuthorizedAgents.effective_from">effective_from</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents.effective_until" href="#adcp.types.generated_poc.adagents.AuthorizedAgents.effective_until">effective_until</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents.encryption_keys" href="#adcp.types.generated_poc.adagents.AuthorizedAgents.encryption_keys">encryption_keys</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents.exclusive" href="#adcp.types.generated_poc.adagents.AuthorizedAgents.exclusive">exclusive</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedAgents.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents.placement_ids" href="#adcp.types.generated_poc.adagents.AuthorizedAgents.placement_ids">placement_ids</a></code></li>
@@ -2228,6 +2298,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents1.delegation_type" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1.delegation_type">delegation_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents1.effective_from" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1.effective_from">effective_from</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents1.effective_until" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1.effective_until">effective_until</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents1.encryption_keys" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1.encryption_keys">encryption_keys</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents1.exclusive" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1.exclusive">exclusive</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents1.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents1.placement_ids" href="#adcp.types.generated_poc.adagents.AuthorizedAgents1.placement_ids">placement_ids</a></code></li>
@@ -2247,6 +2318,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents2.delegation_type" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2.delegation_type">delegation_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents2.effective_from" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2.effective_from">effective_from</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents2.effective_until" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2.effective_until">effective_until</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents2.encryption_keys" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2.encryption_keys">encryption_keys</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents2.exclusive" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2.exclusive">exclusive</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents2.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents2.placement_ids" href="#adcp.types.generated_poc.adagents.AuthorizedAgents2.placement_ids">placement_ids</a></code></li>
@@ -2266,6 +2338,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3.delegation_type" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3.delegation_type">delegation_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3.effective_from" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3.effective_from">effective_from</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3.effective_until" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3.effective_until">effective_until</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3.encryption_keys" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3.encryption_keys">encryption_keys</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3.exclusive" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3.exclusive">exclusive</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents3.placement_ids" href="#adcp.types.generated_poc.adagents.AuthorizedAgents3.placement_ids">placement_ids</a></code></li>
@@ -2280,6 +2353,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.authorization_type" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.authorization_type">authorization_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.authorized_for" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.authorized_for">authorized_for</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.encryption_keys" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.encryption_keys">encryption_keys</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.signal_ids" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.signal_ids">signal_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents4.signing_keys" href="#adcp.types.generated_poc.adagents.AuthorizedAgents4.signing_keys">signing_keys</a></code></li>
@@ -2291,6 +2365,7 @@ validated to form a valid model.</p>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.authorization_type" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.authorization_type">authorization_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.authorized_for" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.authorized_for">authorized_for</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.encryption_keys" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.encryption_keys">encryption_keys</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.model_config" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.signal_tags" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.signal_tags">signal_tags</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.AuthorizedAgents5.signing_keys" href="#adcp.types.generated_poc.adagents.AuthorizedAgents5.signing_keys">signing_keys</a></code></li>
@@ -2359,17 +2434,15 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.adagents.SignalTags" href="#adcp.types.generated_poc.adagents.SignalTags">SignalTags</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.description" href="#adcp.types.generated_poc.adagents.SignalTags.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.adagents.SignalTags.model_config" href="#adcp.types.generated_poc.adagents.SignalTags.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.name" href="#adcp.types.generated_poc.adagents.SignalTags.name">name</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.adagents.SignalTags" href="#adcp.types.generated_poc.adagents.SignalTags">SignalTags</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.adagents.Tags" href="#adcp.types.generated_poc.adagents.Tags">Tags</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.description" href="#adcp.types.generated_poc.adagents.SignalTags.description">description</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.model_config" href="#adcp.types.generated_poc.adagents.SignalTags.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.adagents.SignalTags.name" href="#adcp.types.generated_poc.adagents.SignalTags.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.Tags.description" href="#adcp.types.generated_poc.adagents.Tags.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.Tags.model_config" href="#adcp.types.generated_poc.adagents.Tags.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.adagents.Tags.name" href="#adcp.types.generated_poc.adagents.Tags.name">name</a></code></li>
 </ul>
 </li>
 </ul>

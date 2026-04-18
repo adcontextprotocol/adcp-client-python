@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request API documentation</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request</code></h1>
+</header>
+<section id="section-intro">
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType"><code class="flex name class">
+<span>class <span class="ident">AssetType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AssetType(Enum):
+    image = &#39;image&#39;
+    video = &#39;video&#39;
+    audio = &#39;audio&#39;
+    text = &#39;text&#39;
+    markdown = &#39;markdown&#39;
+    html = &#39;html&#39;
+    css = &#39;css&#39;
+    javascript = &#39;javascript&#39;
+    vast = &#39;vast&#39;
+    daast = &#39;daast&#39;
+    url = &#39;url&#39;
+    webhook = &#39;webhook&#39;
+    brief = &#39;brief&#39;
+    catalog = &#39;catalog&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.brief"><code class="name">var <span class="ident">brief</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.catalog"><code class="name">var <span class="ident">catalog</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.css"><code class="name">var <span class="ident">css</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.daast"><code class="name">var <span class="ident">daast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.html"><code class="name">var <span class="ident">html</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.image"><code class="name">var <span class="ident">image</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.javascript"><code class="name">var <span class="ident">javascript</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.markdown"><code class="name">var <span class="ident">markdown</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.text"><code class="name">var <span class="ident">text</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.url"><code class="name">var <span class="ident">url</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.vast"><code class="name">var <span class="ident">vast</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.video"><code class="name">var <span class="ident">video</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.webhook"><code class="name">var <span class="ident">webhook</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum"><code class="flex name class">
+<span>class <span class="ident">DisclosurePersistenceEnum</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DisclosurePersistenceEnum(Enum):
+    continuous = &#39;continuous&#39;
+    initial = &#39;initial&#39;
+    flexible = &#39;flexible&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.continuous"><code class="name">var <span class="ident">continuous</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.flexible"><code class="name">var <span class="ident">flexible</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.initial"><code class="name">var <span class="ident">initial</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition"><code class="flex name class">
+<span>class <span class="ident">DisclosurePosition</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DisclosurePosition(Enum):
+    prominent = &#39;prominent&#39;
+    footer = &#39;footer&#39;
+    audio = &#39;audio&#39;
+    subtitle = &#39;subtitle&#39;
+    overlay = &#39;overlay&#39;
+    end_card = &#39;end_card&#39;
+    pre_roll = &#39;pre_roll&#39;
+    companion = &#39;companion&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.audio"><code class="name">var <span class="ident">audio</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.companion"><code class="name">var <span class="ident">companion</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.end_card"><code class="name">var <span class="ident">end_card</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.footer"><code class="name">var <span class="ident">footer</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.overlay"><code class="name">var <span class="ident">overlay</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.pre_roll"><code class="name">var <span class="ident">pre_roll</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.prominent"><code class="name">var <span class="ident">prominent</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.subtitle"><code class="name">var <span class="ident">subtitle</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId"><code class="flex name class">
+<span>class <span class="ident">FormatId</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FormatId(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    agent_url: Annotated[
+        AnyUrl,
+        Field(
+            description=&#34;URL of the agent that defines this format (e.g., &#39;https://creatives.adcontextprotocol.org&#39; for standard formats, or &#39;https://publisher.com/.well-known/adcp/sales&#39; for custom formats)&#34;
+        ),
+    ]
+    id: Annotated[
+        str,
+        Field(
+            description=&#34;Format identifier within the agent&#39;s namespace (e.g., &#39;display_static&#39;, &#39;video_hosted&#39;, &#39;audio_standard&#39;). When used alone, references a template format. When combined with dimension/duration fields, creates a parameterized format ID for a specific variant.&#34;,
+            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+        ),
+    ]
+    width: Annotated[
+        int | None,
+        Field(
+            description=&#39;Width in pixels for visual formats. When specified, height must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#39;,
+            ge=1,
+        ),
+    ] = None
+    height: Annotated[
+        int | None,
+        Field(
+            description=&#39;Height in pixels for visual formats. When specified, width must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#39;,
+            ge=1,
+        ),
+    ] = None
+    duration_ms: Annotated[
+        float | None,
+        Field(
+            description=&#39;Duration in milliseconds for time-based formats (video, audio). When specified, creates a parameterized format ID. Omit to reference a template format without parameters.&#39;,
+            ge=1.0,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId">InputFormatId</a></li>
+<li><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId">OutputFormatId</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.agent_url"><code class="name">var <span class="ident">agent_url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.duration_ms"><code class="name">var <span class="ident">duration_ms</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.height"><code class="name">var <span class="ident">height</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.width"><code class="name">var <span class="ident">width</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId"><code class="flex name class">
+<span>class <span class="ident">InputFormatId</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InputFormatId(FormatId):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId">FormatId</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId">FormatId</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest"><code class="flex name class">
+<span>class <span class="ident">ListCreativeFormatsRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ListCreativeFormatsRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    format_ids: Annotated[
+        list[FormatId] | None,
+        Field(
+            description=&#39;Return only these specific format IDs (e.g., from get_products response)&#39;,
+            min_length=1,
+        ),
+    ] = None
+    asset_types: Annotated[
+        list[AssetType] | None,
+        Field(
+            description=&#34;Filter to formats that include these asset types. For third-party tags, search for &#39;html&#39; or &#39;javascript&#39;. E.g., [&#39;image&#39;, &#39;text&#39;] returns formats with images and text, [&#39;javascript&#39;] returns formats accepting JavaScript tags.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    max_width: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum width in pixels (inclusive). Returns formats where ANY render has width &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
+        ),
+    ] = None
+    max_height: Annotated[
+        int | None,
+        Field(
+            description=&#39;Maximum height in pixels (inclusive). Returns formats where ANY render has height &lt;= this value. For multi-render formats, matches if at least one render fits.&#39;
+        ),
+    ] = None
+    min_width: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum width in pixels (inclusive). Returns formats where ANY render has width &gt;= this value.&#39;
+        ),
+    ] = None
+    min_height: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum height in pixels (inclusive). Returns formats where ANY render has height &gt;= this value.&#39;
+        ),
+    ] = None
+    is_responsive: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Filter for responsive formats that adapt to container size. When true, returns formats without fixed dimensions.&#39;
+        ),
+    ] = None
+    name_search: Annotated[
+        str | None, Field(description=&#39;Search for formats by name (case-insensitive partial match)&#39;)
+    ] = None
+    wcag_level: Annotated[
+        WcagLevel | None,
+        Field(
+            description=&#39;Filter to formats that meet at least this WCAG conformance level (A &lt; AA &lt; AAA)&#39;,
+            title=&#39;WCAG Level&#39;,
+        ),
+    ] = None
+    disclosure_positions: Annotated[
+        list[DisclosurePosition] | None,
+        Field(
+            description=&#34;Filter to formats that support all of these disclosure positions. When a format has disclosure_capabilities, match against those positions. Otherwise fall back to supported_disclosure_positions. Use to find formats compatible with a brief&#39;s compliance requirements.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    disclosure_persistence: Annotated[
+        list[DisclosurePersistenceEnum] | None,
+        Field(
+            description=&#39;Filter to formats where each requested persistence mode is supported by at least one position in disclosure_capabilities. Different positions may satisfy different modes. Use to find formats compatible with jurisdiction-specific persistence requirements (e.g., continuous for EU AI Act).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    output_format_ids: Annotated[
+        list[OutputFormatId] | None,
+        Field(
+            description=&#34;Filter to formats whose output_format_ids includes any of these format IDs. Returns formats that can produce these outputs — inspect each result&#39;s input_format_ids to see what inputs they accept.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    input_format_ids: Annotated[
+        list[InputFormatId] | None,
+        Field(
+            description=&#34;Filter to formats whose input_format_ids includes any of these format IDs. Returns formats that accept these creatives as input — inspect each result&#39;s output_format_ids to see what they can produce.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    pagination: Annotated[
+        Pagination | None,
+        Field(
+            description=&#39;Standard cursor-based pagination parameters for list operations&#39;,
+            title=&#39;Pagination Request&#39;,
+        ),
+    ] = None
+    context: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
+            title=&#39;Context Object&#39;,
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
+            title=&#39;Extension Object&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.asset_types"><code class="name">var <span class="ident">asset_types</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType">AssetType</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.context"><code class="name">var <span class="ident">context</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.disclosure_persistence"><code class="name">var <span class="ident">disclosure_persistence</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum">DisclosurePersistenceEnum</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.disclosure_positions"><code class="name">var <span class="ident">disclosure_positions</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition">DisclosurePosition</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.format_ids"><code class="name">var <span class="ident">format_ids</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId">FormatId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.input_format_ids"><code class="name">var <span class="ident">input_format_ids</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId">InputFormatId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.is_responsive"><code class="name">var <span class="ident">is_responsive</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_height"><code class="name">var <span class="ident">max_height</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_width"><code class="name">var <span class="ident">max_width</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.min_height"><code class="name">var <span class="ident">min_height</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.min_width"><code class="name">var <span class="ident">min_width</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.name_search"><code class="name">var <span class="ident">name_search</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.output_format_ids"><code class="name">var <span class="ident">output_format_ids</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId">OutputFormatId</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination">Pagination</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.wcag_level"><code class="name">var <span class="ident">wcag_level</span> : <a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel">WcagLevel</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId"><code class="flex name class">
+<span>class <span class="ident">OutputFormatId</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class OutputFormatId(FormatId):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId">FormatId</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId">FormatId</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination"><code class="flex name class">
+<span>class <span class="ident">Pagination</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Pagination(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    max_results: Annotated[
+        int | None, Field(description=&#39;Maximum number of items to return per page&#39;, ge=1, le=100)
+    ] = 50
+    cursor: Annotated[
+        str | None,
+        Field(description=&#39;Opaque cursor from a previous response to fetch the next page&#39;),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.cursor"><code class="name">var <span class="ident">cursor</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.max_results"><code class="name">var <span class="ident">max_results</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel"><code class="flex name class">
+<span>class <span class="ident">WcagLevel</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WcagLevel(Enum):
+    A = &#39;A&#39;
+    AA = &#39;AA&#39;
+    AAA = &#39;AAA&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.A"><code class="name">var <span class="ident">A</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.AA"><code class="name">var <span class="ident">AA</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.AAA"><code class="name">var <span class="ident">AAA</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy" href="index.html">adcp.types.generated_poc.bundled.media_buy</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType">AssetType</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.audio" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.audio">audio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.brief" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.brief">brief</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.catalog" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.catalog">catalog</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.css" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.css">css</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.daast" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.daast">daast</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.html" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.html">html</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.image" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.image">image</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.javascript" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.javascript">javascript</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.markdown" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.markdown">markdown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.text" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.text">text</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.url" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.url">url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.vast" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.vast">vast</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.video" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.video">video</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.webhook" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.AssetType.webhook">webhook</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum">DisclosurePersistenceEnum</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.continuous" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.continuous">continuous</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.flexible" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.flexible">flexible</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.initial" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePersistenceEnum.initial">initial</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition">DisclosurePosition</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.audio" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.audio">audio</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.companion" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.companion">companion</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.end_card" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.end_card">end_card</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.footer" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.footer">footer</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.overlay" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.overlay">overlay</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.pre_roll" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.pre_roll">pre_roll</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.prominent" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.prominent">prominent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.subtitle" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.DisclosurePosition.subtitle">subtitle</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId">FormatId</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.agent_url" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.agent_url">agent_url</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.duration_ms" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.duration_ms">duration_ms</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.height" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.height">height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.id" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.id">id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_config" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.width" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.FormatId.width">width</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId">InputFormatId</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId.model_config" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.InputFormatId.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest">ListCreativeFormatsRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.adcp_major_version" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.adcp_major_version">adcp_major_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.asset_types" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.asset_types">asset_types</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.context" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.disclosure_persistence" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.disclosure_persistence">disclosure_persistence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.disclosure_positions" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.disclosure_positions">disclosure_positions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.ext" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.format_ids" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.format_ids">format_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.input_format_ids" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.input_format_ids">input_format_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.is_responsive" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.is_responsive">is_responsive</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_height" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_height">max_height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_width" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.max_width">max_width</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.min_height" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.min_height">min_height</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.min_width" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.min_width">min_width</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.model_config" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.name_search" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.name_search">name_search</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.output_format_ids" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.output_format_ids">output_format_ids</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.pagination" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.pagination">pagination</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.wcag_level" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.ListCreativeFormatsRequest.wcag_level">wcag_level</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId">OutputFormatId</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId.model_config" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.OutputFormatId.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination">Pagination</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.cursor" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.cursor">cursor</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.max_results" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.max_results">max_results</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.model_config" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.Pagination.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel">WcagLevel</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.A" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.A">A</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.AA" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.AA">AA</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.AAA" href="#adcp.types.generated_poc.bundled.media_buy.list_creative_formats_request.WcagLevel.AAA">AAA</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

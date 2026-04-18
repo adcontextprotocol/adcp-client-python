@@ -71,18 +71,18 @@ el.replaceWith(d);
             description=&#34;Description of the baseline when baseline is &#39;custom&#39; (e.g., &#39;US adults 18+ with broadband access&#39;).&#34;
         ),
     ] = None
-    cumulative_indices: Annotated[
-        dict[str, float] | None,
-        Field(
-            description=&#39;Cumulative audience index values since the media buy started. Same key format as indices (dimension:value). Use for detecting sustained bias drift that may not appear in a single reporting period.&#39;
-        ),
-    ] = None
     indices: Annotated[
-        dict[str, float],
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-z_]+:.+$&#39;)], float],
         Field(
             description=&#34;Audience index values for the current reporting period. Keys are seller-defined dimension:value strings (e.g., &#39;age:25-34&#39;, &#39;gender:female&#39;, &#39;income:high&#39;). The protocol does not mandate a taxonomy — dimensions and value labels vary by seller. Values are index relative to the declared baseline (1.0 = at parity, &gt;1.0 = over-indexed, &lt;1.0 = under-indexed).&#34;
         ),
-    ]</code></pre>
+    ]
+    cumulative_indices: Annotated[
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-z_]+:.+$&#39;)], float] | None,
+        Field(
+            description=&#39;Cumulative audience index values since the governed action started. Same key format as indices (dimension:value). Use for detecting sustained bias drift that may not appear in a single reporting period.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -215,32 +215,57 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    caller: Annotated[AnyUrl, Field(description=&#39;URL of the agent making the request.&#39;)]
-    delivery_metrics: Annotated[
-        DeliveryMetrics | None,
+    adcp_major_version: Annotated[
+        int | None,
         Field(
-            description=&#34;Actual delivery performance data. MUST be present for &#39;delivery&#39; phase. The governance agent compares these metrics against the planned delivery to detect drift.&#34;
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    plan_id: Annotated[str, Field(description=&#39;Campaign governance plan identifier.&#39;)]
+    caller: Annotated[AnyUrl, Field(description=&#39;URL of the agent making the request.&#39;)]
+    purchase_type: Annotated[
+        purchase_type_1.PurchaseType | None,
+        Field(
+            description=&#34;The type of financial commitment being checked. Determines which budget allocation (if any) to validate against. Defaults to &#39;media_buy&#39; when omitted.&#34;
+        ),
+    ] = purchase_type_1.PurchaseType.media_buy
+    tool: Annotated[
+        str | None,
+        Field(
+            description=&#34;The AdCP tool being checked (e.g., &#39;create_media_buy&#39;, &#39;acquire_rights&#39;, &#39;activate_signal&#39;). Present on intent checks (orchestrator). The governance agent uses the presence of tool+payload to identify an intent check.&#34;
+        ),
+    ] = None
+    payload: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#39;The full tool arguments as they would be sent to the seller. Present on intent checks. The governance agent can inspect any field to validate against the plan.&#39;
         ),
     ] = None
     governance_context: Annotated[
         str | None,
         Field(
-            description=&#39;Opaque governance context from a prior check_governance response. Pass this on subsequent checks for the same media buy so the governance agent can maintain continuity across the lifecycle. Issued by the governance agent, never interpreted by callers.&#39;,
+            description=&#39;Governance context token from a prior check_governance response. Pass this on subsequent checks for the same governed action so the governance agent can maintain continuity across the lifecycle. In 3.0 governance agents MUST emit a compact JWS per the AdCP JWS profile (see Security — Signed Governance Context); callers persist and forward the value verbatim.&#39;,
             max_length=4096,
             min_length=1,
             pattern=&#39;^[\\x20-\\x7E]+$&#39;,
         ),
     ] = None
-    invoice_recipient: Annotated[
-        business_entity.BusinessEntity | None,
+    phase: Annotated[
+        governance_phase.GovernancePhase | None,
         Field(
-            description=&#39;Per-buy invoice recipient from create_media_buy or update_media_buy. MUST be present when the tool payload includes invoice_recipient, so the governance agent can validate billing changes.&#39;
+            description=&#34;The phase of the governed action&#39;s lifecycle. &#39;purchase&#39;: initial commitment (create_media_buy, acquire_rights, activate_signal). &#39;modification&#39;: update to existing commitment. &#39;delivery&#39;: periodic delivery or usage reporting. Defaults to &#39;purchase&#39; if omitted.&#34;
         ),
+    ] = governance_phase.GovernancePhase.purchase
+    planned_delivery: Annotated[
+        planned_delivery_1.PlannedDelivery | None,
+        Field(description=&#39;What the seller will actually deliver. Present on execution checks.&#39;),
     ] = None
-    media_buy_id: Annotated[
-        str | None,
+    delivery_metrics: Annotated[
+        DeliveryMetrics | None,
         Field(
-            description=&#34;The seller&#39;s identifier for the media buy. Present on execution checks (seller). The governance agent uses the presence of media_buy_id+planned_delivery to identify an execution check.&#34;
+            description=&#34;Actual delivery performance data. MUST be present for &#39;delivery&#39; phase. The governance agent compares these metrics against the planned delivery to detect drift.&#34;
         ),
     ] = None
     modification_summary: Annotated[
@@ -250,29 +275,14 @@ attributes &ndash; see the documentation for details.</p></div>
             max_length=1000,
         ),
     ] = None
-    payload: Annotated[
-        dict[str, Any] | None,
+    invoice_recipient: Annotated[
+        business_entity.BusinessEntity | None,
         Field(
-            description=&#39;The full tool arguments as they would be sent to the seller. Present on intent checks. The governance agent can inspect any field to validate against the plan.&#39;
+            description=&#39;Invoice recipient from the purchase request. MUST be present when the tool payload includes invoice_recipient, so the governance agent can validate billing changes.&#39;
         ),
     ] = None
-    phase: Annotated[
-        governance_phase.GovernancePhase | None,
-        Field(
-            description=&#34;The phase of the media buy lifecycle. &#39;purchase&#39;: initial create_media_buy. &#39;modification&#39;: update_media_buy. &#39;delivery&#39;: periodic delivery reporting. Defaults to &#39;purchase&#39; if omitted.&#34;
-        ),
-    ] = governance_phase.GovernancePhase.purchase
-    plan_id: Annotated[str, Field(description=&#39;Campaign governance plan identifier.&#39;)]
-    planned_delivery: Annotated[
-        planned_delivery_1.PlannedDelivery | None,
-        Field(description=&#39;What the seller will actually deliver. Present on execution checks.&#39;),
-    ] = None
-    tool: Annotated[
-        str | None,
-        Field(
-            description=&#34;The AdCP tool being checked (e.g., &#39;create_media_buy&#39;, &#39;get_products&#39;). Present on intent checks (orchestrator). The governance agent uses the presence of tool+payload to identify an intent check.&#34;
-        ),
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -291,11 +301,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.caller"><code class="name">var <span class="ident">caller</span> : pydantic.networks.AnyUrl</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.delivery_metrics"><code class="name">var <span class="ident">delivery_metrics</span> : <a title="adcp.types.generated_poc.governance.check_governance_request.DeliveryMetrics" href="#adcp.types.generated_poc.governance.check_governance_request.DeliveryMetrics">DeliveryMetrics</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -304,10 +326,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.invoice_recipient"><code class="name">var <span class="ident">invoice_recipient</span> : <a title="adcp.types.generated_poc.core.business_entity.BusinessEntity" href="../core/business_entity.html#adcp.types.generated_poc.core.business_entity.BusinessEntity">BusinessEntity</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -332,6 +350,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.planned_delivery"><code class="name">var <span class="ident">planned_delivery</span> : <a title="adcp.types.generated_poc.core.planned_delivery.PlannedDelivery" href="../core/planned_delivery.html#adcp.types.generated_poc.core.planned_delivery.PlannedDelivery">PlannedDelivery</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.purchase_type"><code class="name">var <span class="ident">purchase_type</span> : <a title="adcp.types.generated_poc.enums.purchase_type.PurchaseType" href="../enums/purchase_type.html#adcp.types.generated_poc.enums.purchase_type.PurchaseType">PurchaseType</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -364,10 +386,25 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    audience_distribution: Annotated[
-        AudienceDistribution | None,
+    reporting_period: Annotated[
+        ReportingPeriod, Field(description=&#39;Start and end timestamps for the reporting window.&#39;)
+    ]
+    spend: Annotated[
+        float | None, Field(description=&#39;Total spend during the reporting period.&#39;, ge=0.0)
+    ] = None
+    cumulative_spend: Annotated[
+        float | None, Field(description=&#39;Total spend since the governed action started.&#39;, ge=0.0)
+    ] = None
+    impressions: Annotated[
+        int | None, Field(description=&#39;Impressions delivered during the reporting period.&#39;, ge=0)
+    ] = None
+    cumulative_impressions: Annotated[
+        int | None, Field(description=&#39;Total impressions since the governed action started.&#39;, ge=0)
+    ] = None
+    geo_distribution: Annotated[
+        dict[str, float] | None,
         Field(
-            description=&#39;Actual audience composition during the reporting period. Enables mid-flight drift detection when actual delivery skews from planned audience targeting.&#39;
+            description=&#39;Actual geographic distribution. Keys are ISO 3166-1 alpha-2 codes, values are percentages.&#39;
         ),
     ] = None
     channel_distribution: Annotated[
@@ -376,32 +413,17 @@ validated to form a valid model.</p>
             description=&#39;Actual channel distribution. Keys are channel enum values, values are percentages.&#39;
         ),
     ] = None
-    cumulative_impressions: Annotated[
-        int | None, Field(description=&#39;Total impressions since the media buy started.&#39;, ge=0)
-    ] = None
-    cumulative_spend: Annotated[
-        float | None, Field(description=&#39;Total spend since the media buy started.&#39;, ge=0.0)
-    ] = None
-    geo_distribution: Annotated[
-        dict[str, float] | None,
-        Field(
-            description=&#39;Actual geographic distribution. Keys are ISO 3166-1 alpha-2 codes, values are percentages.&#39;
-        ),
-    ] = None
-    impressions: Annotated[
-        int | None, Field(description=&#39;Impressions delivered during the reporting period.&#39;, ge=0)
-    ] = None
     pacing: Annotated[
         Pacing | None,
         Field(
             description=&#39;Whether delivery is ahead of, on track with, or behind the planned pace.&#39;
         ),
     ] = None
-    reporting_period: Annotated[
-        ReportingPeriod, Field(description=&#39;Start and end timestamps for the reporting window.&#39;)
-    ]
-    spend: Annotated[
-        float | None, Field(description=&#39;Total spend during the reporting period.&#39;, ge=0.0)
+    audience_distribution: Annotated[
+        AudienceDistribution | None,
+        Field(
+            description=&#39;Actual audience composition during the reporting period. Enables mid-flight drift detection when actual delivery skews from planned audience targeting.&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -555,8 +577,8 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    end: AwareDatetime
-    start: AwareDatetime</code></pre>
+    start: AwareDatetime
+    end: AwareDatetime</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -635,17 +657,20 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest">CheckGovernanceRequest</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.adcp_major_version" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.caller" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.caller">caller</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.context" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.delivery_metrics" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.delivery_metrics">delivery_metrics</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.ext" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.governance_context" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.governance_context">governance_context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.invoice_recipient" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.invoice_recipient">invoice_recipient</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.media_buy_id" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.model_config" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.modification_summary" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.modification_summary">modification_summary</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.payload" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.payload">payload</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.phase" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.phase">phase</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.plan_id" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.plan_id">plan_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.planned_delivery" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.planned_delivery">planned_delivery</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.purchase_type" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.purchase_type">purchase_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.tool" href="#adcp.types.generated_poc.governance.check_governance_request.CheckGovernanceRequest.tool">tool</a></code></li>
 </ul>
 </li>

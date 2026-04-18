@@ -59,27 +59,6 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    amount: Annotated[
-        float | None,
-        Field(
-            description=&#34;Adjustment as a fixed monetary amount in the pricing option&#39;s currency. Always positive — kind determines the economic effect. Mutually exclusive with rate.&#34;,
-            gt=0.0,
-        ),
-    ] = None
-    beneficiary: Annotated[
-        str | None,
-        Field(
-            description=&#34;Identifies who receives this adjustment&#39;s value. For commissions, the intermediary (e.g., a sellers.json domain, an AdCP account ID, or a human-readable party name). Optional but recommended for multi-intermediary transparency.&#34;,
-            max_length=256,
-        ),
-    ] = None
-    description: Annotated[
-        str | None,
-        Field(
-            description=&#34;Human-readable description of this adjustment (e.g., &#39;Malstaffel 12x&#39;, &#39;2% Skonto 10 Tage&#39;)&#34;,
-            max_length=256,
-        ),
-    ] = None
     kind: adjustment_kind.PriceAdjustmentKind
     name: Annotated[
         str,
@@ -107,7 +86,28 @@ el.replaceWith(d);
             gt=0.0,
             lt=1.0,
         ),
-    ]</code></pre>
+    ]
+    amount: Annotated[
+        float | None,
+        Field(
+            description=&#34;Adjustment as a fixed monetary amount in the pricing option&#39;s currency. Always positive — kind determines the economic effect. Mutually exclusive with rate.&#34;,
+            gt=0.0,
+        ),
+    ] = None
+    description: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable description of this adjustment (e.g., &#39;Malstaffel 12x&#39;, &#39;2% Skonto 10 Tage&#39;)&#34;,
+            max_length=256,
+        ),
+    ] = None
+    beneficiary: Annotated[
+        str | None,
+        Field(
+            description=&#34;Identifies who receives this adjustment&#39;s value. For commissions, the intermediary (e.g., a sellers.json domain, an AdCP account ID, or a human-readable party name). Optional but recommended for multi-intermediary transparency.&#34;,
+            max_length=256,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -166,8 +166,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1"><code class="flex name class">
-<span>class <span class="ident">Adjustments1</span></span>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21"><code class="flex name class">
+<span>class <span class="ident">Adjustments21</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -175,31 +175,10 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Adjustments1(AdCPBaseModel):
+<pre><code class="python">class Adjustments21(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    amount: Annotated[
-        float,
-        Field(
-            description=&#34;Adjustment as a fixed monetary amount in the pricing option&#39;s currency. Always positive — kind determines the economic effect. Mutually exclusive with rate.&#34;,
-            gt=0.0,
-        ),
-    ]
-    beneficiary: Annotated[
-        str | None,
-        Field(
-            description=&#34;Identifies who receives this adjustment&#39;s value. For commissions, the intermediary (e.g., a sellers.json domain, an AdCP account ID, or a human-readable party name). Optional but recommended for multi-intermediary transparency.&#34;,
-            max_length=256,
-        ),
-    ] = None
-    description: Annotated[
-        str | None,
-        Field(
-            description=&#34;Human-readable description of this adjustment (e.g., &#39;Malstaffel 12x&#39;, &#39;2% Skonto 10 Tage&#39;)&#34;,
-            max_length=256,
-        ),
-    ] = None
     kind: adjustment_kind.PriceAdjustmentKind
     name: Annotated[
         str,
@@ -227,6 +206,27 @@ validated to form a valid model.</p>
             gt=0.0,
             lt=1.0,
         ),
+    ] = None
+    amount: Annotated[
+        float,
+        Field(
+            description=&#34;Adjustment as a fixed monetary amount in the pricing option&#39;s currency. Always positive — kind determines the economic effect. Mutually exclusive with rate.&#34;,
+            gt=0.0,
+        ),
+    ]
+    description: Annotated[
+        str | None,
+        Field(
+            description=&#34;Human-readable description of this adjustment (e.g., &#39;Malstaffel 12x&#39;, &#39;2% Skonto 10 Tage&#39;)&#34;,
+            max_length=256,
+        ),
+    ] = None
+    beneficiary: Annotated[
+        str | None,
+        Field(
+            description=&#34;Identifies who receives this adjustment&#39;s value. For commissions, the intermediary (e.g., a sellers.json domain, an AdCP account ID, or a human-readable party name). Optional but recommended for multi-intermediary transparency.&#34;,
+            max_length=256,
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -246,31 +246,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.beneficiary"><code class="name">var <span class="ident">beneficiary</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.beneficiary"><code class="name">var <span class="ident">beneficiary</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.description"><code class="name">var <span class="ident">description</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.kind"><code class="name">var <span class="ident">kind</span> : <a title="adcp.types.generated_poc.enums.adjustment_kind.PriceAdjustmentKind" href="../enums/adjustment_kind.html#adcp.types.generated_poc.enums.adjustment_kind.PriceAdjustmentKind">PriceAdjustmentKind</a></code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.kind"><code class="name">var <span class="ident">kind</span> : <a title="adcp.types.generated_poc.enums.adjustment_kind.PriceAdjustmentKind" href="../enums/adjustment_kind.html#adcp.types.generated_poc.enums.adjustment_kind.PriceAdjustmentKind">PriceAdjustmentKind</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.rate"><code class="name">var <span class="ident">rate</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.rate"><code class="name">var <span class="ident">rate</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -299,19 +299,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    adjustments: Annotated[
-        list[Adjustments | Adjustments1],
-        Field(
-            description=&#34;Ordered list of price adjustments. Fee and discount adjustments walk list_price to fixed_price — fees increase the running price, discounts reduce it. Commission and settlement adjustments are disclosed for transparency but do not affect the buyer&#39;s committed price.&#34;,
-            max_length=20,
-            min_length=1,
-        ),
-    ]
     list_price: Annotated[
         float,
         Field(
             description=&#39;Rate card or base price before any adjustments. The starting point from which fixed_price is derived by applying fee and discount adjustments sequentially.&#39;,
             gt=0.0,
+        ),
+    ]
+    adjustments: Annotated[
+        list[Adjustments | Adjustments21],
+        Field(
+            description=&#34;Ordered list of price adjustments. Fee and discount adjustments walk list_price to fixed_price — fees increase the running price, discounts reduce it. Commission and settlement adjustments are disclosed for transparency but do not affect the buyer&#39;s committed price.&#34;,
+            max_length=20,
+            min_length=1,
         ),
     ]</code></pre>
 </details>
@@ -332,7 +332,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.PriceBreakdown.adjustments"><code class="name">var <span class="ident">adjustments</span> : list[<a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments">Adjustments</a> | <a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1">Adjustments1</a>]</code></dt>
+<dt id="adcp.types.generated_poc.pricing_options.price_breakdown.PriceBreakdown.adjustments"><code class="name">var <span class="ident">adjustments</span> : list[<a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments">Adjustments</a> | <a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21">Adjustments21</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -384,15 +384,15 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1">Adjustments1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21">Adjustments21</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.amount" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.amount">amount</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.beneficiary" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.beneficiary">beneficiary</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.description" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.description">description</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.kind" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.kind">kind</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.model_config" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.name" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.name">name</a></code></li>
-<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.rate" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments1.rate">rate</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.amount" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.beneficiary" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.beneficiary">beneficiary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.description" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.kind" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.model_config" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.name" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.rate" href="#adcp.types.generated_poc.pricing_options.price_breakdown.Adjustments21.rate">rate</a></code></li>
 </ul>
 </li>
 <li>

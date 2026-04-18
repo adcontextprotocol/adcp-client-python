@@ -59,12 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    affected_packages: Annotated[
-        list[package.Package] | None,
-        Field(description=&#39;Array of packages that were modified with complete state information&#39;),
+    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s identifier for the media buy&#34;)]
+    status: Annotated[
+        media_buy_status.MediaBuyStatus | None,
+        Field(
+            description=&#34;Media buy status after the update. Present when the update changes the media buy&#39;s status (e.g., cancellation transitions to &#39;canceled&#39;, pause transitions to &#39;paused&#39;).&#34;
+        ),
     ] = None
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    revision: Annotated[
+        int | None,
+        Field(
+            description=&#39;Revision number after this update. Use this value in subsequent update_media_buy requests for optimistic concurrency.&#39;,
+            ge=1,
+        ),
+    ] = None
     implementation_date: Annotated[
         AwareDatetime | None,
         Field(description=&#39;ISO 8601 timestamp when changes take effect (null if pending approval)&#39;),
@@ -75,30 +83,22 @@ el.replaceWith(d);
             description=&#39;Updated invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#39;
         ),
     ] = None
-    media_buy_id: Annotated[str, Field(description=&#34;Seller&#39;s identifier for the media buy&#34;)]
-    revision: Annotated[
-        int | None,
-        Field(
-            description=&#39;Revision number after this update. Use this value in subsequent update_media_buy requests for optimistic concurrency.&#39;,
-            ge=1,
-        ),
-    ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None
-    status: Annotated[
-        media_buy_status.MediaBuyStatus | None,
-        Field(
-            description=&#34;Media buy status after the update. Present when the update changes the media buy&#39;s status (e.g., cancellation transitions to &#39;canceled&#39;, pause transitions to &#39;paused&#39;).&#34;
-        ),
+    affected_packages: Annotated[
+        list[package.Package] | None,
+        Field(description=&#39;Array of packages that were modified with complete state information&#39;),
     ] = None
     valid_actions: Annotated[
         list[ValidAction] | None,
         Field(
             description=&#39;Actions the buyer can perform after this update. Saves a round-trip to get_media_buys.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -186,11 +186,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
     ]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

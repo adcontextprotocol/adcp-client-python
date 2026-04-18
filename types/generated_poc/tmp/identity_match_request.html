@@ -60,10 +60,10 @@ el.replaceWith(d);
         extra=&#39;forbid&#39;,
     )
     gdpr: Annotated[bool | None, Field(description=&#39;Whether GDPR applies to this request.&#39;)] = None
-    gpp: Annotated[str | None, Field(description=&#39;IAB Global Privacy Platform string.&#39;)] = None
     tcf_consent: Annotated[
         str | None, Field(description=&#39;IAB TCF v2.2 consent string. Present when gdpr is true.&#39;)
     ] = None
+    gpp: Annotated[str | None, Field(description=&#39;IAB Global Privacy Platform string.&#39;)] = None
     us_privacy: Annotated[
         str | None,
         Field(
@@ -120,8 +120,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest"><code class="flex name class">
-<span>class <span class="ident">IdentityMatchRequest</span></span>
+<dt id="adcp.types.generated_poc.tmp.identity_match_request.Identity"><code class="flex name class">
+<span>class <span class="ident">Identity</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -129,55 +129,20 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class IdentityMatchRequest(AdCPBaseModel):
+<pre><code class="python">class Identity(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    field_schema: Annotated[
-        AnyUrl | None,
-        Field(
-            alias=&#39;$schema&#39;, description=&#39;Optional schema URI for validation. Ignored at runtime.&#39;
-        ),
-    ] = None
-    consent: Annotated[
-        Consent | None,
-        Field(
-            description=&#39;Privacy consent signals. Buyers in regulated jurisdictions MUST NOT process the user token without consent information.&#39;
-        ),
-    ] = None
-    package_ids: Annotated[
-        list[str],
-        Field(
-            description=&#39;ALL active package identifiers for this buyer at this publisher. MUST include every active package, not just those on the current page, to prevent correlation with Context Match requests.&#39;,
-            min_length=1,
-        ),
-    ]
-    protocol_version: Annotated[
-        str | None,
-        Field(
-            description=&#39;TMP protocol version. Allows receivers to handle semantic differences across versions.&#39;
-        ),
-    ] = &#39;1.0&#39;
-    request_id: Annotated[
+    user_token: Annotated[
         str,
         Field(
-            description=&#39;Unique request identifier. MUST NOT correlate with any context match request_id.&#39;
+            description=&#39;Opaque token from an identity provider (ID5, LiveRamp, UID2) or publisher-generated. Buyer may map to internal identity graph but cannot reverse to PII.&#39;
         ),
-    ]
-    type: Annotated[
-        Literal[&#39;identity_match_request&#39;],
-        Field(description=&#39;Message type discriminator for deserialization.&#39;),
     ]
     uid_type: Annotated[
         uid_type_1.UidType,
         Field(
             description=&#39;Type of the user identifier. Tells the buyer which identity graph to resolve against, avoiding trial-and-error matching.&#39;
-        ),
-    ]
-    user_token: Annotated[
-        str,
-        Field(
-            description=&#39;Opaque token from an identity provider (ID5, LiveRamp, UID2) or publisher-generated&#39;
         ),
     ]</code></pre>
 </details>
@@ -198,11 +163,136 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.tmp.identity_match_request.Identity.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.identity_match_request.Identity.uid_type"><code class="name">var <span class="ident">uid_type</span> : <a title="adcp.types.generated_poc.enums.uid_type.UidType" href="../enums/uid_type.html#adcp.types.generated_poc.enums.uid_type.UidType">UidType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.identity_match_request.Identity.user_token"><code class="name">var <span class="ident">user_token</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest"><code class="flex name class">
+<span>class <span class="ident">IdentityMatchRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IdentityMatchRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    field_schema: Annotated[
+        AnyUrl | None,
+        Field(
+            alias=&#39;$schema&#39;, description=&#39;Optional schema URI for validation. Ignored at runtime.&#39;
+        ),
+    ] = None
+    type: Annotated[
+        Literal[&#39;identity_match_request&#39;],
+        Field(description=&#39;Message type discriminator for deserialization.&#39;),
+    ]
+    protocol_version: Annotated[
+        str | None,
+        Field(
+            description=&#39;TMP protocol version. Allows receivers to handle semantic differences across versions.&#39;
+        ),
+    ] = &#39;1.0&#39;
+    request_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique request identifier. MUST NOT correlate with any context match request_id.&#39;
+        ),
+    ]
+    identities: Annotated[
+        list[Identity],
+        Field(
+            description=&#39;Identity tokens for the user, each tagged with its type. Publishers SHOULD include every token they have available — the buyer resolves on whichever graph matches. Entry order is not semantically significant; buyers use their own preference order when multiple entries resolve. Duplicate `(uid_type, user_token)` pairs MUST NOT appear; routers MAY reject or dedupe. `maxItems: 3` matches the TMPX plaintext budget (~120 bytes after HPKE overhead fits three 32-byte tokens); exceeding it forces buyer-side truncation.&#39;,
+            max_length=3,
+            min_length=1,
+        ),
+    ]
+    consent: Annotated[
+        Consent | None,
+        Field(
+            description=&#39;Privacy consent signals. Buyers in regulated jurisdictions MUST NOT process the user token without consent information.&#39;
+        ),
+    ] = None
+    package_ids: Annotated[
+        list[str],
+        Field(
+            description=&#39;ALL active package identifiers for this buyer at this publisher. MUST include every active package, not just those on the current page, to prevent correlation with Context Match requests.&#39;,
+            min_length=1,
+        ),
+    ]
+    country: Annotated[
+        str | None,
+        Field(
+            description=&#39;ISO 3166-1 alpha-2 country code. Routing directive for the TMP Router — used to select the correct regional provider. The router MUST strip this field before forwarding the request to the buyer agent. Not an identity signal.&#39;,
+            pattern=&#39;^[A-Z]{2}$&#39;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.consent"><code class="name">var <span class="ident">consent</span> : <a title="adcp.types.generated_poc.tmp.identity_match_request.Consent" href="#adcp.types.generated_poc.tmp.identity_match_request.Consent">Consent</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.country"><code class="name">var <span class="ident">country</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.field_schema"><code class="name">var <span class="ident">field_schema</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.identities"><code class="name">var <span class="ident">identities</span> : list[<a title="adcp.types.generated_poc.tmp.identity_match_request.Identity" href="#adcp.types.generated_poc.tmp.identity_match_request.Identity">Identity</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -223,14 +313,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.type"><code class="name">var <span class="ident">type</span> : Literal['identity_match_request']</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.uid_type"><code class="name">var <span class="ident">uid_type</span> : <a title="adcp.types.generated_poc.enums.uid_type.UidType" href="../enums/uid_type.html#adcp.types.generated_poc.enums.uid_type.UidType">UidType</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.user_token"><code class="name">var <span class="ident">user_token</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -272,17 +354,26 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.tmp.identity_match_request.Identity" href="#adcp.types.generated_poc.tmp.identity_match_request.Identity">Identity</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.Identity.model_config" href="#adcp.types.generated_poc.tmp.identity_match_request.Identity.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.Identity.uid_type" href="#adcp.types.generated_poc.tmp.identity_match_request.Identity.uid_type">uid_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.Identity.user_token" href="#adcp.types.generated_poc.tmp.identity_match_request.Identity.user_token">user_token</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest">IdentityMatchRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.adcp_major_version" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.consent" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.consent">consent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.country" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.country">country</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.field_schema" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.field_schema">field_schema</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.identities" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.identities">identities</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.model_config" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.package_ids" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.package_ids">package_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.protocol_version" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.protocol_version">protocol_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.request_id" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.request_id">request_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.type" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.type">type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.uid_type" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.uid_type">uid_type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.user_token" href="#adcp.types.generated_poc.tmp.identity_match_request.IdentityMatchRequest.user_token">user_token</a></code></li>
 </ul>
 </li>
 </ul>

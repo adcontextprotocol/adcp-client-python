@@ -61,6 +61,7 @@ el.replaceWith(d);
     )
     deleted: Annotated[bool, Field(description=&#39;Whether the list was successfully deleted&#39;)]
     list_id: Annotated[str, Field(description=&#39;ID of the deleted list&#39;)]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -80,6 +81,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.deleted"><code class="name">var <span class="ident">deleted</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
@@ -126,6 +131,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse" href="#adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse">DeleteCollectionListResponse</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.context" href="#adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.deleted" href="#adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.deleted">deleted</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.ext" href="#adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.list_id" href="#adcp.types.generated_poc.collection.delete_collection_list_response.DeleteCollectionListResponse.list_id">list_id</a></code></li>

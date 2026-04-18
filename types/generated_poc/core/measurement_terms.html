@@ -76,8 +76,17 @@ el.replaceWith(d);
     measurement_window: Annotated[
         str | None,
         Field(
-            description=&#34;Which measurement window the billing metric is reconciled against. References a window_id from the product&#39;s reporting_capabilities.measurement_windows. For broadcast TV, this is typically &#39;c7&#39; (live + 7 days DVR). When absent, billing is based on the seller&#39;s standard reporting without windowed maturation.&#34;,
-            examples=[&#39;live&#39;, &#39;c3&#39;, &#39;c7&#39;],
+            description=&#34;Which measurement maturation stage the billing metric is reconciled against. References a window_id from the product&#39;s reporting_capabilities.measurement_windows. Examples: &#39;c7&#39; for broadcast TV guarantees (live + 7 days DVR), &#39;final&#39; for DOOH after IVT/fraud-check processing, &#39;post_sivt&#39; for digital after sophisticated invalid-traffic filtering, &#39;downloads_30d&#39; for podcast. When absent, billing is based on the seller&#39;s standard reporting without windowed maturation.&#34;,
+            examples=[
+                &#39;live&#39;,
+                &#39;c3&#39;,
+                &#39;c7&#39;,
+                &#39;tentative&#39;,
+                &#39;final&#39;,
+                &#39;post_ivt&#39;,
+                &#39;post_sivt&#39;,
+                &#39;downloads_30d&#39;,
+            ],
         ),
     ] = None</code></pre>
 </details>

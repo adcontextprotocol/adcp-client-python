@@ -59,12 +59,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    currency: Annotated[
-        str,
+    pricing_option_id: Annotated[
+        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
+    ]
+    pricing_model: Annotated[
+        Literal[&#39;cpa&#39;], Field(description=&#39;Cost per acquisition (conversion event)&#39;)
+    ]
+    event_type: Annotated[
+        event_type_1.EventType,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#39;The conversion event type that triggers billing (e.g., purchase, lead, app_install)&#39;
         ),
     ]
     custom_event_name: Annotated[
@@ -73,22 +77,18 @@ el.replaceWith(d);
             description=&#34;Name of the custom event when event_type is &#39;custom&#39;. Required when event_type is &#39;custom&#39;, ignored otherwise.&#34;
         ),
     ] = None
-    eligible_adjustments: Annotated[
-        list[adjustment_kind.PriceAdjustmentKind] | None,
-        Field(
-            description=&#39;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#39;
-        ),
-    ] = None
     event_source_id: Annotated[
         str | None,
         Field(
             description=&#39;When present, only events from this specific event source count toward billing. Allows different CPA rates for different sources (e.g., online vs in-store purchases). Must match an event source configured via sync_event_sources.&#39;
         ),
     ] = None
-    event_type: Annotated[
-        event_type_1.EventType,
+    currency: Annotated[
+        str,
         Field(
-            description=&#39;The conversion event type that triggers billing (e.g., purchase, lead, app_install)&#39;
+            description=&#39;ISO 4217 currency code&#39;,
+            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
+            pattern=&#39;^[A-Z]{3}$&#39;,
         ),
     ]
     fixed_price: Annotated[
@@ -107,12 +107,12 @@ el.replaceWith(d);
             description=&#39;Breakdown of how fixed_price was derived from the list (rate card) price. Only meaningful when fixed_price is present.&#39;
         ),
     ] = None
-    pricing_model: Annotated[
-        Literal[&#39;cpa&#39;], Field(description=&#39;Cost per acquisition (conversion event)&#39;)
-    ]
-    pricing_option_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
-    ]</code></pre>
+    eligible_adjustments: Annotated[
+        list[adjustment_kind.PriceAdjustmentKind] | None,
+        Field(
+            description=&#39;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

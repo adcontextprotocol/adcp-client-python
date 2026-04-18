@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.property.feature_requirement API documentation</title>
+<title>adcp.types.generated_poc.core.industry_identifier API documentation</title>
 <meta name="description" content="">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -33,7 +33,7 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.property.feature_requirement</code></h1>
+<h1 class="title">Module <code>adcp.types.generated_poc.core.industry_identifier</code></h1>
 </header>
 <section id="section-intro">
 </section>
@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement"><code class="flex name class">
-<span>class <span class="ident">FeatureRequirement</span></span>
+<dt id="adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier"><code class="flex name class">
+<span>class <span class="ident">IndustryIdentifier</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,33 +55,15 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class FeatureRequirement(AdCPBaseModel):
+<pre><code class="python">class IndustryIdentifier(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#39;allow&#39;,
     )
-    allowed_values: Annotated[
-        list[Any] | None,
-        Field(
-            description=&#39;Values that pass the requirement (for binary/categorical features)&#39;,
-            min_length=1,
-        ),
-    ] = None
-    feature_id: Annotated[
-        str, Field(description=&#39;Feature to evaluate (discovered via get_adcp_capabilities)&#39;)
-    ]
-    if_not_covered: Annotated[
-        IfNotCovered | None,
-        Field(
-            description=&#34;How to handle properties where this feature is not covered. &#39;exclude&#39; (default): property is removed from the list. &#39;include&#39;: property passes this requirement (fail-open).&#34;
-        ),
-    ] = IfNotCovered.exclude
-    max_value: Annotated[
-        float | None, Field(description=&#39;Maximum numeric value allowed (for quantitative features)&#39;)
-    ] = None
-    min_value: Annotated[
-        float | None,
-        Field(description=&#39;Minimum numeric value required (for quantitative features)&#39;),
-    ] = None</code></pre>
+    type: creative_identifier_type.CreativeIdentifierType
+    value: Annotated[
+        str,
+        Field(description=&#34;The identifier value (e.g., &#39;ABCD1234000H&#39; for Ad-ID)&#34;, max_length=64),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -100,27 +82,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.allowed_values"><code class="name">var <span class="ident">allowed_values</span> : list[typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.feature_id"><code class="name">var <span class="ident">feature_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.enums.creative_identifier_type.CreativeIdentifierType" href="../enums/creative_identifier_type.html#adcp.types.generated_poc.enums.creative_identifier_type.CreativeIdentifierType">CreativeIdentifierType</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.if_not_covered"><code class="name">var <span class="ident">if_not_covered</span> : <a title="adcp.types.generated_poc.property.feature_requirement.IfNotCovered" href="#adcp.types.generated_poc.property.feature_requirement.IfNotCovered">IfNotCovered</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.max_value"><code class="name">var <span class="ident">max_value</span> : float | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.min_value"><code class="name">var <span class="ident">min_value</span> : float | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -136,70 +106,6 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.property.feature_requirement.IfNotCovered"><code class="flex name class">
-<span>class <span class="ident">IfNotCovered</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class IfNotCovered(Enum):
-    exclude = &#39;exclude&#39;
-    include = &#39;include&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.property.feature_requirement.IfNotCovered.exclude"><code class="name">var <span class="ident">exclude</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.property.feature_requirement.IfNotCovered.include"><code class="name">var <span class="ident">include</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 </dl>
 </section>
 </article>
@@ -210,27 +116,17 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.property" href="index.html">adcp.types.generated_poc.property</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
-<h4><code><a title="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement" href="#adcp.types.generated_poc.property.feature_requirement.FeatureRequirement">FeatureRequirement</a></code></h4>
-<ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.allowed_values" href="#adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.allowed_values">allowed_values</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.feature_id" href="#adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.feature_id">feature_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.if_not_covered" href="#adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.if_not_covered">if_not_covered</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.max_value" href="#adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.max_value">max_value</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.min_value" href="#adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.min_value">min_value</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.model_config" href="#adcp.types.generated_poc.property.feature_requirement.FeatureRequirement.model_config">model_config</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.property.feature_requirement.IfNotCovered" href="#adcp.types.generated_poc.property.feature_requirement.IfNotCovered">IfNotCovered</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier" href="#adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier">IndustryIdentifier</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.property.feature_requirement.IfNotCovered.exclude" href="#adcp.types.generated_poc.property.feature_requirement.IfNotCovered.exclude">exclude</a></code></li>
-<li><code><a title="adcp.types.generated_poc.property.feature_requirement.IfNotCovered.include" href="#adcp.types.generated_poc.property.feature_requirement.IfNotCovered.include">include</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.model_config" href="#adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.type" href="#adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.value" href="#adcp.types.generated_poc.core.industry_identifier.IndustryIdentifier.value">value</a></code></li>
 </ul>
 </li>
 </ul>

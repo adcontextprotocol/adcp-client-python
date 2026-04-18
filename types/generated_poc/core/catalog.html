@@ -65,30 +65,22 @@ el.replaceWith(d);
             description=&#34;Buyer&#39;s identifier for this catalog. Required when syncing via sync_catalogs. When used in creatives, references a previously synced catalog on the account.&#34;
         ),
     ] = None
-    category: Annotated[
+    name: Annotated[
         str | None,
         Field(
-            description=&#34;Filter catalog to items in this category (e.g., &#39;beverages/soft-drinks&#39;, &#39;chef-positions&#39;).&#34;
+            description=&#34;Human-readable name for this catalog (e.g., &#39;Summer Products 2025&#39;, &#39;Amsterdam Store Locations&#39;).&#34;
         ),
     ] = None
-    content_id_type: Annotated[
-        content_id_type_1.ContentIdType | None,
+    type: Annotated[
+        catalog_type.CatalogType,
         Field(
-            description=&#34;Identifier type that the event&#39;s content_ids field should be matched against for items in this catalog. For example, &#39;gtin&#39; means content_ids values are Global Trade Item Numbers, &#39;sku&#39; means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum.&#34;
+            description=&#34;Catalog type. Structural types: &#39;offering&#39; (AdCP Offering objects), &#39;product&#39; (ecommerce entries), &#39;inventory&#39; (stock per location), &#39;store&#39; (physical locations), &#39;promotion&#39; (deals and pricing). Vertical types: &#39;hotel&#39;, &#39;flight&#39;, &#39;job&#39;, &#39;vehicle&#39;, &#39;real_estate&#39;, &#39;education&#39;, &#39;destination&#39;, &#39;app&#39; — each with an industry-specific item schema.&#34;
         ),
-    ] = None
-    conversion_events: Annotated[
-        list[event_type.EventType] | None,
+    ]
+    url: Annotated[
+        AnyUrl | None,
         Field(
-            description=&#34;Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items — e.g., a job catalog converts via submit_application, a product catalog via purchase. The event&#39;s content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.&#34;,
-            min_length=1,
-        ),
-    ] = None
-    feed_field_mappings: Annotated[
-        list[catalog_field_mapping.CatalogFieldMapping] | None,
-        Field(
-            description=&#39;Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.&#39;,
-            min_length=1,
+            description=&#34;URL to an external catalog feed. The platform fetches and resolves items from this URL. For offering-type catalogs, the feed contains an array of Offering objects. For other types, the feed format is determined by feed_format. When omitted with type &#39;product&#39;, the platform uses its synced copy of the brand&#39;s product catalog.&#34;
         ),
     ] = None
     feed_format: Annotated[
@@ -97,10 +89,16 @@ el.replaceWith(d);
             description=&#39;Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.&#39;
         ),
     ] = None
-    gtins: Annotated[
-        list[Gtin] | None,
+    update_frequency: Annotated[
+        update_frequency_1.UpdateFrequency | None,
         Field(
-            description=&#34;Filter product-type catalogs by GTIN identifiers for cross-retailer catalog matching. Accepts standard GTIN formats (GTIN-8, UPC-A/GTIN-12, EAN-13/GTIN-13, GTIN-14). Only applicable when type is &#39;product&#39;.&#34;,
+            description=&#39;How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.&#39;
+        ),
+    ] = None
+    items: Annotated[
+        list[dict[str, Any]] | None,
+        Field(
+            description=&#34;Inline catalog data. The item schema depends on the catalog type: Offering objects for &#39;offering&#39;, StoreItem for &#39;store&#39;, HotelItem for &#39;hotel&#39;, FlightItem for &#39;flight&#39;, JobItem for &#39;job&#39;, VehicleItem for &#39;vehicle&#39;, RealEstateItem for &#39;real_estate&#39;, EducationItem for &#39;education&#39;, DestinationItem for &#39;destination&#39;, AppItem for &#39;app&#39;, or freeform objects for &#39;product&#39;, &#39;inventory&#39;, and &#39;promotion&#39;. Mutually exclusive with url — provide one or the other, not both. Implementations should validate items against the type-specific schema.&#34;,
             min_length=1,
         ),
     ] = None
@@ -111,23 +109,11 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    items: Annotated[
-        list[dict[str, Any]] | None,
+    gtins: Annotated[
+        list[Gtin] | None,
         Field(
-            description=&#34;Inline catalog data. The item schema depends on the catalog type: Offering objects for &#39;offering&#39;, StoreItem for &#39;store&#39;, HotelItem for &#39;hotel&#39;, FlightItem for &#39;flight&#39;, JobItem for &#39;job&#39;, VehicleItem for &#39;vehicle&#39;, RealEstateItem for &#39;real_estate&#39;, EducationItem for &#39;education&#39;, DestinationItem for &#39;destination&#39;, AppItem for &#39;app&#39;, or freeform objects for &#39;product&#39;, &#39;inventory&#39;, and &#39;promotion&#39;. Mutually exclusive with url — provide one or the other, not both. Implementations should validate items against the type-specific schema.&#34;,
+            description=&#34;Filter product-type catalogs by GTIN identifiers for cross-retailer catalog matching. Accepts standard GTIN formats (GTIN-8, UPC-A/GTIN-12, EAN-13/GTIN-13, GTIN-14). Only applicable when type is &#39;product&#39;.&#34;,
             min_length=1,
-        ),
-    ] = None
-    name: Annotated[
-        str | None,
-        Field(
-            description=&#34;Human-readable name for this catalog (e.g., &#39;Summer Products 2025&#39;, &#39;Amsterdam Store Locations&#39;).&#34;
-        ),
-    ] = None
-    query: Annotated[
-        str | None,
-        Field(
-            description=&#34;Natural language filter for catalog items (e.g., &#39;all pasta sauces under $5&#39;, &#39;amsterdam vacancies&#39;).&#34;
         ),
     ] = None
     tags: Annotated[
@@ -137,22 +123,36 @@ el.replaceWith(d);
             min_length=1,
         ),
     ] = None
-    type: Annotated[
-        catalog_type.CatalogType,
+    category: Annotated[
+        str | None,
         Field(
-            description=&#34;Catalog type. Structural types: &#39;offering&#39; (AdCP Offering objects), &#39;product&#39; (ecommerce entries), &#39;inventory&#39; (stock per location), &#39;store&#39; (physical locations), &#39;promotion&#39; (deals and pricing). Vertical types: &#39;hotel&#39;, &#39;flight&#39;, &#39;job&#39;, &#39;vehicle&#39;, &#39;real_estate&#39;, &#39;education&#39;, &#39;destination&#39;, &#39;app&#39; — each with an industry-specific item schema.&#34;
-        ),
-    ]
-    update_frequency: Annotated[
-        update_frequency_1.UpdateFrequency | None,
-        Field(
-            description=&#39;How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.&#39;
+            description=&#34;Filter catalog to items in this category (e.g., &#39;beverages/soft-drinks&#39;, &#39;chef-positions&#39;).&#34;
         ),
     ] = None
-    url: Annotated[
-        AnyUrl | None,
+    query: Annotated[
+        str | None,
         Field(
-            description=&#34;URL to an external catalog feed. The platform fetches and resolves items from this URL. For offering-type catalogs, the feed contains an array of Offering objects. For other types, the feed format is determined by feed_format. When omitted with type &#39;product&#39;, the platform uses its synced copy of the brand&#39;s product catalog.&#34;
+            description=&#34;Natural language filter for catalog items (e.g., &#39;all pasta sauces under $5&#39;, &#39;amsterdam vacancies&#39;).&#34;
+        ),
+    ] = None
+    conversion_events: Annotated[
+        list[event_type.EventType] | None,
+        Field(
+            description=&#34;Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items — e.g., a job catalog converts via submit_application, a product catalog via purchase. The event&#39;s content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    content_id_type: Annotated[
+        content_id_type_1.ContentIdType | None,
+        Field(
+            description=&#34;Identifier type that the event&#39;s content_ids field should be matched against for items in this catalog. For example, &#39;gtin&#39; means content_ids values are Global Trade Item Numbers, &#39;sku&#39; means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum.&#34;
+        ),
+    ] = None
+    feed_field_mappings: Annotated[
+        list[catalog_field_mapping.CatalogFieldMapping] | None,
+        Field(
+            description=&#39;Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.&#39;,
+            min_length=1,
         ),
     ] = None</code></pre>
 </details>
@@ -170,6 +170,10 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset" href="assets/catalog_asset.html#adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset">CatalogAsset</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>

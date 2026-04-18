@@ -141,6 +141,52 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap"><code class="flex name class">
+<span>class <span class="ident">CoverageGap</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CoverageGap(DistributionId):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId" href="#adcp.types.generated_poc.collection.get_collection_list_response.DistributionId">DistributionId</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId" href="#adcp.types.generated_poc.collection.get_collection_list_response.DistributionId">DistributionId</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId"><code class="flex name class">
 <span>class <span class="ident">DistributionId</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -175,55 +221,9 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.enums.distribution_identifier_type.DistributionIdentifierType" href="../enums/distribution_identifier_type.html#adcp.types.generated_poc.enums.distribution_identifier_type.DistributionIdentifierType">DistributionIdentifierType</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.value"><code class="name">var <span class="ident">value</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId"><code class="flex name class">
-<span>class <span class="ident">CoverageGap</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class DistributionId(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    type: Annotated[
-        distribution_identifier_type.DistributionIdentifierType,
-        Field(description=&#39;Type of distribution identifier&#39;),
-    ]
-    value: Annotated[str, Field(description=&#39;The identifier value&#39;)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
+<h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
+<li><a title="adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap" href="#adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap">CoverageGap</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -290,6 +290,7 @@ validated to form a valid model.</p>
             description=&#34;Collections included in the list despite missing metadata for a filtered dimension. Maps dimension name (e.g., &#39;genre&#39;, &#39;content_rating&#39;) to arrays of distribution identifiers for collections not covered. Only present when filters are applied and some collections lack the filtered metadata.&#34;
         ),
     ] = None
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -317,7 +318,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.coverage_gaps"><code class="name">var <span class="ident">coverage_gaps</span> : dict[str, list[<a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId" href="#adcp.types.generated_poc.collection.get_collection_list_response.DistributionId">DistributionId</a>]] | None</code></dt>
+<dt id="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.coverage_gaps"><code class="name">var <span class="ident">coverage_gaps</span> : dict[str, list[<a title="adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap" href="#adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap">CoverageGap</a>]] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -456,11 +461,9 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId" href="#adcp.types.generated_poc.collection.get_collection_list_response.DistributionId">DistributionId</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap" href="#adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap">CoverageGap</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.model_config" href="#adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.type" href="#adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.type">type</a></code></li>
-<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.value" href="#adcp.types.generated_poc.collection.get_collection_list_response.DistributionId.value">value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap.model_config" href="#adcp.types.generated_poc.collection.get_collection_list_response.CoverageGap.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -476,6 +479,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.cache_valid_until" href="#adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.cache_valid_until">cache_valid_until</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.collections" href="#adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.collections">collections</a></code></li>
+<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.context" href="#adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.coverage_gaps" href="#adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.coverage_gaps">coverage_gaps</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.ext" href="#adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.list" href="#adcp.types.generated_poc.collection.get_collection_list_response.GetCollectionListResponse.list">list</a></code></li>

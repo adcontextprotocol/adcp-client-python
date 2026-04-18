@@ -59,15 +59,23 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    principal: Annotated[
+        str | None, Field(description=&#39;Filter to lists owned by this principal&#39;)
+    ] = None
     name_contains: Annotated[
         str | None, Field(description=&#39;Filter to lists whose name contains this string&#39;)
     ] = None
     pagination: pagination_request.PaginationRequest | None = None
-    principal: Annotated[
-        str | None, Field(description=&#39;Filter to lists owned by this principal&#39;)
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -86,6 +94,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -140,6 +152,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest">ListPropertyListsRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.adcp_major_version" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.context" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.ext" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.model_config" href="#adcp.types.generated_poc.property.list_property_lists_request.ListPropertyListsRequest.model_config">model_config</a></code></li>

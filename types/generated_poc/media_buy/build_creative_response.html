@@ -59,18 +59,20 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     creative_manifest: Annotated[
         creative_manifest_1.CreativeManifest,
         Field(description=&#39;The generated or transformed creative manifest&#39;),
     ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
             description=&#39;ISO 8601 timestamp when generated asset URLs in the manifest expire. Set to the earliest expiration across all generated assets. Re-build the creative after this time to get fresh URLs.&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
     preview: Annotated[
         Preview | None,
         Field(
@@ -83,10 +85,31 @@ el.replaceWith(d);
             description=&#34;When include_preview was true in the request but preview generation failed. Uses the standard error structure with code, message, and recovery classification. Distinguishes &#39;agent does not support inline preview&#39; (preview and preview_error both absent) from &#39;preview generation failed&#39; (preview absent, preview_error present). Omitted when preview succeeded or was not requested.&#34;
         ),
     ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    pricing_option_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Which rate card pricing option was applied for this build. Present when the creative agent charges for its services. Pass this in report_usage to identify which pricing option was applied.&#39;
+        ),
+    ] = None
+    vendor_cost: Annotated[
+        float | None,
+        Field(
+            description=&#39;Cost incurred for this build, denominated in currency. May be 0 for CPM-priced creatives where cost accrues at serve time rather than build time.&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    currency: Annotated[
+        str | None,
+        Field(description=&#39;ISO 4217 currency code for vendor_cost.&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+    ] = None
+    consumption: Annotated[
+        creative_consumption.CreativeConsumption | None,
+        Field(
+            description=&#39;Structured consumption details for this build. Informational — lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -105,11 +128,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.consumption"><code class="name">var <span class="ident">consumption</span> : <a title="adcp.types.generated_poc.core.creative_consumption.CreativeConsumption" href="../core/creative_consumption.html#adcp.types.generated_poc.core.creative_consumption.CreativeConsumption">CreativeConsumption</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.creative_manifest"><code class="name">var <span class="ident">creative_manifest</span> : <a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest" href="../core/creative_manifest.html#adcp.types.generated_poc.core.creative_manifest.CreativeManifest">CreativeManifest</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.currency"><code class="name">var <span class="ident">currency</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -133,7 +164,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.vendor_cost"><code class="name">var <span class="ident">vendor_cost</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -162,7 +201,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     creative_manifests: Annotated[
         list[creative_manifest_1.CreativeManifest],
         Field(
@@ -170,13 +208,16 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
+    sandbox: Annotated[
+        bool | None,
+        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+    ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
             description=&#39;ISO 8601 timestamp when the earliest generated asset URL expires across all manifests. Re-build after this time to get fresh URLs.&#39;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
     preview: Annotated[
         Preview2 | None,
         Field(
@@ -189,10 +230,31 @@ validated to form a valid model.</p>
             description=&#39;When include_preview was true in the request but preview generation failed. Uses the standard error structure with code, message, and recovery classification. Omitted when preview succeeded or was not requested.&#39;
         ),
     ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    pricing_option_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Which rate card pricing option was applied for this build. Represents the total cost of the entire multi-format build call. Present when the creative agent charges for its services.&#39;
+        ),
+    ] = None
+    vendor_cost: Annotated[
+        float | None,
+        Field(
+            description=&#39;Total cost incurred for this multi-format build, denominated in currency. May be 0 for CPM-priced creatives where cost accrues at serve time.&#39;,
+            ge=0.0,
+        ),
+    ] = None
+    currency: Annotated[
+        str | None,
+        Field(description=&#39;ISO 4217 currency code for vendor_cost.&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+    ] = None
+    consumption: Annotated[
+        creative_consumption.CreativeConsumption | None,
+        Field(
+            description=&#39;Structured consumption details for this build. Informational — lets the buyer verify that vendor_cost is consistent with the rate card.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -211,11 +273,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.consumption"><code class="name">var <span class="ident">consumption</span> : <a title="adcp.types.generated_poc.core.creative_consumption.CreativeConsumption" href="../core/creative_consumption.html#adcp.types.generated_poc.core.creative_consumption.CreativeConsumption">CreativeConsumption</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.creative_manifests"><code class="name">var <span class="ident">creative_manifests</span> : list[<a title="adcp.types.generated_poc.core.creative_manifest.CreativeManifest" href="../core/creative_manifest.html#adcp.types.generated_poc.core.creative_manifest.CreativeManifest">CreativeManifest</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.currency"><code class="name">var <span class="ident">currency</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -239,7 +309,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.vendor_cost"><code class="name">var <span class="ident">vendor_cost</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -268,13 +346,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
             description=&#39;Array of errors explaining why creative generation failed&#39;, min_length=1
         ),
     ]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -335,13 +413,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context_description: Annotated[
-        str | None, Field(description=&#39;Context description applied to this variant&#39;)
-    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]
     macros: Annotated[
         dict[str, str] | None, Field(description=&#39;Macro values applied to this variant&#39;)
     ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable name for this variant&#39;)]</code></pre>
+    context_description: Annotated[
+        str | None, Field(description=&#39;Context description applied to this variant&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -401,13 +479,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context_description: Annotated[
-        str | None, Field(description=&#39;Context description applied to this preview&#39;)
-    ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable name for this preview&#39;)]
     macros: Annotated[
         dict[str, str] | None, Field(description=&#39;Macro values applied to this preview&#39;)
     ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable name for this preview&#39;)]</code></pre>
+    context_description: Annotated[
+        str | None, Field(description=&#39;Context description applied to this preview&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -464,10 +542,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Preview(AdCPBaseModel):
-    expires_at: Annotated[
-        AwareDatetime,
+    previews: Annotated[
+        list[Preview1],
         Field(
-            description=&#34;ISO 8601 timestamp when preview URLs expire. May differ from the manifest&#39;s expires_at.&#34;
+            description=&#39;Array of preview variants. Each preview corresponds to an input set from preview_inputs, or a single default preview if no inputs were provided.&#39;,
+            min_length=1,
         ),
     ]
     interactive_url: Annotated[
@@ -476,11 +555,10 @@ validated to form a valid model.</p>
             description=&#39;Optional URL to an interactive testing page that shows all preview variants with controls to switch between them.&#39;
         ),
     ] = None
-    previews: Annotated[
-        list[Preview1],
+    expires_at: Annotated[
+        AwareDatetime,
         Field(
-            description=&#39;Array of preview variants. Each preview corresponds to an input set from preview_inputs, or a single default preview if no inputs were provided.&#39;,
-            min_length=1,
+            description=&#34;ISO 8601 timestamp when preview URLs expire. May differ from the manifest&#39;s expires_at.&#34;
         ),
     ]</code></pre>
 </details>
@@ -539,18 +617,18 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Preview1(AdCPBaseModel):
-    input: Annotated[
-        Input,
-        Field(
-            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
-        ),
-    ]
     preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview variant&#39;)]
     renders: Annotated[
         list[preview_render.PreviewRender],
         Field(
             description=&#39;Array of rendered pieces for this preview variant. Most formats render as a single piece. Companion ad formats render as multiple pieces.&#39;,
             min_length=1,
+        ),
+    ]
+    input: Annotated[
+        Input,
+        Field(
+            description=&#39;The input parameters that generated this preview variant. Echoes back the request input or shows defaults used.&#39;
         ),
     ]</code></pre>
 </details>
@@ -609,10 +687,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Preview2(AdCPBaseModel):
-    expires_at: Annotated[
-        AwareDatetime,
+    previews: Annotated[
+        list[Preview3],
         Field(
-            description=&#34;ISO 8601 timestamp when preview URLs expire. May differ from the manifest&#39;s expires_at.&#34;
+            description=&#39;Array of preview entries, one per requested format. Array order matches creative_manifests. Each entry includes a format_id for explicit correlation.&#39;,
+            min_length=1,
         ),
     ]
     interactive_url: Annotated[
@@ -621,11 +700,10 @@ validated to form a valid model.</p>
             description=&#39;Optional URL to an interactive testing page that shows all format previews with controls to switch between them.&#39;
         ),
     ] = None
-    previews: Annotated[
-        list[Preview3],
+    expires_at: Annotated[
+        AwareDatetime,
         Field(
-            description=&#39;Array of preview entries, one per requested format. Array order matches creative_manifests. Each entry includes a format_id for explicit correlation.&#39;,
-            min_length=1,
+            description=&#34;ISO 8601 timestamp when preview URLs expire. May differ from the manifest&#39;s expires_at.&#34;
         ),
     ]</code></pre>
 </details>
@@ -684,24 +762,24 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Preview3(AdCPBaseModel):
+    preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview&#39;)]
     format_id: Annotated[
         format_id_1.FormatId,
         Field(
             description=&#39;The format this preview was generated for. Matches one of the requested target_format_ids.&#39;
         ),
     ]
-    input: Annotated[
-        Input1,
-        Field(
-            description=&#39;The input parameters that generated this preview. For multi-format responses, this is always a default input.&#39;
-        ),
-    ]
-    preview_id: Annotated[str, Field(description=&#39;Unique identifier for this preview&#39;)]
     renders: Annotated[
         list[preview_render.PreviewRender],
         Field(
             description=&#34;Array of rendered pieces for this format&#39;s preview. Most formats render as a single piece. Companion ad formats render as multiple pieces.&#34;,
             min_length=1,
+        ),
+    ]
+    input: Annotated[
+        Input1,
+        Field(
+            description=&#39;The input parameters that generated this preview. For multi-format responses, this is always a default input.&#39;
         ),
     ]</code></pre>
 </details>
@@ -772,27 +850,35 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1">BuildCreativeResponse1</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.consumption" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.consumption">consumption</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.context" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.creative_manifest" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.creative_manifest">creative_manifest</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.currency" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.expires_at" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.ext" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview">preview</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview_error" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.preview_error">preview_error</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.pricing_option_id" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.pricing_option_id">pricing_option_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.sandbox" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.vendor_cost" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse1.vendor_cost">vendor_cost</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2">BuildCreativeResponse2</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.consumption" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.consumption">consumption</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.context" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.creative_manifests" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.creative_manifests">creative_manifests</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.currency" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.expires_at" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.expires_at">expires_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.ext" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.model_config" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview">preview</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview_error" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.preview_error">preview_error</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.pricing_option_id" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.pricing_option_id">pricing_option_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.sandbox" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.sandbox">sandbox</a></code></li>
+<li><code><a title="adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.vendor_cost" href="#adcp.types.generated_poc.media_buy.build_creative_response.BuildCreativeResponse2.vendor_cost">vendor_cost</a></code></li>
 </ul>
 </li>
 <li>

@@ -59,11 +59,11 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    end: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 end timestamp for measurement period&#39;)
-    ]
     start: Annotated[
         AwareDatetime, Field(description=&#39;ISO 8601 start timestamp for measurement period&#39;)
+    ]
+    end: Annotated[
+        AwareDatetime, Field(description=&#39;ISO 8601 end timestamp for measurement period&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -120,34 +120,22 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    applied_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;ISO 8601 timestamp when feedback was applied to optimization algorithms&#39;
-        ),
-    ] = None
-    creative_id: Annotated[
-        str | None, Field(description=&#39;Specific creative asset (if feedback is creative-specific)&#39;)
-    ] = None
     feedback_id: Annotated[
         str, Field(description=&#39;Unique identifier for this performance feedback submission&#39;)
     ]
-    feedback_source: Annotated[
-        feedback_source_1.FeedbackSource, Field(description=&#39;Source of the performance data&#39;)
-    ]
-    measurement_period: Annotated[
-        MeasurementPeriod, Field(description=&#39;Time period for performance measurement&#39;)
-    ]
     media_buy_id: Annotated[str, Field(description=&#34;Publisher&#39;s media buy identifier&#34;)]
-    metric_type: Annotated[
-        metric_type_1.MetricType, Field(description=&#39;The business metric being measured&#39;)
-    ]
     package_id: Annotated[
         str | None,
         Field(
             description=&#39;Specific package within the media buy (if feedback is package-specific)&#39;
         ),
     ] = None
+    creative_id: Annotated[
+        str | None, Field(description=&#39;Specific creative asset (if feedback is creative-specific)&#39;)
+    ] = None
+    measurement_period: Annotated[
+        MeasurementPeriod, Field(description=&#39;Time period for performance measurement&#39;)
+    ]
     performance_index: Annotated[
         float,
         Field(
@@ -155,10 +143,22 @@ validated to form a valid model.</p>
             ge=0.0,
         ),
     ]
+    metric_type: Annotated[
+        metric_type_1.MetricType, Field(description=&#39;The business metric being measured&#39;)
+    ]
+    feedback_source: Annotated[
+        feedback_source_1.FeedbackSource, Field(description=&#39;Source of the performance data&#39;)
+    ]
     status: Annotated[Status, Field(description=&#39;Processing status of the performance feedback&#39;)]
     submitted_at: Annotated[
         AwareDatetime, Field(description=&#39;ISO 8601 timestamp when feedback was submitted&#39;)
-    ]</code></pre>
+    ]
+    applied_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;ISO 8601 timestamp when feedback was applied to optimization algorithms&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

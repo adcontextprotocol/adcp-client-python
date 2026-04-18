@@ -59,26 +59,15 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    catalog_id: Annotated[str, Field(description=&#39;Catalog ID from the request&#39;)]
     action: Annotated[
         catalog_action.CatalogAction, Field(description=&#39;Action taken for this catalog&#39;)
     ]
-    catalog_id: Annotated[str, Field(description=&#39;Catalog ID from the request&#39;)]
-    changes: Annotated[
-        list[str] | None,
-        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
-    ] = None
-    errors: Annotated[
-        list[str] | None,
-        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
+    platform_id: Annotated[
+        str | None, Field(description=&#39;Platform-specific ID assigned to the catalog&#39;)
     ] = None
     item_count: Annotated[
         int | None, Field(description=&#39;Total number of items in the catalog after sync&#39;, ge=0)
-    ] = None
-    item_issues: Annotated[
-        list[ItemIssue] | None,
-        Field(
-            description=&#39;Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review.&#39;
-        ),
     ] = None
     items_approved: Annotated[
         int | None,
@@ -101,6 +90,12 @@ el.replaceWith(d);
             ge=0,
         ),
     ] = None
+    item_issues: Annotated[
+        list[ItemIssue] | None,
+        Field(
+            description=&#39;Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review.&#39;
+        ),
+    ] = None
     last_synced_at: Annotated[
         AwareDatetime | None,
         Field(
@@ -113,8 +108,13 @@ el.replaceWith(d);
             description=&#39;ISO 8601 timestamp of when the platform will next fetch the feed URL. Only present for URL-based catalogs with update_frequency.&#39;
         ),
     ] = None
-    platform_id: Annotated[
-        str | None, Field(description=&#39;Platform-specific ID assigned to the catalog&#39;)
+    changes: Annotated[
+        list[str] | None,
+        Field(description=&#34;Field names that were modified (only present when action=&#39;updated&#39;)&#34;),
+    ] = None
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
     ] = None
     warnings: Annotated[
         list[str] | None, Field(description=&#39;Non-fatal warnings about this catalog&#39;)
@@ -149,7 +149,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_response.Catalog.errors"><code class="name">var <span class="ident">errors</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.media_buy.sync_catalogs_response.Catalog.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -219,12 +219,12 @@ validated to form a valid model.</p>
         extra=&#39;allow&#39;,
     )
     item_id: Annotated[str, Field(description=&#39;ID of the catalog item with an issue&#39;)]
-    reasons: Annotated[list[str] | None, Field(description=&#39;Reasons for rejection or warning&#39;)] = (
-        None
-    )
     status: Annotated[
         catalog_item_status.CatalogItemStatus, Field(description=&#39;Item review status&#39;)
-    ]</code></pre>
+    ]
+    reasons: Annotated[list[str] | None, Field(description=&#39;Reasons for rejection or warning&#39;)] = (
+        None
+    )</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -284,21 +284,21 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    dry_run: Annotated[
+        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+    ] = None
     catalogs: Annotated[
         list[Catalog],
         Field(
             description=&#34;Results for each catalog processed. Items with action=&#39;failed&#39; indicate per-catalog validation/processing failures, not operation-level failures.&#34;
         ),
     ]
-    context: context_1.ContextObject | None = None
-    dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -366,7 +366,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
     errors: Annotated[
         list[error.Error],
         Field(
@@ -374,6 +373,7 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

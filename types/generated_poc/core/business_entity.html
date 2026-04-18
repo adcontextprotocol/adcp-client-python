@@ -59,16 +59,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    city: Annotated[str, Field(max_length=100)]
-    country: Annotated[
-        str, Field(description=&#39;ISO 3166-1 alpha-2 country code&#39;, pattern=&#39;^[A-Z]{2}$&#39;)
+    street: Annotated[
+        str, Field(description=&#39;Street address including building number&#39;, max_length=200)
     ]
+    city: Annotated[str, Field(max_length=100)]
     postal_code: Annotated[str, Field(max_length=20)]
     region: Annotated[
         str | None, Field(description=&#39;State, province, or region&#39;, max_length=100)
     ] = None
-    street: Annotated[
-        str, Field(description=&#39;Street address including building number&#39;, max_length=200)
+    country: Annotated[
+        str, Field(description=&#39;ISO 3166-1 alpha-2 country code&#39;, pattern=&#39;^[A-Z]{2}$&#39;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -138,8 +138,12 @@ validated to form a valid model.</p>
         extra=&#39;forbid&#39;,
     )
     account_holder: Annotated[str, Field(description=&#39;Name on the bank account&#39;, max_length=200)]
-    account_number: Annotated[
-        str | None, Field(description=&#39;Bank account number for non-SEPA markets&#39;, max_length=30)
+    iban: Annotated[
+        str | None,
+        Field(
+            description=&#39;International Bank Account Number (SEPA markets)&#39;,
+            pattern=&#39;^[A-Z]{2}[0-9]{2}[A-Z0-9]{4,30}$&#39;,
+        ),
     ] = None
     bic: Annotated[
         str | None,
@@ -148,19 +152,15 @@ validated to form a valid model.</p>
             pattern=&#39;^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$&#39;,
         ),
     ] = None
-    iban: Annotated[
-        str | None,
-        Field(
-            description=&#39;International Bank Account Number (SEPA markets)&#39;,
-            pattern=&#39;^[A-Z]{2}[0-9]{2}[A-Z0-9]{4,30}$&#39;,
-        ),
-    ] = None
     routing_number: Annotated[
         str | None,
         Field(
             description=&#39;Bank routing number for non-SEPA markets (e.g., US ABA routing number, Canadian transit/institution number)&#39;,
             max_length=30,
         ),
+    ] = None
+    account_number: Annotated[
+        str | None, Field(description=&#39;Bank account number for non-SEPA markets&#39;, max_length=30)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -229,31 +229,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    address: Annotated[
-        Address | None, Field(description=&#39;Postal address for invoicing and legal correspondence&#39;)
-    ] = None
-    bank: Annotated[
-        Bank | None,
-        Field(
-            description=&#39;Bank account details for payment processing. Write-only: included in requests to provide payment coordinates, but MUST NOT be echoed in responses. Sellers store these details and confirm receipt without returning them.&#39;
-        ),
-    ] = None
-    contacts: Annotated[
-        list[Contact] | None,
-        Field(
-            description=&#39;Contacts for billing, legal, and operational matters. Contains personal data subject to GDPR and equivalent regulations. Implementations MUST use this data only for invoicing and account management.&#39;,
-            max_length=10,
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     legal_name: Annotated[
         str, Field(description=&#39;Registered legal name of the business entity&#39;, max_length=200)
     ]
-    registration_number: Annotated[
+    vat_id: Annotated[
         str | None,
         Field(
-            description=&#39;Company registration number (e.g., HRB 12345 for German Handelsregister)&#39;,
-            max_length=50,
+            description=&#39;VAT identification number (e.g., DE123456789 for Germany, FR12345678901 for France). Required for B2B invoicing in the EU. Must be normalized: no spaces, dots, or dashes.&#39;,
+            pattern=&#39;^[A-Z]{2}[A-Z0-9]{2,13}$&#39;,
         ),
     ] = None
     tax_id: Annotated[
@@ -263,13 +246,30 @@ validated to form a valid model.</p>
             max_length=30,
         ),
     ] = None
-    vat_id: Annotated[
+    registration_number: Annotated[
         str | None,
         Field(
-            description=&#39;VAT identification number (e.g., DE123456789 for Germany, FR12345678901 for France). Required for B2B invoicing in the EU. Must be normalized: no spaces, dots, or dashes.&#39;,
-            pattern=&#39;^[A-Z]{2}[A-Z0-9]{2,13}$&#39;,
+            description=&#39;Company registration number (e.g., HRB 12345 for German Handelsregister)&#39;,
+            max_length=50,
         ),
-    ] = None</code></pre>
+    ] = None
+    address: Annotated[
+        Address | None, Field(description=&#39;Postal address for invoicing and legal correspondence&#39;)
+    ] = None
+    contacts: Annotated[
+        list[Contact] | None,
+        Field(
+            description=&#39;Contacts for billing, legal, and operational matters. Contains personal data subject to GDPR and equivalent regulations. Implementations MUST use this data only for invoicing and account management.&#39;,
+            max_length=10,
+        ),
+    ] = None
+    bank: Annotated[
+        Bank | None,
+        Field(
+            description=&#39;Bank account details for payment processing. Write-only: included in requests to provide payment coordinates, but MUST NOT be echoed in responses. Sellers store these details and confirm receipt without returning them.&#39;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -349,14 +349,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    email: Annotated[EmailStr | None, Field(max_length=254)] = None
+    role: Annotated[
+        Role, Field(description=&#34;Contact&#39;s functional role in the business relationship&#34;)
+    ]
     name: Annotated[str | None, Field(description=&#39;Full name of the contact&#39;, max_length=200)] = (
         None
     )
-    phone: Annotated[str | None, Field(max_length=30)] = None
-    role: Annotated[
-        Role, Field(description=&#34;Contact&#39;s functional role in the business relationship&#34;)
-    ]</code></pre>
+    email: Annotated[EmailStr | None, Field(max_length=254)] = None
+    phone: Annotated[str | None, Field(max_length=30)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

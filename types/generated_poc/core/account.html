@@ -60,14 +60,34 @@ el.replaceWith(d);
         extra=&#39;allow&#39;,
     )
     account_id: Annotated[str, Field(description=&#39;Unique identifier for this account&#39;)]
-    account_scope: Annotated[
-        AccountScope | None,
-        Field(
-            description=&#34;How the seller scoped this account. operator: shared across all brands for this operator. brand: shared across all operators for this brand. operator_brand: dedicated to a specific operator+brand combination. agent: the agent&#39;s default account with no brand or operator association.&#34;
-        ),
-    ] = None
+    name: Annotated[
+        str, Field(description=&#34;Human-readable account name (e.g., &#39;Acme&#39;, &#39;Acme c/o Pinnacle&#39;)&#34;)
+    ]
     advertiser: Annotated[
         str | None, Field(description=&#39;The advertiser whose rates apply to this account&#39;)
+    ] = None
+    billing_proxy: Annotated[
+        str | None,
+        Field(
+            description=&#39;Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)&#39;
+        ),
+    ] = None
+    status: Annotated[
+        account_status.AccountStatus,
+        Field(
+            description=&#39;Account lifecycle status. See the Accounts Protocol overview for the operations matrix showing which tasks are permitted in each state.&#39;
+        ),
+    ]
+    brand: Annotated[
+        brand_ref.BrandReference | None,
+        Field(description=&#39;Brand reference identifying the advertiser&#39;),
+    ] = None
+    operator: Annotated[
+        str | None,
+        Field(
+            description=&#34;Domain of the entity operating this account. When the brand operates directly, this is the brand&#39;s domain.&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
     ] = None
     billing: Annotated[
         Billing | None,
@@ -81,36 +101,8 @@ el.replaceWith(d);
             description=&#39;Business entity details for the party responsible for payment. Contains the legal name, tax IDs, address, and bank details needed for formal B2B invoicing. Corresponds to whoever billing points to (operator, agent, or advertiser). When this account appears in a response, bank details MUST be omitted (write-only).&#39;
         ),
     ] = None
-    billing_proxy: Annotated[
-        str | None,
-        Field(
-            description=&#39;Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)&#39;
-        ),
-    ] = None
-    brand: Annotated[
-        brand_ref.BrandReference | None,
-        Field(description=&#39;Brand reference identifying the advertiser&#39;),
-    ] = None
-    credit_limit: Annotated[
-        CreditLimit | None, Field(description=&#39;Maximum outstanding balance allowed&#39;)
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    governance_agents: Annotated[
-        list[GovernanceAgent] | None,
-        Field(
-            description=&#39;Governance agent endpoints registered on this account. Authentication credentials are write-only and not included in responses — use sync_governance to set or update credentials.&#39;,
-            max_length=10,
-        ),
-    ] = None
-    name: Annotated[
-        str, Field(description=&#34;Human-readable account name (e.g., &#39;Acme&#39;, &#39;Acme c/o Pinnacle&#39;)&#34;)
-    ]
-    operator: Annotated[
-        str | None,
-        Field(
-            description=&#34;Domain of the entity operating this account. When the brand operates directly, this is the brand&#39;s domain.&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
-        ),
+    rate_card: Annotated[
+        str | None, Field(description=&#39;Identifier for the rate card applied to this account&#39;)
     ] = None
     payment_terms: Annotated[
         PaymentTerms | None,
@@ -118,14 +110,8 @@ el.replaceWith(d);
             description=&#39;Payment terms agreed for this account. Binding for all invoices when the account is active.&#39;
         ),
     ] = None
-    rate_card: Annotated[
-        str | None, Field(description=&#39;Identifier for the rate card applied to this account&#39;)
-    ] = None
-    sandbox: Annotated[
-        bool | None,
-        Field(
-            description=&#39;When true, this is a sandbox account — no real platform calls, no real spend. For explicit accounts (require_operator_auth: true), sandbox accounts are pre-existing test accounts on the platform discovered via list_accounts. For implicit accounts, sandbox is part of the natural key: the same brand/operator pair can have both a production and sandbox account.&#39;
-        ),
+    credit_limit: Annotated[
+        CreditLimit | None, Field(description=&#39;Maximum outstanding balance allowed&#39;)
     ] = None
     setup: Annotated[
         Setup | None,
@@ -133,12 +119,32 @@ el.replaceWith(d);
             description=&#34;Present when status is &#39;pending_approval&#39;. Contains next steps for completing account activation.&#34;
         ),
     ] = None
-    status: Annotated[
-        account_status.AccountStatus,
+    account_scope: Annotated[
+        AccountScope | None,
         Field(
-            description=&#39;Account lifecycle status. See the Accounts Protocol overview for the operations matrix showing which tasks are permitted in each state.&#39;
+            description=&#34;How the seller scoped this account. operator: shared across all brands for this operator. brand: shared across all operators for this brand. operator_brand: dedicated to a specific operator+brand combination. agent: the agent&#39;s default account with no brand or operator association.&#34;
         ),
-    ]</code></pre>
+    ] = None
+    governance_agents: Annotated[
+        list[GovernanceAgent] | None,
+        Field(
+            description=&#39;Governance agent endpoints registered on this account. Authentication credentials are write-only and not included in responses — use sync_governance to set or update credentials.&#39;,
+            max_length=10,
+        ),
+    ] = None
+    reporting_bucket: Annotated[
+        ReportingBucket | None,
+        Field(
+            description=&#34;Cloud storage bucket where the seller delivers offline reporting files for this account. Seller provisions a dedicated bucket or a per-account prefix within a shared bucket, and grants the buyer read access out-of-band. Access MUST be scoped at the IAM layer so each account can only read its own prefix — bucket-wide grants are non-compliant even with per-account prefixes. Seller MUST revoke access when the account&#39;s status transitions to inactive, suspended, or closed. See security considerations for offline delivery in docs/media-buy/media-buys/optimization-reporting. Only present when the seller supports offline delivery (reporting_delivery_methods includes &#39;offline&#39; in capabilities).&#34;
+        ),
+    ] = None
+    sandbox: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, this is a sandbox account — no real platform calls, no real spend. For explicit accounts (require_operator_auth: true), sandbox accounts are pre-existing test accounts on the platform discovered via list_accounts. For implicit accounts, sandbox is part of the natural key: the same brand/operator pair can have both a production and sandbox account.&#39;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -214,6 +220,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.account.Account.rate_card"><code class="name">var <span class="ident">rate_card</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Account.reporting_bucket"><code class="name">var <span class="ident">reporting_bucket</span> : <a title="adcp.types.generated_poc.core.account.ReportingBucket" href="#adcp.types.generated_poc.core.account.ReportingBucket">ReportingBucket</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -435,6 +445,70 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Compression"><code class="flex name class">
+<span>class <span class="ident">Compression</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Compression(Enum):
+    gzip = &#39;gzip&#39;
+    none = &#39;none&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.account.Compression.gzip"><code class="name">var <span class="ident">gzip</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Compression.none"><code class="name">var <span class="ident">none</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.CreditLimit"><code class="flex name class">
 <span>class <span class="ident">CreditLimit</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -489,6 +563,85 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.Format"><code class="flex name class">
+<span>class <span class="ident">Format</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Format(Enum):
+    jsonl = &#39;jsonl&#39;
+    csv = &#39;csv&#39;
+    parquet = &#39;parquet&#39;
+    avro = &#39;avro&#39;
+    orc = &#39;orc&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.account.Format.avro"><code class="name">var <span class="ident">avro</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Format.csv"><code class="name">var <span class="ident">csv</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Format.jsonl"><code class="name">var <span class="ident">jsonl</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Format.orc"><code class="name">var <span class="ident">orc</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.Format.parquet"><code class="name">var <span class="ident">parquet</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.GovernanceAgent"><code class="flex name class">
 <span>class <span class="ident">GovernanceAgent</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -502,14 +655,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    url: Annotated[AnyUrl, Field(description=&#39;Governance agent endpoint URL. Must use HTTPS.&#39;)]
     categories: Annotated[
         list[Category] | None,
         Field(
             description=&#34;Governance categories this agent handles (e.g., [&#39;budget_authority&#39;, &#39;strategic_alignment&#39;]). When omitted, the agent handles all categories.&#34;,
             max_length=20,
         ),
-    ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;Governance agent endpoint URL. Must use HTTPS.&#39;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -636,6 +789,138 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket"><code class="flex name class">
+<span>class <span class="ident">ReportingBucket</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ReportingBucket(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    protocol: Annotated[
+        cloud_storage_protocol.CloudStorageProtocol, Field(description=&#39;Cloud storage protocol&#39;)
+    ]
+    bucket: Annotated[
+        str,
+        Field(
+            description=&#39;Bucket or container name&#39;,
+            max_length=63,
+            min_length=3,
+            pattern=&#39;^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$&#39;,
+        ),
+    ]
+    prefix: Annotated[
+        str | None,
+        Field(
+            description=&#39;Path prefix within the bucket. Seller appends date-based partitioning beneath this prefix.&#39;,
+            examples=[&#39;accounts/pinnacle/adcp&#39;, &#39;reporting/2024&#39;],
+            max_length=512,
+            pattern=&#39;^[a-zA-Z0-9/_.-]+$&#39;,
+        ),
+    ] = None
+    region: Annotated[
+        str | None,
+        Field(
+            description=&#39;Cloud region for the bucket&#39;,
+            examples=[&#39;us-east-1&#39;, &#39;europe-west1&#39;],
+            max_length=64,
+            pattern=&#39;^[a-z0-9-]+$&#39;,
+        ),
+    ] = None
+    format: Annotated[
+        Format | None,
+        Field(
+            description=&#39;File format for delivered files. Parquet, Avro, and ORC use internal compression (the top-level compression field is ignored for these formats).&#39;
+        ),
+    ] = Format.jsonl
+    compression: Annotated[
+        Compression | None, Field(description=&#39;Compression applied to delivered files&#39;)
+    ] = Compression.gzip
+    file_retention_days: Annotated[
+        int,
+        Field(
+            description=&#39;How long reporting files are retained in the bucket before deletion. Buyers must read files within this window. Minimum recommended: 14 days.&#39;,
+            examples=[14, 30, 90],
+            ge=1,
+        ),
+    ]
+    setup_instructions: Annotated[
+        AnyUrl | None,
+        Field(
+            description=&#39;URL to documentation for configuring buyer read access to this bucket (IAM role, service account, etc.). Operator-facing documentation — buyer agents MUST NOT auto-fetch this URL; surface it to a human operator. If an implementation fetches it (for preview), apply webhook URL SSRF validation and do not pass the fetched content into an LLM context without indirect-prompt-injection guarding. See docs/media-buy/media-buys/optimization-reporting#security-considerations-for-offline-delivery.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.bucket"><code class="name">var <span class="ident">bucket</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.compression"><code class="name">var <span class="ident">compression</span> : <a title="adcp.types.generated_poc.core.account.Compression" href="#adcp.types.generated_poc.core.account.Compression">Compression</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.file_retention_days"><code class="name">var <span class="ident">file_retention_days</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.format"><code class="name">var <span class="ident">format</span> : <a title="adcp.types.generated_poc.core.account.Format" href="#adcp.types.generated_poc.core.account.Format">Format</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.prefix"><code class="name">var <span class="ident">prefix</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.protocol"><code class="name">var <span class="ident">protocol</span> : <a title="adcp.types.generated_poc.enums.cloud_storage_protocol.CloudStorageProtocol" href="../enums/cloud_storage_protocol.html#adcp.types.generated_poc.enums.cloud_storage_protocol.CloudStorageProtocol">CloudStorageProtocol</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.region"><code class="name">var <span class="ident">region</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.account.ReportingBucket.setup_instructions"><code class="name">var <span class="ident">setup_instructions</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.account.Setup"><code class="flex name class">
 <span>class <span class="ident">Setup</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -649,15 +934,15 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this setup link expires.&#39;)
-    ] = None
-    message: Annotated[str, Field(description=&#34;Human-readable description of what&#39;s needed.&#34;)]
     url: Annotated[
         AnyUrl | None,
         Field(
             description=&#39;URL where the human can complete the required action (credit application, legal agreement, add funds).&#39;
         ),
+    ] = None
+    message: Annotated[str, Field(description=&#34;Human-readable description of what&#39;s needed.&#34;)]
+    expires_at: Annotated[
+        AwareDatetime | None, Field(description=&#39;When this setup link expires.&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -738,6 +1023,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.operator" href="#adcp.types.generated_poc.core.account.Account.operator">operator</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.payment_terms" href="#adcp.types.generated_poc.core.account.Account.payment_terms">payment_terms</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.rate_card" href="#adcp.types.generated_poc.core.account.Account.rate_card">rate_card</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Account.reporting_bucket" href="#adcp.types.generated_poc.core.account.Account.reporting_bucket">reporting_bucket</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.sandbox" href="#adcp.types.generated_poc.core.account.Account.sandbox">sandbox</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.setup" href="#adcp.types.generated_poc.core.account.Account.setup">setup</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.Account.status" href="#adcp.types.generated_poc.core.account.Account.status">status</a></code></li>
@@ -768,11 +1054,28 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.core.account.Compression" href="#adcp.types.generated_poc.core.account.Compression">Compression</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.account.Compression.gzip" href="#adcp.types.generated_poc.core.account.Compression.gzip">gzip</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Compression.none" href="#adcp.types.generated_poc.core.account.Compression.none">none</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.core.account.CreditLimit" href="#adcp.types.generated_poc.core.account.CreditLimit">CreditLimit</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.account.CreditLimit.amount" href="#adcp.types.generated_poc.core.account.CreditLimit.amount">amount</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.CreditLimit.currency" href="#adcp.types.generated_poc.core.account.CreditLimit.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.CreditLimit.model_config" href="#adcp.types.generated_poc.core.account.CreditLimit.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.account.Format" href="#adcp.types.generated_poc.core.account.Format">Format</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.account.Format.avro" href="#adcp.types.generated_poc.core.account.Format.avro">avro</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Format.csv" href="#adcp.types.generated_poc.core.account.Format.csv">csv</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Format.jsonl" href="#adcp.types.generated_poc.core.account.Format.jsonl">jsonl</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Format.orc" href="#adcp.types.generated_poc.core.account.Format.orc">orc</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.Format.parquet" href="#adcp.types.generated_poc.core.account.Format.parquet">parquet</a></code></li>
 </ul>
 </li>
 <li>
@@ -792,6 +1095,20 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.account.PaymentTerms.net_60" href="#adcp.types.generated_poc.core.account.PaymentTerms.net_60">net_60</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.PaymentTerms.net_90" href="#adcp.types.generated_poc.core.account.PaymentTerms.net_90">net_90</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.account.PaymentTerms.prepay" href="#adcp.types.generated_poc.core.account.PaymentTerms.prepay">prepay</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.account.ReportingBucket" href="#adcp.types.generated_poc.core.account.ReportingBucket">ReportingBucket</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.bucket" href="#adcp.types.generated_poc.core.account.ReportingBucket.bucket">bucket</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.compression" href="#adcp.types.generated_poc.core.account.ReportingBucket.compression">compression</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.file_retention_days" href="#adcp.types.generated_poc.core.account.ReportingBucket.file_retention_days">file_retention_days</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.format" href="#adcp.types.generated_poc.core.account.ReportingBucket.format">format</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.model_config" href="#adcp.types.generated_poc.core.account.ReportingBucket.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.prefix" href="#adcp.types.generated_poc.core.account.ReportingBucket.prefix">prefix</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.protocol" href="#adcp.types.generated_poc.core.account.ReportingBucket.protocol">protocol</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.region" href="#adcp.types.generated_poc.core.account.ReportingBucket.region">region</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.account.ReportingBucket.setup_instructions" href="#adcp.types.generated_poc.core.account.ReportingBucket.setup_instructions">setup_instructions</a></code></li>
 </ul>
 </li>
 <li>

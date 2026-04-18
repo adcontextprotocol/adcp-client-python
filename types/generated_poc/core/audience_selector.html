@@ -124,17 +124,17 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
     type: Annotated[
         Literal[&#39;signal&#39;], Field(description=&#39;Discriminator for signal-based selectors&#39;)
     ]
+    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
+    value_type: Annotated[Literal[&#39;binary&#39;], Field(description=&#39;Discriminator for binary signals&#39;)]
     value: Annotated[
         bool,
         Field(
             description=&#39;Whether to include (true) or exclude (false) users matching this signal&#39;
         ),
-    ]
-    value_type: Annotated[Literal[&#39;binary&#39;], Field(description=&#39;Discriminator for binary signals&#39;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -198,10 +198,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
     type: Annotated[
         Literal[&#39;signal&#39;], Field(description=&#39;Discriminator for signal-based selectors&#39;)
     ]
+    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
     value_type: Annotated[
         Literal[&#39;categorical&#39;], Field(description=&#39;Discriminator for categorical signals&#39;)
     ]
@@ -275,25 +275,25 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    max_value: Annotated[
-        float | None,
-        Field(
-            description=&#39;Maximum value (inclusive). Omit for no maximum. Must be &gt;= min_value when both are provided.&#39;
-        ),
-    ] = None
+    type: Annotated[
+        Literal[&#39;signal&#39;], Field(description=&#39;Discriminator for signal-based selectors&#39;)
+    ]
+    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
+    value_type: Annotated[
+        Literal[&#39;numeric&#39;], Field(description=&#39;Discriminator for numeric signals&#39;)
+    ]
     min_value: Annotated[
         float | None,
         Field(
             description=&#39;Minimum value (inclusive). Omit for no minimum. Must be &lt;= max_value when both are provided.&#39;
         ),
     ] = None
-    signal_id: Annotated[signal_id_1.SignalId, Field(description=&#39;The signal to target&#39;)]
-    type: Annotated[
-        Literal[&#39;signal&#39;], Field(description=&#39;Discriminator for signal-based selectors&#39;)
-    ]
-    value_type: Annotated[
-        Literal[&#39;numeric&#39;], Field(description=&#39;Discriminator for numeric signals&#39;)
-    ]</code></pre>
+    max_value: Annotated[
+        float | None,
+        Field(
+            description=&#39;Maximum value (inclusive). Omit for no maximum. Must be &gt;= min_value when both are provided.&#39;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -361,12 +361,9 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    category: Annotated[
-        str | None,
-        Field(
-            description=&#34;Optional grouping hint for the governance agent (e.g., &#39;demographic&#39;, &#39;behavioral&#39;, &#39;contextual&#39;, &#39;financial&#39;)&#34;
-        ),
-    ] = None
+    type: Annotated[
+        Literal[&#39;description&#39;], Field(description=&#39;Discriminator for description-based selectors&#39;)
+    ]
     description: Annotated[
         str,
         Field(
@@ -375,9 +372,12 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    type: Annotated[
-        Literal[&#39;description&#39;], Field(description=&#39;Discriminator for description-based selectors&#39;)
-    ]</code></pre>
+    category: Annotated[
+        str | None,
+        Field(
+            description=&#34;Optional grouping hint for the governance agent (e.g., &#39;demographic&#39;, &#39;behavioral&#39;, &#39;contextual&#39;, &#39;financial&#39;)&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

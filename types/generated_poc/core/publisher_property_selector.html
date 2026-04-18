@@ -193,10 +193,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    property_ids: Annotated[
-        list[property_id.PropertyId],
-        Field(description=&#34;Specific property IDs from the publisher&#39;s adagents.json&#34;, min_length=1),
-    ]
     publisher_domain: Annotated[
         str,
         Field(
@@ -207,6 +203,10 @@ validated to form a valid model.</p>
     selection_type: Annotated[
         Literal[&#39;by_id&#39;],
         Field(description=&#39;Discriminator indicating selection by specific property IDs&#39;),
+    ]
+    property_ids: Annotated[
+        list[property_id.PropertyId],
+        Field(description=&#34;Specific property IDs from the publisher&#39;s adagents.json&#34;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -267,13 +267,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    property_tags: Annotated[
-        list[property_tag.PropertyTag],
-        Field(
-            description=&#34;Property tags from the publisher&#39;s adagents.json. Selector covers all properties with these tags&#34;,
-            min_length=1,
-        ),
-    ]
     publisher_domain: Annotated[
         str,
         Field(
@@ -283,6 +276,13 @@ validated to form a valid model.</p>
     ]
     selection_type: Annotated[
         Literal[&#39;by_tag&#39;], Field(description=&#39;Discriminator indicating selection by property tags&#39;)
+    ]
+    property_tags: Annotated[
+        list[property_tag.PropertyTag],
+        Field(
+            description=&#34;Property tags from the publisher&#39;s adagents.json. Selector covers all properties with these tags&#34;,
+            min_length=1,
+        ),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

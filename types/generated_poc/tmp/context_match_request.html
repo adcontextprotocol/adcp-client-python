@@ -126,12 +126,57 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
     field_schema: Annotated[
         AnyUrl | None,
         Field(
             alias=&#39;$schema&#39;, description=&#39;Optional schema URI for validation. Ignored at runtime.&#39;
         ),
     ] = None
+    type: Annotated[
+        Literal[&#39;context_match_request&#39;],
+        Field(description=&#39;Message type discriminator for deserialization.&#39;),
+    ]
+    protocol_version: Annotated[
+        str | None,
+        Field(
+            description=&#39;TMP protocol version. Allows receivers to handle semantic differences across versions.&#39;
+        ),
+    ] = &#39;1.0&#39;
+    request_id: Annotated[
+        str,
+        Field(
+            description=&#39;Unique request identifier. MUST NOT correlate with any identity match request_id.&#39;
+        ),
+    ]
+    property_rid: Annotated[
+        UUID,
+        Field(
+            description=&#39;Property catalog UUID (UUID v7). Globally unique, stable identifier assigned by the property catalog. The primary key for TMP matching and property list targeting.&#39;
+        ),
+    ]
+    property_id: Annotated[
+        property_id_1.PropertyId | None,
+        Field(
+            description=&#34;Publisher&#39;s human-readable property slug (e.g., &#39;cnn_homepage&#39;). Optional when property_rid is present. Useful for logging and debugging.&#34;
+        ),
+    ] = None
+    property_type: Annotated[
+        property_type_1.PropertyType, Field(description=&#39;Type of the publisher property&#39;)
+    ]
+    placement_id: Annotated[
+        str,
+        Field(
+            description=&#34;Placement identifier from the publisher&#39;s placement registry in adagents.json. Identifies where on the property this ad opportunity exists. One placement per request.&#34;
+        ),
+    ]
     artifact: Annotated[
         artifact_1.Artifact | None,
         Field(
@@ -146,16 +191,16 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    context_signals: Annotated[
-        ContextSignals | None,
-        Field(
-            description=&#39;Pre-computed classifier outputs for the content environment. Use when the publisher wants to provide classified context without sharing content or public references. Can supplement artifact_refs (e.g., URL + pre-classified topics) or replace them entirely (e.g., ephemeral conversation turns). Raw content MUST NOT be included — only classified outputs. The publisher is the classifier boundary.&#39;
-        ),
-    ] = None
     geo: Annotated[
         Geo | None,
         Field(
             description=&#39;Coarse geographic location of the viewer. Publisher controls granularity — country is sufficient for regulatory compliance and volume filtering, region or metro helps with campaign targeting and valuation. Coarsened to prevent user identification: no postcode, no coordinates. All fields optional.&#39;
+        ),
+    ] = None
+    context_signals: Annotated[
+        ContextSignals | None,
+        Field(
+            description=&#39;Pre-computed classifier outputs for the content environment. Use when the publisher wants to provide classified context without sharing content or public references. Can supplement artifact_refs (e.g., URL + pre-classified topics) or replace them entirely (e.g., ephemeral conversation turns). Raw content MUST NOT be included — only classified outputs. The publisher is the classifier boundary.&#39;
         ),
     ] = None
     package_ids: Annotated[
@@ -165,44 +210,7 @@ validated to form a valid model.</p>
             max_length=500,
             min_length=1,
         ),
-    ] = None
-    placement_id: Annotated[
-        str,
-        Field(
-            description=&#34;Placement identifier from the publisher&#39;s placement registry in adagents.json. Identifies where on the property this ad opportunity exists. One placement per request.&#34;
-        ),
-    ]
-    property_id: Annotated[
-        property_id_1.PropertyId | None,
-        Field(
-            description=&#34;Publisher&#39;s human-readable property slug (e.g., &#39;cnn_homepage&#39;). Optional when property_rid is present. Useful for logging and debugging.&#34;
-        ),
-    ] = None
-    property_rid: Annotated[
-        UUID,
-        Field(
-            description=&#39;Property catalog UUID (UUID v7). Globally unique, stable identifier assigned by the property catalog. The primary key for TMP matching and property list targeting.&#39;
-        ),
-    ]
-    property_type: Annotated[
-        property_type_1.PropertyType, Field(description=&#39;Type of the publisher property&#39;)
-    ]
-    protocol_version: Annotated[
-        str | None,
-        Field(
-            description=&#39;TMP protocol version. Allows receivers to handle semantic differences across versions.&#39;
-        ),
-    ] = &#39;1.0&#39;
-    request_id: Annotated[
-        str,
-        Field(
-            description=&#39;Unique request identifier. MUST NOT correlate with any identity match request_id.&#39;
-        ),
-    ]
-    type: Annotated[
-        Literal[&#39;context_match_request&#39;],
-        Field(description=&#39;Message type discriminator for deserialization.&#39;),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -221,6 +229,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact"><code class="name">var <span class="ident">artifact</span> : <a title="adcp.types.generated_poc.content_standards.artifact.Artifact" href="../content_standards/artifact.html#adcp.types.generated_poc.content_standards.artifact.Artifact">Artifact</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -302,32 +314,27 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    content_policies: Annotated[
+    topics: Annotated[
         list[str] | None,
         Field(
-            description=&#34;Policy IDs from the AdCP policy registry that this content satisfies (e.g., &#39;common_sense_brand_safety&#39; for Common Sense Brand Standards baseline). Buyers filter on policies they require. An empty array means no policies have been evaluated.&#34;,
-            max_length=20,
+            description=&#34;Content topic identifiers. Use IAB Content Taxonomy 3.0 IDs (e.g., &#39;632&#39; for Food &amp; Drink) when taxonomy_id is 7, or human-readable strings (e.g., &#39;cooking.pasta&#39;) for custom taxonomies.&#34;,
+            max_length=50,
         ),
     ] = None
-    embedding: Annotated[
+    taxonomy_source: Annotated[
         str | None,
         Field(
-            description=&#39;Content embedding as base64-encoded int8 vector. Captures semantic content beyond what topics and keywords express. Publishers declare the model used. For standardized matching, use the protocol-recommended model (nomic-embed-text-v1.5, 256 dims, int8 quantized = 256 bytes).&#39;
+            description=&#34;Organization that defines the topic taxonomy. Use &#39;iab&#39; for IAB Content Taxonomy. Publishers may use other values for custom taxonomies.&#34;
         ),
-    ] = None
-    embedding_dims: Annotated[
+    ] = &#39;iab&#39;
+    taxonomy_id: Annotated[
         int | None,
         Field(
-            description=&#39;Number of dimensions in the embedding vector. Required when embedding is present.&#39;,
-            ge=64,
-            le=2048,
+            description=&#39;Taxonomy version within the source. For IAB, follows the AdCOM cattax enum: 7 = Content Taxonomy 3.0. Default: 7.&#39;
         ),
-    ] = None
-    embedding_model: Annotated[
-        str | None,
-        Field(
-            description=&#34;Embedding model identifier (e.g., &#39;nomic-embed-text-v1.5&#39;). Required when embedding is present.&#34;
-        ),
+    ] = 7
+    sentiment: Annotated[
+        Sentiment | None, Field(description=&#39;Content sentiment classification.&#39;)
     ] = None
     keywords: Annotated[
         list[Keyword] | None,
@@ -342,8 +349,12 @@ validated to form a valid model.</p>
             pattern=&#39;^[a-z]{2}$&#39;,
         ),
     ] = None
-    sentiment: Annotated[
-        Sentiment | None, Field(description=&#39;Content sentiment classification.&#39;)
+    content_policies: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Policy IDs from the AdCP policy registry that this content satisfies (e.g., &#39;csbs&#39; for Common Sense Brand Standards). Buyers filter on policies they require. An empty array means no policies have been evaluated.&#34;,
+            max_length=20,
+        ),
     ] = None
     summary: Annotated[
         str | None,
@@ -352,23 +363,24 @@ validated to form a valid model.</p>
             max_length=500,
         ),
     ] = None
-    taxonomy_id: Annotated[
-        int | None,
-        Field(
-            description=&#39;Taxonomy version within the source. For IAB, follows the AdCOM cattax enum: 7 = Content Taxonomy 3.0. Default: 7.&#39;
-        ),
-    ] = 7
-    taxonomy_source: Annotated[
+    embedding: Annotated[
         str | None,
         Field(
-            description=&#34;Organization that defines the topic taxonomy. Use &#39;iab&#39; for IAB Content Taxonomy. Publishers may use other values for custom taxonomies.&#34;
+            description=&#39;Content embedding as base64-encoded int8 vector. Captures semantic content beyond what topics and keywords express. Publishers declare the model used. For standardized matching, use the protocol-recommended model (nomic-embed-text-v1.5, 256 dims, int8 quantized = 256 bytes).&#39;
         ),
-    ] = &#39;iab&#39;
-    topics: Annotated[
-        list[str] | None,
+    ] = None
+    embedding_model: Annotated[
+        str | None,
         Field(
-            description=&#34;Content topic identifiers. Use IAB Content Taxonomy 3.0 IDs (e.g., &#39;632&#39; for Food &amp; Drink) when taxonomy_id is 7, or human-readable strings (e.g., &#39;cooking.pasta&#39;) for custom taxonomies.&#34;,
-            max_length=50,
+            description=&#34;Embedding model identifier (e.g., &#39;nomic-embed-text-v1.5&#39;). Required when embedding is present.&#34;
+        ),
+    ] = None
+    embedding_dims: Annotated[
+        int | None,
+        Field(
+            description=&#39;Number of dimensions in the embedding vector. Required when embedding is present.&#39;,
+            ge=64,
+            le=2048,
         ),
     ] = None</code></pre>
 </details>
@@ -469,16 +481,16 @@ validated to form a valid model.</p>
             pattern=&#39;^[A-Z]{2}$&#39;,
         ),
     ] = None
-    metro: Annotated[
-        Metro | None,
-        Field(description=&#39;Metro area, using the same classification systems as AdCP targeting.&#39;),
-    ] = None
     region: Annotated[
         str | None,
         Field(
             description=&#34;ISO 3166-2 subdivision code (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;,
             pattern=&#39;^[A-Z]{2}-[A-Z0-9]{1,3}$&#39;,
         ),
+    ] = None
+    metro: Annotated[
+        Metro | None,
+        Field(description=&#39;Metro area, using the same classification systems as AdCP targeting.&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -838,6 +850,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest">ContextMatchRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.adcp_major_version" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact">artifact</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact_refs" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.artifact_refs">artifact_refs</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.context_signals" href="#adcp.types.generated_poc.tmp.context_match_request.ContextMatchRequest.context_signals">context_signals</a></code></li>

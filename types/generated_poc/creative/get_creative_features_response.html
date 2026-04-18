@@ -56,18 +56,38 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GetCreativeFeaturesResponse1(AdCPBaseModel):
-    context: context_1.ContextObject | None = None
+    results: Annotated[
+        list[creative_feature_result.CreativeFeatureResult],
+        Field(description=&#39;Feature values for the evaluated creative&#39;),
+    ]
     detail_url: Annotated[
         AnyUrl | None,
         Field(
             description=&#34;URL to the vendor&#39;s full assessment report. The vendor controls what information is disclosed and access control.&#34;
         ),
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    results: Annotated[
-        list[creative_feature_result.CreativeFeatureResult],
-        Field(description=&#39;Feature values for the evaluated creative&#39;),
-    ]</code></pre>
+    pricing_option_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Which rate card pricing option was applied for this evaluation. Present when the governance agent charges for evaluations and account was provided in the request.&#39;
+        ),
+    ] = None
+    vendor_cost: Annotated[
+        float | None,
+        Field(description=&#39;Cost incurred for this evaluation, denominated in currency.&#39;, ge=0.0),
+    ] = None
+    currency: Annotated[
+        str | None,
+        Field(description=&#39;ISO 4217 currency code for vendor_cost.&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+    ] = None
+    consumption: Annotated[
+        creative_consumption.CreativeConsumption | None,
+        Field(
+            description=&#39;Structured consumption details for this evaluation. Informational — lets the buyer verify that vendor_cost is consistent with the rate card. vendor_cost is the billing source of truth.&#39;
+        ),
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -86,7 +106,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.consumption"><code class="name">var <span class="ident">consumption</span> : <a title="adcp.types.generated_poc.core.creative_consumption.CreativeConsumption" href="../core/creative_consumption.html#adcp.types.generated_poc.core.creative_consumption.CreativeConsumption">CreativeConsumption</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.currency"><code class="name">var <span class="ident">currency</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -102,7 +130,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.results"><code class="name">var <span class="ident">results</span> : list[<a title="adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult" href="creative_feature_result.html#adcp.types.generated_poc.creative.creative_feature_result.CreativeFeatureResult">CreativeFeatureResult</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.vendor_cost"><code class="name">var <span class="ident">vendor_cost</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -128,8 +164,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class GetCreativeFeaturesResponse2(AdCPBaseModel):
-    context: context_1.ContextObject | None = None
     errors: list[error.Error]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -194,12 +230,16 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1">GetCreativeFeaturesResponse1</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.consumption" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.consumption">consumption</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.context" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.currency" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.detail_url" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.detail_url">detail_url</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.ext" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.model_config" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.pricing_option_id" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.pricing_option_id">pricing_option_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.results" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.results">results</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.vendor_cost" href="#adcp.types.generated_poc.creative.get_creative_features_response.GetCreativeFeaturesResponse1.vendor_cost">vendor_cost</a></code></li>
 </ul>
 </li>
 <li>

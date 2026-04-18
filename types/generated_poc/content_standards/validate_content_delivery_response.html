@@ -56,16 +56,33 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Feature(AdCPBaseModel):
-    feature_id: str
-    message: str | None = None
-    rule_id: Annotated[
+    feature_id: Annotated[
+        str,
+        Field(
+            description=&#34;Which feature was evaluated. Data features come from the content-standards feature catalog (e.g., &#39;brand_safety&#39;, &#39;brand_suitability&#39;, &#39;image_dpi&#39;). Record-level structural checks use reserved namespaces: &#39;record:malformed_artifact&#39;, &#39;delivery:authorization&#39;. Reserved prefixes: &#39;record:&#39;, &#39;delivery:&#39;.&#34;
+        ),
+    ]
+    status: Status
+    policy_id: Annotated[
         str | None,
         Field(
-            description=&#39;Which rule triggered this result (e.g., GARM category, Scope3 standard)&#39;
+            description=&#39;Registry policy ID that triggered this result. Present when the result originates from a specific registry policy (e.g., GARM category, CSBS standard). Enables programmatic routing by looking up the policy in the registry.&#39;
         ),
     ] = None
-    status: Status
-    value: Any | None = None</code></pre>
+    explanation: Annotated[
+        str | None,
+        Field(
+            description=&#34;Directional human-readable explanation (e.g., &#39;Below minimum resolution for display placement&#39;). Avoid quantitative thresholds — the evaluator is the oracle.&#34;
+        ),
+    ] = None
+    confidence: Annotated[
+        float | None,
+        Field(
+            description=&#39;Optional evaluator confidence in this result (0-1). Distinguishes certain verdicts from ambiguous ones.&#39;,
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -84,11 +101,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.feature_id"><code class="name">var <span class="ident">feature_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.confidence"><code class="name">var <span class="ident">confidence</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.explanation"><code class="name">var <span class="ident">explanation</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.feature_id"><code class="name">var <span class="ident">feature_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -96,15 +117,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.rule_id"><code class="name">var <span class="ident">rule_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.policy_id"><code class="name">var <span class="ident">policy_id</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Status" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Status">Status</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.value"><code class="name">var <span class="ident">value</span> : typing.Any | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -130,11 +147,14 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Result(AdCPBaseModel):
-    features: Annotated[
-        list[Feature] | None, Field(description=&#39;Optional feature-level breakdown&#39;)
-    ] = None
     record_id: Annotated[str, Field(description=&#39;Which delivery record was evaluated&#39;)]
-    verdict: Annotated[Verdict, Field(description=&#39;Overall pass/fail verdict for this record&#39;)]</code></pre>
+    verdict: Annotated[Verdict, Field(description=&#39;Overall pass/fail verdict for this record&#39;)]
+    features: Annotated[
+        list[Feature] | None,
+        Field(
+            description=&#34;Per-feature breakdown. When present, SHOULD include all failed and warning features. MAY include passed features. Oracle pattern: exposes verdict + rule pointer, never the seller&#39;s threshold or the caller&#39;s submitted value (the seller authored the content standards).&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -265,9 +285,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Summary(AdCPBaseModel):
-    failed_records: int
+    total_records: int
     passed_records: int
-    total_records: int</code></pre>
+    failed_records: int</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -324,10 +344,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ValidateContentDeliveryResponse1(AdCPBaseModel):
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    summary: Annotated[Summary, Field(description=&#39;Summary counts across all records&#39;)]
     results: Annotated[list[Result], Field(description=&#39;Per-record evaluation results&#39;)]
-    summary: Annotated[Summary, Field(description=&#39;Summary counts across all records&#39;)]</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -388,8 +408,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ValidateContentDeliveryResponse2(AdCPBaseModel):
-    context: context_1.ContextObject | None = None
     errors: list[error.Error]
+    context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -519,12 +539,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature">Feature</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.confidence" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.confidence">confidence</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.explanation" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.explanation">explanation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.feature_id" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.feature_id">feature_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.message" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.message">message</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.model_config" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.rule_id" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.rule_id">rule_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.policy_id" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.policy_id">policy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.status" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.status">status</a></code></li>
-<li><code><a title="adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.value" href="#adcp.types.generated_poc.content_standards.validate_content_delivery_response.Feature.value">value</a></code></li>
 </ul>
 </li>
 <li>

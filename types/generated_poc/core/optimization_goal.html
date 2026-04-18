@@ -126,12 +126,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    custom_event_name: Annotated[
-        str | None,
-        Field(
-            description=&#34;Required when event_type is &#39;custom&#39;. Platform-specific name for the custom event.&#34;
-        ),
-    ] = None
     event_source_id: Annotated[
         str,
         Field(
@@ -145,18 +139,24 @@ validated to form a valid model.</p>
             description=&#39;Event type to include from this source (e.g., purchase, lead, app_install, refund)&#39;
         ),
     ]
+    custom_event_name: Annotated[
+        str | None,
+        Field(
+            description=&#34;Required when event_type is &#39;custom&#39;. Platform-specific name for the custom event.&#34;
+        ),
+    ] = None
+    value_field: Annotated[
+        str | None,
+        Field(
+            description=&#34;Which field in the event&#39;s custom_data carries the monetary value. The seller must use this field for value extraction and aggregation when computing ROAS and conversion value metrics. Required on at least one entry when target.kind is &#39;per_ad_spend&#39; or &#39;maximize_value&#39; — sellers must reject these target kinds when no event source entry includes value_field. When present without a value-oriented target, the seller may use it for delivery reporting (conversion_value, roas) but must not change the optimization objective. Common values: &#39;value&#39;, &#39;order_total&#39;, &#39;profit_margin&#39;. This is not passed as a parameter to underlying platform APIs — the seller maps it to their platform&#39;s value ingestion mechanism.&#34;
+        ),
+    ] = None
     value_factor: Annotated[
         float | None,
         Field(
             description=&#34;Multiplier the seller must apply to value_field before aggregation. Use -1 for refund events (negate the value), 0.01 for values in cents, -0.01 for refunds in cents. A value of 0 zeroes out this source&#39;s value contribution (the source still counts for event dedup). Defaults to 1. This is not passed as a parameter to underlying platform APIs — the seller applies it when computing aggregated value metrics.&#34;
         ),
-    ] = 1
-    value_field: Annotated[
-        str | None,
-        Field(
-            description=&#34;Which field in the event&#39;s custom_data carries the monetary value. The seller must use this field for value extraction and aggregation when computing ROAS and conversion value metrics. Required on at least one entry when target.kind is &#39;per_ad_spend&#39; or &#39;maximize_value&#39;. Common values: &#39;value&#39;, &#39;order_total&#39;, &#39;profit_margin&#39;. This is not passed as a parameter to underlying platform APIs — the seller maps it to their platform&#39;s value ingestion mechanism.&#34;
-        ),
-    ] = None</code></pre>
+    ] = 1</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -403,27 +403,14 @@ validated to form a valid model.</p>
             description=&#34;Seller-native metric to optimize for. Delivery metrics: clicks (link clicks, swipe-throughs, CTA taps that navigate away), views (viewable impressions), completed_views (video/audio completions — see view_duration_seconds), reach (unique audience reach — see reach_unit and target_frequency). Duration/score metrics: viewed_seconds (time in view per impression), attention_seconds (attention time per impression), attention_score (vendor-specific attention score). Audience action metrics: engagements (any direct interaction with the ad unit beyond viewing — social reactions/comments/shares, story/unit opens, interactive overlay taps, companion banner interactions on audio and CTV), follows (new followers, page likes, artist/podcast/channel subscribes), saves (saves, bookmarks, playlist adds, pins — signals of intent to return), profile_visits (visits to the brand&#39;s in-platform page — profile, artist page, channel, or storefront. Does not include external website clicks, which are covered by &#39;clicks&#39;).&#34;
         ),
     ]
-    priority: Annotated[
-        int | None,
-        Field(
-            description=&#39;Relative priority among all optimization goals on this package. 1 = highest priority (primary goal); higher numbers are lower priority (secondary signals). When omitted, sellers may use array position as priority.&#39;,
-            ge=1,
-        ),
-    ] = None
     reach_unit: Annotated[
         reach_unit_1.ReachUnit | None,
         Field(
             description=&#34;Unit for reach measurement. Required when metric is &#39;reach&#39;. Must be a value declared in the product&#39;s metric_optimization.supported_reach_units.&#34;
         ),
     ] = None
-    target: Annotated[
-        Target | Target1 | None,
-        Field(
-            description=&#39;Target for this metric. When omitted, the seller optimizes for maximum metric volume within budget.&#39;
-        ),
-    ] = None
     target_frequency: Annotated[
-        TargetFrequency | TargetFrequency1 | None,
+        TargetFrequency | TargetFrequency5 | None,
         Field(
             description=&#34;Target frequency band for reach optimization. Only applicable when metric is &#39;reach&#39;. Frames frequency as an optimization signal: the seller should treat impressions toward entities already within the [min, max] band as lower-value, and impressions toward unreached entities as higher-value. This shifts budget toward fresh reach rather than re-reaching known users. When omitted, the seller maximizes unique reach without a frequency constraint. A hard cap can still be layered via targeting_overlay.frequency_cap if a ceiling is needed.&#34;
         ),
@@ -433,6 +420,19 @@ validated to form a valid model.</p>
         Field(
             description=&#34;Minimum video view duration in seconds that qualifies as a completed_view for this goal. Only applicable when metric is &#39;completed_views&#39;. When omitted, the seller uses their platform default (typically 2–15 seconds). Common values: 2 (Snap/LinkedIn default), 6 (TikTok), 15 (Snap 15-second views, Meta ThruPlay). Sellers declare which durations they support in metric_optimization.supported_view_durations. Sellers must reject goals with unsupported values — silent rounding would create measurement discrepancies.&#34;,
             gt=0.0,
+        ),
+    ] = None
+    target: Annotated[
+        Target | Target11 | None,
+        Field(
+            description=&#39;Target for this metric. When omitted, the seller optimizes for maximum metric volume within budget.&#39;
+        ),
+    ] = None
+    priority: Annotated[
+        int | None,
+        Field(
+            description=&#39;Relative priority among all optimization goals on this package. 1 = highest priority (primary goal); higher numbers are lower priority (secondary signals). When omitted, sellers may use array position as priority.&#39;,
+            ge=1,
         ),
     ] = None</code></pre>
 </details>
@@ -473,11 +473,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target"><code class="name">var <span class="ident">target</span> : <a title="adcp.types.generated_poc.core.optimization_goal.Target" href="#adcp.types.generated_poc.core.optimization_goal.Target">Target</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target1" href="#adcp.types.generated_poc.core.optimization_goal.Target1">Target1</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target"><code class="name">var <span class="ident">target</span> : <a title="adcp.types.generated_poc.core.optimization_goal.Target" href="#adcp.types.generated_poc.core.optimization_goal.Target">Target</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target11" href="#adcp.types.generated_poc.core.optimization_goal.Target11">Target11</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target_frequency"><code class="name">var <span class="ident">target_frequency</span> : <a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency">TargetFrequency</a> | <a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1">TargetFrequency1</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal1.target_frequency"><code class="name">var <span class="ident">target_frequency</span> : <a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency">TargetFrequency</a> | <a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency5">TargetFrequency5</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -510,12 +510,7 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    attribution_window: Annotated[
-        AttributionWindow | None,
-        Field(
-            description=&#34;Attribution window for this optimization goal. Values must match an option declared in the seller&#39;s conversion_tracking.attribution_windows capability. Sellers must reject windows not in their declared capabilities. When omitted, the seller uses their default window.&#34;
-        ),
-    ] = None
+    kind: Literal[&#39;event&#39;]
     event_sources: Annotated[
         list[EventSource],
         Field(
@@ -523,18 +518,23 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ]
-    kind: Literal[&#39;event&#39;]
+    target: Annotated[
+        Target12 | Target13 | Target14 | None,
+        Field(
+            description=&#39;Target cost or return for this event goal. When omitted, the seller optimizes for maximum conversion count within budget — regardless of whether value_field is present on event sources. The presence of value_field alone does not change the optimization objective; it only makes value available for reporting. An explicit target of maximize_value or per_ad_spend is required to steer toward value.&#39;
+        ),
+    ] = None
+    attribution_window: Annotated[
+        AttributionWindow | None,
+        Field(
+            description=&#34;Attribution window for this optimization goal. Values must match an option declared in the seller&#39;s conversion_tracking.attribution_windows capability. Sellers must reject windows not in their declared capabilities. When omitted, the seller uses their default window.&#34;
+        ),
+    ] = None
     priority: Annotated[
         int | None,
         Field(
             description=&#39;Relative priority among all optimization goals on this package. 1 = highest priority (primary goal); higher numbers are lower priority (secondary signals). When omitted, sellers may use array position as priority.&#39;,
             ge=1,
-        ),
-    ] = None
-    target: Annotated[
-        Target2 | Target3 | Target4 | None,
-        Field(
-            description=&#39;Target cost or return for this event goal. When omitted, the seller optimizes for maximum conversions within budget.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -575,7 +575,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.target"><code class="name">var <span class="ident">target</span> : <a title="adcp.types.generated_poc.core.optimization_goal.Target2" href="#adcp.types.generated_poc.core.optimization_goal.Target2">Target2</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target3" href="#adcp.types.generated_poc.core.optimization_goal.Target3">Target3</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target4" href="#adcp.types.generated_poc.core.optimization_goal.Target4">Target4</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.OptimizationGoal2.target"><code class="name">var <span class="ident">target</span> : <a title="adcp.types.generated_poc.core.optimization_goal.Target12" href="#adcp.types.generated_poc.core.optimization_goal.Target12">Target12</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target13" href="#adcp.types.generated_poc.core.optimization_goal.Target13">Target13</a> | <a title="adcp.types.generated_poc.core.optimization_goal.Target14" href="#adcp.types.generated_poc.core.optimization_goal.Target14">Target14</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -650,8 +650,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target1"><code class="flex name class">
-<span>class <span class="ident">Target1</span></span>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target11"><code class="flex name class">
+<span>class <span class="ident">Target11</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -659,7 +659,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Target1(AdCPBaseModel):
+<pre><code class="python">class Target11(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -689,15 +689,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target1.kind"><code class="name">var <span class="ident">kind</span> : Literal['threshold_rate']</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target11.kind"><code class="name">var <span class="ident">kind</span> : Literal['threshold_rate']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target11.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target1.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target11.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -713,8 +713,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target2"><code class="flex name class">
-<span>class <span class="ident">Target2</span></span>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target12"><code class="flex name class">
+<span>class <span class="ident">Target12</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -722,7 +722,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Target2(AdCPBaseModel):
+<pre><code class="python">class Target12(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -746,15 +746,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target2.kind"><code class="name">var <span class="ident">kind</span> : Literal['cost_per']</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target12.kind"><code class="name">var <span class="ident">kind</span> : Literal['cost_per']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target12.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target2.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target12.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -770,8 +770,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target3"><code class="flex name class">
-<span>class <span class="ident">Target3</span></span>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target13"><code class="flex name class">
+<span>class <span class="ident">Target13</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -779,7 +779,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Target3(AdCPBaseModel):
+<pre><code class="python">class Target13(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -806,15 +806,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target3.kind"><code class="name">var <span class="ident">kind</span> : Literal['per_ad_spend']</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target13.kind"><code class="name">var <span class="ident">kind</span> : Literal['per_ad_spend']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target13.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target3.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target13.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -830,8 +830,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target4"><code class="flex name class">
-<span>class <span class="ident">Target4</span></span>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target14"><code class="flex name class">
+<span>class <span class="ident">Target14</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -839,7 +839,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Target4(AdCPBaseModel):
+<pre><code class="python">class Target14(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
@@ -862,11 +862,11 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target4.kind"><code class="name">var <span class="ident">kind</span> : Literal['maximize_value']</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target14.kind"><code class="name">var <span class="ident">kind</span> : Literal['maximize_value']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.Target4.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.Target14.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -895,13 +895,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    max: Annotated[
-        int | None,
-        Field(
-            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
-            ge=1,
-        ),
-    ] = None
     min: Annotated[
         int,
         Field(
@@ -909,6 +902,13 @@ validated to form a valid model.</p>
             ge=1,
         ),
     ]
+    max: Annotated[
+        int | None,
+        Field(
+            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
+            ge=1,
+        ),
+    ] = None
     window: Annotated[
         duration.Duration,
         Field(
@@ -961,8 +961,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1"><code class="flex name class">
-<span>class <span class="ident">TargetFrequency1</span></span>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5"><code class="flex name class">
+<span>class <span class="ident">TargetFrequency5</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -970,17 +970,10 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class TargetFrequency1(AdCPBaseModel):
+<pre><code class="python">class TargetFrequency5(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    max: Annotated[
-        int,
-        Field(
-            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
-            ge=1,
-        ),
-    ]
     min: Annotated[
         int | None,
         Field(
@@ -988,6 +981,13 @@ validated to form a valid model.</p>
             ge=1,
         ),
     ] = None
+    max: Annotated[
+        int,
+        Field(
+            description=&#39;Frequency at which an entity is considered saturated within the window. Impressions toward entities at or above this threshold are treated as lower-value. When both min and max are present, max must be greater than or equal to min. When omitted, the seller determines the saturation point.&#39;,
+            ge=1,
+        ),
+    ]
     window: Annotated[
         duration.Duration,
         Field(
@@ -1012,19 +1012,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.max"><code class="name">var <span class="ident">max</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.max"><code class="name">var <span class="ident">max</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.min"><code class="name">var <span class="ident">min</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.min"><code class="name">var <span class="ident">min</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.window"><code class="name">var <span class="ident">window</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a></code></dt>
+<dt id="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.window"><code class="name">var <span class="ident">window</span> : <a title="adcp.types.generated_poc.core.duration.Duration" href="duration.html#adcp.types.generated_poc.core.duration.Duration">Duration</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1130,34 +1130,34 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target1" href="#adcp.types.generated_poc.core.optimization_goal.Target1">Target1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target11" href="#adcp.types.generated_poc.core.optimization_goal.Target11">Target11</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target1.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target1.kind">kind</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target1.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target1.value" href="#adcp.types.generated_poc.core.optimization_goal.Target1.value">value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target11.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target11.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target11.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target11.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target11.value" href="#adcp.types.generated_poc.core.optimization_goal.Target11.value">value</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target2" href="#adcp.types.generated_poc.core.optimization_goal.Target2">Target2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target12" href="#adcp.types.generated_poc.core.optimization_goal.Target12">Target12</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target2.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target2.kind">kind</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target2.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target2.value" href="#adcp.types.generated_poc.core.optimization_goal.Target2.value">value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target12.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target12.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target12.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target12.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target12.value" href="#adcp.types.generated_poc.core.optimization_goal.Target12.value">value</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target3" href="#adcp.types.generated_poc.core.optimization_goal.Target3">Target3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target13" href="#adcp.types.generated_poc.core.optimization_goal.Target13">Target13</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target3.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target3.kind">kind</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target3.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target3.value" href="#adcp.types.generated_poc.core.optimization_goal.Target3.value">value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target13.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target13.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target13.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target13.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target13.value" href="#adcp.types.generated_poc.core.optimization_goal.Target13.value">value</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target4" href="#adcp.types.generated_poc.core.optimization_goal.Target4">Target4</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.Target14" href="#adcp.types.generated_poc.core.optimization_goal.Target14">Target14</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target4.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target4.kind">kind</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target4.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target4.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target14.kind" href="#adcp.types.generated_poc.core.optimization_goal.Target14.kind">kind</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.Target14.model_config" href="#adcp.types.generated_poc.core.optimization_goal.Target14.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -1170,12 +1170,12 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1">TargetFrequency1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency5">TargetFrequency5</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.max" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.max">max</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.min" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.min">min</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.model_config" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.window" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency1.window">window</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.max" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.max">max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.min" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.min">min</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.model_config" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.window" href="#adcp.types.generated_poc.core.optimization_goal.TargetFrequency5.window">window</a></code></li>
 </ul>
 </li>
 </ul>

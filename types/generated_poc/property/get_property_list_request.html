@@ -59,21 +59,29 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
     list_id: Annotated[str, Field(description=&#39;ID of the property list to retrieve&#39;)]
+    resolve: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Whether to apply filters and return resolved identifiers (default: true)&#39;
+        ),
+    ] = True
     pagination: Annotated[
         Pagination | None,
         Field(
             description=&#39;Pagination parameters. Uses higher limits than standard pagination because property lists can contain tens of thousands of identifiers.&#39;
         ),
     ] = None
-    resolve: Annotated[
-        bool | None,
-        Field(
-            description=&#39;Whether to apply filters and return resolved identifiers (default: true)&#39;
-        ),
-    ] = True</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -92,6 +100,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -141,14 +153,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    cursor: Annotated[
-        str | None,
-        Field(description=&#39;Opaque cursor from a previous response to fetch the next page&#39;),
-    ] = None
     max_results: Annotated[
         int | None,
         Field(description=&#39;Maximum number of identifiers to return per page&#39;, ge=1, le=10000),
-    ] = 1000</code></pre>
+    ] = 1000
+    cursor: Annotated[
+        str | None,
+        Field(description=&#39;Opaque cursor from a previous response to fetch the next page&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -209,6 +221,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest" href="#adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest">GetPropertyListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.adcp_major_version" href="#adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.context" href="#adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.ext" href="#adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.list_id" href="#adcp.types.generated_poc.property.get_property_list_request.GetPropertyListRequest.list_id">list_id</a></code></li>

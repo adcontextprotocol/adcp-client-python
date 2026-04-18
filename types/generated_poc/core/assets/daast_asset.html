@@ -122,33 +122,33 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    companion_ads: Annotated[
-        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
-    ] = None
-    daast_version: Annotated[
-        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
-    ] = None
     delivery_type: Annotated[
         Literal[&#39;url&#39;],
         Field(description=&#39;Discriminator indicating DAAST is delivered via URL endpoint&#39;),
     ]
+    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns DAAST XML&#39;)]
+    daast_version: Annotated[
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+    ] = None
     duration_ms: Annotated[
         int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
+    ] = None
+    tracking_events: Annotated[
+        list[daast_tracking_event.DaastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
+    ] = None
+    companion_ads: Annotated[
+        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
+    ] = None
+    transcript_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
     ] = None
     provenance: Annotated[
         provenance_1.Provenance | None,
         Field(
             description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
         ),
-    ] = None
-    tracking_events: Annotated[
-        list[daast_tracking_event.DaastTrackingEvent] | None,
-        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
-    ] = None
-    transcript_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
-    ] = None
-    url: Annotated[AnyUrl, Field(description=&#39;URL endpoint that returns DAAST XML&#39;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -228,32 +228,32 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    companion_ads: Annotated[
-        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
-    ] = None
-    content: Annotated[str, Field(description=&#39;Inline DAAST XML content&#39;)]
-    daast_version: Annotated[
-        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
-    ] = None
     delivery_type: Annotated[
         Literal[&#39;inline&#39;],
         Field(description=&#39;Discriminator indicating DAAST is delivered as inline XML content&#39;),
     ]
+    content: Annotated[str, Field(description=&#39;Inline DAAST XML content&#39;)]
+    daast_version: Annotated[
+        daast_version_1.DaastVersion | None, Field(description=&#39;DAAST specification version&#39;)
+    ] = None
     duration_ms: Annotated[
         int | None, Field(description=&#39;Expected audio duration in milliseconds (if known)&#39;, ge=0)
+    ] = None
+    tracking_events: Annotated[
+        list[daast_tracking_event.DaastTrackingEvent] | None,
+        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
+    ] = None
+    companion_ads: Annotated[
+        bool | None, Field(description=&#39;Whether companion display ads are included&#39;)
+    ] = None
+    transcript_url: Annotated[
+        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
     ] = None
     provenance: Annotated[
         provenance_1.Provenance | None,
         Field(
             description=&#39;Provenance metadata for this asset, overrides manifest-level provenance&#39;
         ),
-    ] = None
-    tracking_events: Annotated[
-        list[daast_tracking_event.DaastTrackingEvent] | None,
-        Field(description=&#39;Tracking events supported by this DAAST tag&#39;),
-    ] = None
-    transcript_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to text transcript of the audio content&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

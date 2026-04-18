@@ -59,28 +59,28 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    checkout_token: Annotated[
-        str | None,
-        Field(
-            description=&#39;Opaque token for the checkout flow. The host passes this to the checkout endpoint to correlate the SI session with the transaction.&#39;
-        ),
-    ] = None
     checkout_url: Annotated[
         AnyUrl | None,
         Field(
             description=&#34;Brand&#39;s ACP checkout endpoint. Hosts MUST validate this is HTTPS before opening.&#34;
         ),
     ] = None
-    expires_at: Annotated[
-        AwareDatetime | None,
+    checkout_token: Annotated[
+        str | None,
         Field(
-            description=&#39;When this handoff data expires. Hosts should initiate checkout before this time.&#39;
+            description=&#39;Opaque token for the checkout flow. The host passes this to the checkout endpoint to correlate the SI session with the transaction.&#39;
         ),
     ] = None
     payload: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#39;Rich checkout context to pass to the ACP endpoint (product details, applied offers, pricing). Alternative to checkout_token for integrations that need structured data.&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When this handoff data expires. Hosts should initiate checkout before this time.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -277,21 +277,22 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    acp_handoff: Annotated[
-        AcpHandoff | None,
-        Field(description=&#39;ACP checkout handoff data. Present when reason is handoff_transaction.&#39;),
-    ] = None
-    errors: list[error.Error] | None = None
-    ext: ext_1.ExtensionObject | None = None
-    follow_up: Annotated[FollowUp | None, Field(description=&#39;Suggested follow-up actions&#39;)] = None
     session_id: Annotated[str, Field(description=&#39;Terminated session identifier&#39;)]
+    terminated: Annotated[bool, Field(description=&#39;Whether session was successfully terminated&#39;)]
     session_status: Annotated[
         si_session_status.SiSessionStatus | None,
         Field(
             description=&#34;Resulting session state. &#39;complete&#39; for handoff_transaction/handoff_complete, &#39;terminated&#39; for user_exit/session_timeout/host_terminated.&#34;
         ),
     ] = None
-    terminated: Annotated[bool, Field(description=&#39;Whether session was successfully terminated&#39;)]</code></pre>
+    acp_handoff: Annotated[
+        AcpHandoff | None,
+        Field(description=&#39;ACP checkout handoff data. Present when reason is handoff_transaction.&#39;),
+    ] = None
+    follow_up: Annotated[FollowUp | None, Field(description=&#39;Suggested follow-up actions&#39;)] = None
+    errors: list[error.Error] | None = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -311,6 +312,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.acp_handoff"><code class="name">var <span class="ident">acp_handoff</span> : <a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.AcpHandoff" href="#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.AcpHandoff">AcpHandoff</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -400,6 +405,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse" href="#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse">SiTerminateSessionResponse</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.acp_handoff" href="#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.acp_handoff">acp_handoff</a></code></li>
+<li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.context" href="#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.errors" href="#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.errors">errors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.ext" href="#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.follow_up" href="#adcp.types.generated_poc.sponsored_intelligence.si_terminate_session_response.SiTerminateSessionResponse.follow_up">follow_up</a></code></li>

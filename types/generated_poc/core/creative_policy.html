@@ -66,15 +66,15 @@ el.replaceWith(d);
         landing_page_requirement.LandingPageRequirement,
         Field(description=&#39;Landing page requirements&#39;),
     ]
+    templates_available: Annotated[
+        bool, Field(description=&#39;Whether creative templates are provided&#39;)
+    ]
     provenance_required: Annotated[
         bool | None,
         Field(
             description=&#39;Whether creatives must include provenance metadata. When true, the seller requires buyers to attach provenance declarations to creative submissions. The seller may independently verify claims via get_creative_features.&#39;
         ),
-    ] = None
-    templates_available: Annotated[
-        bool, Field(description=&#39;Whether creative templates are provided&#39;)
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

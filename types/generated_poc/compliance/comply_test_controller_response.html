@@ -59,10 +59,10 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
+    success: Literal[True]
     scenarios: Annotated[list[Scenario], Field(description=&#39;Scenarios this seller has implemented&#39;)]
-    success: Literal[True]</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -126,14 +126,14 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
+    success: Literal[True]
+    previous_state: Annotated[str, Field(description=&#39;State before this transition&#39;)]
     current_state: Annotated[str, Field(description=&#39;State after this transition&#39;)]
-    ext: ext_1.ExtensionObject | None = None
     message: Annotated[
         str | None, Field(description=&#39;Human-readable description of the transition&#39;)
     ] = None
-    previous_state: Annotated[str, Field(description=&#39;State before this transition&#39;)]
-    success: Literal[True]</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -205,18 +205,18 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    cumulative: Annotated[
-        dict[str, Any] | None,
-        Field(description=&#39;Running totals across all simulation calls (simulate_delivery only)&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
-    message: str | None = None
+    success: Literal[True]
     simulated: Annotated[
         dict[str, Any],
         Field(description=&#39;Values injected or applied by this call. Shape depends on scenario.&#39;),
     ]
-    success: Literal[True]</code></pre>
+    cumulative: Annotated[
+        dict[str, Any] | None,
+        Field(description=&#39;Running totals across all simulation calls (simulate_delivery only)&#39;),
+    ] = None
+    message: str | None = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -288,16 +288,16 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
-    current_state: Annotated[
-        str | None, Field(description=&#39;Current state of the entity, or null if not found&#39;)
-    ] = None
+    success: Literal[False]
     error: Annotated[Error, Field(description=&#39;Structured error code&#39;)]
     error_detail: Annotated[
         str | None, Field(description=&#39;Human-readable explanation of the failure&#39;)
     ] = None
-    ext: ext_1.ExtensionObject | None = None
-    success: Literal[False]</code></pre>
+    current_state: Annotated[
+        str | None, Field(description=&#39;Current state of the entity, or null if not found&#39;)
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

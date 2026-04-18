@@ -59,16 +59,16 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    x: Annotated[float, Field(description=&#34;Horizontal offset from the asset&#39;s left edge&#34;)]
+    y: Annotated[float, Field(description=&#34;Vertical offset from the asset&#39;s top edge&#34;)]
+    width: Annotated[float, Field(description=&#39;Width of the overlay&#39;, ge=0.0)]
     height: Annotated[float, Field(description=&#39;Height of the overlay&#39;, ge=0.0)]
     unit: Annotated[
         Unit,
         Field(
             description=&#34;&#39;px&#39; = absolute pixels from asset top-left. &#39;fraction&#39; = proportional to asset dimensions (0.0 = edge, 1.0 = opposite edge). &#39;inches&#39;, &#39;cm&#39;, &#39;mm&#39;, &#39;pt&#39; (1/72 inch) = physical units for print overlays, measured from asset top-left.&#34;
         ),
-    ]
-    width: Annotated[float, Field(description=&#39;Width of the overlay&#39;, ge=0.0)]
-    x: Annotated[float, Field(description=&#34;Horizontal offset from the asset&#39;s left edge&#34;)]
-    y: Annotated[float, Field(description=&#34;Vertical offset from the asset&#39;s top edge&#34;)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -136,10 +136,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    bounds: Annotated[
-        Bounds,
+    id: Annotated[
+        str,
         Field(
-            description=&#34;Position and size of the overlay relative to the asset&#39;s own top-left corner. See &#39;unit&#39; for coordinate interpretation.&#34;
+            description=&#34;Identifier for this overlay (e.g., &#39;play_pause&#39;, &#39;volume&#39;, &#39;publisher_logo&#39;, &#39;carousel_prev&#39;, &#39;carousel_next&#39;)&#34;
         ),
     ]
     description: Annotated[
@@ -148,18 +148,18 @@ validated to form a valid model.</p>
             description=&#39;Human-readable explanation of what this overlay is and how buyers should account for it&#39;
         ),
     ] = None
-    id: Annotated[
-        str,
-        Field(
-            description=&#34;Identifier for this overlay (e.g., &#39;play_pause&#39;, &#39;volume&#39;, &#39;publisher_logo&#39;, &#39;carousel_prev&#39;, &#39;carousel_next&#39;)&#34;
-        ),
-    ]
     visual: Annotated[
         Visual | None,
         Field(
             description=&#39;Optional visual reference for this overlay element. Useful for creative agents compositing previews and for buyers understanding what will appear over their content. Must include at least one of: url, light, or dark.&#39;
         ),
-    ] = None</code></pre>
+    ] = None
+    bounds: Annotated[
+        Bounds,
+        Field(
+            description=&#34;Position and size of the overlay relative to the asset&#39;s own top-left corner. See &#39;unit&#39; for coordinate interpretation.&#34;
+        ),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -307,9 +307,11 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    dark: Annotated[
+    url: Annotated[
         AnyUrl | None,
-        Field(description=&#39;URL to the overlay graphic for use on dark backgrounds (SVG or PNG)&#39;),
+        Field(
+            description=&#39;URL to a theme-neutral overlay graphic (SVG or PNG). Use when a single file works for all backgrounds, e.g. an SVG using CSS custom properties or currentColor.&#39;
+        ),
     ] = None
     light: Annotated[
         AnyUrl | None,
@@ -317,11 +319,9 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#39;URL to the overlay graphic for use on light/bright backgrounds (SVG or PNG)&#39;
         ),
     ] = None
-    url: Annotated[
+    dark: Annotated[
         AnyUrl | None,
-        Field(
-            description=&#39;URL to a theme-neutral overlay graphic (SVG or PNG). Use when a single file works for all backgrounds, e.g. an SVG using CSS custom properties or currentColor.&#39;
-        ),
+        Field(description=&#39;URL to the overlay graphic for use on dark backgrounds (SVG or PNG)&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>

@@ -46,8 +46,8 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget"><code class="flex name class">
-<span>class <span class="ident">Budget</span></span>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Allocations"><code class="flex name class">
+<span>class <span class="ident">Allocations</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -55,26 +55,21 @@ el.replaceWith(d);
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Budget(AdCPBaseModel):
+<pre><code class="python">class Allocations(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    authority_level: Annotated[
-        budget_authority_level.BudgetAuthorityLevel,
-        Field(description=&#39;Budget authority level for the orchestrator agent.&#39;),
-    ]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code.&#39;)]
-    per_seller_max_pct: Annotated[
-        float | None,
-        Field(description=&#39;Maximum percentage of budget that can go to a single seller.&#39;),
+    amount: Annotated[
+        float | None, Field(description=&#39;Maximum budget for this purchase type.&#39;, ge=0.0)
     ] = None
-    reallocation_threshold: Annotated[
+    max_pct: Annotated[
         float | None,
         Field(
-            description=&#39;Amount above which reallocations require escalation (for agent_limited).&#39;
+            description=&#39;Maximum percentage of total budget for this purchase type.&#39;,
+            ge=0.0,
+            le=100.0,
         ),
-    ] = None
-    total: Annotated[float, Field(description=&#39;Total authorized budget.&#39;)]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -93,6 +88,87 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Allocations.amount"><code class="name">var <span class="ident">amount</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Allocations.max_pct"><code class="name">var <span class="ident">max_pct</span> : float | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Allocations.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget"><code class="flex name class">
+<span>class <span class="ident">Budget</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Budget(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    total: Annotated[float, Field(description=&#39;Total authorized budget.&#39;)]
+    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code.&#39;)]
+    authority_level: Annotated[
+        budget_authority_level.BudgetAuthorityLevel,
+        Field(description=&#39;Budget authority level for the orchestrator agent.&#39;),
+    ]
+    per_seller_max_pct: Annotated[
+        float | None,
+        Field(description=&#39;Maximum percentage of budget that can go to a single seller.&#39;),
+    ] = None
+    reallocation_threshold: Annotated[
+        float | None,
+        Field(
+            description=&#39;Amount above which reallocations require escalation (for agent_limited).&#39;
+        ),
+    ] = None
+    allocations: Annotated[
+        dict[purchase_type.PurchaseType, Allocations] | None,
+        Field(
+            description=&#39;Optional budget partition across purchase types. Keys are purchase-type enum values (media_buy, rights_license, signal_activation, creative_services). When present, the governance agent validates spend against both the total and the per-type allocation. When absent, all spend counts against the single total regardless of purchase type.&#39;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget.allocations"><code class="name">var <span class="ident">allocations</span> : dict[<a title="adcp.types.generated_poc.enums.purchase_type.PurchaseType" href="../enums/purchase_type.html#adcp.types.generated_poc.enums.purchase_type.PurchaseType">PurchaseType</a>, <a title="adcp.types.generated_poc.governance.sync_plans_request.Allocations" href="#adcp.types.generated_poc.governance.sync_plans_request.Allocations">Allocations</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.governance.sync_plans_request.Budget.authority_level"><code class="name">var <span class="ident">authority_level</span> : <a title="adcp.types.generated_poc.enums.budget_authority_level.BudgetAuthorityLevel" href="../enums/budget_authority_level.html#adcp.types.generated_poc.enums.budget_authority_level.BudgetAuthorityLevel">BudgetAuthorityLevel</a></code></dt>
 <dd>
 <div class="desc"></div>
@@ -160,52 +236,9 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit"><code class="flex name class">
-<span>class <span class="ident">TotalBudgetCap</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class BudgetLimit(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    amount: float
-    currency: str</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
+<h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
+<li><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -246,6 +279,10 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    required: Annotated[
+        list[channels_1.MediaChannel] | None,
+        Field(description=&#39;Channels that must be included in the media mix.&#39;),
+    ] = None
     allowed: Annotated[
         list[channels_1.MediaChannel] | None,
         Field(description=&#39;Channels the orchestrator may use.&#39;),
@@ -253,10 +290,6 @@ validated to form a valid model.</p>
     mix_targets: Annotated[
         dict[str, MixTargets] | None,
         Field(description=&#39;Target allocation ranges per channel, keyed by channel ID.&#39;),
-    ] = None
-    required: Annotated[
-        list[channels_1.MediaChannel] | None,
-        Field(description=&#39;Channels that must be included in the media mix.&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -328,16 +361,16 @@ validated to form a valid model.</p>
             description=&#34;Maximum budget this agent can commit. When omitted, the agent can commit up to the plan&#39;s total budget.&#34;
         ),
     ] = None
-    expires_at: Annotated[
-        AwareDatetime | None,
-        Field(
-            description=&#39;When this delegation expires. After expiration, the governance agent denies actions from this agent.&#39;
-        ),
-    ] = None
     markets: Annotated[
         list[str] | None,
         Field(
             description=&#39;ISO 3166-1/3166-2 codes this agent is authorized for. When omitted, the agent can operate in all plan markets.&#39;
+        ),
+    ] = None
+    expires_at: Annotated[
+        AwareDatetime | None,
+        Field(
+            description=&#39;When this delegation expires. After expiration, the governance agent denies actions from this agent.&#39;
         ),
     ] = None</code></pre>
 </details>
@@ -407,8 +440,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    end: Annotated[AwareDatetime, Field(description=&#39;Flight end (ISO 8601).&#39;)]
-    start: Annotated[AwareDatetime, Field(description=&#39;Flight start (ISO 8601).&#39;)]</code></pre>
+    start: Annotated[AwareDatetime, Field(description=&#39;Flight start (ISO 8601).&#39;)]
+    end: Annotated[AwareDatetime, Field(description=&#39;Flight end (ISO 8601).&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -464,8 +497,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    max_pct: float | None = None
-    min_pct: float | None = None</code></pre>
+    min_pct: float | None = None
+    max_pct: float | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -521,20 +554,17 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    approved_sellers: Annotated[
-        list[AnyUrl] | None,
-        Field(description=&#39;List of approved seller agent URLs. null means any seller.&#39;),
-    ] = None
-    audience: Annotated[
-        audience_constraints.AudienceConstraints | None,
-        Field(
-            description=&#39;Audience targeting constraints. Defines who the campaign should reach (include) and must not reach (exclude). The governance agent evaluates seller targeting against these constraints.&#39;
-        ),
-    ] = None
+    plan_id: Annotated[str, Field(description=&#39;Unique identifier for this plan.&#39;)]
     brand: Annotated[
         brand_ref.BrandReference,
         Field(
             description=&#34;Brand or organization being governed. For campaign plans, the governance agent resolves the brand&#39;s compliance configuration. For portfolio plans, this is the holding company or parent organization.&#34;
+        ),
+    ]
+    objectives: Annotated[
+        str,
+        Field(
+            description=&#39;Natural language campaign objectives. Used for strategic alignment validation.&#39;
         ),
     ]
     budget: Annotated[Budget, Field(description=&#39;Budget authorization parameters.&#39;)]
@@ -542,50 +572,23 @@ validated to form a valid model.</p>
         Channels | None,
         Field(description=&#39;Channel constraints. If omitted, all channels are allowed.&#39;),
     ] = None
-    countries: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;ISO 3166-1 alpha-2 country codes for authorized markets (e.g., [&#39;US&#39;, &#39;GB&#39;]). The governance agent rejects media buys targeting outside these countries and resolves applicable policies by matching against policy jurisdictions.&#34;,
-            min_length=1,
-        ),
-    ] = None
-    custom_policies: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Natural language policy statements specific to this campaign (e.g., &#39;No advertising adjacent to competitor content&#39;). Applied regardless of geography.&#34;
-        ),
-    ] = None
-    delegations: Annotated[
-        list[Delegation] | None,
-        Field(
-            description=&#34;Agents authorized to execute against this plan. Each delegation scopes an agent&#39;s authority by budget, markets, and expiration. The governance agent validates that the requesting agent matches a delegation before approving actions.&#34;
-        ),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     flight: Annotated[
         Flight,
         Field(
-            description=&#39;Authorized flight dates. Media buys with dates outside this window are rejected.&#39;
+            description=&#39;Authorized flight dates. Governed actions with dates outside this window are rejected.&#39;
         ),
     ]
-    min_audience_size: Annotated[
-        int | None,
-        Field(
-            description=&#39;Minimum audience segment size. Prevents micro-targeting by ensuring segments meet a k-anonymity threshold. Applies to the estimated combined (intersection) audience when multiple criteria are used, not just individual criterion sizes. The governance agent validates this by querying signal catalog metadata or seller-reported segment sizes. When segment size data is unavailable, the governance agent SHOULD produce a finding with reduced confidence rather than silently passing.&#39;,
-            ge=1,
-        ),
-    ] = None
-    objectives: Annotated[
-        str,
-        Field(
-            description=&#39;Natural language campaign objectives. Used for strategic alignment validation.&#39;
-        ),
-    ]
-    plan_id: Annotated[str, Field(description=&#39;Unique identifier for this plan.&#39;)]
-    policy_categories: Annotated[
+    countries: Annotated[
         list[str] | None,
         Field(
-            description=&#34;Regulatory categories that apply to this campaign. Determines which policy regimes the governance agent enforces (e.g., &#39;children_directed&#39; activates COPPA/AADC, &#39;political_advertising&#39; activates disclosure requirements). The governance agent resolves categories to specific policies based on the plan&#39;s jurisdictions. When omitted, governance agents MAY infer categories from the brand&#39;s industries and the plan&#39;s objectives. Values are registry-defined category IDs (intentionally freeform strings, not an enum — new categories are added as regulations evolve).&#34;,
+            description=&#34;ISO 3166-1 alpha-2 country codes for authorized markets (e.g., [&#39;US&#39;, &#39;GB&#39;]). The governance agent rejects governed actions targeting outside these countries and resolves applicable policies by matching against policy jurisdictions.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    regions: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;ISO 3166-2 subdivision codes for authorized sub-national markets (e.g., [&#39;US-MA&#39;, &#39;US-CA&#39;]). When present, the governance agent restricts governed actions to these specific regions rather than the full country. Use for plans limited to specific states or provinces (e.g., cannabis in legal states). Policy resolution matches against both the subdivision and its parent country.&#34;,
             min_length=1,
         ),
     ] = None
@@ -595,17 +598,17 @@ validated to form a valid model.</p>
             description=&#34;Registry policy IDs to enforce for this plan. The governance agent resolves full policy definitions from the registry and evaluates actions against them. Intersected with the plan&#39;s countries/regions to activate only geographically relevant policies.&#34;
         ),
     ] = None
-    portfolio: Annotated[
-        Portfolio | None,
-        Field(
-            description=&#39;Portfolio-level governance constraints. When present, this plan acts as a portfolio plan that governs member plans. Portfolio plans define cross-brand constraints that no individual brand plan can override.&#39;
-        ),
-    ] = None
-    regions: Annotated[
+    policy_categories: Annotated[
         list[str] | None,
         Field(
-            description=&#34;ISO 3166-2 subdivision codes for authorized sub-national markets (e.g., [&#39;US-MA&#39;, &#39;US-CA&#39;]). When present, the governance agent restricts buys to these specific regions rather than the full country. Use for campaigns limited to specific states or provinces (e.g., cannabis in legal states). Policy resolution matches against both the subdivision and its parent country.&#34;,
+            description=&#34;Regulatory categories that apply to this campaign. Determines which policy regimes the governance agent enforces (e.g., &#39;children_directed&#39; activates COPPA/AADC, &#39;political_advertising&#39; activates disclosure requirements). The governance agent resolves categories to specific policies based on the plan&#39;s jurisdictions. When omitted, governance agents MAY infer categories from the brand&#39;s industries and the plan&#39;s objectives. Values are registry-defined category IDs (intentionally freeform strings, not an enum — new categories are added as regulations evolve).&#34;,
             min_length=1,
+        ),
+    ] = None
+    audience: Annotated[
+        audience_constraints.AudienceConstraints | None,
+        Field(
+            description=&#39;Audience targeting constraints. Defines who the campaign should reach (include) and must not reach (exclude). The governance agent evaluates seller targeting against these constraints.&#39;
         ),
     ] = None
     restricted_attributes: Annotated[
@@ -621,7 +624,37 @@ validated to form a valid model.</p>
             description=&#34;Additional restricted attributes not covered by the restricted-attribute enum. Freeform strings for jurisdiction-specific or brand-specific restrictions beyond GDPR Article 9 categories (e.g., &#39;financial_status&#39;, &#39;immigration_status&#39;). Governance agents use semantic matching for these.&#34;,
             min_length=1,
         ),
-    ] = None</code></pre>
+    ] = None
+    min_audience_size: Annotated[
+        int | None,
+        Field(
+            description=&#39;Minimum audience segment size. Prevents micro-targeting by ensuring segments meet a k-anonymity threshold. Applies to the estimated combined (intersection) audience when multiple criteria are used, not just individual criterion sizes. The governance agent validates this by querying signal catalog metadata or seller-reported segment sizes. When segment size data is unavailable, the governance agent SHOULD produce a finding with reduced confidence rather than silently passing.&#39;,
+            ge=1,
+        ),
+    ] = None
+    custom_policies: Annotated[
+        list[policy_entry.PolicyEntry] | None,
+        Field(
+            description=&#39;Bespoke policies specific to this campaign, using the same shape as registry entries. Each policy has a policy_id, enforcement (must|should), and natural-language policy text. Governance findings reference policy_id to identify which policy triggered. For quick authoring, omit version/name/category — servers default them.&#39;
+        ),
+    ] = None
+    approved_sellers: Annotated[
+        list[AnyUrl] | None,
+        Field(description=&#39;List of approved seller agent URLs. null means any seller.&#39;),
+    ] = None
+    delegations: Annotated[
+        list[Delegation] | None,
+        Field(
+            description=&#34;Agents authorized to execute against this plan. Each delegation scopes an agent&#39;s authority by budget, markets, and expiration. The governance agent validates that the requesting agent matches a delegation before approving actions.&#34;
+        ),
+    ] = None
+    portfolio: Annotated[
+        Portfolio | None,
+        Field(
+            description=&#39;Portfolio-level governance constraints. When present, this plan acts as a portfolio plan that governs member plans. Portfolio plans define cross-brand constraints that no individual brand plan can override.&#39;
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -664,7 +697,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.custom_policies"><code class="name">var <span class="ident">custom_policies</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Plan.custom_policies"><code class="name">var <span class="ident">custom_policies</span> : list[<a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry" href="policy_entry.html#adcp.types.generated_poc.governance.policy_entry.PolicyEntry">PolicyEntry</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -751,11 +784,9 @@ validated to form a valid model.</p>
             description=&#39;Plan IDs governed by this portfolio plan. The governance agent validates member plan actions against portfolio constraints.&#39;
         ),
     ]
-    shared_exclusions: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Natural language exclusion rules applied across all member plans (e.g., &#39;No advertising on properties owned by competitor holding companies&#39;).&#34;
-        ),
+    total_budget_cap: Annotated[
+        TotalBudgetCap | None,
+        Field(description=&#39;Maximum aggregate budget across all member plans.&#39;),
     ] = None
     shared_policy_ids: Annotated[
         list[str] | None,
@@ -763,9 +794,11 @@ validated to form a valid model.</p>
             description=&#39;Registry policy IDs enforced across all member plans, regardless of individual brand configuration.&#39;
         ),
     ] = None
-    total_budget_cap: Annotated[
-        TotalBudgetCap | None,
-        Field(description=&#39;Maximum aggregate budget across all member plans.&#39;),
+    shared_exclusions: Annotated[
+        list[policy_entry.PolicyEntry] | None,
+        Field(
+            description=&#34;Bespoke exclusion policies applied across all member plans, using the same shape as registry entries. Authored typically as enforcement: must policies with exclusion language in the policy text (e.g., &#39;No advertising on properties owned by competitor holding companies&#39;).&#34;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -793,7 +826,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.shared_exclusions"><code class="name">var <span class="ident">shared_exclusions</span> : list[str] | None</code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.shared_exclusions"><code class="name">var <span class="ident">shared_exclusions</span> : list[<a title="adcp.types.generated_poc.governance.policy_entry.PolicyEntry" href="policy_entry.html#adcp.types.generated_poc.governance.policy_entry.PolicyEntry">PolicyEntry</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -801,7 +834,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.total_budget_cap"><code class="name">var <span class="ident">total_budget_cap</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.Portfolio.total_budget_cap"><code class="name">var <span class="ident">total_budget_cap</span> : <a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -830,7 +863,26 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    plans: Annotated[list[Plan], Field(description=&#39;One or more campaign plans to sync.&#39;)]</code></pre>
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated unique key for at-most-once execution. `plan_id` gives resource-level dedup per plan, but the sync envelope emits audit events and can trigger governance reapproval — this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
+    plans: Annotated[list[Plan], Field(description=&#39;One or more campaign plans to sync.&#39;)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -849,6 +901,22 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -869,6 +937,52 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap"><code class="flex name class">
+<span>class <span class="ident">TotalBudgetCap</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TotalBudgetCap(BudgetLimit):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 </dl>
 </section>
 </article>
@@ -885,22 +999,23 @@ validated to form a valid model.</p>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Allocations" href="#adcp.types.generated_poc.governance.sync_plans_request.Allocations">Allocations</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Allocations.amount" href="#adcp.types.generated_poc.governance.sync_plans_request.Allocations.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Allocations.max_pct" href="#adcp.types.generated_poc.governance.sync_plans_request.Allocations.max_pct">max_pct</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Allocations.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.Allocations.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget">Budget</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.allocations" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.allocations">allocations</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.authority_level" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.authority_level">authority_level</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.currency" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.currency">currency</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.per_seller_max_pct" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.per_seller_max_pct">per_seller_max_pct</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.reallocation_threshold" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.reallocation_threshold">reallocation_threshold</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.Budget.total" href="#adcp.types.generated_poc.governance.sync_plans_request.Budget.total">total</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit">BudgetLimit</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.amount">amount</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.BudgetLimit.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -984,9 +1099,19 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest">SyncPlansRequest</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.adcp_major_version" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.adcp_major_version">adcp_major_version</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.context" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.ext" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.idempotency_key" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.plans" href="#adcp.types.generated_poc.governance.sync_plans_request.SyncPlansRequest.plans">plans</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap">TotalBudgetCap</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config" href="#adcp.types.generated_poc.governance.sync_plans_request.TotalBudgetCap.model_config">model_config</a></code></li>
 </ul>
 </li>
 </ul>

@@ -59,8 +59,8 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    assigned_date: Annotated[AwareDatetime, Field(description=&#39;When this assignment was created&#39;)]
-    package_id: Annotated[str, Field(description=&#39;Package identifier&#39;)]</code></pre>
+    package_id: Annotated[str, Field(description=&#39;Package identifier&#39;)]
+    assigned_date: Annotated[AwareDatetime, Field(description=&#39;When this assignment was created&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -116,13 +116,13 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    assignment_count: Annotated[
+        int, Field(description=&#39;Total number of active package assignments&#39;, ge=0)
+    ]
     assigned_packages: Annotated[
         list[AssignedPackage] | None,
         Field(description=&#39;List of packages this creative is assigned to&#39;),
-    ] = None
-    assignment_count: Annotated[
-        int, Field(description=&#39;Total number of active package assignments&#39;, ge=0)
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -178,12 +178,23 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
     account: Annotated[
         account_1.Account | None, Field(description=&#39;Account that owns this creative&#39;)
     ] = None
+    name: Annotated[str, Field(description=&#39;Human-readable creative name&#39;)]
+    format_id: Annotated[
+        format_id_1.FormatId,
+        Field(description=&#39;Format identifier specifying which format this creative conforms to&#39;),
+    ]
+    status: Annotated[
+        creative_status.CreativeStatus, Field(description=&#39;Current approval status of the creative&#39;)
+    ]
+    created_date: Annotated[AwareDatetime, Field(description=&#39;When the creative was created&#39;)]
+    updated_date: Annotated[AwareDatetime, Field(description=&#39;When the creative was last modified&#39;)]
     assets: Annotated[
         dict[
-            str,
+            Annotated[str, StringConstraints(pattern=r&#39;^[a-z0-9_]+$&#39;)],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
@@ -202,9 +213,8 @@ validated to form a valid model.</p>
         | None,
         Field(description=&#39;Assets for this creative, keyed by asset_id&#39;),
     ] = None
-    assignments: Annotated[
-        Assignments | None,
-        Field(description=&#39;Current package assignments (included when include_assignments=true)&#39;),
+    tags: Annotated[
+        list[str] | None, Field(description=&#39;User-defined tags for organization and searchability&#39;)
     ] = None
     concept_id: Annotated[
         str | None,
@@ -213,19 +223,16 @@ validated to form a valid model.</p>
         ),
     ] = None
     concept_name: Annotated[str | None, Field(description=&#39;Human-readable concept name&#39;)] = None
-    created_date: Annotated[AwareDatetime, Field(description=&#39;When the creative was created&#39;)]
-    creative_id: Annotated[str, Field(description=&#39;Unique identifier for the creative&#39;)]
-    format_id: Annotated[
-        format_id_1.FormatId,
-        Field(description=&#39;Format identifier specifying which format this creative conforms to&#39;),
-    ]
-    items: Annotated[
-        list[creative_item.CreativeItem] | None,
+    variables: Annotated[
+        list[creative_variable.CreativeVariable] | None,
         Field(
-            description=&#39;Items for multi-asset formats like carousels and native ads (included when include_items=true)&#39;
+            description=&#39;Dynamic content variables (DCO slots) for this creative. Included when include_variables=true.&#39;
         ),
     ] = None
-    name: Annotated[str, Field(description=&#39;Human-readable creative name&#39;)]
+    assignments: Annotated[
+        Assignments | None,
+        Field(description=&#39;Current package assignments (included when include_assignments=true)&#39;),
+    ] = None
     snapshot: Annotated[
         Snapshot | None,
         Field(
@@ -238,17 +245,17 @@ validated to form a valid model.</p>
             description=&#39;Machine-readable reason the snapshot is omitted. Present only when include_snapshot was true and snapshot data is unavailable for this creative.&#39;
         ),
     ] = None
-    status: Annotated[
-        creative_status.CreativeStatus, Field(description=&#39;Current approval status of the creative&#39;)
-    ]
-    tags: Annotated[
-        list[str] | None, Field(description=&#39;User-defined tags for organization and searchability&#39;)
-    ] = None
-    updated_date: Annotated[AwareDatetime, Field(description=&#39;When the creative was last modified&#39;)]
-    variables: Annotated[
-        list[creative_variable.CreativeVariable] | None,
+    items: Annotated[
+        list[creative_item.CreativeItem] | None,
         Field(
-            description=&#39;Dynamic content variables (DCO slots) for this creative. Included when include_variables=true.&#39;
+            description=&#39;Items for multi-asset formats like carousels and native ads (included when include_items=true)&#39;
+        ),
+    ] = None
+    pricing_options: Annotated[
+        list[vendor_pricing_option.VendorPricingOption] | None,
+        Field(
+            description=&#39;Pricing options for using this creative (serving, delivery). Used by ad servers and library agents. Transformation agents expose format-level pricing on list_creative_formats instead. Present when include_pricing=true and account provided. The buyer passes the applied pricing_option_id in report_usage.&#39;,
+            min_length=1,
         ),
     ] = None</code></pre>
 </details>
@@ -273,7 +280,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.creative.list_creatives_response.Creative.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="../core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="../core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="../core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="../core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="../core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="../core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="../core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="../core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="../core/assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="../core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="../core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset" href="../core/assets/markdown_asset.html#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset">MarkdownAsset</a> | <a title="adcp.types.generated_poc.core.creative_brief.CreativeBrief" href="../core/creative_brief.html#adcp.types.generated_poc.core.creative_brief.CreativeBrief">CreativeBrief</a> | <a title="adcp.types.generated_poc.core.catalog.Catalog" href="../core/catalog.html#adcp.types.generated_poc.core.catalog.Catalog">Catalog</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.creative.list_creatives_response.Creative.assets"><code class="name">var <span class="ident">assets</span> : dict[str, <a title="adcp.types.generated_poc.core.assets.image_asset.ImageAsset" href="../core/assets/image_asset.html#adcp.types.generated_poc.core.assets.image_asset.ImageAsset">ImageAsset</a> | <a title="adcp.types.generated_poc.core.assets.video_asset.VideoAsset" href="../core/assets/video_asset.html#adcp.types.generated_poc.core.assets.video_asset.VideoAsset">VideoAsset</a> | <a title="adcp.types.generated_poc.core.assets.audio_asset.AudioAsset" href="../core/assets/audio_asset.html#adcp.types.generated_poc.core.assets.audio_asset.AudioAsset">AudioAsset</a> | <a title="adcp.types.generated_poc.core.assets.vast_asset.VastAsset" href="../core/assets/vast_asset.html#adcp.types.generated_poc.core.assets.vast_asset.VastAsset">VastAsset</a> | <a title="adcp.types.generated_poc.core.assets.text_asset.TextAsset" href="../core/assets/text_asset.html#adcp.types.generated_poc.core.assets.text_asset.TextAsset">TextAsset</a> | <a title="adcp.types.generated_poc.core.assets.url_asset.UrlAsset" href="../core/assets/url_asset.html#adcp.types.generated_poc.core.assets.url_asset.UrlAsset">UrlAsset</a> | <a title="adcp.types.generated_poc.core.assets.html_asset.HtmlAsset" href="../core/assets/html_asset.html#adcp.types.generated_poc.core.assets.html_asset.HtmlAsset">HtmlAsset</a> | <a title="adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset" href="../core/assets/javascript_asset.html#adcp.types.generated_poc.core.assets.javascript_asset.JavascriptAsset">JavascriptAsset</a> | <a title="adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset" href="../core/assets/webhook_asset.html#adcp.types.generated_poc.core.assets.webhook_asset.WebhookAsset">WebhookAsset</a> | <a title="adcp.types.generated_poc.core.assets.css_asset.CssAsset" href="../core/assets/css_asset.html#adcp.types.generated_poc.core.assets.css_asset.CssAsset">CssAsset</a> | <a title="adcp.types.generated_poc.core.assets.daast_asset.DaastAsset" href="../core/assets/daast_asset.html#adcp.types.generated_poc.core.assets.daast_asset.DaastAsset">DaastAsset</a> | <a title="adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset" href="../core/assets/markdown_asset.html#adcp.types.generated_poc.core.assets.markdown_asset.MarkdownAsset">MarkdownAsset</a> | <a title="adcp.types.generated_poc.core.assets.brief_asset.BriefAsset" href="../core/assets/brief_asset.html#adcp.types.generated_poc.core.assets.brief_asset.BriefAsset">BriefAsset</a> | <a title="adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset" href="../core/assets/catalog_asset.html#adcp.types.generated_poc.core.assets.catalog_asset.CatalogAsset">CatalogAsset</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -310,6 +317,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.creative.list_creatives_response.Creative.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.creative.list_creatives_response.Creative.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption" href="../core/vendor_pricing_option.html#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption">VendorPricingOption</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -362,32 +373,32 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    context: context_1.ContextObject | None = None
+    query_summary: Annotated[
+        QuerySummary, Field(description=&#39;Summary of the query that was executed&#39;)
+    ]
+    pagination: pagination_response.PaginationResponse
     creatives: Annotated[
         list[Creative], Field(description=&#39;Array of creative assets matching the query&#39;)
     ]
-    errors: Annotated[
-        list[error.Error] | None,
-        Field(description=&#39;Task-specific errors (e.g., invalid filters, account not found)&#39;),
-    ] = None
-    ext: ext_1.ExtensionObject | None = None
     format_summary: Annotated[
-        dict[str, int] | None,
+        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], int] | None,
         Field(
             description=&#34;Breakdown of creatives by format. Keys are agent-defined format identifiers, optionally including dimensions (e.g., &#39;display_static_300x250&#39;, &#39;video_30s_vast&#39;). Key construction is platform-specific — there is no required format.&#34;
         ),
     ] = None
-    pagination: pagination_response.PaginationResponse
-    query_summary: Annotated[
-        QuerySummary, Field(description=&#39;Summary of the query that was executed&#39;)
-    ]
+    status_summary: Annotated[
+        StatusSummary | None, Field(description=&#39;Breakdown of creatives by status&#39;)
+    ] = None
+    errors: Annotated[
+        list[error.Error] | None,
+        Field(description=&#39;Task-specific errors (e.g., invalid filters, account not found)&#39;),
+    ] = None
     sandbox: Annotated[
         bool | None,
         Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
     ] = None
-    status_summary: Annotated[
-        StatusSummary | None, Field(description=&#39;Breakdown of creatives by status&#39;)
-    ] = None</code></pre>
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -471,19 +482,19 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    filters_applied: Annotated[
-        list[str] | None, Field(description=&#39;List of filters that were applied to the query&#39;)
-    ] = None
-    returned: Annotated[
-        int, Field(description=&#39;Number of creatives returned in this response&#39;, ge=0)
-    ]
-    sort_applied: Annotated[
-        SortApplied | None, Field(description=&#39;Sort order that was applied&#39;)
-    ] = None
     total_matching: Annotated[
         int,
         Field(description=&#39;Total number of creatives matching filters (across all pages)&#39;, ge=0),
-    ]</code></pre>
+    ]
+    returned: Annotated[
+        int, Field(description=&#39;Number of creatives returned in this response&#39;, ge=0)
+    ]
+    filters_applied: Annotated[
+        list[str] | None, Field(description=&#39;List of filters that were applied to the query&#39;)
+    ] = None
+    sort_applied: Annotated[
+        SortApplied | None, Field(description=&#39;Sort order that was applied&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -550,6 +561,13 @@ validated to form a valid model.</p>
     as_of: Annotated[
         AwareDatetime, Field(description=&#39;When this snapshot was captured by the platform&#39;)
     ]
+    staleness_seconds: Annotated[
+        int,
+        Field(
+            description=&#39;Maximum age of this data in seconds. For example, 3600 means the data may be up to 1 hour old.&#39;,
+            ge=0,
+        ),
+    ]
     impressions: Annotated[
         int,
         Field(
@@ -562,14 +580,7 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Last time this creative served an impression. Absent when the creative has never served.&#39;
         ),
-    ] = None
-    staleness_seconds: Annotated[
-        int,
-        Field(
-            description=&#39;Maximum age of this data in seconds. For example, 3600 means the data may be up to 1 hour old.&#39;,
-            ge=0,
-        ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -699,8 +710,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SortApplied(AdCPBaseModel):
-    direction: sort_direction.SortDirection | None = None
-    field: str | None = None</code></pre>
+    field: str | None = None
+    direction: sort_direction.SortDirection | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -756,15 +767,15 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    approved: Annotated[int | None, Field(description=&#39;Number of approved creatives&#39;, ge=0)] = None
-    archived: Annotated[int | None, Field(description=&#39;Number of archived creatives&#39;, ge=0)] = None
-    pending_review: Annotated[
-        int | None, Field(description=&#39;Number of creatives pending review&#39;, ge=0)
-    ] = None
     processing: Annotated[
         int | None, Field(description=&#39;Number of creatives being processed&#39;, ge=0)
     ] = None
-    rejected: Annotated[int | None, Field(description=&#39;Number of rejected creatives&#39;, ge=0)] = None</code></pre>
+    approved: Annotated[int | None, Field(description=&#39;Number of approved creatives&#39;, ge=0)] = None
+    pending_review: Annotated[
+        int | None, Field(description=&#39;Number of creatives pending review&#39;, ge=0)
+    ] = None
+    rejected: Annotated[int | None, Field(description=&#39;Number of rejected creatives&#39;, ge=0)] = None
+    archived: Annotated[int | None, Field(description=&#39;Number of archived creatives&#39;, ge=0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -864,6 +875,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.creative.list_creatives_response.Creative.items" href="#adcp.types.generated_poc.creative.list_creatives_response.Creative.items">items</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creatives_response.Creative.model_config" href="#adcp.types.generated_poc.creative.list_creatives_response.Creative.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creatives_response.Creative.name" href="#adcp.types.generated_poc.creative.list_creatives_response.Creative.name">name</a></code></li>
+<li><code><a title="adcp.types.generated_poc.creative.list_creatives_response.Creative.pricing_options" href="#adcp.types.generated_poc.creative.list_creatives_response.Creative.pricing_options">pricing_options</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creatives_response.Creative.snapshot" href="#adcp.types.generated_poc.creative.list_creatives_response.Creative.snapshot">snapshot</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creatives_response.Creative.snapshot_unavailable_reason" href="#adcp.types.generated_poc.creative.list_creatives_response.Creative.snapshot_unavailable_reason">snapshot_unavailable_reason</a></code></li>
 <li><code><a title="adcp.types.generated_poc.creative.list_creatives_response.Creative.status" href="#adcp.types.generated_poc.creative.list_creatives_response.Creative.status">status</a></code></li>

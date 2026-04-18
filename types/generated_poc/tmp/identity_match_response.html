@@ -59,14 +59,18 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    type: Annotated[
+        Literal[&#39;identity_match_response&#39;],
+        Field(description=&#39;Message type discriminator for deserialization.&#39;),
+    ]
+    request_id: Annotated[
+        str, Field(description=&#39;Echoed request identifier from the identity match request&#39;)
+    ]
     eligible_package_ids: Annotated[
         list[str],
         Field(
             description=&#39;Package IDs the user is eligible for. Packages not listed are ineligible.&#39;
         ),
-    ]
-    request_id: Annotated[
-        str, Field(description=&#39;Echoed request identifier from the identity match request&#39;)
     ]
     ttl_sec: Annotated[
         int,
@@ -76,10 +80,12 @@ el.replaceWith(d);
             le=86400,
         ),
     ]
-    type: Annotated[
-        Literal[&#39;identity_match_response&#39;],
-        Field(description=&#39;Message type discriminator for deserialization.&#39;),
-    ]</code></pre>
+    tmpx: Annotated[
+        str | None,
+        Field(
+            description=&#34;HPKE-encrypted exposure token containing the resolved user identity tokens. The publisher substitutes this into creative tracking URLs as {TMPX}. The buyer&#39;s impression pixel receives the token at serve time, enabling real-time per-user frequency state updates. Wire format: kid.base64url_nopad(ciphertext) — unpadded base64url per RFC 4648 section 5 (no = characters). Publishers MUST treat this value as opaque pass-through data.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -107,6 +113,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.request_id"><code class="name">var <span class="ident">request_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.tmpx"><code class="name">var <span class="ident">tmpx</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -151,6 +161,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.eligible_package_ids" href="#adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.eligible_package_ids">eligible_package_ids</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.model_config" href="#adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.request_id" href="#adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.request_id">request_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.tmpx" href="#adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.tmpx">tmpx</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.ttl_sec" href="#adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.ttl_sec">ttl_sec</a></code></li>
 <li><code><a title="adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.type" href="#adcp.types.generated_poc.tmp.identity_match_response.IdentityMatchResponse.type">type</a></code></li>
 </ul>

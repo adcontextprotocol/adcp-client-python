@@ -257,12 +257,6 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    auto_approval_rate: Annotated[
-        float | None,
-        Field(
-            description=&#39;Fraction of checks approved without human intervention.&#39;, ge=0.0, le=1.0
-        ),
-    ] = None
     escalation_rate: Annotated[
         float | None,
         Field(description=&#39;Fraction of checks that resulted in escalation.&#39;, ge=0.0, le=1.0),
@@ -270,6 +264,12 @@ attributes &ndash; see the documentation for details.</p></div>
     escalation_rate_trend: Annotated[
         EscalationRateTrend | None,
         Field(description=&#34;Direction of escalation rate over the plan&#39;s lifetime.&#34;),
+    ] = None
+    auto_approval_rate: Annotated[
+        float | None,
+        Field(
+            description=&#39;Fraction of checks approved without human intervention.&#39;, ge=0.0, le=1.0
+        ),
     ] = None
     human_override_rate: Annotated[
         float | None,
@@ -364,17 +364,26 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    id: Annotated[str, Field(description=&#39;Entry identifier.&#39;)]
+    type: Annotated[Type, Field(description=&#39;Entry type.&#39;)]
+    timestamp: Annotated[AwareDatetime, Field(description=&#39;ISO 8601 timestamp.&#39;)]
+    plan_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Plan this entry belongs to. Present when querying multiple plans or a portfolio.&#39;
+        ),
+    ] = None
     caller: Annotated[
         AnyUrl | None,
         Field(
             description=&#39;URL of the agent that made the request. Resolved from the credentials used on the governance callback.&#39;
         ),
     ] = None
-    categories_evaluated: Annotated[
-        list[str] | None,
-        Field(
-            description=&#34;Governance categories evaluated (e.g., &#39;budget_authority&#39;, &#39;regulatory_compliance&#39;). Present for check entries.&#34;
-        ),
+    tool: Annotated[str | None, Field(description=&#39;The AdCP tool (present for check entries).&#39;)] = (
+        None
+    )
+    status: Annotated[
+        Status13 | None, Field(description=&#39;Governance check status (present for check entries).&#39;)
     ] = None
     check_type: Annotated[
         CheckType | None,
@@ -382,36 +391,10 @@ validated to form a valid model.</p>
             description=&#39;Whether the check was an intent check (orchestrator) or execution check (seller). Inferred from the fields present on the original check request. Present for check entries.&#39;
         ),
     ] = None
-    committed_budget: Annotated[
-        float | None, Field(description=&#39;Budget committed (present for completed outcome entries).&#39;)
-    ] = None
     explanation: Annotated[
         str | None,
         Field(
             description=&#39;Human-readable explanation of the governance decision (present for check entries).&#39;
-        ),
-    ] = None
-    findings: Annotated[
-        list[Finding] | None,
-        Field(
-            description=&#39;Findings from this check or outcome. Same structure as check_governance response findings.&#39;
-        ),
-    ] = None
-    id: Annotated[str, Field(description=&#39;Entry identifier.&#39;)]
-    media_buy_id: Annotated[
-        str | None, Field(description=&#39;Media buy ID (present for delivery outcome entries).&#39;)
-    ] = None
-    outcome: Annotated[
-        outcome_type.OutcomeType | None,
-        Field(description=&#39;Outcome type (present for outcome entries).&#39;),
-    ] = None
-    outcome_status: Annotated[
-        str | None, Field(description=&#39;Outcome status (present for outcome entries).&#39;)
-    ] = None
-    plan_id: Annotated[
-        str | None,
-        Field(
-            description=&#39;Plan this entry belongs to. Present when querying multiple plans or a portfolio.&#39;
         ),
     ] = None
     policies_evaluated: Annotated[
@@ -420,14 +403,37 @@ validated to form a valid model.</p>
             description=&#39;Registry policy IDs evaluated during this check (present for check entries).&#39;
         ),
     ] = None
-    status: Annotated[
-        Status | None, Field(description=&#39;Governance check status (present for check entries).&#39;)
+    categories_evaluated: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Governance categories evaluated (e.g., &#39;budget_authority&#39;, &#39;regulatory_compliance&#39;). Present for check entries.&#34;
+        ),
     ] = None
-    timestamp: Annotated[AwareDatetime, Field(description=&#39;ISO 8601 timestamp.&#39;)]
-    tool: Annotated[str | None, Field(description=&#39;The AdCP tool (present for check entries).&#39;)] = (
-        None
-    )
-    type: Annotated[Type, Field(description=&#39;Entry type.&#39;)]</code></pre>
+    findings: Annotated[
+        list[Finding] | None,
+        Field(
+            description=&#39;Findings from this check or outcome. Same structure as check_governance response findings.&#39;
+        ),
+    ] = None
+    outcome: Annotated[
+        outcome_type.OutcomeType | None,
+        Field(description=&#39;Outcome type (present for outcome entries).&#39;),
+    ] = None
+    committed_budget: Annotated[
+        float | None, Field(description=&#39;Budget committed (present for completed outcome entries).&#39;)
+    ] = None
+    governance_context: Annotated[
+        str | None,
+        Field(
+            description=&#39;Governance context for this entry (present for check and outcome entries).&#39;
+        ),
+    ] = None
+    purchase_type: Annotated[
+        purchase_type_1.PurchaseType | None, Field(description=&#39;Purchase type for this entry.&#39;)
+    ] = None
+    outcome_status: Annotated[
+        str | None, Field(description=&#39;Outcome status (present for outcome entries).&#39;)
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -470,11 +476,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.governance_context"><code class="name">var <span class="ident">governance_context</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.id"><code class="name">var <span class="ident">id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -498,7 +504,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status">Status</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.purchase_type"><code class="name">var <span class="ident">purchase_type</span> : <a title="adcp.types.generated_poc.enums.purchase_type.PurchaseType" href="../enums/purchase_type.html#adcp.types.generated_poc.enums.purchase_type.PurchaseType">PurchaseType</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13">Status13</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -681,10 +691,10 @@ attributes &ndash; see the documentation for details.</p></div>
         extra=&#39;forbid&#39;,
     )
     category_id: str
-    confidence: Annotated[float | None, Field(ge=0.0, le=1.0)] = None
-    explanation: str
     policy_id: str | None = None
-    severity: escalation_severity.EscalationSeverity</code></pre>
+    severity: escalation_severity.EscalationSeverity
+    explanation: str
+    confidence: Annotated[float | None, Field(ge=0.0, le=1.0)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -752,7 +762,9 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    plans: Annotated[list[Plan], Field(description=&#39;Audit data for each requested plan.&#39;)]</code></pre>
+    plans: Annotated[list[Plan], Field(description=&#39;Audit data for each requested plan.&#39;)]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -771,6 +783,14 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -791,8 +811,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy"><code class="flex name class">
-<span>class <span class="ident">MediaBuy</span></span>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction"><code class="flex name class">
+<span>class <span class="ident">GovernedAction</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -800,16 +820,27 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class MediaBuy(AdCPBaseModel):
+<pre><code class="python">class GovernedAction(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    governance_context: Annotated[
+        str, Field(description=&#34;Governance context correlating this action&#39;s lifecycle.&#34;)
+    ]
+    purchase_type: Annotated[
+        purchase_type_1.PurchaseType, Field(description=&#39;Type of financial commitment.&#39;)
+    ]
+    status: Annotated[Status, Field(description=&#39;Action status.&#39;)]
+    committed: Annotated[float, Field(description=&#39;Budget committed for this action.&#39;)]
     check_count: Annotated[
-        int | None, Field(description=&#39;Number of governance checks performed for this media buy.&#39;)
-    ] = None
-    committed: Annotated[float, Field(description=&#39;Budget committed for this media buy.&#39;)]
-    media_buy_id: Annotated[str, Field(description=&#39;Seller-assigned media buy identifier.&#39;)]
-    status: Annotated[Status6, Field(description=&#39;Media buy status.&#39;)]</code></pre>
+        int, Field(description=&#39;Number of governance checks performed for this action.&#39;)
+    ]
+    seller_reference: Annotated[
+        str | None,
+        Field(
+            description=&#34;The seller&#39;s identifier for the resource (e.g., media_buy_id, rights_grant_id). Present when reported via report_plan_outcome.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -828,23 +859,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.check_count"><code class="name">var <span class="ident">check_count</span> : int | None</code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.check_count"><code class="name">var <span class="ident">check_count</span> : int</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.committed"><code class="name">var <span class="ident">committed</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.committed"><code class="name">var <span class="ident">committed</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.media_buy_id"><code class="name">var <span class="ident">media_buy_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.governance_context"><code class="name">var <span class="ident">governance_context</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6">Status6</a></code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.purchase_type"><code class="name">var <span class="ident">purchase_type</span> : <a title="adcp.types.generated_poc.enums.purchase_type.PurchaseType" href="../enums/purchase_type.html#adcp.types.generated_poc.enums.purchase_type.PurchaseType">PurchaseType</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.seller_reference"><code class="name">var <span class="ident">seller_reference</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status">Status</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -873,20 +912,23 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
+    plan_id: Annotated[str, Field(description=&#39;Plan identifier.&#39;)]
+    plan_version: Annotated[int, Field(description=&#39;Current plan version.&#39;)]
+    status: Annotated[Status, Field(description=&#39;Plan lifecycle status.&#39;)]
     budget: Annotated[Budget, Field(description=&#39;Budget state.&#39;)]
     channel_allocation: Annotated[
         dict[str, ChannelAllocation] | None,
         Field(description=&#39;Current channel mix. Keyed by channel ID.&#39;),
     ] = None
+    summary: Annotated[Summary, Field(description=&#39;Aggregate validation and outcome statistics.&#39;)]
     entries: Annotated[
         list[Entry] | None,
         Field(description=&#39;Ordered audit trail. Only present when include_entries is true.&#39;),
     ] = None
-    media_buys: Annotated[list[MediaBuy], Field(description=&#39;Per-media-buy breakdown.&#39;)]
-    plan_id: Annotated[str, Field(description=&#39;Plan identifier.&#39;)]
-    plan_version: Annotated[int, Field(description=&#39;Current plan version.&#39;)]
-    status: Annotated[Status6, Field(description=&#39;Plan lifecycle status.&#39;)]
-    summary: Annotated[Summary, Field(description=&#39;Aggregate validation and outcome statistics.&#39;)]</code></pre>
+    governed_actions: Annotated[
+        list[GovernedAction],
+        Field(description=&#39;Per-action breakdown grouped by governance context.&#39;),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -917,7 +959,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.media_buys"><code class="name">var <span class="ident">media_buys</span> : list[<a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy">MediaBuy</a>]</code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.governed_actions"><code class="name">var <span class="ident">governed_actions</span> : list[<a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction">GovernedAction</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -933,7 +975,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6">Status6</a></code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status">Status</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -963,75 +1005,6 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    approved = &#39;approved&#39;
-    denied = &#39;denied&#39;
-    conditions = &#39;conditions&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.approved"><code class="name">var <span class="ident">approved</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.conditions"><code class="name">var <span class="ident">conditions</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.denied"><code class="name">var <span class="ident">denied</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6"><code class="flex name class">
-<span>class <span class="ident">Status6</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Status6(Enum):
     active = &#39;active&#39;
     suspended = &#39;suspended&#39;
     completed = &#39;completed&#39;</code></pre>
@@ -1077,15 +1050,84 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.active"><code class="name">var <span class="ident">active</span></code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.active"><code class="name">var <span class="ident">active</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.completed"><code class="name">var <span class="ident">completed</span></code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.completed"><code class="name">var <span class="ident">completed</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.suspended"><code class="name">var <span class="ident">suspended</span></code></dt>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.suspended"><code class="name">var <span class="ident">suspended</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13"><code class="flex name class">
+<span>class <span class="ident">Status13</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status13(Enum):
+    approved = &#39;approved&#39;
+    denied = &#39;denied&#39;
+    conditions = &#39;conditions&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.approved"><code class="name">var <span class="ident">approved</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.conditions"><code class="name">var <span class="ident">conditions</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.denied"><code class="name">var <span class="ident">denied</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1105,8 +1147,8 @@ attributes &ndash; see the documentation for details.</p></div>
         extra=&#39;forbid&#39;,
     )
     approved: int | None = None
-    conditions: int | None = None
     denied: int | None = None
+    conditions: int | None = None
     human_reviewed: Annotated[
         int | None,
         Field(
@@ -1179,21 +1221,21 @@ validated to form a valid model.</p>
     checks_performed: Annotated[
         int | None, Field(description=&#39;Total governance checks performed.&#39;)
     ] = None
+    outcomes_reported: Annotated[int | None, Field(description=&#39;Total outcomes reported.&#39;)] = None
+    statuses: Annotated[
+        Statuses | None, Field(description=&#39;Count of each governance check status.&#39;)
+    ] = None
+    findings_count: Annotated[
+        int | None, Field(description=&#39;Total findings across all checks and outcomes.&#39;)
+    ] = None
+    escalations: Annotated[
+        list[Escalation] | None, Field(description=&#39;All escalations and their resolutions.&#39;)
+    ] = None
     drift_metrics: Annotated[
         DriftMetrics | None,
         Field(
             description=&#39;Aggregate governance metrics for detecting oversight drift. A declining escalation rate may indicate well-calibrated governance or eroding human oversight -- surfacing the trend lets the organization make that judgment.&#39;
         ),
-    ] = None
-    escalations: Annotated[
-        list[Escalation] | None, Field(description=&#39;All escalations and their resolutions.&#39;)
-    ] = None
-    findings_count: Annotated[
-        int | None, Field(description=&#39;Total findings across all checks and outcomes.&#39;)
-    ] = None
-    outcomes_reported: Annotated[int | None, Field(description=&#39;Total outcomes reported.&#39;)] = None
-    statuses: Annotated[
-        Statuses | None, Field(description=&#39;Count of each governance check status.&#39;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1266,9 +1308,6 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    auto_approval_rate_max: Annotated[
-        float | None, Field(description=&#39;Maximum acceptable auto-approval rate.&#39;, ge=0.0, le=1.0)
-    ] = None
     escalation_rate_max: Annotated[
         float | None,
         Field(
@@ -1284,6 +1323,9 @@ validated to form a valid model.</p>
             ge=0.0,
             le=1.0,
         ),
+    ] = None
+    auto_approval_rate_max: Annotated[
+        float | None, Field(description=&#39;Maximum acceptable auto-approval rate.&#39;, ge=0.0, le=1.0)
     ] = None
     human_override_rate_max: Annotated[
         float | None,
@@ -1468,13 +1510,14 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.committed_budget" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.committed_budget">committed_budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.explanation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.explanation">explanation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.findings" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.findings">findings</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.governance_context" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.governance_context">governance_context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.id">id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.media_buy_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome">outcome</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome_status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.outcome_status">outcome_status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.plan_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.plan_id">plan_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.policies_evaluated" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.policies_evaluated">policies_evaluated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.purchase_type" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.purchase_type">purchase_type</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.status">status</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.timestamp" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.timestamp">timestamp</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.tool" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Entry.tool">tool</a></code></li>
@@ -1513,18 +1556,22 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse">GetPlanAuditLogsResponse</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.context" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.ext" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.plans" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GetPlanAuditLogsResponse.plans">plans</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy">MediaBuy</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.check_count" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.check_count">check_count</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.committed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.committed">committed</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.media_buy_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.media_buy_id">media_buy_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.MediaBuy.status">status</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction">GovernedAction</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.check_count" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.check_count">check_count</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.committed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.committed">committed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.governance_context" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.governance_context">governance_context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.purchase_type" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.purchase_type">purchase_type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.seller_reference" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.seller_reference">seller_reference</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.GovernedAction.status">status</a></code></li>
 </ul>
 </li>
 <li>
@@ -1533,7 +1580,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.budget" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.budget">budget</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.channel_allocation" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.channel_allocation">channel_allocation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.entries" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.entries">entries</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.media_buys" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.media_buys">media_buys</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.governed_actions" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.governed_actions">governed_actions</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.model_config" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_id" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_id">plan_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_version" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Plan.plan_version">plan_version</a></code></li>
@@ -1544,17 +1591,17 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status">Status</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.approved" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.approved">approved</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.conditions" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.conditions">conditions</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.denied" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.denied">denied</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.active" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.active">active</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.completed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.completed">completed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.suspended" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status.suspended">suspended</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6">Status6</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13">Status13</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.active" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.active">active</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.completed" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.completed">completed</a></code></li>
-<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.suspended" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status6.suspended">suspended</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.approved" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.approved">approved</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.conditions" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.conditions">conditions</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.denied" href="#adcp.types.generated_poc.governance.get_plan_audit_logs_response.Status13.denied">denied</a></code></li>
 </ul>
 </li>
 <li>

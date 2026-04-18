@@ -59,10 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    issues: Annotated[
-        list[diagnostic_issue.DiagnosticIssue] | None,
+    status: Annotated[
+        assessment_status.AssessmentStatus,
         Field(
-            description=&#39;Actionable issues preventing full measurement readiness. Sellers should limit to the top 3-5 most actionable items. Buyer agents should sort by severity rather than relying on array position.&#39;
+            description=&#34;Overall measurement readiness level for this product given the buyer&#39;s event setup. &#39;insufficient&#39; means the product cannot optimize effectively with the current setup.&#34;
+        ),
+    ]
+    required_event_types: Annotated[
+        list[event_type.EventType] | None,
+        Field(
+            description=&#39;Event types this product needs for effective optimization. Buyers should ensure their event sources cover these types.&#39;,
+            min_length=1,
         ),
     ] = None
     missing_event_types: Annotated[
@@ -71,25 +78,18 @@ el.replaceWith(d);
             description=&#39;Event types this product requires that the buyer has not configured. Empty or absent when all required types are covered.&#39;
         ),
     ] = None
+    issues: Annotated[
+        list[diagnostic_issue.DiagnosticIssue] | None,
+        Field(
+            description=&#39;Actionable issues preventing full measurement readiness. Sellers should limit to the top 3-5 most actionable items. Buyer agents should sort by severity rather than relying on array position.&#39;
+        ),
+    ] = None
     notes: Annotated[
         str | None,
         Field(
             description=&#39;Seller explanation of the readiness assessment, recommendations for improvement, or context about what the buyer needs to change.&#39;
         ),
-    ] = None
-    required_event_types: Annotated[
-        list[event_type.EventType] | None,
-        Field(
-            description=&#39;Event types this product needs for effective optimization. Buyers should ensure their event sources cover these types.&#39;,
-            min_length=1,
-        ),
-    ] = None
-    status: Annotated[
-        assessment_status.AssessmentStatus,
-        Field(
-            description=&#34;Overall measurement readiness level for this product given the buyer&#39;s event setup. &#39;insufficient&#39; means the product cannot optimize effectively with the current setup.&#34;
-        ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec

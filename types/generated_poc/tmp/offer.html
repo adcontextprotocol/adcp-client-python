@@ -59,10 +59,23 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    package_id: Annotated[str, Field(description=&#39;Package identifier from the media buy.&#39;)]
     brand: Annotated[
         brand_ref.BrandReference | None,
         Field(
             description=&#39;Brand for this offer. Required when the product allows dynamic brands (brand selected at match time rather than fixed on the package). For single-brand packages, the brand is already known from the media buy.&#39;
+        ),
+    ] = None
+    price: Annotated[
+        offer_price.OfferPrice | None,
+        Field(
+            description=&#39;Price for this offer. Only present when the product supports variable pricing. For fixed-price packages, price is already set on the media buy.&#39;
+        ),
+    ] = None
+    summary: Annotated[
+        str | None,
+        Field(
+            description=&#34;Buyer-generated description of the offer, for the publisher to judge relevance. E.g., &#39;50% off Goldenfield mayo — recipe integration&#39;. The publisher (or their AI assistant) uses this to decide whether the offer fits the context.&#34;
         ),
     ] = None
     creative_manifest: Annotated[
@@ -75,19 +88,6 @@ el.replaceWith(d);
         dict[str, str] | None,
         Field(
             description=&#39;Key-value pairs the buyer passes for dynamic creative rendering or attribution tracking. In the GAM case, these flow as macro values. Not tied to user identity — attribution reconciliation happens via delivery reporting or clean room.&#39;
-        ),
-    ] = None
-    package_id: Annotated[str, Field(description=&#39;Package identifier from the media buy.&#39;)]
-    price: Annotated[
-        offer_price.OfferPrice | None,
-        Field(
-            description=&#39;Price for this offer. Only present when the product supports variable pricing. For fixed-price packages, price is already set on the media buy.&#39;
-        ),
-    ] = None
-    summary: Annotated[
-        str | None,
-        Field(
-            description=&#34;Buyer-generated description of the offer, for the publisher to judge relevance. E.g., &#39;50% off Goldenfield mayo — recipe integration&#39;. The publisher (or their AI assistant) uses this to decide whether the offer fits the context.&#34;
         ),
     ] = None</code></pre>
 </details>

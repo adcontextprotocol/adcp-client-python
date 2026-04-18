@@ -173,9 +173,15 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
     brand_id: Annotated[str, Field(description=&#39;Brand identifier from brand.json brands array&#39;)]
-    context: context_1.ContextObject | None = None
-    ext: ext_1.ExtensionObject | None = None
     fields: Annotated[
         list[FieldModel] | None,
         Field(
@@ -188,7 +194,9 @@ attributes &ndash; see the documentation for details.</p></div>
         Field(
             description=&#34;Intended use case, so the agent can tailor the response. A &#39;voice_synthesis&#39; use case returns voice configs; a &#39;likeness&#39; use case returns high-res photos and appearance guidelines.&#34;
         ),
-    ] = None</code></pre>
+    ] = None
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -207,6 +215,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.brand_id"><code class="name">var <span class="ident">brand_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
@@ -278,6 +290,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest" href="#adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest">GetBrandIdentityRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.adcp_major_version" href="#adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.brand_id" href="#adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.brand_id">brand_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.context" href="#adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.ext" href="#adcp.types.generated_poc.brand.get_brand_identity_request.GetBrandIdentityRequest.ext">ext</a></code></li>

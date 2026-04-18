@@ -59,14 +59,14 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    min: Annotated[float, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)]
+    max: Annotated[float | None, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)] = None
     currency: Annotated[
         str,
         Field(
             description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
         ),
-    ]
-    max: Annotated[float | None, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)] = None
-    min: Annotated[float, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)]</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -113,8 +113,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange1"><code class="flex name class">
-<span>class <span class="ident">BudgetRange1</span></span>
+<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange3"><code class="flex name class">
+<span>class <span class="ident">BudgetRange3</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -122,18 +122,18 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class BudgetRange1(AdCPBaseModel):
+<pre><code class="python">class BudgetRange3(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
+    min: Annotated[float | None, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)] = None
+    max: Annotated[float, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)]
     currency: Annotated[
         str,
         Field(
             description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
         ),
-    ]
-    max: Annotated[float, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)]
-    min: Annotated[float | None, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)] = None</code></pre>
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -152,19 +152,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange1.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange3.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange1.max"><code class="name">var <span class="ident">max</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange3.max"><code class="name">var <span class="ident">max</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange1.min"><code class="name">var <span class="ident">min</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange3.min"><code class="name">var <span class="ident">min</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange1.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.BudgetRange3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -244,30 +244,30 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    geometry: Annotated[
-        Geometry | None,
-        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
-    ] = None
-    label: Annotated[
-        str | None,
-        Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
-    ] = None
     lat: Annotated[
         float, Field(description=&#39;Latitude in decimal degrees (WGS 84)&#39;, ge=-90.0, le=90.0)
     ]
     lng: Annotated[
         float, Field(description=&#39;Longitude in decimal degrees (WGS 84)&#39;, ge=-180.0, le=180.0)
     ]
-    radius: Annotated[Radius | None, Field(description=&#39;Simple radius from the point&#39;)] = None
+    label: Annotated[
+        str | None,
+        Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
+    ] = None
+    travel_time: Annotated[
+        TravelTime, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
+    ]
     transport_mode: Annotated[
         transport_mode_1.TransportMode,
         Field(
             description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
     ]
-    travel_time: Annotated[
-        TravelTime, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
-    ]</code></pre>
+    radius: Annotated[Radius | None, Field(description=&#39;Simple radius from the point&#39;)] = None
+    geometry: Annotated[
+        Geometry | None,
+        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -330,8 +330,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2"><code class="flex name class">
-<span>class <span class="ident">GeoProximity2</span></span>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15"><code class="flex name class">
+<span>class <span class="ident">GeoProximity15</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -339,33 +339,33 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GeoProximity2(AdCPBaseModel):
+<pre><code class="python">class GeoProximity15(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    geometry: Annotated[
-        Geometry2 | None,
-        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
-    ] = None
-    label: Annotated[
-        str | None,
-        Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
-    ] = None
     lat: Annotated[
         float, Field(description=&#39;Latitude in decimal degrees (WGS 84)&#39;, ge=-90.0, le=90.0)
     ]
     lng: Annotated[
         float, Field(description=&#39;Longitude in decimal degrees (WGS 84)&#39;, ge=-180.0, le=180.0)
     ]
-    radius: Annotated[Radius, Field(description=&#39;Simple radius from the point&#39;)]
+    label: Annotated[
+        str | None,
+        Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
+    ] = None
+    travel_time: Annotated[
+        TravelTime14 | None, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
+    ] = None
     transport_mode: Annotated[
         transport_mode_1.TransportMode | None,
         Field(
             description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
     ] = None
-    travel_time: Annotated[
-        TravelTime2 | None, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
+    radius: Annotated[Radius, Field(description=&#39;Simple radius from the point&#39;)]
+    geometry: Annotated[
+        Geometry14 | None,
+        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -385,35 +385,35 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.product_filters.Geometry14" href="#adcp.types.generated_poc.core.product_filters.Geometry14">Geometry14</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.lat"><code class="name">var <span class="ident">lat</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15.lat"><code class="name">var <span class="ident">lat</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.lng"><code class="name">var <span class="ident">lng</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15.lng"><code class="name">var <span class="ident">lng</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.product_filters.Radius" href="#adcp.types.generated_poc.core.product_filters.Radius">Radius</a></code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.product_filters.Radius" href="#adcp.types.generated_poc.core.product_filters.Radius">Radius</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity2.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity15.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.product_filters.TravelTime14" href="#adcp.types.generated_poc.core.product_filters.TravelTime14">TravelTime14</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -429,8 +429,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3"><code class="flex name class">
-<span>class <span class="ident">GeoProximity3</span></span>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16"><code class="flex name class">
+<span>class <span class="ident">GeoProximity16</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -438,18 +438,10 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class GeoProximity3(AdCPBaseModel):
+<pre><code class="python">class GeoProximity16(AdCPBaseModel):
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    geometry: Annotated[
-        Geometry3,
-        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
-    ]
-    label: Annotated[
-        str | None,
-        Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
-    ] = None
     lat: Annotated[
         float | None, Field(description=&#39;Latitude in decimal degrees (WGS 84)&#39;, ge=-90.0, le=90.0)
     ] = None
@@ -457,16 +449,24 @@ validated to form a valid model.</p>
         float | None,
         Field(description=&#39;Longitude in decimal degrees (WGS 84)&#39;, ge=-180.0, le=180.0),
     ] = None
-    radius: Annotated[Radius | None, Field(description=&#39;Simple radius from the point&#39;)] = None
+    label: Annotated[
+        str | None,
+        Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
+    ] = None
+    travel_time: Annotated[
+        TravelTime15 | None, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
+    ] = None
     transport_mode: Annotated[
         transport_mode_1.TransportMode | None,
         Field(
             description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;
         ),
     ] = None
-    travel_time: Annotated[
-        TravelTime3 | None, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
-    ] = None</code></pre>
+    radius: Annotated[Radius | None, Field(description=&#39;Simple radius from the point&#39;)] = None
+    geometry: Annotated[
+        Geometry15,
+        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
+    ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -485,35 +485,35 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16.geometry"><code class="name">var <span class="ident">geometry</span> : <a title="adcp.types.generated_poc.core.product_filters.Geometry15" href="#adcp.types.generated_poc.core.product_filters.Geometry15">Geometry15</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16.label"><code class="name">var <span class="ident">label</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.lat"><code class="name">var <span class="ident">lat</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16.lat"><code class="name">var <span class="ident">lat</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.lng"><code class="name">var <span class="ident">lng</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16.lng"><code class="name">var <span class="ident">lng</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.product_filters.Radius" href="#adcp.types.generated_poc.core.product_filters.Radius">Radius</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16.radius"><code class="name">var <span class="ident">radius</span> : <a title="adcp.types.generated_poc.core.product_filters.Radius" href="#adcp.types.generated_poc.core.product_filters.Radius">Radius</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16.transport_mode"><code class="name">var <span class="ident">transport_mode</span> : <a title="adcp.types.generated_poc.enums.transport_mode.TransportMode" href="../enums/transport_mode.html#adcp.types.generated_poc.enums.transport_mode.TransportMode">TransportMode</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity3.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.GeoProximity16.travel_time"><code class="name">var <span class="ident">travel_time</span> : <a title="adcp.types.generated_poc.core.product_filters.TravelTime15" href="#adcp.types.generated_poc.core.product_filters.TravelTime15">TravelTime15</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -542,8 +542,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    coordinates: Annotated[list[Any], Field(description=&#39;GeoJSON coordinates array&#39;)]
-    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type&#39;)]</code></pre>
+    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type&#39;)]
+    coordinates: Annotated[list[Any], Field(description=&#39;GeoJSON coordinates array&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -560,99 +560,10 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry.coordinates"><code class="name">var <span class="ident">coordinates</span> : list[typing.Any]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.core.product_filters.Type" href="#adcp.types.generated_poc.core.product_filters.Type">Type</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry"><code class="flex name class">
-<span>class <span class="ident">Geometry2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Geometry(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    coordinates: Annotated[list[Any], Field(description=&#39;GeoJSON coordinates array&#39;)]
-    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type&#39;)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
+<h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry.coordinates"><code class="name">var <span class="ident">coordinates</span> : list[typing.Any]</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry.type"><code class="name">var <span class="ident">type</span> : <a title="adcp.types.generated_poc.core.product_filters.Type" href="#adcp.types.generated_poc.core.product_filters.Type">Type</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.Geometry"><code class="flex name class">
-<span>class <span class="ident">Geometry3</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Geometry(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    coordinates: Annotated[list[Any], Field(description=&#39;GeoJSON coordinates array&#39;)]
-    type: Annotated[Type, Field(description=&#39;GeoJSON geometry type&#39;)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
+<li><a title="adcp.types.generated_poc.core.product_filters.Geometry14" href="#adcp.types.generated_poc.core.product_filters.Geometry14">Geometry14</a></li>
+<li><a title="adcp.types.generated_poc.core.product_filters.Geometry15" href="#adcp.types.generated_poc.core.product_filters.Geometry15">Geometry15</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -676,6 +587,98 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry14"><code class="flex name class">
+<span>class <span class="ident">Geometry14</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geometry14(Geometry):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry14.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry15"><code class="flex name class">
+<span>class <span class="ident">Geometry15</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geometry15(Geometry):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.Geometry15.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -824,11 +827,11 @@ attributes &ndash; see the documentation for details.</p></div>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    code: Annotated[
-        str, Field(description=&#34;Metro code within the system (e.g., &#39;501&#39; for NYC DMA)&#34;)
-    ]
     system: Annotated[
         metro_system.MetroAreaSystem, Field(description=&#39;Metro classification system&#39;)
+    ]
+    code: Annotated[
+        str, Field(description=&#34;Metro code within the system (e.g., &#39;501&#39; for NYC DMA)&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -951,46 +954,11 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;allow&#39;,
     )
-    budget_range: Annotated[
-        BudgetRange | BudgetRange1 | None,
-        Field(description=&#39;Budget range to filter appropriate products&#39;),
-    ] = None
-    channels: Annotated[
-        list[channels_1.MediaChannel] | None,
-        Field(
-            description=&#34;Filter by advertising channels (e.g., [&#39;display&#39;, &#39;ctv&#39;, &#39;dooh&#39;])&#34;,
-            min_length=1,
-        ),
-    ] = None
-    countries: Annotated[
-        list[Country] | None,
-        Field(
-            description=&#34;Filter by country coverage using ISO 3166-1 alpha-2 codes (e.g., [&#39;US&#39;, &#39;CA&#39;, &#39;GB&#39;]). Works for all inventory types.&#34;,
-            min_length=1,
-        ),
-    ] = None
     delivery_type: delivery_type_1.DeliveryType | None = None
-    end_date: Annotated[
-        date_aliased | None,
-        Field(
-            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
-        ),
-    ] = None
     exclusivity: Annotated[
         exclusivity_1.Exclusivity | None,
         Field(
             description=&#34;Filter by exclusivity level. Returns products matching the specified exclusivity (e.g., &#39;exclusive&#39; returns only sole-sponsorship products).&#34;
-        ),
-    ] = None
-    format_ids: Annotated[
-        list[format_id.FormatId] | None,
-        Field(description=&#39;Filter by specific format IDs&#39;, min_length=1),
-    ] = None
-    geo_proximity: Annotated[
-        list[GeoProximity | GeoProximity2 | GeoProximity3] | None,
-        Field(
-            description=&#39;Filter by proximity to geographic points. Returns products with inventory coverage near these locations. Follows the same format as the targeting overlay — each entry uses exactly one method: travel_time + transport_mode, radius, or geometry. For locally-bound inventory (DOOH, radio), filters to products with coverage in the area. For digital inventory, filters to products from sellers supporting geo_proximity targeting.&#39;,
-            min_length=1,
         ),
     ] = None
     is_fixed_price: Annotated[
@@ -999,28 +967,37 @@ validated to form a valid model.</p>
             description=&#39;Filter by pricing availability: true = products offering fixed pricing (at least one option with fixed_price), false = products offering auction pricing (at least one option without fixed_price). Products with both fixed and auction options match both true and false.&#39;
         ),
     ] = None
-    keywords: Annotated[
-        list[Keyword] | None,
-        Field(
-            description=&#39;Filter by keyword relevance for search and retail media platforms. Returns products that support keyword targeting for these terms. Allows the sell-side agent to assess keyword availability and recommend appropriate products. Use match_type to indicate the desired precision.&#39;,
-            min_length=1,
-        ),
+    format_ids: Annotated[
+        list[format_id.FormatId] | None,
+        Field(description=&#39;Filter by specific format IDs&#39;, min_length=1),
     ] = None
-    metros: Annotated[
-        list[Metro] | None,
-        Field(
-            description=&#39;Filter by metro coverage for locally-bound inventory (radio, DOOH, local TV). Use when products have DMA/metro-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#39;,
-            min_length=1,
-        ),
+    standard_formats_only: Annotated[
+        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
     ] = None
     min_exposures: Annotated[
         int | None,
         Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
     ] = None
-    postal_areas: Annotated[
-        list[PostalArea] | None,
+    start_date: Annotated[
+        date_aliased | None,
         Field(
-            description=&#39;Filter by postal area coverage for locally-bound inventory (direct mail, DOOH, local campaigns). Use when products have postal-area-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#39;,
+            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+        ),
+    ] = None
+    end_date: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+        ),
+    ] = None
+    budget_range: Annotated[
+        BudgetRange | BudgetRange3 | None,
+        Field(description=&#39;Budget range to filter appropriate products&#39;),
+    ] = None
+    countries: Annotated[
+        list[Country] | None,
+        Field(
+            description=&#34;Filter by country coverage using ISO 3166-1 alpha-2 codes (e.g., [&#39;US&#39;, &#39;CA&#39;, &#39;GB&#39;]). Works for all inventory types.&#34;,
             min_length=1,
         ),
     ] = None
@@ -1031,11 +1008,31 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
+    metros: Annotated[
+        list[Metro] | None,
+        Field(
+            description=&#39;Filter by metro coverage for locally-bound inventory (radio, DOOH, local TV). Use when products have DMA/metro-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    channels: Annotated[
+        list[channels_1.MediaChannel] | None,
+        Field(
+            description=&#34;Filter by advertising channels (e.g., [&#39;display&#39;, &#39;ctv&#39;, &#39;dooh&#39;])&#34;,
+            min_length=1,
+        ),
+    ] = None
     required_axe_integrations: Annotated[
         list[AnyUrl] | None,
         Field(
             deprecated=True,
-            description=&#39;Deprecated: Use trusted_match filter instead. Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;
+            description=&#39;Deprecated: Use trusted_match filter instead. Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;,
+        ),
+    ] = None
+    trusted_match: Annotated[
+        TrustedMatch | None,
+        Field(
+            description=&#39;Filter products by Trusted Match Protocol capabilities. Only products with matching TMP support are returned.&#39;
         ),
     ] = None
     required_features: Annotated[
@@ -1058,19 +1055,32 @@ validated to form a valid model.</p>
             min_length=1,
         ),
     ] = None
-    standard_formats_only: Annotated[
-        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
-    ] = None
-    start_date: Annotated[
-        date_aliased | None,
+    postal_areas: Annotated[
+        list[PostalArea] | None,
         Field(
-            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+            description=&#39;Filter by postal area coverage for locally-bound inventory (direct mail, DOOH, local campaigns). Use when products have postal-area-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#39;,
+            min_length=1,
         ),
     ] = None
-    trusted_match: Annotated[
-        TrustedMatch | None,
+    geo_proximity: Annotated[
+        list[GeoProximity | GeoProximity15 | GeoProximity16] | None,
         Field(
-            description=&#39;Filter products by Trusted Match Protocol capabilities. Only products with matching TMP support are returned.&#39;
+            description=&#39;Filter by proximity to geographic points. Returns products with inventory coverage near these locations. Follows the same format as the targeting overlay — each entry uses exactly one method: travel_time + transport_mode, radius, or geometry. For locally-bound inventory (DOOH, radio), filters to products with coverage in the area. For digital inventory, filters to products from sellers supporting geo_proximity targeting.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    required_performance_standards: Annotated[
+        list[performance_standard.PerformanceStandard] | None,
+        Field(
+            description=&#34;Filter to products that can meet the buyer&#39;s performance standard requirements. Each entry specifies a metric, minimum threshold, and optionally a required vendor and standard. Products that cannot meet these thresholds or do not support the specified vendors are excluded. Use this to tell the seller upfront: &#39;I need DoubleVerify for viewability at 70% MRC.&#39;&#34;,
+            min_length=1,
+        ),
+    ] = None
+    keywords: Annotated[
+        list[Keyword] | None,
+        Field(
+            description=&#39;Filter by keyword relevance for search and retail media platforms. Returns products that support keyword targeting for these terms. Allows the sell-side agent to assess keyword availability and recommend appropriate products. Use match_type to indicate the desired precision.&#39;,
+            min_length=1,
         ),
     ] = None</code></pre>
 </details>
@@ -1091,7 +1101,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.budget_range"><code class="name">var <span class="ident">budget_range</span> : <a title="adcp.types.generated_poc.core.product_filters.BudgetRange" href="#adcp.types.generated_poc.core.product_filters.BudgetRange">BudgetRange</a> | <a title="adcp.types.generated_poc.core.product_filters.BudgetRange1" href="#adcp.types.generated_poc.core.product_filters.BudgetRange1">BudgetRange1</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.budget_range"><code class="name">var <span class="ident">budget_range</span> : <a title="adcp.types.generated_poc.core.product_filters.BudgetRange" href="#adcp.types.generated_poc.core.product_filters.BudgetRange">BudgetRange</a> | <a title="adcp.types.generated_poc.core.product_filters.BudgetRange3" href="#adcp.types.generated_poc.core.product_filters.BudgetRange3">BudgetRange3</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1119,7 +1129,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.geo_proximity"><code class="name">var <span class="ident">geo_proximity</span> : list[<a title="adcp.types.generated_poc.core.product_filters.GeoProximity" href="#adcp.types.generated_poc.core.product_filters.GeoProximity">GeoProximity</a> | <a title="adcp.types.generated_poc.core.product_filters.GeoProximity2" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2">GeoProximity2</a> | <a title="adcp.types.generated_poc.core.product_filters.GeoProximity3" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3">GeoProximity3</a>] | None</code></dt>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.geo_proximity"><code class="name">var <span class="ident">geo_proximity</span> : list[<a title="adcp.types.generated_poc.core.product_filters.GeoProximity" href="#adcp.types.generated_poc.core.product_filters.GeoProximity">GeoProximity</a> | <a title="adcp.types.generated_poc.core.product_filters.GeoProximity15" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15">GeoProximity15</a> | <a title="adcp.types.generated_poc.core.product_filters.GeoProximity16" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16">GeoProximity16</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1156,6 +1166,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.required_geo_targeting"><code class="name">var <span class="ident">required_geo_targeting</span> : list[<a title="adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem" href="#adcp.types.generated_poc.core.product_filters.RequiredGeoTargetingItem">RequiredGeoTargetingItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.ProductFilters.required_performance_standards"><code class="name">var <span class="ident">required_performance_standards</span> : list[<a title="adcp.types.generated_poc.core.performance_standard.PerformanceStandard" href="performance_standard.html#adcp.types.generated_poc.core.performance_standard.PerformanceStandard">PerformanceStandard</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1299,8 +1313,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    unit: Annotated[distance_unit.DistanceUnit, Field(description=&#39;Distance unit&#39;)]
-    value: Annotated[float, Field(description=&#39;Radius distance&#39;, gt=0.0)]</code></pre>
+    value: Annotated[float, Field(description=&#39;Radius distance&#39;, gt=0.0)]
+    unit: Annotated[distance_unit.DistanceUnit, Field(description=&#39;Distance unit&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1472,8 +1486,8 @@ validated to form a valid model.</p>
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    unit: Annotated[Unit, Field(description=&#39;Time unit&#39;)]
-    value: Annotated[float, Field(description=&#39;Travel time limit&#39;, ge=1.0)]</code></pre>
+    value: Annotated[float, Field(description=&#39;Travel time limit&#39;, ge=1.0)]
+    unit: Annotated[Unit, Field(description=&#39;Time unit&#39;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1490,99 +1504,10 @@ validated to form a valid model.</p>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.core.product_filters.Unit" href="#adcp.types.generated_poc.core.product_filters.Unit">Unit</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime"><code class="flex name class">
-<span>class <span class="ident">TravelTime2</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TravelTime(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    unit: Annotated[Unit, Field(description=&#39;Time unit&#39;)]
-    value: Annotated[float, Field(description=&#39;Travel time limit&#39;, ge=1.0)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
+<h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.unit"><code class="name">var <span class="ident">unit</span> : <a title="adcp.types.generated_poc.core.product_filters.Unit" href="#adcp.types.generated_poc.core.product_filters.Unit">Unit</a></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime.value"><code class="name">var <span class="ident">value</span> : float</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
-<dt id="adcp.types.generated_poc.core.product_filters.TravelTime"><code class="flex name class">
-<span>class <span class="ident">TravelTime3</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TravelTime(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
-    )
-    unit: Annotated[Unit, Field(description=&#39;Time unit&#39;)]
-    value: Annotated[float, Field(description=&#39;Travel time limit&#39;, ge=1.0)]</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
+<li><a title="adcp.types.generated_poc.core.product_filters.TravelTime14" href="#adcp.types.generated_poc.core.product_filters.TravelTime14">TravelTime14</a></li>
+<li><a title="adcp.types.generated_poc.core.product_filters.TravelTime15" href="#adcp.types.generated_poc.core.product_filters.TravelTime15">TravelTime15</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -1606,6 +1531,98 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
 <li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime14"><code class="flex name class">
+<span>class <span class="ident">TravelTime14</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TravelTime14(TravelTime):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime14.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime15"><code class="flex name class">
+<span>class <span class="ident">TravelTime15</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TravelTime15(TravelTime):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.product_filters.TravelTime15.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1832,12 +1849,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange1" href="#adcp.types.generated_poc.core.product_filters.BudgetRange1">BudgetRange1</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange3" href="#adcp.types.generated_poc.core.product_filters.BudgetRange3">BudgetRange3</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange1.currency" href="#adcp.types.generated_poc.core.product_filters.BudgetRange1.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange1.max" href="#adcp.types.generated_poc.core.product_filters.BudgetRange1.max">max</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange1.min" href="#adcp.types.generated_poc.core.product_filters.BudgetRange1.min">min</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange1.model_config" href="#adcp.types.generated_poc.core.product_filters.BudgetRange1.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange3.currency" href="#adcp.types.generated_poc.core.product_filters.BudgetRange3.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange3.max" href="#adcp.types.generated_poc.core.product_filters.BudgetRange3.max">max</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange3.min" href="#adcp.types.generated_poc.core.product_filters.BudgetRange3.min">min</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.BudgetRange3.model_config" href="#adcp.types.generated_poc.core.product_filters.BudgetRange3.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -1861,29 +1878,29 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2">GeoProximity2</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15">GeoProximity15</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2.geometry" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2.geometry">geometry</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2.label" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2.label">label</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2.lat" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2.lat">lat</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2.lng" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2.lng">lng</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2.model_config" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2.radius" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2.radius">radius</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2.transport_mode" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2.transport_mode">transport_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity2.travel_time" href="#adcp.types.generated_poc.core.product_filters.GeoProximity2.travel_time">travel_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15.geometry" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15.geometry">geometry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15.label" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15.lat" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15.lat">lat</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15.lng" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15.lng">lng</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15.model_config" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15.radius" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15.radius">radius</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15.transport_mode" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15.transport_mode">transport_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity15.travel_time" href="#adcp.types.generated_poc.core.product_filters.GeoProximity15.travel_time">travel_time</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3">GeoProximity3</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16">GeoProximity16</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3.geometry" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3.geometry">geometry</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3.label" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3.label">label</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3.lat" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3.lat">lat</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3.lng" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3.lng">lng</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3.model_config" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3.radius" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3.radius">radius</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3.transport_mode" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3.transport_mode">transport_mode</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity3.travel_time" href="#adcp.types.generated_poc.core.product_filters.GeoProximity3.travel_time">travel_time</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16.geometry" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16.geometry">geometry</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16.label" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16.label">label</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16.lat" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16.lat">lat</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16.lng" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16.lng">lng</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16.model_config" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16.radius" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16.radius">radius</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16.transport_mode" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16.transport_mode">transport_mode</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.GeoProximity16.travel_time" href="#adcp.types.generated_poc.core.product_filters.GeoProximity16.travel_time">travel_time</a></code></li>
 </ul>
 </li>
 <li>
@@ -1895,19 +1912,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.Geometry14" href="#adcp.types.generated_poc.core.product_filters.Geometry14">Geometry14</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.coordinates" href="#adcp.types.generated_poc.core.product_filters.Geometry.coordinates">coordinates</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_config" href="#adcp.types.generated_poc.core.product_filters.Geometry.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.type" href="#adcp.types.generated_poc.core.product_filters.Geometry.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry14.model_config" href="#adcp.types.generated_poc.core.product_filters.Geometry14.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.Geometry" href="#adcp.types.generated_poc.core.product_filters.Geometry">Geometry</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.Geometry15" href="#adcp.types.generated_poc.core.product_filters.Geometry15">Geometry15</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.coordinates" href="#adcp.types.generated_poc.core.product_filters.Geometry.coordinates">coordinates</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.model_config" href="#adcp.types.generated_poc.core.product_filters.Geometry.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry.type" href="#adcp.types.generated_poc.core.product_filters.Geometry.type">type</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.Geometry15.model_config" href="#adcp.types.generated_poc.core.product_filters.Geometry15.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -1963,6 +1976,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_axe_integrations" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_axe_integrations">required_axe_integrations</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_features" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_features">required_features</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_geo_targeting" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_geo_targeting">required_geo_targeting</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.required_performance_standards" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.required_performance_standards">required_performance_standards</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.signal_targeting" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.signal_targeting">signal_targeting</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.standard_formats_only" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.standard_formats_only">standard_formats_only</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.product_filters.ProductFilters.start_date" href="#adcp.types.generated_poc.core.product_filters.ProductFilters.start_date">start_date</a></code></li>
@@ -2010,19 +2024,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime14" href="#adcp.types.generated_poc.core.product_filters.TravelTime14">TravelTime14</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_config" href="#adcp.types.generated_poc.core.product_filters.TravelTime.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.unit" href="#adcp.types.generated_poc.core.product_filters.TravelTime.unit">unit</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.value" href="#adcp.types.generated_poc.core.product_filters.TravelTime.value">value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime14.model_config" href="#adcp.types.generated_poc.core.product_filters.TravelTime14.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime" href="#adcp.types.generated_poc.core.product_filters.TravelTime">TravelTime</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime15" href="#adcp.types.generated_poc.core.product_filters.TravelTime15">TravelTime15</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.model_config" href="#adcp.types.generated_poc.core.product_filters.TravelTime.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.unit" href="#adcp.types.generated_poc.core.product_filters.TravelTime.unit">unit</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime.value" href="#adcp.types.generated_poc.core.product_filters.TravelTime.value">value</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.product_filters.TravelTime15.model_config" href="#adcp.types.generated_poc.core.product_filters.TravelTime15.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

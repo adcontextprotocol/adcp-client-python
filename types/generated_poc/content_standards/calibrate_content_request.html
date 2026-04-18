@@ -56,16 +56,27 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CalibrateContentRequest(AdCPBaseModel):
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    standards_id: Annotated[str, Field(description=&#39;Standards configuration to calibrate against&#39;)]
     artifact: Annotated[artifact_1.Artifact, Field(description=&#39;Artifact to evaluate&#39;)]
     idempotency_key: Annotated[
-        str | None,
+        str,
         Field(
             description=&#39;Client-generated unique key for at-most-once execution. If a request with the same key has already been processed, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
             max_length=255,
             min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
         ),
-    ] = None
-    standards_id: Annotated[str, Field(description=&#39;Standards configuration to calibrate against&#39;)]</code></pre>
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -84,11 +95,23 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.artifact"><code class="name">var <span class="ident">artifact</span> : <a title="adcp.types.generated_poc.content_standards.artifact.Artifact" href="artifact.html#adcp.types.generated_poc.content_standards.artifact.Artifact">Artifact</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="../core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -129,8 +152,11 @@ validated to form a valid model.</p>
 <ul>
 <li>
 <h4><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest" href="#adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest">CalibrateContentRequest</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.adcp_major_version" href="#adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.artifact" href="#adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.artifact">artifact</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.context" href="#adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.ext" href="#adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.idempotency_key" href="#adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.model_config" href="#adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.standards_id" href="#adcp.types.generated_poc.content_standards.calibrate_content_request.CalibrateContentRequest.standards_id">standards_id</a></code></li>

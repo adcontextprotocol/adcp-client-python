@@ -74,9 +74,12 @@ el.replaceWith(d);
     ACCOUNT_PAYMENT_REQUIRED = &#39;ACCOUNT_PAYMENT_REQUIRED&#39;
     ACCOUNT_SUSPENDED = &#39;ACCOUNT_SUSPENDED&#39;
     COMPLIANCE_UNSATISFIED = &#39;COMPLIANCE_UNSATISFIED&#39;
+    GOVERNANCE_DENIED = &#39;GOVERNANCE_DENIED&#39;
     BUDGET_EXHAUSTED = &#39;BUDGET_EXHAUSTED&#39;
     BUDGET_EXCEEDED = &#39;BUDGET_EXCEEDED&#39;
     CONFLICT = &#39;CONFLICT&#39;
+    IDEMPOTENCY_CONFLICT = &#39;IDEMPOTENCY_CONFLICT&#39;
+    IDEMPOTENCY_EXPIRED = &#39;IDEMPOTENCY_EXPIRED&#39;
     CREATIVE_DEADLINE_EXCEEDED = &#39;CREATIVE_DEADLINE_EXCEEDED&#39;
     INVALID_STATE = &#39;INVALID_STATE&#39;
     MEDIA_BUY_NOT_FOUND = &#39;MEDIA_BUY_NOT_FOUND&#39;
@@ -87,7 +90,9 @@ el.replaceWith(d);
     VALIDATION_ERROR = &#39;VALIDATION_ERROR&#39;
     PRODUCT_EXPIRED = &#39;PRODUCT_EXPIRED&#39;
     PROPOSAL_NOT_COMMITTED = &#39;PROPOSAL_NOT_COMMITTED&#39;
-    IO_REQUIRED = &#39;IO_REQUIRED&#39;</code></pre>
+    IO_REQUIRED = &#39;IO_REQUIRED&#39;
+    TERMS_REJECTED = &#39;TERMS_REJECTED&#39;
+    VERSION_UNSUPPORTED = &#39;VERSION_UNSUPPORTED&#39;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -186,6 +191,18 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.error_code.ErrorCode.GOVERNANCE_DENIED"><code class="name">var <span class="ident">GOVERNANCE_DENIED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.error_code.ErrorCode.IDEMPOTENCY_CONFLICT"><code class="name">var <span class="ident">IDEMPOTENCY_CONFLICT</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.error_code.ErrorCode.IDEMPOTENCY_EXPIRED"><code class="name">var <span class="ident">IDEMPOTENCY_EXPIRED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.error_code.ErrorCode.INVALID_REQUEST"><code class="name">var <span class="ident">INVALID_REQUEST</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -250,11 +267,19 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.enums.error_code.ErrorCode.TERMS_REJECTED"><code class="name">var <span class="ident">TERMS_REJECTED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.enums.error_code.ErrorCode.UNSUPPORTED_FEATURE"><code class="name">var <span class="ident">UNSUPPORTED_FEATURE</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.enums.error_code.ErrorCode.VALIDATION_ERROR"><code class="name">var <span class="ident">VALIDATION_ERROR</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.enums.error_code.ErrorCode.VERSION_UNSUPPORTED"><code class="name">var <span class="ident">VERSION_UNSUPPORTED</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -292,6 +317,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.CONFLICT" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.CONFLICT">CONFLICT</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.CREATIVE_DEADLINE_EXCEEDED" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.CREATIVE_DEADLINE_EXCEEDED">CREATIVE_DEADLINE_EXCEEDED</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.CREATIVE_REJECTED" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.CREATIVE_REJECTED">CREATIVE_REJECTED</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.GOVERNANCE_DENIED" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.GOVERNANCE_DENIED">GOVERNANCE_DENIED</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.IDEMPOTENCY_CONFLICT" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.IDEMPOTENCY_CONFLICT">IDEMPOTENCY_CONFLICT</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.IDEMPOTENCY_EXPIRED" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.IDEMPOTENCY_EXPIRED">IDEMPOTENCY_EXPIRED</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.INVALID_REQUEST" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.INVALID_REQUEST">INVALID_REQUEST</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.INVALID_STATE" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.INVALID_STATE">INVALID_STATE</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.IO_REQUIRED" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.IO_REQUIRED">IO_REQUIRED</a></code></li>
@@ -308,8 +336,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.SERVICE_UNAVAILABLE" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.SERVICE_UNAVAILABLE">SERVICE_UNAVAILABLE</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.SESSION_NOT_FOUND" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.SESSION_NOT_FOUND">SESSION_NOT_FOUND</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.SESSION_TERMINATED" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.SESSION_TERMINATED">SESSION_TERMINATED</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.TERMS_REJECTED" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.TERMS_REJECTED">TERMS_REJECTED</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.UNSUPPORTED_FEATURE" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.UNSUPPORTED_FEATURE">UNSUPPORTED_FEATURE</a></code></li>
 <li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.VALIDATION_ERROR" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.VALIDATION_ERROR">VALIDATION_ERROR</a></code></li>
+<li><code><a title="adcp.types.generated_poc.enums.error_code.ErrorCode.VERSION_UNSUPPORTED" href="#adcp.types.generated_poc.enums.error_code.ErrorCode.VERSION_UNSUPPORTED">VERSION_UNSUPPORTED</a></code></li>
 </ul>
 </li>
 </ul>

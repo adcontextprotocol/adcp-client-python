@@ -59,17 +59,17 @@ el.replaceWith(d);
     model_config = ConfigDict(
         extra=&#39;forbid&#39;,
     )
-    exclude: Annotated[
-        list[audience_selector.AudienceSelector] | None,
-        Field(
-            description=&#34;Excluded audience criteria. The seller&#39;s targeting must not overlap with these. Exclusions take precedence over inclusions. Used for protected groups, vulnerable communities, regulatory restrictions, or brand safety.&#34;,
-            min_length=1,
-        ),
-    ] = None
     include: Annotated[
         list[audience_selector.AudienceSelector] | None,
         Field(
             description=&#34;Desired audience criteria. The seller&#39;s targeting should align with these. Each criterion is evaluated independently — the combined targeting should satisfy at least one inclusion criterion.&#34;,
+            min_length=1,
+        ),
+    ] = None
+    exclude: Annotated[
+        list[audience_selector.AudienceSelector] | None,
+        Field(
+            description=&#34;Excluded audience criteria. The seller&#39;s targeting must not overlap with these. Exclusions take precedence over inclusions. Used for protected groups, vulnerable communities, regulatory restrictions, or brand safety.&#34;,
             min_length=1,
         ),
     ] = None</code></pre>
