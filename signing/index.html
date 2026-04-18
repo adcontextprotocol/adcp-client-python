@@ -1,0 +1,1852 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing API documentation</title>
+<meta name="description" content="AdCP RFC 9421 request-signing profile …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing</code></h1>
+</header>
+<section id="section-intro">
+<p>AdCP RFC 9421 request-signing profile.</p>
+<p>Implements the transport-layer signed-request profile from the AdCP specification.
+See: <a href="https://adcontextprotocol.org/docs/building/implementation/security#signed-requests-transport-layer">https://adcontextprotocol.org/docs/building/implementation/security#signed-requests-transport-layer</a></p>
+</section>
+<section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="adcp.signing.keygen" href="keygen.html">adcp.signing.keygen</a></code></dt>
+<dd>
+<div class="desc"><p>Key generation helpers for AdCP request signing …</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.signing.alg_for_jwk"><code class="name flex">
+<span>def <span class="ident">alg_for_jwk</span></span>(<span>jwk: dict[str, Any]) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def alg_for_jwk(jwk: dict[str, Any]) -&gt; str:
+    &#34;&#34;&#34;Map a JWK to its RFC 9421 alg name for the AdCP profile.&#34;&#34;&#34;
+    kty = jwk.get(&#34;kty&#34;)
+    crv = jwk.get(&#34;crv&#34;)
+    if kty == &#34;OKP&#34; and crv == &#34;Ed25519&#34;:
+        return ALG_ED25519
+    if kty == &#34;EC&#34; and crv == &#34;P-256&#34;:
+        return ALG_ES256
+    raise ValueError(f&#34;unsupported JWK kty/crv: {kty}/{crv}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Map a JWK to its RFC 9421 alg name for the AdCP profile.</p></div>
+</dd>
+<dt id="adcp.signing.b64url_decode"><code class="name flex">
+<span>def <span class="ident">b64url_decode</span></span>(<span>s: str) ‑> bytes</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def b64url_decode(s: str) -&gt; bytes:
+    &#34;&#34;&#34;Decode base64url, tolerating missing padding.&#34;&#34;&#34;
+    pad = &#34;=&#34; * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)</code></pre>
+</details>
+<div class="desc"><p>Decode base64url, tolerating missing padding.</p></div>
+</dd>
+<dt id="adcp.signing.b64url_encode"><code class="name flex">
+<span>def <span class="ident">b64url_encode</span></span>(<span>b: bytes) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def b64url_encode(b: bytes) -&gt; str:
+    &#34;&#34;&#34;Encode bytes as base64url without padding.&#34;&#34;&#34;
+    return base64.urlsafe_b64encode(b).rstrip(b&#34;=&#34;).decode(&#34;ascii&#34;)</code></pre>
+</details>
+<div class="desc"><p>Encode bytes as base64url without padding.</p></div>
+</dd>
+<dt id="adcp.signing.build_signature_base"><code class="name flex">
+<span>def <span class="ident">build_signature_base</span></span>(<span>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>parsed: <a title="adcp.signing.SignatureInputLabel" href="#adcp.signing.SignatureInputLabel">SignatureInputLabel</a>) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_signature_base(
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    parsed: SignatureInputLabel,
+) -&gt; str:
+    &#34;&#34;&#34;Build the RFC 9421 signature base string for the AdCP profile.
+
+    Lines are joined with a single `\\n` (LF, not CRLF). No trailing newline.
+    Components appear in the exact order listed in `Signature-Input`, followed
+    by `@signature-params` as the last line.
+    &#34;&#34;&#34;
+    lines: list[str] = []
+    for comp in parsed.components:
+        value = _resolve_component(comp, method, url, headers)
+        lines.append(f&#39;&#34;{comp}&#34;: {value}&#39;)
+    lines.append(f&#39;&#34;@signature-params&#34;: {parsed.raw_value}&#39;)
+    return &#34;\n&#34;.join(lines)</code></pre>
+</details>
+<div class="desc"><p>Build the RFC 9421 signature base string for the AdCP profile.</p>
+<p>Lines are joined with a single <code>\n</code> (LF, not CRLF). No trailing newline.
+Components appear in the exact order listed in <code>Signature-Input</code>, followed
+by <code>@signature-params</code> as the last line.</p></div>
+</dd>
+<dt id="adcp.signing.canonicalize_authority"><code class="name flex">
+<span>def <span class="ident">canonicalize_authority</span></span>(<span>url: str) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def canonicalize_authority(url: str) -&gt; str:
+    &#34;&#34;&#34;Produce the `@authority` derived-component value per AdCP profile.&#34;&#34;&#34;
+    parts = urlsplit(url)
+    return _canon_authority(parts.netloc, parts.scheme.lower())</code></pre>
+</details>
+<div class="desc"><p>Produce the <code>@authority</code> derived-component value per AdCP profile.</p></div>
+</dd>
+<dt id="adcp.signing.canonicalize_target_uri"><code class="name flex">
+<span>def <span class="ident">canonicalize_target_uri</span></span>(<span>url: str) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def canonicalize_target_uri(url: str) -&gt; str:
+    &#34;&#34;&#34;Produce the `@target-uri` derived-component value per AdCP profile.&#34;&#34;&#34;
+    parts = urlsplit(url)
+    scheme = parts.scheme.lower()
+    netloc = _canon_authority(parts.netloc, scheme)
+    path = _normalize_path(parts.path)
+    if not path and parts.query:
+        path = &#34;/&#34;
+    # RFC 9421 §2.2.2 + RFC 7230 §5.5: effective request URI excludes the
+    # fragment (client-local, never sent on wire).
+    return urlunsplit((scheme, netloc, path, parts.query, &#34;&#34;))</code></pre>
+</details>
+<div class="desc"><p>Produce the <code>@target-uri</code> derived-component value per AdCP profile.</p></div>
+</dd>
+<dt id="adcp.signing.compute_content_digest_sha256"><code class="name flex">
+<span>def <span class="ident">compute_content_digest_sha256</span></span>(<span>body: bytes) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compute_content_digest_sha256(body: bytes) -&gt; str:
+    &#34;&#34;&#34;Return the Content-Digest header value for a body (sha-256 only).&#34;&#34;&#34;
+    h = hashlib.sha256(body).digest()
+    return f&#34;sha-256=:{base64.b64encode(h).decode(&#39;ascii&#39;)}:&#34;</code></pre>
+</details>
+<div class="desc"><p>Return the Content-Digest header value for a body (sha-256 only).</p></div>
+</dd>
+<dt id="adcp.signing.content_digest_matches"><code class="name flex">
+<span>def <span class="ident">content_digest_matches</span></span>(<span>header_value: str, body: bytes) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def content_digest_matches(header_value: str, body: bytes) -&gt; bool:
+    &#34;&#34;&#34;Return True iff the sha-256 entry in the header matches the body.&#34;&#34;&#34;
+    expected = hashlib.sha256(body).digest()
+    for entry in split_structured_field(header_value, &#34;,&#34;):
+        entry = entry.strip()
+        eq = entry.find(&#34;=&#34;)
+        if eq &lt; 0:
+            continue
+        algo = entry[:eq].strip().lower()
+        if algo != &#34;sha-256&#34;:
+            continue
+        val = entry[eq + 1 :].strip()
+        if not (val.startswith(&#34;:&#34;) and val.endswith(&#34;:&#34;)):
+            return False
+        b64 = val[1:-1]
+        received = _decode_sf_binary(b64)
+        if received is None:
+            return False
+        return received == expected
+    return False</code></pre>
+</details>
+<div class="desc"><p>Return True iff the sha-256 entry in the header matches the body.</p></div>
+</dd>
+<dt id="adcp.signing.default_jwks_fetcher"><code class="name flex">
+<span>def <span class="ident">default_jwks_fetcher</span></span>(<span>uri: str, *, allow_private: bool = False) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def default_jwks_fetcher(uri: str, *, allow_private: bool = False) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Validate the URI against SSRF rules, then GET the JWKS document.&#34;&#34;&#34;
+    validate_jwks_uri(uri, allow_private=allow_private)
+    # follow_redirects=False is explicit: httpx already defaults to no-follow,
+    # but an attacker controlling the JWKS origin could 302 us to an IP that
+    # `validate_jwks_uri` already cleared.
+    with httpx.Client(timeout=DEFAULT_JWKS_TIMEOUT_SECONDS, follow_redirects=False) as client:
+        response = client.get(uri, headers={&#34;Accept&#34;: &#34;application/json&#34;})
+        response.raise_for_status()
+        body = response.json()
+    if not isinstance(body, dict) or &#34;keys&#34; not in body:
+        raise ValueError(f&#34;JWKS document at {uri!r} has no &#39;keys&#39; array&#34;)
+    return body</code></pre>
+</details>
+<div class="desc"><p>Validate the URI against SSRF rules, then GET the JWKS document.</p></div>
+</dd>
+<dt id="adcp.signing.extract_signature_bytes"><code class="name flex">
+<span>def <span class="ident">extract_signature_bytes</span></span>(<span>signature_header: str, label: str = 'sig1') ‑> bytes</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extract_signature_bytes(signature_header: str, label: str = &#34;sig1&#34;) -&gt; bytes:
+    &#34;&#34;&#34;Parse a Signature header value and return the raw signature bytes for `label`.
+
+    The value is an sf-dictionary: `sig1=:&lt;base64&gt;:[, sig2=:&lt;base64&gt;:]`.
+    RFC 8941 specifies standard base64; the AdCP vectors use base64url. Both
+    are accepted here (standard tried first; url as fallback).
+    &#34;&#34;&#34;
+    for entry in split_structured_field(signature_header, &#34;,&#34;):
+        entry = entry.strip()
+        if not entry:
+            continue
+        eq = entry.find(&#34;=&#34;)
+        if eq &lt; 0:
+            continue
+        name = entry[:eq].strip()
+        value = entry[eq + 1 :].strip()
+        if name != label:
+            continue
+        if not (value.startswith(&#34;:&#34;) and value.endswith(&#34;:&#34;)):
+            raise ValueError(f&#34;Signature value for {label!r} is not an sf-binary: {value!r}&#34;)
+        inner = value[1:-1]
+        try:
+            return base64.b64decode(inner, validate=True)
+        except (ValueError, binascii.Error):
+            return b64url_decode(inner)
+    raise KeyError(f&#34;label not found in Signature header: {label}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Parse a Signature header value and return the raw signature bytes for <code>label</code>.</p>
+<p>The value is an sf-dictionary: <code>sig1=:&lt;base64&gt;:[, sig2=:&lt;base64&gt;:]</code>.
+RFC 8941 specifies standard base64; the AdCP vectors use base64url. Both
+are accepted here (standard tried first; url as fallback).</p></div>
+</dd>
+<dt id="adcp.signing.format_signature_header"><code class="name flex">
+<span>def <span class="ident">format_signature_header</span></span>(<span>signature: bytes, label: str = 'sig1') ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def format_signature_header(signature: bytes, label: str = &#34;sig1&#34;) -&gt; str:
+    &#34;&#34;&#34;Produce a Signature header value for a single-label signature.&#34;&#34;&#34;
+    return f&#34;{label}=:{b64url_encode(signature)}:&#34;</code></pre>
+</details>
+<div class="desc"><p>Produce a Signature header value for a single-label signature.</p></div>
+</dd>
+<dt id="adcp.signing.parse_signature_input_header"><code class="name flex">
+<span>def <span class="ident">parse_signature_input_header</span></span>(<span>header_value: str) ‑> dict[str, adcp.signing._canonical.SignatureInputLabel]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_signature_input_header(header_value: str) -&gt; dict[str, SignatureInputLabel]:
+    &#34;&#34;&#34;Parse a Signature-Input header value into a dict keyed by label.
+
+    A Signature-Input header may contain multiple labels separated by commas:
+    `sig1=(...);..., sig2=(...);...`. The AdCP profile mandates that verifiers
+    process exactly one label (conventionally `sig1`) and ignore others.
+    &#34;&#34;&#34;
+    labels: dict[str, SignatureInputLabel] = {}
+    for entry in split_structured_field(header_value, &#34;,&#34;):
+        entry = entry.strip()
+        if not entry:
+            continue
+        eq_paren = entry.find(&#34;=(&#34;)
+        if eq_paren &lt; 0:
+            raise ValueError(f&#34;malformed Signature-Input entry: {entry!r}&#34;)
+        label = entry[:eq_paren].strip()
+        remainder = entry[eq_paren + 1 :]
+        close = remainder.find(&#34;)&#34;)
+        if close &lt; 0:
+            raise ValueError(f&#34;unterminated component list in label {label!r}&#34;)
+        components_str = remainder[1:close]
+        params_str = remainder[close + 1 :]
+        components = tuple(_unquote_component(tok) for tok in components_str.split())
+        params = _parse_params(params_str)
+        labels[label] = SignatureInputLabel(
+            label=label,
+            components=components,
+            params=params,
+            raw_value=remainder,
+        )
+    return labels</code></pre>
+</details>
+<div class="desc"><p>Parse a Signature-Input header value into a dict keyed by label.</p>
+<p>A Signature-Input header may contain multiple labels separated by commas:
+<code>sig1=(...);..., sig2=(...);...</code>. The AdCP profile mandates that verifiers
+process exactly one label (conventionally <code>sig1</code>) and ignore others.</p></div>
+</dd>
+<dt id="adcp.signing.private_key_from_jwk"><code class="name flex">
+<span>def <span class="ident">private_key_from_jwk</span></span>(<span>jwk: dict[str, Any], *, d_field: str = 'd') ‑> cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey | cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def private_key_from_jwk(jwk: dict[str, Any], *, d_field: str = &#34;d&#34;) -&gt; PrivateKey:
+    &#34;&#34;&#34;Reconstruct a private key from its JWK.
+
+    `d_field` lets callers read from a non-standard scalar field — the AdCP test
+    vectors store the private half under `_private_d_for_test_only` to signal
+    that the keys are not production-grade.
+    &#34;&#34;&#34;
+    kty = jwk.get(&#34;kty&#34;)
+    crv = jwk.get(&#34;crv&#34;)
+    if kty == &#34;OKP&#34; and crv == &#34;Ed25519&#34;:
+        d_raw = b64url_decode(jwk[d_field])
+        if len(d_raw) != _RAW_KEY_BYTES:
+            raise ValueError(f&#34;Ed25519 JWK d has length {len(d_raw)}, expected {_RAW_KEY_BYTES}&#34;)
+        return ed25519.Ed25519PrivateKey.from_private_bytes(d_raw)
+    if kty == &#34;EC&#34; and crv == &#34;P-256&#34;:
+        d_raw = b64url_decode(jwk[d_field])
+        x_raw = b64url_decode(jwk[&#34;x&#34;])
+        y_raw = b64url_decode(jwk[&#34;y&#34;])
+        if (
+            len(d_raw) != _RAW_KEY_BYTES
+            or len(x_raw) != _RAW_KEY_BYTES
+            or len(y_raw) != _RAW_KEY_BYTES
+        ):
+            raise ValueError(
+                f&#34;P-256 JWK d/x/y must be {_RAW_KEY_BYTES} bytes each, &#34;
+                f&#34;got d={len(d_raw)} x={len(x_raw)} y={len(y_raw)}&#34;
+            )
+        d = int.from_bytes(d_raw, &#34;big&#34;)
+        x = int.from_bytes(x_raw, &#34;big&#34;)
+        y = int.from_bytes(y_raw, &#34;big&#34;)
+        pub = ec.EllipticCurvePublicNumbers(x, y, ec.SECP256R1())
+        return ec.EllipticCurvePrivateNumbers(d, pub).private_key()
+    raise ValueError(f&#34;unsupported JWK kty/crv: {kty}/{crv}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Reconstruct a private key from its JWK.</p>
+<p><code>d_field</code> lets callers read from a non-standard scalar field — the AdCP test
+vectors store the private half under <code>_private_d_for_test_only</code> to signal
+that the keys are not production-grade.</p></div>
+</dd>
+<dt id="adcp.signing.public_key_from_jwk"><code class="name flex">
+<span>def <span class="ident">public_key_from_jwk</span></span>(<span>jwk: dict[str, Any]) ‑> cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey | cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def public_key_from_jwk(jwk: dict[str, Any]) -&gt; PublicKey:
+    &#34;&#34;&#34;Reconstruct a public key from its JWK.&#34;&#34;&#34;
+    kty = jwk.get(&#34;kty&#34;)
+    crv = jwk.get(&#34;crv&#34;)
+    if kty == &#34;OKP&#34; and crv == &#34;Ed25519&#34;:
+        x_raw = b64url_decode(jwk[&#34;x&#34;])
+        if len(x_raw) != _RAW_KEY_BYTES:
+            raise ValueError(f&#34;Ed25519 JWK x has length {len(x_raw)}, expected {_RAW_KEY_BYTES}&#34;)
+        return ed25519.Ed25519PublicKey.from_public_bytes(x_raw)
+    if kty == &#34;EC&#34; and crv == &#34;P-256&#34;:
+        x_raw = b64url_decode(jwk[&#34;x&#34;])
+        y_raw = b64url_decode(jwk[&#34;y&#34;])
+        if len(x_raw) != _RAW_KEY_BYTES or len(y_raw) != _RAW_KEY_BYTES:
+            raise ValueError(
+                f&#34;P-256 JWK x/y must be {_RAW_KEY_BYTES} bytes each, &#34;
+                f&#34;got x={len(x_raw)} y={len(y_raw)}&#34;
+            )
+        x = int.from_bytes(x_raw, &#34;big&#34;)
+        y = int.from_bytes(y_raw, &#34;big&#34;)
+        return ec.EllipticCurvePublicNumbers(x, y, ec.SECP256R1()).public_key()
+    raise ValueError(f&#34;unsupported JWK kty/crv: {kty}/{crv}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Reconstruct a public key from its JWK.</p></div>
+</dd>
+<dt id="adcp.signing.sign_request"><code class="name flex">
+<span>def <span class="ident">sign_request</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>cover_content_digest: bool = False,<br>created: int | None = None,<br>expires_in_seconds: int = 300,<br>nonce: str | None = None,<br>tag: str = 'adcp/request-signing/v1',<br>label: str = 'sig1') ‑> adcp.signing._signer.SignedHeaders</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sign_request(
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+    private_key: PrivateKey,
+    key_id: str,
+    alg: str,
+    cover_content_digest: bool = False,
+    created: int | None = None,
+    expires_in_seconds: int = DEFAULT_EXPIRES_IN_SECONDS,
+    nonce: str | None = None,
+    tag: str = DEFAULT_TAG,
+    label: str = SIG_LABEL_DEFAULT,
+) -&gt; SignedHeaders:
+    &#34;&#34;&#34;Sign a request and return the headers to add to it.
+
+    The caller is responsible for attaching `SignedHeaders.as_dict()` to the
+    outgoing HTTP request before sending.
+    &#34;&#34;&#34;
+    if alg not in ALLOWED_ALGS:
+        raise ValueError(f&#34;alg must be one of {sorted(ALLOWED_ALGS)}, got {alg!r}&#34;)
+    if expires_in_seconds &lt;= 0 or expires_in_seconds &gt; MAX_WINDOW_SECONDS:
+        raise ValueError(
+            f&#34;expires_in_seconds must be in (0, {MAX_WINDOW_SECONDS}], got {expires_in_seconds}&#34;
+        )
+
+    if created is None:
+        created = int(time.time())
+    expires = created + expires_in_seconds
+    if nonce is None:
+        nonce = b64url_encode(secrets.token_bytes(NONCE_BYTES))
+
+    components = [&#34;@method&#34;, &#34;@target-uri&#34;, &#34;@authority&#34;]
+    outgoing_headers: dict[str, str] = dict(headers)
+    content_digest_value: str | None = None
+    if _lookup(headers, &#34;content-type&#34;) is not None:
+        components.append(&#34;content-type&#34;)
+    if cover_content_digest:
+        content_digest_value = compute_content_digest_sha256(body)
+        outgoing_headers[&#34;Content-Digest&#34;] = content_digest_value
+        components.append(&#34;content-digest&#34;)
+
+    comp_serialized = &#34;(&#34; + &#34; &#34;.join(f&#39;&#34;{c}&#34;&#39; for c in components) + &#34;)&#34;
+    params_serialized = (
+        f&#39;;created={created};expires={expires};nonce=&#34;{nonce}&#34;&#39;
+        f&#39;;keyid=&#34;{key_id}&#34;;alg=&#34;{alg}&#34;;tag=&#34;{tag}&#34;&#39;
+    )
+    raw_value = comp_serialized + params_serialized
+
+    parsed = SignatureInputLabel(
+        label=label,
+        components=tuple(components),
+        params={
+            &#34;created&#34;: created,
+            &#34;expires&#34;: expires,
+            &#34;nonce&#34;: nonce,
+            &#34;keyid&#34;: key_id,
+            &#34;alg&#34;: alg,
+            &#34;tag&#34;: tag,
+        },
+        raw_value=raw_value,
+    )
+    base = build_signature_base(
+        method=method, url=url, headers=outgoing_headers, parsed=parsed
+    ).encode(&#34;utf-8&#34;)
+    sig_bytes = sign_signature_base(alg=alg, private_key=private_key, signature_base=base)
+
+    return SignedHeaders(
+        signature_input=f&#34;{label}={raw_value}&#34;,
+        signature=format_signature_header(sig_bytes, label=label),
+        content_digest=content_digest_value,
+    )</code></pre>
+</details>
+<div class="desc"><p>Sign a request and return the headers to add to it.</p>
+<p>The caller is responsible for attaching <code><a title="adcp.signing.SignedHeaders.as_dict" href="#adcp.signing.SignedHeaders.as_dict">SignedHeaders.as_dict()</a></code> to the
+outgoing HTTP request before sending.</p></div>
+</dd>
+<dt id="adcp.signing.sign_signature_base"><code class="name flex">
+<span>def <span class="ident">sign_signature_base</span></span>(<span>*, alg: str, private_key: PrivateKey, signature_base: bytes) ‑> bytes</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sign_signature_base(
+    *,
+    alg: str,
+    private_key: PrivateKey,
+    signature_base: bytes,
+) -&gt; bytes:
+    &#34;&#34;&#34;Produce a signature over the base. ES256 returns r||s (64 bytes).&#34;&#34;&#34;
+    if alg == ALG_ED25519:
+        if not isinstance(private_key, ed25519.Ed25519PrivateKey):
+            raise ValueError(&#34;alg/private_key mismatch: expected Ed25519 key&#34;)
+        return private_key.sign(signature_base)
+    if alg == ALG_ES256:
+        if not isinstance(private_key, ec.EllipticCurvePrivateKey):
+            raise ValueError(&#34;alg/private_key mismatch: expected EC P-256 key&#34;)
+        der = private_key.sign(signature_base, ec.ECDSA(hashes.SHA256()))
+        r, s = decode_dss_signature(der)
+        return r.to_bytes(32, &#34;big&#34;) + s.to_bytes(32, &#34;big&#34;)
+    raise ValueError(f&#34;unsupported alg: {alg}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Produce a signature over the base. ES256 returns r||s (64 bytes).</p></div>
+</dd>
+<dt id="adcp.signing.unauthorized_response_headers"><code class="name flex">
+<span>def <span class="ident">unauthorized_response_headers</span></span>(<span>exc: <a title="adcp.signing.SignatureVerificationError" href="#adcp.signing.SignatureVerificationError">SignatureVerificationError</a>) ‑> dict[str, str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def unauthorized_response_headers(exc: SignatureVerificationError) -&gt; dict[str, str]:
+    &#34;&#34;&#34;Headers for the 401 response. Realm is intentionally omitted per spec.&#34;&#34;&#34;
+    return {&#34;WWW-Authenticate&#34;: f&#39;Signature error=&#34;{exc.code}&#34;&#39;}</code></pre>
+</details>
+<div class="desc"><p>Headers for the 401 response. Realm is intentionally omitted per spec.</p></div>
+</dd>
+<dt id="adcp.signing.validate_jwks_uri"><code class="name flex">
+<span>def <span class="ident">validate_jwks_uri</span></span>(<span>uri: str, *, allow_private: bool = False) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def validate_jwks_uri(uri: str, *, allow_private: bool = False) -&gt; None:
+    &#34;&#34;&#34;Raise SSRFValidationError if `uri` resolves to a blocked IP or has a bad scheme.&#34;&#34;&#34;
+    parts = urlsplit(uri)
+    if parts.scheme not in (&#34;http&#34;, &#34;https&#34;):
+        raise SSRFValidationError(f&#34;unsupported scheme for JWKS URI: {parts.scheme!r}&#34;)
+    host = parts.hostname
+    if host is None or host == &#34;&#34;:
+        raise SSRFValidationError(&#34;JWKS URI has no host&#34;)
+
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError as exc:
+        raise SSRFValidationError(f&#34;cannot resolve host {host!r}: {exc}&#34;) from exc
+
+    for _family, _, _, _, sockaddr in infos[:_MAX_RESOLVED_ADDRESSES]:
+        ip_raw = sockaddr[0]
+        ip_str = str(ip_raw)
+        # Strip IPv6 scope id if present
+        if &#34;%&#34; in ip_str:
+            ip_str = ip_str.split(&#34;%&#34;, 1)[0]
+        ip: ipaddress.IPv4Address | ipaddress.IPv6Address = ipaddress.ip_address(ip_str)
+        # Unwrap IPv4-mapped IPv6 (::ffff:a.b.c.d). On Python 3.10 the direct
+        # flag checks (is_loopback, is_private, etc.) on the mapped form return
+        # False — the fix landed in 3.11.4 via bpo-44269. The SDK targets 3.10+
+        # per pyproject.toml so we unwrap explicitly.
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        if str(ip) in BLOCKED_METADATA_IPS:
+            raise SSRFValidationError(f&#34;cloud metadata IP {ip} blocked&#34;)
+        if allow_private:
+            continue
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            raise SSRFValidationError(f&#34;resolved IP {ip} is in a reserved range&#34;)</code></pre>
+</details>
+<div class="desc"><p>Raise SSRFValidationError if <code>uri</code> resolves to a blocked IP or has a bad scheme.</p></div>
+</dd>
+<dt id="adcp.signing.verify_flask_request"><code class="name flex">
+<span>def <span class="ident">verify_flask_request</span></span>(<span>request: Any,<br>*,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> adcp.signing._verifier.VerifiedSigner</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_flask_request(request: Any, *, options: VerifyOptions) -&gt; VerifiedSigner:
+    &#34;&#34;&#34;Verify a Flask `request` object against the AdCP profile.&#34;&#34;&#34;
+    return verify_request_signature(
+        method=request.method,
+        url=request.url,
+        headers=dict(request.headers),
+        body=request.get_data(),
+        options=options,
+    )</code></pre>
+</details>
+<div class="desc"><p>Verify a Flask <code>request</code> object against the AdCP profile.</p></div>
+</dd>
+<dt id="adcp.signing.verify_request_signature"><code class="name flex">
+<span>def <span class="ident">verify_request_signature</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> adcp.signing._verifier.VerifiedSigner</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_request_signature(
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+    options: VerifyOptions,
+) -&gt; VerifiedSigner:
+    &#34;&#34;&#34;Run the AdCP request-signing verifier checklist against a request.
+
+    Raises SignatureVerificationError with the spec error code on failure.
+    &#34;&#34;&#34;
+    sig_input_raw = _lookup(headers, &#34;signature-input&#34;)
+    sig_raw = _lookup(headers, &#34;signature&#34;)
+
+    _precheck_presence(
+        sig_input_raw=sig_input_raw,
+        sig_raw=sig_raw,
+        operation=options.operation,
+        required_for=options.capability.required_for,
+    )
+    assert sig_input_raw is not None and sig_raw is not None
+
+    try:
+        labels = parse_signature_input_header(sig_input_raw)
+    except (ValueError, KeyError) as exc:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=1,
+            message=f&#34;Signature-Input parse error: {exc}&#34;,
+        ) from exc
+    if options.label not in labels:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=1,
+            message=f&#34;label {options.label!r} not present in Signature-Input&#34;,
+        )
+    parsed = labels[options.label]
+
+    try:
+        sig_bytes = extract_signature_bytes(sig_raw, options.label)
+    except (ValueError, KeyError) as exc:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=1,
+            message=f&#34;Signature parse error: {exc}&#34;,
+        ) from exc
+
+    _check_params_present(parsed.params)
+    _check_tag(parsed.params, options.expected_tag)
+    _check_alg(parsed.params, options.allowed_algs)
+    try:
+        _check_window(
+            parsed.params,
+            now=options.now,
+            max_skew=options.max_skew_seconds,
+            max_window=options.max_window_seconds,
+        )
+    except (ValueError, KeyError) as exc:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=5,
+            message=f&#34;window param parse error: {exc}&#34;,
+        ) from exc
+    _check_components(
+        parsed.components,
+        headers=headers,
+        body=body,
+        policy=options.capability.covers_content_digest,
+    )
+
+    keyid = str(parsed.params[&#34;keyid&#34;])
+    nonce = str(parsed.params[&#34;nonce&#34;])
+    if len(keyid) &gt; _MAX_PARAM_LEN:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=2,
+            message=f&#34;keyid exceeds {_MAX_PARAM_LEN} bytes&#34;,
+        )
+    if len(nonce) &gt; _MAX_PARAM_LEN:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=2,
+            message=f&#34;nonce exceeds {_MAX_PARAM_LEN} bytes&#34;,
+        )
+
+    jwk = options.jwks_resolver(keyid)
+    if jwk is None:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_KEY_UNKNOWN,
+            step=7,
+            message=f&#34;no JWK for keyid {keyid!r}&#34;,
+        )
+
+    alg = str(parsed.params[&#34;alg&#34;])
+    _check_key_purpose(jwk, alg)
+
+    if options.revocation_list is not None:
+        as_of = datetime.fromtimestamp(options.now, tz=timezone.utc)
+        if options.revocation_list.is_stale(as_of):
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_REVOCATION_STALE,
+                step=9,
+                message=(
+                    f&#34;revocation list next_update {options.revocation_list.next_update} &#34;
+                    f&#34;is in the past&#34;
+                ),
+            )
+    if options.revocation_checker is not None and options.revocation_checker(keyid):
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_KEY_REVOKED,
+            step=9,
+            message=f&#34;key {keyid!r} is revoked&#34;,
+        )
+
+    # Step 9a (per spec, after adcp#2342): per-keyid cap runs between JWKS
+    # resolution and crypto verify. A compromised or misconfigured signer
+    # hitting the cap must be rejected cheaply, not after Ed25519/ECDSA verify.
+    if options.replay_store is not None and options.replay_store.at_capacity(keyid):
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_RATE_ABUSE,
+            step=&#34;9a&#34;,
+            message=f&#34;replay cache at capacity for keyid {keyid!r}&#34;,
+        )
+
+    try:
+        base = build_signature_base(method=method, url=url, headers=headers, parsed=parsed).encode(
+            &#34;utf-8&#34;
+        )
+    except (ValueError, KeyError) as exc:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=6,
+            message=f&#34;signature base construction failed: {exc}&#34;,
+        ) from exc
+    try:
+        public_key = public_key_from_jwk(jwk)
+    except (ValueError, KeyError) as exc:
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_HEADER_MALFORMED,
+            step=8,
+            message=f&#34;JWK decode failed: {exc}&#34;,
+        ) from exc
+    if not verify_signature(
+        alg=alg, public_key=public_key, signature_base=base, signature=sig_bytes
+    ):
+        raise SignatureVerificationError(
+            REQUEST_SIGNATURE_INVALID,
+            step=10,
+            message=&#34;signature did not verify over the computed base&#34;,
+        )
+
+    if &#34;content-digest&#34; in parsed.components:
+        digest_header = _lookup(headers, &#34;content-digest&#34;)
+        if digest_header is None or not content_digest_matches(digest_header, body):
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_DIGEST_MISMATCH,
+                step=11,
+                message=&#34;Content-Digest does not match body&#34;,
+            )
+
+    if options.replay_store is not None:
+        if options.replay_store.seen(keyid, nonce):
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_REPLAYED,
+                step=12,
+                message=f&#34;nonce {nonce!r} already seen for keyid {keyid!r}&#34;,
+            )
+        ttl = max(
+            float(parsed.params[&#34;expires&#34;]) - options.now + options.max_skew_seconds,
+            0.0,
+        )
+        options.replay_store.remember(keyid, nonce, ttl)
+
+    return VerifiedSigner(
+        key_id=keyid,
+        alg=alg,
+        label=options.label,
+        verified_at=options.now,
+        agent_url=options.agent_url,
+    )</code></pre>
+</details>
+<div class="desc"><p>Run the AdCP request-signing verifier checklist against a request.</p>
+<p>Raises SignatureVerificationError with the spec error code on failure.</p></div>
+</dd>
+<dt id="adcp.signing.verify_signature"><code class="name flex">
+<span>def <span class="ident">verify_signature</span></span>(<span>*, alg: str, public_key: PublicKey, signature_base: bytes, signature: bytes) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_signature(
+    *,
+    alg: str,
+    public_key: PublicKey,
+    signature_base: bytes,
+    signature: bytes,
+) -&gt; bool:
+    &#34;&#34;&#34;Return True iff `signature` is valid over `signature_base` for `alg`.&#34;&#34;&#34;
+    if alg not in ALLOWED_ALGS:
+        raise ValueError(f&#34;unsupported alg: {alg}&#34;)
+    try:
+        if alg == ALG_ED25519:
+            if not isinstance(public_key, ed25519.Ed25519PublicKey):
+                return False
+            public_key.verify(signature, signature_base)
+            return True
+        if alg == ALG_ES256:
+            if not isinstance(public_key, ec.EllipticCurvePublicKey):
+                return False
+            if len(signature) != 64:
+                return False
+            r = int.from_bytes(signature[:32], &#34;big&#34;)
+            s = int.from_bytes(signature[32:], &#34;big&#34;)
+            der = encode_dss_signature(r, s)
+            public_key.verify(der, signature_base, ec.ECDSA(hashes.SHA256()))
+            return True
+    except InvalidSignature:
+        return False
+    return False</code></pre>
+</details>
+<div class="desc"><p>Return True iff <code>signature</code> is valid over <code>signature_base</code> for <code>alg</code>.</p></div>
+</dd>
+<dt id="adcp.signing.verify_starlette_request"><code class="name flex">
+<span>async def <span class="ident">verify_starlette_request</span></span>(<span>request: Any,<br>*,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> adcp.signing._verifier.VerifiedSigner</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def verify_starlette_request(request: Any, *, options: VerifyOptions) -&gt; VerifiedSigner:
+    &#34;&#34;&#34;Verify a Starlette / FastAPI `Request` object against the AdCP profile.
+
+    Consumes `await request.body()` — if downstream code also needs the body,
+    it must read `request.state` or the returned `VerifiedSigner`-side context.
+    &#34;&#34;&#34;
+    body = await request.body()
+    return verify_request_signature(
+        method=request.method,
+        url=str(request.url),
+        headers=dict(request.headers),
+        body=body,
+        options=options,
+    )</code></pre>
+</details>
+<div class="desc"><p>Verify a Starlette / FastAPI <code>Request</code> object against the AdCP profile.</p>
+<p>Consumes <code>await request.body()</code> — if downstream code also needs the body,
+it must read <code>request.state</code> or the returned <code><a title="adcp.signing.VerifiedSigner" href="#adcp.signing.VerifiedSigner">VerifiedSigner</a></code>-side context.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.signing.CachingJwksResolver"><code class="flex name class">
+<span>class <span class="ident">CachingJwksResolver</span></span>
+<span>(</span><span>jwks_uri: str,<br>*,<br>fetcher: JwksFetcher | None = None,<br>cooldown_seconds: float = 30.0,<br>allow_private: bool = False,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CachingJwksResolver:
+    &#34;&#34;&#34;JWKS resolver with per-URI cache and refetch cooldown.
+
+    Behavior:
+    - On a lookup miss, refresh if the cooldown has elapsed since the last
+      refresh (success or failure). This prevents attacker-driven
+      request-amplification on the signer&#39;s JWKS endpoint.
+    - Cache keyed on `kid`. Unknown keyids return None (verifier converts to
+      `request_signature_key_unknown`).
+    - SSRF failures surface as `request_signature_jwks_untrusted`; network
+      failures surface as `request_signature_jwks_unavailable`.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        jwks_uri: str,
+        *,
+        fetcher: JwksFetcher | None = None,
+        cooldown_seconds: float = DEFAULT_JWKS_COOLDOWN_SECONDS,
+        allow_private: bool = False,
+        clock: Callable[[], float] = time.monotonic,
+    ) -&gt; None:
+        self._jwks_uri = jwks_uri
+        self._fetcher = fetcher or default_jwks_fetcher
+        self._cooldown = cooldown_seconds
+        self._allow_private = allow_private
+        self._clock = clock
+        self._cache: dict[str, dict[str, Any]] = {}
+        self._last_attempt: float | None = None
+        self._primed = False
+
+    def __call__(self, keyid: str) -&gt; dict[str, Any] | None:
+        if keyid in self._cache:
+            return self._cache[keyid]
+        now = self._clock()
+        if not self._primed or (
+            self._last_attempt is not None and now - self._last_attempt &gt;= self._cooldown
+        ):
+            self._refresh(now)
+        return self._cache.get(keyid)
+
+    def _refresh(self, now: float) -&gt; None:
+        self._last_attempt = now
+        try:
+            jwks = self._fetcher(self._jwks_uri, allow_private=self._allow_private)
+        except SSRFValidationError as exc:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+                step=7,
+                message=f&#34;JWKS URI failed SSRF check: {exc}&#34;,
+            ) from exc
+        except (httpx.HTTPError, ValueError, OSError) as exc:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+                step=7,
+                message=f&#34;JWKS fetch failed: {exc}&#34;,
+            ) from exc
+        self._primed = True
+        self._cache = {jwk[&#34;kid&#34;]: jwk for jwk in jwks.get(&#34;keys&#34;, []) if &#34;kid&#34; in jwk}</code></pre>
+</details>
+<div class="desc"><p>JWKS resolver with per-URI cache and refetch cooldown.</p>
+<p>Behavior:
+- On a lookup miss, refresh if the cooldown has elapsed since the last
+refresh (success or failure). This prevents attacker-driven
+request-amplification on the signer's JWKS endpoint.
+- Cache keyed on <code>kid</code>. Unknown keyids return None (verifier converts to
+<code>request_signature_key_unknown</code>).
+- SSRF failures surface as <code>request_signature_jwks_untrusted</code>; network
+failures surface as <code>request_signature_jwks_unavailable</code>.</p></div>
+</dd>
+<dt id="adcp.signing.InMemoryReplayStore"><code class="flex name class">
+<span>class <span class="ident">InMemoryReplayStore</span></span>
+<span>(</span><span>*,<br>per_keyid_cap: int = 1000000,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InMemoryReplayStore:
+    &#34;&#34;&#34;Process-local replay store. Uses a monotonic clock for TTL bookkeeping so
+    wall-clock jumps (NTP adjustments, VM suspend/resume) don&#39;t race eviction.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        per_keyid_cap: int = 1_000_000,
+        clock: Callable[[], float] = time.monotonic,
+    ) -&gt; None:
+        self._per_keyid_cap = per_keyid_cap
+        self._clock = clock
+        self._entries: dict[tuple[str, str], float] = {}
+        self._counts: dict[str, int] = {}
+        self._cap_hit: set[str] = set()
+        self._lock = threading.RLock()
+
+    def seen(self, keyid: str, nonce: str) -&gt; bool:
+        with self._lock:
+            self._expire_one(keyid, nonce)
+            return (keyid, nonce) in self._entries
+
+    def remember(self, keyid: str, nonce: str, ttl_seconds: float) -&gt; None:
+        with self._lock:
+            self._sweep_for_keyid(keyid)
+            key = (keyid, nonce)
+            if key not in self._entries:
+                self._counts[keyid] = self._counts.get(keyid, 0) + 1
+            self._entries[key] = self._clock() + ttl_seconds
+
+    def at_capacity(self, keyid: str) -&gt; bool:
+        with self._lock:
+            if keyid in self._cap_hit:
+                return True
+            return self._counts.get(keyid, 0) &gt;= self._per_keyid_cap
+
+    def mark_cap_hit(self, keyid: str) -&gt; None:
+        &#34;&#34;&#34;Test-harness hook — simulate the cap being reached for this keyid.&#34;&#34;&#34;
+        with self._lock:
+            self._cap_hit.add(keyid)
+
+    def _expire_one(self, keyid: str, nonce: str) -&gt; None:
+        key = (keyid, nonce)
+        expiry = self._entries.get(key)
+        if expiry is not None and expiry &lt; self._clock():
+            del self._entries[key]
+            self._counts[keyid] = self._counts.get(keyid, 1) - 1
+            if self._counts[keyid] &lt;= 0:
+                self._counts.pop(keyid, None)
+
+    def _sweep_for_keyid(self, keyid: str) -&gt; None:
+        now = self._clock()
+        removed = 0
+        # Scan only entries for this keyid to bound per-call work under load.
+        for key, expiry in list(self._entries.items()):
+            if key[0] != keyid:
+                continue
+            if expiry &lt; now:
+                del self._entries[key]
+                self._counts[keyid] = self._counts.get(keyid, 1) - 1
+                if self._counts[keyid] &lt;= 0:
+                    self._counts.pop(keyid, None)
+                removed += 1
+                if removed &gt;= _SWEEP_BATCH:
+                    return</code></pre>
+</details>
+<div class="desc"><p>Process-local replay store. Uses a monotonic clock for TTL bookkeeping so
+wall-clock jumps (NTP adjustments, VM suspend/resume) don't race eviction.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.InMemoryReplayStore.at_capacity"><code class="name flex">
+<span>def <span class="ident">at_capacity</span></span>(<span>self, keyid: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def at_capacity(self, keyid: str) -&gt; bool:
+    with self._lock:
+        if keyid in self._cap_hit:
+            return True
+        return self._counts.get(keyid, 0) &gt;= self._per_keyid_cap</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.InMemoryReplayStore.mark_cap_hit"><code class="name flex">
+<span>def <span class="ident">mark_cap_hit</span></span>(<span>self, keyid: str) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def mark_cap_hit(self, keyid: str) -&gt; None:
+    &#34;&#34;&#34;Test-harness hook — simulate the cap being reached for this keyid.&#34;&#34;&#34;
+    with self._lock:
+        self._cap_hit.add(keyid)</code></pre>
+</details>
+<div class="desc"><p>Test-harness hook — simulate the cap being reached for this keyid.</p></div>
+</dd>
+<dt id="adcp.signing.InMemoryReplayStore.remember"><code class="name flex">
+<span>def <span class="ident">remember</span></span>(<span>self, keyid: str, nonce: str, ttl_seconds: float) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remember(self, keyid: str, nonce: str, ttl_seconds: float) -&gt; None:
+    with self._lock:
+        self._sweep_for_keyid(keyid)
+        key = (keyid, nonce)
+        if key not in self._entries:
+            self._counts[keyid] = self._counts.get(keyid, 0) + 1
+        self._entries[key] = self._clock() + ttl_seconds</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.InMemoryReplayStore.seen"><code class="name flex">
+<span>def <span class="ident">seen</span></span>(<span>self, keyid: str, nonce: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def seen(self, keyid: str, nonce: str) -&gt; bool:
+    with self._lock:
+        self._expire_one(keyid, nonce)
+        return (keyid, nonce) in self._entries</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.JwksResolver"><code class="flex name class">
+<span>class <span class="ident">JwksResolver</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JwksResolver(Protocol):
+    &#34;&#34;&#34;Resolves a keyid to a JWK (or None if unknown).&#34;&#34;&#34;
+
+    def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
+</details>
+<div class="desc"><p>Resolves a keyid to a JWK (or None if unknown).</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="adcp.signing.ReplayStore"><code class="flex name class">
+<span>class <span class="ident">ReplayStore</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ReplayStore(Protocol):
+    &#34;&#34;&#34;Minimum interface a replay backend must expose.&#34;&#34;&#34;
+
+    def seen(self, keyid: str, nonce: str) -&gt; bool: ...
+
+    def remember(self, keyid: str, nonce: str, ttl_seconds: float) -&gt; None: ...
+
+    def at_capacity(self, keyid: str) -&gt; bool: ...</code></pre>
+</details>
+<div class="desc"><p>Minimum interface a replay backend must expose.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.ReplayStore.at_capacity"><code class="name flex">
+<span>def <span class="ident">at_capacity</span></span>(<span>self, keyid: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def at_capacity(self, keyid: str) -&gt; bool: ...</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.ReplayStore.remember"><code class="name flex">
+<span>def <span class="ident">remember</span></span>(<span>self, keyid: str, nonce: str, ttl_seconds: float) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remember(self, keyid: str, nonce: str, ttl_seconds: float) -&gt; None: ...</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.ReplayStore.seen"><code class="name flex">
+<span>def <span class="ident">seen</span></span>(<span>self, keyid: str, nonce: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def seen(self, keyid: str, nonce: str) -&gt; bool: ...</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.RevocationChecker"><code class="flex name class">
+<span>class <span class="ident">RevocationChecker</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RevocationChecker(Protocol):
+    &#34;&#34;&#34;Returns True iff `keyid` is revoked.&#34;&#34;&#34;
+
+    def __call__(self, keyid: str) -&gt; bool: ...</code></pre>
+</details>
+<div class="desc"><p>Returns True iff <code>keyid</code> is revoked.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="adcp.signing.RevocationList"><code class="flex name class">
+<span>class <span class="ident">RevocationList</span></span>
+<span>(</span><span>issuer: str,<br>updated: str,<br>next_update: str,<br>revoked_kids: frozenset[str] = &lt;factory&gt;,<br>revoked_jtis: frozenset[str] = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class RevocationList:
+    &#34;&#34;&#34;In-memory representation of the revocation list snapshot.&#34;&#34;&#34;
+
+    issuer: str
+    updated: str
+    next_update: str
+    revoked_kids: frozenset[str] = field(default_factory=frozenset)
+    revoked_jtis: frozenset[str] = field(default_factory=frozenset)
+
+    def is_revoked(self, keyid: str) -&gt; bool:
+        return keyid in self.revoked_kids
+
+    def is_stale(self, now: datetime) -&gt; bool:
+        &#34;&#34;&#34;True iff the list&#39;s `next_update` timestamp is in the past relative to `now`.
+
+        A stale list must not be trusted to decide revocation — an attacker who
+        takes the issuer offline could indefinitely extend a revoked key&#39;s life.
+        &#34;&#34;&#34;
+        # Python 3.10&#39;s fromisoformat rejects the trailing `Z` (fixed in 3.11);
+        # the AdCP vectors use `Z`, so normalize before parsing.
+        raw = self.next_update
+        if raw.endswith(&#34;Z&#34;):
+            raw = raw[:-1] + &#34;+00:00&#34;
+        ts = datetime.fromisoformat(raw)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return ts &lt; now
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -&gt; RevocationList:
+        return cls(
+            issuer=data[&#34;issuer&#34;],
+            updated=data[&#34;updated&#34;],
+            next_update=data[&#34;next_update&#34;],
+            revoked_kids=frozenset(data.get(&#34;revoked_kids&#34;, ())),
+            revoked_jtis=frozenset(data.get(&#34;revoked_jtis&#34;, ())),
+        )</code></pre>
+</details>
+<div class="desc"><p>In-memory representation of the revocation list snapshot.</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.signing.RevocationList.from_dict"><code class="name flex">
+<span>def <span class="ident">from_dict</span></span>(<span>data: dict[str, Any]) ‑> adcp.signing._revocation.RevocationList</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.RevocationList.issuer"><code class="name">var <span class="ident">issuer</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.RevocationList.next_update"><code class="name">var <span class="ident">next_update</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.RevocationList.revoked_jtis"><code class="name">var <span class="ident">revoked_jtis</span> : frozenset[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.RevocationList.revoked_kids"><code class="name">var <span class="ident">revoked_kids</span> : frozenset[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.RevocationList.updated"><code class="name">var <span class="ident">updated</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.RevocationList.is_revoked"><code class="name flex">
+<span>def <span class="ident">is_revoked</span></span>(<span>self, keyid: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_revoked(self, keyid: str) -&gt; bool:
+    return keyid in self.revoked_kids</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.RevocationList.is_stale"><code class="name flex">
+<span>def <span class="ident">is_stale</span></span>(<span>self, now: datetime) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_stale(self, now: datetime) -&gt; bool:
+    &#34;&#34;&#34;True iff the list&#39;s `next_update` timestamp is in the past relative to `now`.
+
+    A stale list must not be trusted to decide revocation — an attacker who
+    takes the issuer offline could indefinitely extend a revoked key&#39;s life.
+    &#34;&#34;&#34;
+    # Python 3.10&#39;s fromisoformat rejects the trailing `Z` (fixed in 3.11);
+    # the AdCP vectors use `Z`, so normalize before parsing.
+    raw = self.next_update
+    if raw.endswith(&#34;Z&#34;):
+        raw = raw[:-1] + &#34;+00:00&#34;
+    ts = datetime.fromisoformat(raw)
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts &lt; now</code></pre>
+</details>
+<div class="desc"><p>True iff the list's <code>next_update</code> timestamp is in the past relative to <code>now</code>.</p>
+<p>A stale list must not be trusted to decide revocation — an attacker who
+takes the issuer offline could indefinitely extend a revoked key's life.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.SSRFValidationError"><code class="flex name class">
+<span>class <span class="ident">SSRFValidationError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SSRFValidationError(Exception):
+    &#34;&#34;&#34;Raised when a URL resolves to an IP in a reserved or blocked range.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Raised when a URL resolves to an IP in a reserved or blocked range.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.signing.SignatureInputLabel"><code class="flex name class">
+<span>class <span class="ident">SignatureInputLabel</span></span>
+<span>(</span><span>label: str,<br>components: tuple[str, ...],<br>params: dict[str, str | int],<br>raw_value: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class SignatureInputLabel:
+    &#34;&#34;&#34;A single label in a Signature-Input header (e.g. the `sig1=...` entry).&#34;&#34;&#34;
+
+    label: str
+    components: tuple[str, ...]
+    params: dict[str, str | int]
+    raw_value: str</code></pre>
+</details>
+<div class="desc"><p>A single label in a Signature-Input header (e.g. the <code>sig1=...</code> entry).</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.SignatureInputLabel.components"><code class="name">var <span class="ident">components</span> : tuple[str, ...]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.SignatureInputLabel.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.SignatureInputLabel.params"><code class="name">var <span class="ident">params</span> : dict[str, str | int]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.SignatureInputLabel.raw_value"><code class="name">var <span class="ident">raw_value</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.SignatureVerificationError"><code class="flex name class">
+<span>class <span class="ident">SignatureVerificationError</span></span>
+<span>(</span><span>code: str, *, step: int | str | None = None, message: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SignatureVerificationError(Exception):
+    &#34;&#34;&#34;Raised when a request signature fails any step of the verifier checklist.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        code: str,
+        *,
+        step: int | str | None = None,
+        message: str | None = None,
+    ) -&gt; None:
+        super().__init__(message or code)
+        self.code = code
+        self.step = step</code></pre>
+</details>
+<div class="desc"><p>Raised when a request signature fails any step of the verifier checklist.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.signing.SignedHeaders"><code class="flex name class">
+<span>class <span class="ident">SignedHeaders</span></span>
+<span>(</span><span>signature_input: str, signature: str, content_digest: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class SignedHeaders:
+    &#34;&#34;&#34;The headers a signer must add to the outgoing request.&#34;&#34;&#34;
+
+    signature_input: str
+    signature: str
+    content_digest: str | None = None
+
+    def as_dict(self) -&gt; dict[str, str]:
+        headers: dict[str, str] = {
+            &#34;Signature-Input&#34;: self.signature_input,
+            &#34;Signature&#34;: self.signature,
+        }
+        if self.content_digest is not None:
+            headers[&#34;Content-Digest&#34;] = self.content_digest
+        return headers</code></pre>
+</details>
+<div class="desc"><p>The headers a signer must add to the outgoing request.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.SignedHeaders.content_digest"><code class="name">var <span class="ident">content_digest</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.SignedHeaders.signature"><code class="name">var <span class="ident">signature</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.SignedHeaders.signature_input"><code class="name">var <span class="ident">signature_input</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.SignedHeaders.as_dict"><code class="name flex">
+<span>def <span class="ident">as_dict</span></span>(<span>self) ‑> dict[str, str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_dict(self) -&gt; dict[str, str]:
+    headers: dict[str, str] = {
+        &#34;Signature-Input&#34;: self.signature_input,
+        &#34;Signature&#34;: self.signature,
+    }
+    if self.content_digest is not None:
+        headers[&#34;Content-Digest&#34;] = self.content_digest
+    return headers</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.StaticJwksResolver"><code class="flex name class">
+<span>class <span class="ident">StaticJwksResolver</span></span>
+<span>(</span><span>jwks: dict[str, Any])</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class StaticJwksResolver:
+    &#34;&#34;&#34;Resolves keyids from a fixed in-memory JWKS — convenient for tests.&#34;&#34;&#34;
+
+    def __init__(self, jwks: dict[str, Any]) -&gt; None:
+        self._keys = {jwk[&#34;kid&#34;]: jwk for jwk in jwks.get(&#34;keys&#34;, []) if &#34;kid&#34; in jwk}
+
+    def __call__(self, keyid: str) -&gt; dict[str, Any] | None:
+        return self._keys.get(keyid)</code></pre>
+</details>
+<div class="desc"><p>Resolves keyids from a fixed in-memory JWKS — convenient for tests.</p></div>
+</dd>
+<dt id="adcp.signing.VerifiedSigner"><code class="flex name class">
+<span>class <span class="ident">VerifiedSigner</span></span>
+<span>(</span><span>key_id: str, alg: str, label: str, verified_at: float, agent_url: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class VerifiedSigner:
+    &#34;&#34;&#34;Returned on successful verification. The key_id is the signer&#39;s identity.&#34;&#34;&#34;
+
+    key_id: str
+    alg: str
+    label: str
+    verified_at: float
+    agent_url: str | None = None</code></pre>
+</details>
+<div class="desc"><p>Returned on successful verification. The key_id is the signer's identity.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.VerifiedSigner.agent_url"><code class="name">var <span class="ident">agent_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifiedSigner.alg"><code class="name">var <span class="ident">alg</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifiedSigner.key_id"><code class="name">var <span class="ident">key_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifiedSigner.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifiedSigner.verified_at"><code class="name">var <span class="ident">verified_at</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.VerifierCapability"><code class="flex name class">
+<span>class <span class="ident">VerifierCapability</span></span>
+<span>(</span><span>supported: bool = True,<br>covers_content_digest: CoversDigestPolicy = 'required',<br>required_for: frozenset[str] = &lt;factory&gt;,<br>supported_for: frozenset[str] = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass
+class VerifierCapability:
+    &#34;&#34;&#34;The `request_signing` block a verifier advertises on get_adcp_capabilities.
+
+    Defaults to `covers_content_digest=&#34;required&#34;`: body integrity must be
+    authenticated end-to-end. With `&#34;either&#34;`, a MITM inside TLS termination
+    (reverse proxy, service mesh) can swap bodies freely on unsigned-digest
+    requests — only pick `&#34;either&#34;` if you&#39;ve weighed that tradeoff.
+    &#34;&#34;&#34;
+
+    supported: bool = True
+    covers_content_digest: CoversDigestPolicy = &#34;required&#34;
+    required_for: frozenset[str] = field(default_factory=frozenset)
+    supported_for: frozenset[str] = field(default_factory=frozenset)</code></pre>
+</details>
+<div class="desc"><p>The <code>request_signing</code> block a verifier advertises on get_adcp_capabilities.</p>
+<p>Defaults to <code>covers_content_digest="required"</code>: body integrity must be
+authenticated end-to-end. With <code>"either"</code>, a MITM inside TLS termination
+(reverse proxy, service mesh) can swap bodies freely on unsigned-digest
+requests — only pick <code>"either"</code> if you've weighed that tradeoff.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.VerifierCapability.covers_content_digest"><code class="name">var <span class="ident">covers_content_digest</span> : Literal['required', 'forbidden', 'either']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifierCapability.required_for"><code class="name">var <span class="ident">required_for</span> : frozenset[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifierCapability.supported"><code class="name">var <span class="ident">supported</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifierCapability.supported_for"><code class="name">var <span class="ident">supported_for</span> : frozenset[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.VerifyOptions"><code class="flex name class">
+<span>class <span class="ident">VerifyOptions</span></span>
+<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>replay_store: <a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a> | None = None,<br>revocation_checker: <a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a> | None = None,<br>revocation_list: <a title="adcp.signing.RevocationList" href="#adcp.signing.RevocationList">RevocationList</a> | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>agent_url: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True, kw_only=True)
+class VerifyOptions:
+    now: float
+    capability: VerifierCapability
+    operation: str
+    jwks_resolver: JwksResolver
+    replay_store: ReplayStore | None = None
+    revocation_checker: RevocationChecker | None = None
+    revocation_list: RevocationList | None = None
+    max_skew_seconds: int = DEFAULT_SKEW_SECONDS
+    max_window_seconds: int = MAX_WINDOW_SECONDS
+    label: str = SIG_LABEL_DEFAULT
+    expected_tag: str = DEFAULT_TAG
+    allowed_algs: frozenset[str] = ALLOWED_ALGS
+    agent_url: str | None = None</code></pre>
+</details>
+<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', allowed_algs: 'frozenset[str]' = frozenset({'ecdsa-p256-sha256', 'ed25519'}), agent_url: 'str | None' = None)</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.VerifyOptions.agent_url"><code class="name">var <span class="ident">agent_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.allowed_algs"><code class="name">var <span class="ident">allowed_algs</span> : frozenset[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.capability"><code class="name">var <span class="ident">capability</span> : adcp.signing._verifier.VerifierCapability</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.expected_tag"><code class="name">var <span class="ident">expected_tag</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.jwks_resolver"><code class="name">var <span class="ident">jwks_resolver</span> : adcp.signing._verifier.JwksResolver</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.max_skew_seconds"><code class="name">var <span class="ident">max_skew_seconds</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.max_window_seconds"><code class="name">var <span class="ident">max_window_seconds</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.now"><code class="name">var <span class="ident">now</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.operation"><code class="name">var <span class="ident">operation</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.replay_store"><code class="name">var <span class="ident">replay_store</span> : adcp.signing._replay.ReplayStore | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.revocation_checker"><code class="name">var <span class="ident">revocation_checker</span> : adcp.signing._revocation.RevocationChecker | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.VerifyOptions.revocation_list"><code class="name">var <span class="ident">revocation_list</span> : adcp.signing._revocation.RevocationList | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="../index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="adcp.signing.keygen" href="keygen.html">adcp.signing.keygen</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.signing.alg_for_jwk" href="#adcp.signing.alg_for_jwk">alg_for_jwk</a></code></li>
+<li><code><a title="adcp.signing.b64url_decode" href="#adcp.signing.b64url_decode">b64url_decode</a></code></li>
+<li><code><a title="adcp.signing.b64url_encode" href="#adcp.signing.b64url_encode">b64url_encode</a></code></li>
+<li><code><a title="adcp.signing.build_signature_base" href="#adcp.signing.build_signature_base">build_signature_base</a></code></li>
+<li><code><a title="adcp.signing.canonicalize_authority" href="#adcp.signing.canonicalize_authority">canonicalize_authority</a></code></li>
+<li><code><a title="adcp.signing.canonicalize_target_uri" href="#adcp.signing.canonicalize_target_uri">canonicalize_target_uri</a></code></li>
+<li><code><a title="adcp.signing.compute_content_digest_sha256" href="#adcp.signing.compute_content_digest_sha256">compute_content_digest_sha256</a></code></li>
+<li><code><a title="adcp.signing.content_digest_matches" href="#adcp.signing.content_digest_matches">content_digest_matches</a></code></li>
+<li><code><a title="adcp.signing.default_jwks_fetcher" href="#adcp.signing.default_jwks_fetcher">default_jwks_fetcher</a></code></li>
+<li><code><a title="adcp.signing.extract_signature_bytes" href="#adcp.signing.extract_signature_bytes">extract_signature_bytes</a></code></li>
+<li><code><a title="adcp.signing.format_signature_header" href="#adcp.signing.format_signature_header">format_signature_header</a></code></li>
+<li><code><a title="adcp.signing.parse_signature_input_header" href="#adcp.signing.parse_signature_input_header">parse_signature_input_header</a></code></li>
+<li><code><a title="adcp.signing.private_key_from_jwk" href="#adcp.signing.private_key_from_jwk">private_key_from_jwk</a></code></li>
+<li><code><a title="adcp.signing.public_key_from_jwk" href="#adcp.signing.public_key_from_jwk">public_key_from_jwk</a></code></li>
+<li><code><a title="adcp.signing.sign_request" href="#adcp.signing.sign_request">sign_request</a></code></li>
+<li><code><a title="adcp.signing.sign_signature_base" href="#adcp.signing.sign_signature_base">sign_signature_base</a></code></li>
+<li><code><a title="adcp.signing.unauthorized_response_headers" href="#adcp.signing.unauthorized_response_headers">unauthorized_response_headers</a></code></li>
+<li><code><a title="adcp.signing.validate_jwks_uri" href="#adcp.signing.validate_jwks_uri">validate_jwks_uri</a></code></li>
+<li><code><a title="adcp.signing.verify_flask_request" href="#adcp.signing.verify_flask_request">verify_flask_request</a></code></li>
+<li><code><a title="adcp.signing.verify_request_signature" href="#adcp.signing.verify_request_signature">verify_request_signature</a></code></li>
+<li><code><a title="adcp.signing.verify_signature" href="#adcp.signing.verify_signature">verify_signature</a></code></li>
+<li><code><a title="adcp.signing.verify_starlette_request" href="#adcp.signing.verify_starlette_request">verify_starlette_request</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.signing.CachingJwksResolver" href="#adcp.signing.CachingJwksResolver">CachingJwksResolver</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.InMemoryReplayStore" href="#adcp.signing.InMemoryReplayStore">InMemoryReplayStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.InMemoryReplayStore.at_capacity" href="#adcp.signing.InMemoryReplayStore.at_capacity">at_capacity</a></code></li>
+<li><code><a title="adcp.signing.InMemoryReplayStore.mark_cap_hit" href="#adcp.signing.InMemoryReplayStore.mark_cap_hit">mark_cap_hit</a></code></li>
+<li><code><a title="adcp.signing.InMemoryReplayStore.remember" href="#adcp.signing.InMemoryReplayStore.remember">remember</a></code></li>
+<li><code><a title="adcp.signing.InMemoryReplayStore.seen" href="#adcp.signing.InMemoryReplayStore.seen">seen</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.ReplayStore.at_capacity" href="#adcp.signing.ReplayStore.at_capacity">at_capacity</a></code></li>
+<li><code><a title="adcp.signing.ReplayStore.remember" href="#adcp.signing.ReplayStore.remember">remember</a></code></li>
+<li><code><a title="adcp.signing.ReplayStore.seen" href="#adcp.signing.ReplayStore.seen">seen</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.RevocationList" href="#adcp.signing.RevocationList">RevocationList</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.signing.RevocationList.from_dict" href="#adcp.signing.RevocationList.from_dict">from_dict</a></code></li>
+<li><code><a title="adcp.signing.RevocationList.is_revoked" href="#adcp.signing.RevocationList.is_revoked">is_revoked</a></code></li>
+<li><code><a title="adcp.signing.RevocationList.is_stale" href="#adcp.signing.RevocationList.is_stale">is_stale</a></code></li>
+<li><code><a title="adcp.signing.RevocationList.issuer" href="#adcp.signing.RevocationList.issuer">issuer</a></code></li>
+<li><code><a title="adcp.signing.RevocationList.next_update" href="#adcp.signing.RevocationList.next_update">next_update</a></code></li>
+<li><code><a title="adcp.signing.RevocationList.revoked_jtis" href="#adcp.signing.RevocationList.revoked_jtis">revoked_jtis</a></code></li>
+<li><code><a title="adcp.signing.RevocationList.revoked_kids" href="#adcp.signing.RevocationList.revoked_kids">revoked_kids</a></code></li>
+<li><code><a title="adcp.signing.RevocationList.updated" href="#adcp.signing.RevocationList.updated">updated</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.SSRFValidationError" href="#adcp.signing.SSRFValidationError">SSRFValidationError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.SignatureInputLabel" href="#adcp.signing.SignatureInputLabel">SignatureInputLabel</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.SignatureInputLabel.components" href="#adcp.signing.SignatureInputLabel.components">components</a></code></li>
+<li><code><a title="adcp.signing.SignatureInputLabel.label" href="#adcp.signing.SignatureInputLabel.label">label</a></code></li>
+<li><code><a title="adcp.signing.SignatureInputLabel.params" href="#adcp.signing.SignatureInputLabel.params">params</a></code></li>
+<li><code><a title="adcp.signing.SignatureInputLabel.raw_value" href="#adcp.signing.SignatureInputLabel.raw_value">raw_value</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.SignatureVerificationError" href="#adcp.signing.SignatureVerificationError">SignatureVerificationError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.SignedHeaders" href="#adcp.signing.SignedHeaders">SignedHeaders</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.SignedHeaders.as_dict" href="#adcp.signing.SignedHeaders.as_dict">as_dict</a></code></li>
+<li><code><a title="adcp.signing.SignedHeaders.content_digest" href="#adcp.signing.SignedHeaders.content_digest">content_digest</a></code></li>
+<li><code><a title="adcp.signing.SignedHeaders.signature" href="#adcp.signing.SignedHeaders.signature">signature</a></code></li>
+<li><code><a title="adcp.signing.SignedHeaders.signature_input" href="#adcp.signing.SignedHeaders.signature_input">signature_input</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.StaticJwksResolver" href="#adcp.signing.StaticJwksResolver">StaticJwksResolver</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.VerifiedSigner" href="#adcp.signing.VerifiedSigner">VerifiedSigner</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.VerifiedSigner.agent_url" href="#adcp.signing.VerifiedSigner.agent_url">agent_url</a></code></li>
+<li><code><a title="adcp.signing.VerifiedSigner.alg" href="#adcp.signing.VerifiedSigner.alg">alg</a></code></li>
+<li><code><a title="adcp.signing.VerifiedSigner.key_id" href="#adcp.signing.VerifiedSigner.key_id">key_id</a></code></li>
+<li><code><a title="adcp.signing.VerifiedSigner.label" href="#adcp.signing.VerifiedSigner.label">label</a></code></li>
+<li><code><a title="adcp.signing.VerifiedSigner.verified_at" href="#adcp.signing.VerifiedSigner.verified_at">verified_at</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.VerifierCapability.covers_content_digest" href="#adcp.signing.VerifierCapability.covers_content_digest">covers_content_digest</a></code></li>
+<li><code><a title="adcp.signing.VerifierCapability.required_for" href="#adcp.signing.VerifierCapability.required_for">required_for</a></code></li>
+<li><code><a title="adcp.signing.VerifierCapability.supported" href="#adcp.signing.VerifierCapability.supported">supported</a></code></li>
+<li><code><a title="adcp.signing.VerifierCapability.supported_for" href="#adcp.signing.VerifierCapability.supported_for">supported_for</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.signing.VerifyOptions.agent_url" href="#adcp.signing.VerifyOptions.agent_url">agent_url</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.allowed_algs" href="#adcp.signing.VerifyOptions.allowed_algs">allowed_algs</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.capability" href="#adcp.signing.VerifyOptions.capability">capability</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.expected_tag" href="#adcp.signing.VerifyOptions.expected_tag">expected_tag</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.jwks_resolver" href="#adcp.signing.VerifyOptions.jwks_resolver">jwks_resolver</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.label" href="#adcp.signing.VerifyOptions.label">label</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.max_skew_seconds" href="#adcp.signing.VerifyOptions.max_skew_seconds">max_skew_seconds</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.max_window_seconds" href="#adcp.signing.VerifyOptions.max_window_seconds">max_window_seconds</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.now" href="#adcp.signing.VerifyOptions.now">now</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.operation" href="#adcp.signing.VerifyOptions.operation">operation</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.replay_store" href="#adcp.signing.VerifyOptions.replay_store">replay_store</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.revocation_checker" href="#adcp.signing.VerifyOptions.revocation_checker">revocation_checker</a></code></li>
+<li><code><a title="adcp.signing.VerifyOptions.revocation_list" href="#adcp.signing.VerifyOptions.revocation_list">revocation_list</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
