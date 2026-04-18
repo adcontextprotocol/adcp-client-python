@@ -319,6 +319,11 @@ el.replaceWith(d);
         start_time = time.time() if self.agent_config.debug else None
         debug_info = None
         debug_request: dict[str, Any] = {}
+        if _idempotency.is_mutating(tool_name) and self.idempotency_capability_check:
+            await self.idempotency_capability_check()
+        params, idempotency_key = _idempotency.inject_key(
+            tool_name, params, client_token=self.idempotency_client_token
+        )
 
         try:
             session = await self._get_session()
@@ -327,7 +332,7 @@ el.replaceWith(d);
                 debug_request = {
                     &#34;protocol&#34;: &#34;MCP&#34;,
                     &#34;tool&#34;: tool_name,
-                    &#34;params&#34;: params,
+                    &#34;params&#34;: _idempotency.redact_params(params),
                     &#34;transport&#34;: self.agent_config.mcp_transport,
                 }
 
@@ -353,6 +358,16 @@ el.replaceWith(d);
                 # For error responses, structuredContent is optional
                 # Use the error message from content as the error
                 error_message = message_text or &#34;Tool execution failed&#34;
+                structured_error = getattr(result, &#34;structuredContent&#34;, None)
+                # Prefer structured error codes when present, then fall back to
+                # scanning the text content — many MCP servers (FastMCP default)
+                # return is_error=true with only a text body carrying the code.
+                _idempotency.raise_for_idempotency_error(
+                    tool_name, structured_error, self.agent_config.id
+                )
+                _idempotency.raise_for_idempotency_text(
+                    tool_name, message_text, self.agent_config.id
+                )
                 if self.agent_config.debug and start_time:
                     duration_ms = (time.time() - start_time) * 1000
                     debug_info = DebugInfo(
@@ -368,6 +383,7 @@ el.replaceWith(d);
                     error=error_message,
                     success=False,
                     debug_info=debug_info,
+                    idempotency_key=idempotency_key,
                 )
 
             # For successful responses, structuredContent is required
@@ -386,23 +402,36 @@ el.replaceWith(d);
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
                     request=debug_request,
-                    response={
-                        &#34;data&#34;: data_to_return,
-                        &#34;message&#34;: message_text,
-                        &#34;is_error&#34;: False,
-                    },
+                    response=_idempotency.deep_redact(
+                        {
+                            &#34;data&#34;: data_to_return,
+                            &#34;message&#34;: message_text,
+                            &#34;is_error&#34;: False,
+                        }
+                    ),
                     duration_ms=duration_ms,
                 )
 
+            _idempotency.raise_for_idempotency_error(
+                tool_name, data_to_return, self.agent_config.id
+            )
+
             # Return both the structured data and the human-readable message
-            return TaskResult[Any](
+            task_result = TaskResult[Any](
                 status=TaskStatus.COMPLETED,
                 data=data_to_return,
                 message=message_text,
                 success=True,
                 debug_info=debug_info,
             )
+            return _idempotency.annotate_result(task_result, idempotency_key)
 
+        except (IdempotencyConflictError, IdempotencyExpiredError):
+            # Propagate typed idempotency errors — callers MUST handle these
+            # distinctly (mint fresh key / reconcile state). Other ADCPError
+            # subclasses (connection, timeout) continue to be converted to
+            # TaskResult(failed) below, preserving the existing contract.
+            raise
         except Exception as e:
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
@@ -416,6 +445,7 @@ el.replaceWith(d);
                 error=str(e),
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
 
     # ========================================================================

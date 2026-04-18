@@ -48,7 +48,7 @@ el.replaceWith(d);
 <dl>
 <dt id="adcp.client.ADCPClient"><code class="flex name class">
 <span>class <span class="ident">ADCPClient</span></span>
-<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300,<br>capabilities_ttl: float = 3600.0,<br>validate_features: bool = False)</span>
+<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300,<br>capabilities_ttl: float = 3600.0,<br>validate_features: bool = False,<br>strict_idempotency: bool = False)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -67,6 +67,7 @@ el.replaceWith(d);
         webhook_timestamp_tolerance: int = 300,
         capabilities_ttl: float = 3600.0,
         validate_features: bool = False,
+        strict_idempotency: bool = False,
     ):
         &#34;&#34;&#34;
         Initialize ADCP client for a single agent.
@@ -84,6 +85,12 @@ el.replaceWith(d);
             validate_features: When True, automatically check that the seller supports
                 required features before making task calls (e.g., sync_audiences requires
                 audience_targeting). Requires capabilities to have been fetched first.
+            strict_idempotency: When True, verify the seller declared
+                ``adcp.idempotency.replay_ttl_seconds`` in capabilities before any
+                mutating call. Fetches capabilities lazily on first use. Raises
+                ``IdempotencyUnsupportedError`` if the declaration is missing —
+                sellers that don&#39;t declare it provide no retry-safety guarantee
+                per AdCP #2315. Defaults to False for backward compatibility.
         &#34;&#34;&#34;
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
@@ -92,11 +99,18 @@ el.replaceWith(d);
         self.webhook_timestamp_tolerance = webhook_timestamp_tolerance
         self.capabilities_ttl = capabilities_ttl
         self.validate_features = validate_features
+        self.strict_idempotency = strict_idempotency
 
         # Capabilities cache
         self._capabilities: GetAdcpCapabilitiesResponse | None = None
         self._feature_resolver: FeatureResolver | None = None
         self._capabilities_fetched_at: float | None = None
+        self._idempotency_capability_verified: bool = False
+        # Unique per-instance token so use_idempotency_key scopes to this
+        # client and does not bleed to siblings (AdCP #2315 cross-seller risk).
+        from uuid import uuid4 as _uuid4
+
+        self._idempotency_client_token: str = _uuid4().hex
 
         # Initialize protocol adapter
         self.adapter: ProtocolAdapter
@@ -107,10 +121,51 @@ el.replaceWith(d);
         else:
             raise ValueError(f&#34;Unsupported protocol: {agent_config.protocol}&#34;)
 
+        self.adapter.idempotency_client_token = self._idempotency_client_token
+        if strict_idempotency:
+            self.adapter.idempotency_capability_check = self._ensure_idempotency_capability
+
         # Initialize simple API accessor (lazy import to avoid circular dependency)
         from adcp.simple import SimpleAPI
 
         self.simple = SimpleAPI(self)
+
+    async def _ensure_idempotency_capability(self) -&gt; None:
+        &#34;&#34;&#34;Verify the seller declared idempotency.replay_ttl_seconds in capabilities.
+
+        Called before every mutating request when ``strict_idempotency=True``.
+        Fetches capabilities on first invocation; subsequent calls are no-ops
+        once the declaration has been observed. Raises
+        ``IdempotencyUnsupportedError`` when the seller is missing the field.
+
+        Sets ``_idempotency_capability_verified = True`` BEFORE calling
+        ``fetch_capabilities`` so any recursive dispatch through the adapter
+        terminates (``get_adcp_capabilities`` is non-mutating, so it would
+        short-circuit anyway — but this guard protects against future refactors
+        that might add it to the mutating set).
+        &#34;&#34;&#34;
+        from adcp.exceptions import IdempotencyUnsupportedError
+
+        if self._idempotency_capability_verified:
+            return
+
+        self._idempotency_capability_verified = True
+        try:
+            caps = await self.fetch_capabilities()
+            adcp_info = getattr(caps, &#34;adcp&#34;, None)
+            idempotency_info = getattr(adcp_info, &#34;idempotency&#34;, None) if adcp_info else None
+            ttl = (
+                getattr(idempotency_info, &#34;replay_ttl_seconds&#34;, None) if idempotency_info else None
+            )
+
+            if ttl is None:
+                raise IdempotencyUnsupportedError(
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                )
+        except Exception:
+            self._idempotency_capability_verified = False
+            raise
 
     def get_webhook_url(self, task_type: str, operation_id: str) -&gt; str:
         &#34;&#34;&#34;Generate webhook URL for a task.&#34;&#34;&#34;
@@ -127,6 +182,50 @@ el.replaceWith(d);
         &#34;&#34;&#34;Emit activity event.&#34;&#34;&#34;
         if self.on_activity:
             self.on_activity(activity)
+
+    @contextlib.contextmanager
+    def use_idempotency_key(self, key: str) -&gt; Iterator[str]:
+        &#34;&#34;&#34;Pin an ``idempotency_key`` for the next mutating call on THIS client.
+
+        Use when you&#39;ve persisted a key (e.g., in a buyer-side database) and
+        want the SDK to send that exact key on resume or retry across process
+        restarts. The key is validated against ``^[A-Za-z0-9_.:-]{16,255}$`` on
+        entry; a ``ValueError`` is raised for malformed keys.
+
+        Scope rules:
+
+        * **Single-use within scope.** The first mutating call inside the
+          ``with`` block consumes the pinned key; a second mutating call falls
+          through to a fresh UUID. This protects against ``asyncio.gather``
+          siblings accidentally sharing the key (which would trigger
+          ``IDEMPOTENCY_CONFLICT`` or silently duplicate work). If you need to
+          retry, wrap each attempt in its own ``with`` block.
+        * **Client-scoped.** The pinned key applies only to calls on THIS
+          client. A mutating call on a sibling ``ADCPClient`` inside the same
+          ``with`` block generates a fresh key and emits a ``UserWarning`` —
+          keys must be unique per (seller, request) pair (AdCP #2315).
+        * **No nesting.** Nested ``use_idempotency_key`` on the same client
+          raises ``RuntimeError``.
+
+        Example::
+
+            with client.use_idempotency_key(campaign.stored_key):
+                result = await client.create_media_buy(request)
+        &#34;&#34;&#34;
+        from adcp import _idempotency
+
+        _idempotency.validate_key(key)
+        token = self._idempotency_client_token
+        if token in _idempotency._scoped_keys:
+            raise RuntimeError(
+                &#34;use_idempotency_key is already active on this client; &#34;
+                &#34;nested usage is not supported.&#34;
+            )
+        _idempotency._scoped_keys[token] = key
+        try:
+            yield key
+        finally:
+            _idempotency._scoped_keys.pop(token, None)
 
     # ========================================================================
     # Capability Validation
@@ -2789,9 +2888,7 @@ el.replaceWith(d);
             True if signature is valid, False otherwise
         &#34;&#34;&#34;
         if not self.webhook_secret:
-            logger.warning(
-                &#34;Webhook signature verification skipped: no webhook_secret configured&#34;
-            )
+            logger.warning(&#34;Webhook signature verification skipped: no webhook_secret configured&#34;)
             return True
 
         # Reject stale or future timestamps to prevent replay attacks
@@ -3313,6 +3410,13 @@ this far in the future are rejected. Defaults to 300 (5 minutes).</dd>
 <dd>When True, automatically check that the seller supports
 required features before making task calls (e.g., sync_audiences requires
 audience_targeting). Requires capabilities to have been fetched first.</dd>
+<dt><strong><code>strict_idempotency</code></strong></dt>
+<dd>When True, verify the seller declared
+<code>adcp.idempotency.replay_ttl_seconds</code> in capabilities before any
+mutating call. Fetches capabilities lazily on first use. Raises
+<code>IdempotencyUnsupportedError</code> if the declaration is missing —
+sellers that don't declare it provide no retry-safety guarantee
+per AdCP #2315. Defaults to False for backward compatibility.</dd>
 </dl></div>
 <h3>Instance variables</h3>
 <dl>
@@ -7219,6 +7323,83 @@ of an existing property list.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing UpdatePropertyListResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.use_idempotency_key"><code class="name flex">
+<span>def <span class="ident">use_idempotency_key</span></span>(<span>self, key: str) ‑> Iterator[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@contextlib.contextmanager
+def use_idempotency_key(self, key: str) -&gt; Iterator[str]:
+    &#34;&#34;&#34;Pin an ``idempotency_key`` for the next mutating call on THIS client.
+
+    Use when you&#39;ve persisted a key (e.g., in a buyer-side database) and
+    want the SDK to send that exact key on resume or retry across process
+    restarts. The key is validated against ``^[A-Za-z0-9_.:-]{16,255}$`` on
+    entry; a ``ValueError`` is raised for malformed keys.
+
+    Scope rules:
+
+    * **Single-use within scope.** The first mutating call inside the
+      ``with`` block consumes the pinned key; a second mutating call falls
+      through to a fresh UUID. This protects against ``asyncio.gather``
+      siblings accidentally sharing the key (which would trigger
+      ``IDEMPOTENCY_CONFLICT`` or silently duplicate work). If you need to
+      retry, wrap each attempt in its own ``with`` block.
+    * **Client-scoped.** The pinned key applies only to calls on THIS
+      client. A mutating call on a sibling ``ADCPClient`` inside the same
+      ``with`` block generates a fresh key and emits a ``UserWarning`` —
+      keys must be unique per (seller, request) pair (AdCP #2315).
+    * **No nesting.** Nested ``use_idempotency_key`` on the same client
+      raises ``RuntimeError``.
+
+    Example::
+
+        with client.use_idempotency_key(campaign.stored_key):
+            result = await client.create_media_buy(request)
+    &#34;&#34;&#34;
+    from adcp import _idempotency
+
+    _idempotency.validate_key(key)
+    token = self._idempotency_client_token
+    if token in _idempotency._scoped_keys:
+        raise RuntimeError(
+            &#34;use_idempotency_key is already active on this client; &#34;
+            &#34;nested usage is not supported.&#34;
+        )
+    _idempotency._scoped_keys[token] = key
+    try:
+        yield key
+    finally:
+        _idempotency._scoped_keys.pop(token, None)</code></pre>
+</details>
+<div class="desc"><p>Pin an <code>idempotency_key</code> for the next mutating call on THIS client.</p>
+<p>Use when you've persisted a key (e.g., in a buyer-side database) and
+want the SDK to send that exact key on resume or retry across process
+restarts. The key is validated against <code>^[A-Za-z0-9_.:-]{16,255}$</code> on
+entry; a <code>ValueError</code> is raised for malformed keys.</p>
+<p>Scope rules:</p>
+<ul>
+<li><strong>Single-use within scope.</strong> The first mutating call inside the
+<code>with</code> block consumes the pinned key; a second mutating call falls
+through to a fresh UUID. This protects against <code>asyncio.gather</code>
+siblings accidentally sharing the key (which would trigger
+<code>IDEMPOTENCY_CONFLICT</code> or silently duplicate work). If you need to
+retry, wrap each attempt in its own <code>with</code> block.</li>
+<li><strong>Client-scoped.</strong> The pinned key applies only to calls on THIS
+client. A mutating call on a sibling <code><a title="adcp.client.ADCPClient" href="#adcp.client.ADCPClient">ADCPClient</a></code> inside the same
+<code>with</code> block generates a fresh key and emits a <code>UserWarning</code> —
+keys must be unique per (seller, request) pair (AdCP #2315).</li>
+<li><strong>No nesting.</strong> Nested <code>use_idempotency_key</code> on the same client
+raises <code>RuntimeError</code>.</li>
+</ul>
+<p>Example::</p>
+<pre><code>with client.use_idempotency_key(campaign.stored_key):
+    result = await client.create_media_buy(request)
+</code></pre></div>
+</dd>
 <dt id="adcp.client.ADCPClient.validate_content_delivery"><code class="name flex">
 <span>async def <span class="ident">validate_content_delivery</span></span>(<span>self, request: ValidateContentDeliveryRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[ValidateContentDeliveryResponse1, ValidateContentDeliveryResponse2]]</span>
 </code></dt>
@@ -7581,6 +7762,7 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.update_content_standards" href="#adcp.client.ADCPClient.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_media_buy" href="#adcp.client.ADCPClient.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_property_list" href="#adcp.client.ADCPClient.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.use_idempotency_key" href="#adcp.client.ADCPClient.use_idempotency_key">use_idempotency_key</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.validate_content_delivery" href="#adcp.client.ADCPClient.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>

@@ -41504,7 +41504,17 @@ validated to form a valid model.</p>
     error: str | None = None
     success: bool = Field(default=True)
     metadata: dict[str, Any] | None = None
-    debug_info: DebugInfo | None = None</code></pre>
+    debug_info: DebugInfo | None = None
+    # The full idempotency_key the SDK used for this request — echoed here so
+    # buyers can correlate against their own records. SENSITIVE inside the
+    # seller&#39;s replay_ttl_seconds window (serves as a retry-pattern oracle);
+    # do not emit to shared logs. The SDK&#39;s debug capture redacts keys by
+    # default; avoid ``model_dump_json()``-ing a TaskResult into shared sinks.
+    idempotency_key: str | None = None
+    # True when the seller returned a cached response for a replayed key.
+    # Agents that emit side effects on success (notifications, memory writes,
+    # downstream tool calls) must check this flag and suppress duplicates.
+    replayed: bool = False</code></pre>
 </details>
 <div class="desc"><p>Result from task execution.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
@@ -41591,6 +41601,10 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.TaskResult.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.TaskResult.message"><code class="name">var <span class="ident">message</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -41604,6 +41618,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.TaskResult.needs_input"><code class="name">var <span class="ident">needs_input</span> : <a title="adcp.types.core.NeedsInputInfo" href="core.html#adcp.types.core.NeedsInputInfo">NeedsInputInfo</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.TaskResult.replayed"><code class="name">var <span class="ident">replayed</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -51618,10 +51636,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.TaskResult.data" href="#adcp.types.TaskResult.data">data</a></code></li>
 <li><code><a title="adcp.types.TaskResult.debug_info" href="#adcp.types.TaskResult.debug_info">debug_info</a></code></li>
 <li><code><a title="adcp.types.TaskResult.error" href="#adcp.types.TaskResult.error">error</a></code></li>
+<li><code><a title="adcp.types.TaskResult.idempotency_key" href="#adcp.types.TaskResult.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.TaskResult.message" href="#adcp.types.TaskResult.message">message</a></code></li>
 <li><code><a title="adcp.types.TaskResult.metadata" href="#adcp.types.TaskResult.metadata">metadata</a></code></li>
 <li><code><a title="adcp.types.TaskResult.model_config" href="#adcp.types.TaskResult.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.TaskResult.needs_input" href="#adcp.types.TaskResult.needs_input">needs_input</a></code></li>
+<li><code><a title="adcp.types.TaskResult.replayed" href="#adcp.types.TaskResult.replayed">replayed</a></code></li>
 <li><code><a title="adcp.types.TaskResult.status" href="#adcp.types.TaskResult.status">status</a></code></li>
 <li><code><a title="adcp.types.TaskResult.submitted" href="#adcp.types.TaskResult.submitted">submitted</a></code></li>
 <li><code><a title="adcp.types.TaskResult.success" href="#adcp.types.TaskResult.success">success</a></code></li>

@@ -164,6 +164,11 @@ el.replaceWith(d);
         See: https://docs.adcontextprotocol.org/docs/protocols/a2a-guide
         &#34;&#34;&#34;
         start_time = time.time() if self.agent_config.debug else None
+        if _idempotency.is_mutating(tool_name) and self.idempotency_capability_check:
+            await self.idempotency_capability_check()
+        params, idempotency_key = _idempotency.inject_key(
+            tool_name, params, client_token=self.idempotency_client_token
+        )
         a2a_client = await self._get_a2a_client()
 
         # Build A2A message
@@ -209,7 +214,7 @@ el.replaceWith(d);
                 &#34;method&#34;: &#34;send_message&#34;,
                 &#34;message_id&#34;: message_id,
                 &#34;tool&#34;: tool_name,
-                &#34;params&#34;: params,
+                &#34;params&#34;: _idempotency.redact_params(params),
             }
 
         try:
@@ -227,7 +232,7 @@ el.replaceWith(d);
                     duration_ms = (time.time() - start_time) * 1000
                     debug_info = DebugInfo(
                         request=debug_request,
-                        response={&#34;error&#34;: response.error.model_dump()},
+                        response=_idempotency.deep_redact({&#34;error&#34;: response.error.model_dump()}),
                         duration_ms=duration_ms,
                     )
                 return TaskResult[Any](
@@ -235,6 +240,7 @@ el.replaceWith(d);
                     error=error_msg,
                     success=False,
                     debug_info=debug_info,
+                    idempotency_key=idempotency_key,
                 )
 
             # Handle success response
@@ -245,13 +251,17 @@ el.replaceWith(d);
                     duration_ms = (time.time() - start_time) * 1000
                     debug_info = DebugInfo(
                         request=debug_request,
-                        response={&#34;result&#34;: result.model_dump()},
+                        response=_idempotency.deep_redact({&#34;result&#34;: result.model_dump()}),
                         duration_ms=duration_ms,
                     )
 
                 # Result can be either Task or Message
                 if isinstance(result, Task):
-                    return self._process_task_response(result, debug_info)
+                    task_result = self._process_task_response(result, debug_info)
+                    _idempotency.raise_for_idempotency_error(
+                        tool_name, task_result.data, self.agent_config.id
+                    )
+                    return _idempotency.annotate_result(task_result, idempotency_key)
                 else:
                     # Message response (shouldn&#39;t happen for send_message, but handle it)
                     agent_id = self.agent_config.id
@@ -270,6 +280,7 @@ el.replaceWith(d);
                 error=&#34;Invalid response from A2A client&#34;,
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
 
         except httpx.HTTPStatusError as e:
@@ -292,6 +303,7 @@ el.replaceWith(d);
                 error=error_msg,
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
         except httpx.TimeoutException as e:
             if self.agent_config.debug and start_time:
@@ -306,7 +318,14 @@ el.replaceWith(d);
                 error=f&#34;Timeout: {e}&#34;,
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
+        except (IdempotencyConflictError, IdempotencyExpiredError):
+            # Propagate typed idempotency errors — callers MUST handle these
+            # distinctly (mint fresh key / reconcile state). Other ADCPError
+            # subclasses (connection, timeout, auth) continue to be converted
+            # to TaskResult(failed) below, preserving the existing contract.
+            raise
         except Exception as e:
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
@@ -320,6 +339,7 @@ el.replaceWith(d);
                 error=str(e),
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
 
     def _process_task_response(self, task: Task, debug_info: DebugInfo | None) -&gt; TaskResult[Any]:

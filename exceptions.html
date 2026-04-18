@@ -43,6 +43,31 @@ el.replaceWith(d);
 <section>
 </section>
 <section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.exceptions.classify_task_error"><code class="name flex">
+<span>def <span class="ident">classify_task_error</span></span>(<span>operation: str, errors: list[Any], agent_id: str | None = None) ‑> <a title="adcp.exceptions.ADCPTaskError" href="#adcp.exceptions.ADCPTaskError">ADCPTaskError</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def classify_task_error(
+    operation: str,
+    errors: list[Any],
+    agent_id: str | None = None,
+) -&gt; ADCPTaskError:
+    &#34;&#34;&#34;Build the most specific ADCPTaskError subclass matching the response codes.&#34;&#34;&#34;
+    for err in errors:
+        code = getattr(err, &#34;code&#34;, None) or (err.get(&#34;code&#34;) if isinstance(err, dict) else None)
+        if code and code in IDEMPOTENCY_ERROR_CODE_MAP:
+            return IDEMPOTENCY_ERROR_CODE_MAP[code](operation, errors, agent_id=agent_id)
+    return ADCPTaskError(operation, errors, agent_id=agent_id)</code></pre>
+</details>
+<div class="desc"><p>Build the most specific ADCPTaskError subclass matching the response codes.</p></div>
+</dd>
+</dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
@@ -186,6 +211,7 @@ el.replaceWith(d);
 <li><a title="adcp.exceptions.ADCPToolNotFoundError" href="#adcp.exceptions.ADCPToolNotFoundError">ADCPToolNotFoundError</a></li>
 <li><a title="adcp.exceptions.ADCPWebhookError" href="#adcp.exceptions.ADCPWebhookError">ADCPWebhookError</a></li>
 <li><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></li>
+<li><a title="adcp.exceptions.IdempotencyUnsupportedError" href="#adcp.exceptions.IdempotencyUnsupportedError">IdempotencyUnsupportedError</a></li>
 <li><a title="adcp.exceptions.RegistryError" href="#adcp.exceptions.RegistryError">RegistryError</a></li>
 </ul>
 <h3>Instance variables</h3>
@@ -421,9 +447,7 @@ use the standard API (client.method()) instead of client.simple.method().</p>
         &#34;&#34;&#34;
         self.operation = operation
         self.errors = errors
-        self.error_codes = [
-            e.code for e in errors if hasattr(e, &#34;code&#34;) and e.code
-        ]
+        self.error_codes = [e.code for e in errors if hasattr(e, &#34;code&#34;) and e.code]
 
         message = f&#34;{operation} failed&#34;
         if errors:
@@ -459,6 +483,11 @@ including error codes for programmatic handling.</p>
 <li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
 <li>builtins.Exception</li>
 <li>builtins.BaseException</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.IdempotencyConflictError" href="#adcp.exceptions.IdempotencyConflictError">IdempotencyConflictError</a></li>
+<li><a title="adcp.exceptions.IdempotencyExpiredError" href="#adcp.exceptions.IdempotencyExpiredError">IdempotencyExpiredError</a></li>
 </ul>
 <h3>Instance variables</h3>
 <dl>
@@ -751,6 +780,213 @@ def is_retryable(self) -&gt; bool:
 </li>
 </ul>
 </dd>
+<dt id="adcp.exceptions.IdempotencyConflictError"><code class="flex name class">
+<span>class <span class="ident">IdempotencyConflictError</span></span>
+<span>(</span><span>operation: str, errors: list[Any], agent_id: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IdempotencyConflictError(ADCPTaskError):
+    &#34;&#34;&#34;Server rejected a reused idempotency_key whose payload differs from the original.
+
+    The request used the same idempotency_key as an earlier request but with a
+    materially different (post-JCS-canonicalization) payload. Two valid recovery
+    paths: (a) mint a fresh ``uuid.uuid4()`` key and resubmit, or (b) resend the
+    exact original payload — whichever matches the caller&#39;s intent.
+
+    By design the rendered message does NOT include the server&#39;s error text
+    because non-compliant sellers may include payload hints that violate the
+    ``IDEMPOTENCY_CONFLICT`` spec requirement. Raw errors remain on
+    ``self.errors`` for callers that want to inspect.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        operation: str,
+        errors: list[Any],
+        agent_id: str | None = None,
+    ):
+        self.operation = operation
+        self.errors = errors
+        self.error_codes = [e.code for e in errors if hasattr(e, &#34;code&#34;) and e.code] or [
+            &#34;IDEMPOTENCY_CONFLICT&#34;
+        ]
+        message = f&#34;{operation}: idempotency_key reused with a different payload&#34;
+        suggestion = (
+            &#34;The server already has a response for this idempotency_key with a &#34;
+            &#34;different (JCS-canonicalized) payload. Either resend the exact original &#34;
+            &#34;payload, or mint a fresh key with uuid.uuid4() and resubmit. Do NOT &#34;
+            &#34;reuse this key with modified fields.&#34;
+        )
+        # Skip ADCPTaskError.__init__ to avoid leaking server-supplied text.
+        ADCPError.__init__(self, message, agent_id=agent_id, suggestion=suggestion)</code></pre>
+</details>
+<div class="desc"><p>Server rejected a reused idempotency_key whose payload differs from the original.</p>
+<p>The request used the same idempotency_key as an earlier request but with a
+materially different (post-JCS-canonicalization) payload. Two valid recovery
+paths: (a) mint a fresh <code>uuid.uuid4()</code> key and resubmit, or (b) resend the
+exact original payload — whichever matches the caller's intent.</p>
+<p>By design the rendered message does NOT include the server's error text
+because non-compliant sellers may include payload hints that violate the
+<code>IDEMPOTENCY_CONFLICT</code> spec requirement. Raw errors remain on
+<code>self.errors</code> for callers that want to inspect.</p>
+<p>Initialize task error.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>operation</code></strong></dt>
+<dd>The task that failed (e.g., "create_media_buy")</dd>
+<dt><strong><code>errors</code></strong></dt>
+<dd>List of ADCP Error objects from the response</dd>
+<dt><strong><code>agent_id</code></strong></dt>
+<dd>Optional agent ID for context</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPTaskError" href="#adcp.exceptions.ADCPTaskError">ADCPTaskError</a></li>
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPTaskError" href="#adcp.exceptions.ADCPTaskError">ADCPTaskError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPTaskError.is_retryable" href="#adcp.exceptions.ADCPTaskError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.IdempotencyExpiredError"><code class="flex name class">
+<span>class <span class="ident">IdempotencyExpiredError</span></span>
+<span>(</span><span>operation: str, errors: list[Any], agent_id: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IdempotencyExpiredError(ADCPTaskError):
+    &#34;&#34;&#34;Server&#39;s replay cache for this idempotency_key has expired.
+
+    Per AdCP #2315 the seller MAY discard cached responses after
+    ``replay_ttl_seconds``. Re-executing is unsafe because the seller can no
+    longer distinguish &#34;seen and evicted&#34; from &#34;never seen&#34; — silently retrying
+    risks duplicate execution. Recovery: reconcile state via a read (e.g.
+    ``get_media_buys``) before resubmitting with a fresh key.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        operation: str,
+        errors: list[Any],
+        agent_id: str | None = None,
+    ):
+        self.operation = operation
+        self.errors = errors
+        self.error_codes = [e.code for e in errors if hasattr(e, &#34;code&#34;) and e.code] or [
+            &#34;IDEMPOTENCY_EXPIRED&#34;
+        ]
+        message = f&#34;{operation}: idempotency replay window has expired&#34;
+        suggestion = (
+            &#34;The seller&#39;s replay_ttl_seconds window for this key has passed. &#34;
+            &#34;Re-execution is unsafe — the seller can no longer guarantee &#34;
+            &#34;at-most-once. Reconcile state with a read (e.g. get_media_buys) &#34;
+            &#34;before resubmitting with a fresh uuid.uuid4() key.&#34;
+        )
+        ADCPError.__init__(self, message, agent_id=agent_id, suggestion=suggestion)</code></pre>
+</details>
+<div class="desc"><p>Server's replay cache for this idempotency_key has expired.</p>
+<p>Per AdCP #2315 the seller MAY discard cached responses after
+<code>replay_ttl_seconds</code>. Re-executing is unsafe because the seller can no
+longer distinguish "seen and evicted" from "never seen" — silently retrying
+risks duplicate execution. Recovery: reconcile state via a read (e.g.
+<code>get_media_buys</code>) before resubmitting with a fresh key.</p>
+<p>Initialize task error.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>operation</code></strong></dt>
+<dd>The task that failed (e.g., "create_media_buy")</dd>
+<dt><strong><code>errors</code></strong></dt>
+<dd>List of ADCP Error objects from the response</dd>
+<dt><strong><code>agent_id</code></strong></dt>
+<dd>Optional agent ID for context</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPTaskError" href="#adcp.exceptions.ADCPTaskError">ADCPTaskError</a></li>
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPTaskError" href="#adcp.exceptions.ADCPTaskError">ADCPTaskError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPTaskError.is_retryable" href="#adcp.exceptions.ADCPTaskError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.IdempotencyUnsupportedError"><code class="flex name class">
+<span>class <span class="ident">IdempotencyUnsupportedError</span></span>
+<span>(</span><span>agent_id: str | None = None, agent_uri: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IdempotencyUnsupportedError(ADCPError):
+    &#34;&#34;&#34;Seller did not declare adcp.idempotency.replay_ttl_seconds in capabilities.
+
+    Per AdCP #2315 sellers MUST declare their replay window; clients MUST NOT
+    assume a default. Raised before the first mutating call when
+    ``strict_idempotency=True`` and the seller&#39;s capabilities response is
+    missing this field.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+    ):
+        message = (
+            &#34;Seller did not declare adcp.idempotency.replay_ttl_seconds; &#34;
+            &#34;retry safety for mutating requests cannot be guaranteed.&#34;
+        )
+        suggestion = (
+            &#34;Recommended: ask the seller to declare replay_ttl_seconds in &#34;
+            &#34;get_adcp_capabilities (AdCP #2315 requirement). To proceed without &#34;
+            &#34;this guarantee — retries may double-charge or duplicate — construct &#34;
+            &#34;ADCPClient with strict_idempotency=False; the caller then owns &#34;
+            &#34;reconciliation on retry.&#34;
+        )
+        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Seller did not declare adcp.idempotency.replay_ttl_seconds in capabilities.</p>
+<p>Per AdCP #2315 sellers MUST declare their replay window; clients MUST NOT
+assume a default. Raised before the first mutating call when
+<code>strict_idempotency=True</code> and the seller's capabilities response is
+missing this field.</p>
+<p>Initialize exception with context.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.exceptions.RegistryError"><code class="flex name class">
 <span>class <span class="ident">RegistryError</span></span>
 <span>(</span><span>message: str, status_code: int | None = None)</span>
@@ -797,6 +1033,11 @@ def is_retryable(self) -&gt; bool:
 <li><h3>Super-module</h3>
 <ul>
 <li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.exceptions.classify_task_error" href="#adcp.exceptions.classify_task_error">classify_task_error</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
@@ -848,6 +1089,15 @@ def is_retryable(self) -&gt; bool:
 </li>
 <li>
 <h4><code><a title="adcp.exceptions.AdagentsValidationError" href="#adcp.exceptions.AdagentsValidationError">AdagentsValidationError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.IdempotencyConflictError" href="#adcp.exceptions.IdempotencyConflictError">IdempotencyConflictError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.IdempotencyExpiredError" href="#adcp.exceptions.IdempotencyExpiredError">IdempotencyExpiredError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.IdempotencyUnsupportedError" href="#adcp.exceptions.IdempotencyUnsupportedError">IdempotencyUnsupportedError</a></code></h4>
 </li>
 <li>
 <h4><code><a title="adcp.exceptions.RegistryError" href="#adcp.exceptions.RegistryError">RegistryError</a></code></h4>

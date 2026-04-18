@@ -179,6 +179,11 @@ el.replaceWith(d);
         See: https://docs.adcontextprotocol.org/docs/protocols/a2a-guide
         &#34;&#34;&#34;
         start_time = time.time() if self.agent_config.debug else None
+        if _idempotency.is_mutating(tool_name) and self.idempotency_capability_check:
+            await self.idempotency_capability_check()
+        params, idempotency_key = _idempotency.inject_key(
+            tool_name, params, client_token=self.idempotency_client_token
+        )
         a2a_client = await self._get_a2a_client()
 
         # Build A2A message
@@ -224,7 +229,7 @@ el.replaceWith(d);
                 &#34;method&#34;: &#34;send_message&#34;,
                 &#34;message_id&#34;: message_id,
                 &#34;tool&#34;: tool_name,
-                &#34;params&#34;: params,
+                &#34;params&#34;: _idempotency.redact_params(params),
             }
 
         try:
@@ -242,7 +247,7 @@ el.replaceWith(d);
                     duration_ms = (time.time() - start_time) * 1000
                     debug_info = DebugInfo(
                         request=debug_request,
-                        response={&#34;error&#34;: response.error.model_dump()},
+                        response=_idempotency.deep_redact({&#34;error&#34;: response.error.model_dump()}),
                         duration_ms=duration_ms,
                     )
                 return TaskResult[Any](
@@ -250,6 +255,7 @@ el.replaceWith(d);
                     error=error_msg,
                     success=False,
                     debug_info=debug_info,
+                    idempotency_key=idempotency_key,
                 )
 
             # Handle success response
@@ -260,13 +266,17 @@ el.replaceWith(d);
                     duration_ms = (time.time() - start_time) * 1000
                     debug_info = DebugInfo(
                         request=debug_request,
-                        response={&#34;result&#34;: result.model_dump()},
+                        response=_idempotency.deep_redact({&#34;result&#34;: result.model_dump()}),
                         duration_ms=duration_ms,
                     )
 
                 # Result can be either Task or Message
                 if isinstance(result, Task):
-                    return self._process_task_response(result, debug_info)
+                    task_result = self._process_task_response(result, debug_info)
+                    _idempotency.raise_for_idempotency_error(
+                        tool_name, task_result.data, self.agent_config.id
+                    )
+                    return _idempotency.annotate_result(task_result, idempotency_key)
                 else:
                     # Message response (shouldn&#39;t happen for send_message, but handle it)
                     agent_id = self.agent_config.id
@@ -285,6 +295,7 @@ el.replaceWith(d);
                 error=&#34;Invalid response from A2A client&#34;,
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
 
         except httpx.HTTPStatusError as e:
@@ -307,6 +318,7 @@ el.replaceWith(d);
                 error=error_msg,
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
         except httpx.TimeoutException as e:
             if self.agent_config.debug and start_time:
@@ -321,7 +333,14 @@ el.replaceWith(d);
                 error=f&#34;Timeout: {e}&#34;,
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
+        except (IdempotencyConflictError, IdempotencyExpiredError):
+            # Propagate typed idempotency errors — callers MUST handle these
+            # distinctly (mint fresh key / reconcile state). Other ADCPError
+            # subclasses (connection, timeout, auth) continue to be converted
+            # to TaskResult(failed) below, preserving the existing contract.
+            raise
         except Exception as e:
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
@@ -335,6 +354,7 @@ el.replaceWith(d);
                 error=str(e),
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
 
     def _process_task_response(self, task: Task, debug_info: DebugInfo | None) -&gt; TaskResult[Any]:
@@ -1371,6 +1391,11 @@ el.replaceWith(d);
         start_time = time.time() if self.agent_config.debug else None
         debug_info = None
         debug_request: dict[str, Any] = {}
+        if _idempotency.is_mutating(tool_name) and self.idempotency_capability_check:
+            await self.idempotency_capability_check()
+        params, idempotency_key = _idempotency.inject_key(
+            tool_name, params, client_token=self.idempotency_client_token
+        )
 
         try:
             session = await self._get_session()
@@ -1379,7 +1404,7 @@ el.replaceWith(d);
                 debug_request = {
                     &#34;protocol&#34;: &#34;MCP&#34;,
                     &#34;tool&#34;: tool_name,
-                    &#34;params&#34;: params,
+                    &#34;params&#34;: _idempotency.redact_params(params),
                     &#34;transport&#34;: self.agent_config.mcp_transport,
                 }
 
@@ -1405,6 +1430,16 @@ el.replaceWith(d);
                 # For error responses, structuredContent is optional
                 # Use the error message from content as the error
                 error_message = message_text or &#34;Tool execution failed&#34;
+                structured_error = getattr(result, &#34;structuredContent&#34;, None)
+                # Prefer structured error codes when present, then fall back to
+                # scanning the text content — many MCP servers (FastMCP default)
+                # return is_error=true with only a text body carrying the code.
+                _idempotency.raise_for_idempotency_error(
+                    tool_name, structured_error, self.agent_config.id
+                )
+                _idempotency.raise_for_idempotency_text(
+                    tool_name, message_text, self.agent_config.id
+                )
                 if self.agent_config.debug and start_time:
                     duration_ms = (time.time() - start_time) * 1000
                     debug_info = DebugInfo(
@@ -1420,6 +1455,7 @@ el.replaceWith(d);
                     error=error_message,
                     success=False,
                     debug_info=debug_info,
+                    idempotency_key=idempotency_key,
                 )
 
             # For successful responses, structuredContent is required
@@ -1438,23 +1474,36 @@ el.replaceWith(d);
                 duration_ms = (time.time() - start_time) * 1000
                 debug_info = DebugInfo(
                     request=debug_request,
-                    response={
-                        &#34;data&#34;: data_to_return,
-                        &#34;message&#34;: message_text,
-                        &#34;is_error&#34;: False,
-                    },
+                    response=_idempotency.deep_redact(
+                        {
+                            &#34;data&#34;: data_to_return,
+                            &#34;message&#34;: message_text,
+                            &#34;is_error&#34;: False,
+                        }
+                    ),
                     duration_ms=duration_ms,
                 )
 
+            _idempotency.raise_for_idempotency_error(
+                tool_name, data_to_return, self.agent_config.id
+            )
+
             # Return both the structured data and the human-readable message
-            return TaskResult[Any](
+            task_result = TaskResult[Any](
                 status=TaskStatus.COMPLETED,
                 data=data_to_return,
                 message=message_text,
                 success=True,
                 debug_info=debug_info,
             )
+            return _idempotency.annotate_result(task_result, idempotency_key)
 
+        except (IdempotencyConflictError, IdempotencyExpiredError):
+            # Propagate typed idempotency errors — callers MUST handle these
+            # distinctly (mint fresh key / reconcile state). Other ADCPError
+            # subclasses (connection, timeout) continue to be converted to
+            # TaskResult(failed) below, preserving the existing contract.
+            raise
         except Exception as e:
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
@@ -1468,6 +1517,7 @@ el.replaceWith(d);
                 error=str(e),
                 success=False,
                 debug_info=debug_info,
+                idempotency_key=idempotency_key,
             )
 
     # ========================================================================
@@ -1990,6 +2040,14 @@ el.replaceWith(d);
     def __init__(self, agent_config: AgentConfig):
         &#34;&#34;&#34;Initialize adapter with agent configuration.&#34;&#34;&#34;
         self.agent_config = agent_config
+        # Optional hook; ADCPClient sets this when strict_idempotency is enabled.
+        # Invoked before each mutating tool call to verify the seller declared
+        # adcp.idempotency.replay_ttl_seconds in capabilities. None = no check.
+        self.idempotency_capability_check: Callable[[], Awaitable[None]] | None = None
+        # Unique token for this adapter&#39;s owning client — used to scope
+        # ``use_idempotency_key`` so a key pinned on one client does not bleed
+        # to sibling clients (cross-seller correlation risk per AdCP #2315).
+        self.idempotency_client_token: str | None = None
 
     # ========================================================================
     # Helper methods for response parsing
@@ -2025,6 +2083,8 @@ el.replaceWith(d);
                 error=raw_result.error,  # Only use error if one was set
                 metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
+                idempotency_key=raw_result.idempotency_key,
+                replayed=raw_result.replayed,
             )
 
         try:
@@ -2043,15 +2103,21 @@ el.replaceWith(d);
                 error=raw_result.error,
                 metadata=raw_result.metadata,
                 debug_info=raw_result.debug_info,
+                idempotency_key=raw_result.idempotency_key,
+                replayed=raw_result.replayed,
             )
         except ValueError as e:
-            # Parsing failed - return error result
+            # Parsing failed - return error result. Preserve idempotency_key
+            # and replayed so callers can still correlate/suppress side-effects
+            # even when response parsing fails.
             return TaskResult[T](
                 status=TaskStatus.FAILED,
                 error=f&#34;Failed to parse response: {e}&#34;,
                 message=raw_result.message,
                 success=False,
                 debug_info=raw_result.debug_info,
+                idempotency_key=raw_result.idempotency_key,
+                replayed=raw_result.replayed,
             )
 
     # ========================================================================
