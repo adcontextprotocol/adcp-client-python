@@ -42,6 +42,115 @@ el.replaceWith(d);
 <section>
 </section>
 <section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.protocols.mcp.extract_adcp_error"><code class="name flex">
+<span>def <span class="ident">extract_adcp_error</span></span>(<span>result: Any) ‑> dict[str, typing.Any] | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extract_adcp_error(result: Any) -&gt; dict[str, Any] | None:
+    &#34;&#34;&#34;Extract and validate an AdCP ``adcp_error`` object from an MCP result.
+
+    Implements AdCP spec §Client Detection Order (MCP paths 1 + 5) from
+    docs/building/implementation/transport-errors.mdx. Only applies when
+    ``isError`` is truthy. Returns a validated error object or ``None``.
+    &#34;&#34;&#34;
+    if not getattr(result, &#34;isError&#34;, False):
+        return None
+
+    sc = getattr(result, &#34;structuredContent&#34;, None)
+    if isinstance(sc, dict):
+        validated = _validate_adcp_error(sc.get(&#34;adcp_error&#34;))
+        if validated is not None:
+            return validated
+
+    for item in getattr(result, &#34;content&#34;, None) or []:
+        text = _text_of(item)
+        # Apply the same 1MB pre-parse cap as the success path to prevent a
+        # malicious server returning ``isError=true`` plus a giant payload from
+        # forcing a multi-MB json.loads into memory before the 4KB validation
+        # would reject it.
+        if text is None or len(text) &gt; _MAX_TEXT_SIZE_BYTES:
+            continue
+        try:
+            parsed = json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(parsed, dict):
+            validated = _validate_adcp_error(parsed.get(&#34;adcp_error&#34;))
+            if validated is not None:
+                return validated
+    return None</code></pre>
+</details>
+<div class="desc"><p>Extract and validate an AdCP <code>adcp_error</code> object from an MCP result.</p>
+<p>Implements AdCP spec §Client Detection Order (MCP paths 1 + 5) from
+docs/building/implementation/transport-errors.mdx. Only applies when
+<code>isError</code> is truthy. Returns a validated error object or <code>None</code>.</p></div>
+</dd>
+<dt id="adcp.protocols.mcp.extract_adcp_success"><code class="name flex">
+<span>def <span class="ident">extract_adcp_success</span></span>(<span>result: Any) ‑> dict[str, typing.Any] | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extract_adcp_success(result: Any) -&gt; dict[str, Any] | None:
+    &#34;&#34;&#34;Extract AdCP success response data from an MCP tool result.
+
+    Implements the normative algorithm from AdCP spec §MCP Response Extraction
+    (docs/building/implementation/mcp-response-extraction.mdx):
+
+    1. If ``isError`` is truthy, return ``None`` — error extraction is a
+       separate path.
+    2. ``structuredContent`` — if present and a non-array object that is NOT
+       an ``adcp_error``-only payload, return it.
+    3. Text fallback — iterate ``content[]`` in order; for each ``type=&#39;text&#39;``
+       item within the 1MB size limit, ``json.loads`` and return the result
+       if it is a non-array object that is NOT ``adcp_error``-only.
+    4. No structured data found — return ``None``.
+    &#34;&#34;&#34;
+    if getattr(result, &#34;isError&#34;, False):
+        return None
+
+    sc = getattr(result, &#34;structuredContent&#34;, None)
+    if isinstance(sc, dict) and not (len(sc) == 1 and &#34;adcp_error&#34; in sc):
+        return sc
+
+    for item in getattr(result, &#34;content&#34;, None) or []:
+        text = _text_of(item)
+        if text is None or len(text) &gt; _MAX_TEXT_SIZE_BYTES:
+            continue
+        try:
+            parsed = json.loads(text)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if (
+            isinstance(parsed, dict)
+            and not (len(parsed) == 1 and &#34;adcp_error&#34; in parsed)
+        ):
+            return parsed
+    return None</code></pre>
+</details>
+<div class="desc"><p>Extract AdCP success response data from an MCP tool result.</p>
+<p>Implements the normative algorithm from AdCP spec §MCP Response Extraction
+(docs/building/implementation/mcp-response-extraction.mdx):</p>
+<ol>
+<li>If <code>isError</code> is truthy, return <code>None</code> — error extraction is a
+separate path.</li>
+<li><code>structuredContent</code> — if present and a non-array object that is NOT
+an <code>adcp_error</code>-only payload, return it.</li>
+<li>Text fallback — iterate <code>content[]</code> in order; for each <code>type='text'</code>
+item within the 1MB size limit, <code>json.loads</code> and return the result
+if it is a non-array object that is NOT <code>adcp_error</code>-only.</li>
+<li>No structured data found — return <code>None</code>.</li>
+</ol></div>
+</dd>
+</dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
@@ -353,20 +462,32 @@ el.replaceWith(d);
                             message_text = item[&#34;text&#34;]
                             break
 
-            # Handle error responses
+            # Handle error responses per transport-errors.mdx §Client Detection
+            # Order. Extract the adcp_error object from structuredContent first,
+            # then from text fallback — whichever is present.
             if is_error:
-                # For error responses, structuredContent is optional
-                # Use the error message from content as the error
-                error_message = message_text or &#34;Tool execution failed&#34;
-                structured_error = getattr(result, &#34;structuredContent&#34;, None)
-                # Prefer structured error codes when present, then fall back to
-                # scanning the text content — many MCP servers (FastMCP default)
-                # return is_error=true with only a text body carrying the code.
-                _idempotency.raise_for_idempotency_error(
-                    tool_name, structured_error, self.agent_config.id
-                )
+                adcp_error = extract_adcp_error(result)
+                # Raise typed idempotency exceptions before building a generic
+                # TaskResult(failed), so callers that catch them distinctly
+                # don&#39;t lose the signal.
+                if adcp_error and adcp_error.get(&#34;code&#34;) in (
+                    &#34;IDEMPOTENCY_CONFLICT&#34;,
+                    &#34;IDEMPOTENCY_EXPIRED&#34;,
+                ):
+                    from adcp.exceptions import classify_task_error
+
+                    raise classify_task_error(
+                        tool_name, [adcp_error], agent_id=self.agent_config.id
+                    )
+                # FastMCP-style is_error with plain-text content: text-match
+                # fallback for the two idempotency codes.
                 _idempotency.raise_for_idempotency_text(
                     tool_name, message_text, self.agent_config.id
+                )
+                error_message = (
+                    (adcp_error.get(&#34;message&#34;) if adcp_error else None)
+                    or message_text
+                    or &#34;Tool execution failed&#34;
                 )
                 if self.agent_config.debug and start_time:
                     duration_ms = (time.time() - start_time) * 1000
@@ -375,6 +496,7 @@ el.replaceWith(d);
                         response={
                             &#34;error&#34;: error_message,
                             &#34;is_error&#34;: True,
+                            &#34;adcp_error&#34;: adcp_error,
                         },
                         duration_ms=duration_ms,
                     )
@@ -386,17 +508,18 @@ el.replaceWith(d);
                     idempotency_key=idempotency_key,
                 )
 
-            # For successful responses, structuredContent is required
-            if not hasattr(result, &#34;structuredContent&#34;) or result.structuredContent is None:
+            # Success extraction per mcp-response-extraction.mdx §Extraction
+            # Algorithm: prefer structuredContent (MCP 2025-03-26+), fall back
+            # to JSON-parsing content[].text for older servers (including the
+            # AdCP reference training agent).
+            data_to_return = extract_adcp_success(result)
+            if data_to_return is None:
                 raise ValueError(
-                    f&#34;MCP tool {tool_name} did not return structuredContent. &#34;
-                    f&#34;This SDK requires MCP tools to provide structured responses &#34;
-                    f&#34;for successful calls. &#34;
+                    f&#34;MCP tool {tool_name} returned no structured AdCP data. &#34;
+                    f&#34;Neither structuredContent nor content[].text yielded a &#34;
+                    f&#34;parseable non-adcp_error JSON object. &#34;
                     f&#34;Got content: {result.content if hasattr(result, &#39;content&#39;) else &#39;none&#39;}&#34;
                 )
-
-            # Extract the structured data (required for success)
-            data_to_return = result.structuredContent
 
             if self.agent_config.debug and start_time:
                 duration_ms = (time.time() - start_time) * 1000
@@ -958,6 +1081,12 @@ el.replaceWith(d);
 <li><h3>Super-module</h3>
 <ul>
 <li><code><a title="adcp.protocols" href="index.html">adcp.protocols</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.protocols.mcp.extract_adcp_error" href="#adcp.protocols.mcp.extract_adcp_error">extract_adcp_error</a></code></li>
+<li><code><a title="adcp.protocols.mcp.extract_adcp_success" href="#adcp.protocols.mcp.extract_adcp_success">extract_adcp_success</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
