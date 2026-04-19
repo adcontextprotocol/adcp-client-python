@@ -259,19 +259,22 @@ taxonomy — conformance requires byte-for-byte match on the code string.</p>
 <pre><code class="python">class JwksResolver(Protocol):
     &#34;&#34;&#34;Resolves a keyid to a JWK, or returns None if unknown.
 
-    The canonical Protocol used by both the RFC 9421 verifier and the JWS
-    document verifier. Implementations include
+    The canonical Protocol used by the sync RFC 9421 verifier and the
+    sync JWS document verifier. Implementations include
     :class:`StaticJwksResolver` (in-memory, for tests) and
     :class:`CachingJwksResolver` (fetches + caches from a URI).
+
+    Async callers use :class:`AsyncJwksResolver` instead.
     &#34;&#34;&#34;
 
     def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
 </details>
 <div class="desc"><p>Resolves a keyid to a JWK, or returns None if unknown.</p>
-<p>The canonical Protocol used by both the RFC 9421 verifier and the JWS
-document verifier. Implementations include
+<p>The canonical Protocol used by the sync RFC 9421 verifier and the
+sync JWS document verifier. Implementations include
 :class:<code>StaticJwksResolver</code> (in-memory, for tests) and
-:class:<code>CachingJwksResolver</code> (fetches + caches from a URI).</p></div>
+:class:<code>CachingJwksResolver</code> (fetches + caches from a URI).</p>
+<p>Async callers use :class:<code>AsyncJwksResolver</code> instead.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>typing.Protocol</li>

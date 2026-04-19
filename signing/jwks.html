@@ -48,6 +48,14 @@ invalidation (where an attacker forces a verifier to hammer the signer's
 tracked in #190 and not implemented here — the current design is vulnerable to
 a TOCTOU where DNS resolves to an allowed IP during validation and a blocked
 IP at connect time.</p>
+<h2 id="naming-conventions">Naming Conventions</h2>
+<ul>
+<li>Classes use the <code>Async</code> CapWords prefix (<code><a title="adcp.signing.jwks.AsyncCachingJwksResolver" href="#adcp.signing.jwks.AsyncCachingJwksResolver">AsyncCachingJwksResolver</a></code>).</li>
+<li>Free functions use the <code>async_</code> snake_case prefix
+(<code><a title="adcp.signing.jwks.async_default_jwks_fetcher" href="#adcp.signing.jwks.async_default_jwks_fetcher">async_default_jwks_fetcher()</a></code>).</li>
+<li>Methods use the <code>a</code> prefix (<code>aclose</code>, <code>aprime</code>) — matches the
+<code>httpx</code> / <code>anyio</code> ecosystem.</li>
+</ul>
 </section>
 <section>
 </section>
@@ -56,6 +64,67 @@ IP at connect time.</p>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="adcp.signing.jwks.as_async_resolver"><code class="name flex">
+<span>def <span class="ident">as_async_resolver</span></span>(<span>resolver: <a title="adcp.signing.jwks.JwksResolver" href="#adcp.signing.jwks.JwksResolver">JwksResolver</a>) ‑> <a title="adcp.signing.jwks.AsyncJwksResolver" href="#adcp.signing.jwks.AsyncJwksResolver">AsyncJwksResolver</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_async_resolver(resolver: JwksResolver) -&gt; AsyncJwksResolver:
+    &#34;&#34;&#34;Wrap a sync :class:`JwksResolver` so it satisfies :class:`AsyncJwksResolver`.
+
+    Useful for tests: pass a :class:`StaticJwksResolver` through
+    :func:`as_async_resolver` to plug it into an async-verifier
+    pipeline that types ``AsyncJwksResolver``. There&#39;s no real async
+    work (just a dict lookup); the wrapper is a shape adapter.
+    &#34;&#34;&#34;
+
+    async def resolve(keyid: str) -&gt; dict[str, Any] | None:
+        return resolver(keyid)
+
+    return resolve</code></pre>
+</details>
+<div class="desc"><p>Wrap a sync :class:<code><a title="adcp.signing.jwks.JwksResolver" href="#adcp.signing.jwks.JwksResolver">JwksResolver</a></code> so it satisfies :class:<code><a title="adcp.signing.jwks.AsyncJwksResolver" href="#adcp.signing.jwks.AsyncJwksResolver">AsyncJwksResolver</a></code>.</p>
+<p>Useful for tests: pass a :class:<code><a title="adcp.signing.jwks.StaticJwksResolver" href="#adcp.signing.jwks.StaticJwksResolver">StaticJwksResolver</a></code> through
+:func:<code><a title="adcp.signing.jwks.as_async_resolver" href="#adcp.signing.jwks.as_async_resolver">as_async_resolver()</a></code> to plug it into an async-verifier
+pipeline that types <code><a title="adcp.signing.jwks.AsyncJwksResolver" href="#adcp.signing.jwks.AsyncJwksResolver">AsyncJwksResolver</a></code>. There's no real async
+work (just a dict lookup); the wrapper is a shape adapter.</p></div>
+</dd>
+<dt id="adcp.signing.jwks.async_default_jwks_fetcher"><code class="name flex">
+<span>async def <span class="ident">async_default_jwks_fetcher</span></span>(<span>uri: str, *, allow_private: bool = False) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def async_default_jwks_fetcher(
+    uri: str, *, allow_private: bool = False
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Async counterpart to :func:`default_jwks_fetcher`.
+
+    Uses :class:`httpx.AsyncClient` so callers on an asyncio event loop
+    don&#39;t block the loop on JWKS fetches. Same SSRF + follow-redirects
+    rules as the sync version.
+    &#34;&#34;&#34;
+    validate_jwks_uri(uri, allow_private=allow_private)
+    async with httpx.AsyncClient(
+        timeout=DEFAULT_JWKS_TIMEOUT_SECONDS, follow_redirects=False
+    ) as client:
+        response = await client.get(uri, headers={&#34;Accept&#34;: &#34;application/json&#34;})
+        response.raise_for_status()
+        body = response.json()
+    if not isinstance(body, dict) or &#34;keys&#34; not in body:
+        raise ValueError(f&#34;JWKS document at {uri!r} has no &#39;keys&#39; array&#34;)
+    return body</code></pre>
+</details>
+<div class="desc"><p>Async counterpart to :func:<code><a title="adcp.signing.jwks.default_jwks_fetcher" href="#adcp.signing.jwks.default_jwks_fetcher">default_jwks_fetcher()</a></code>.</p>
+<p>Uses :class:<code>httpx.AsyncClient</code> so callers on an asyncio event loop
+don't block the loop on JWKS fetches. Same SSRF + follow-redirects
+rules as the sync version.</p></div>
+</dd>
 <dt id="adcp.signing.jwks.default_jwks_fetcher"><code class="name flex">
 <span>def <span class="ident">default_jwks_fetcher</span></span>(<span>uri: str, *, allow_private: bool = False) ‑> dict[str, typing.Any]</span>
 </code></dt>
@@ -136,6 +205,163 @@ IP at connect time.</p>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.signing.jwks.AsyncCachingJwksResolver"><code class="flex name class">
+<span>class <span class="ident">AsyncCachingJwksResolver</span></span>
+<span>(</span><span>jwks_uri: str,<br>*,<br>fetcher: <a title="adcp.signing.jwks.AsyncJwksFetcher" href="#adcp.signing.jwks.AsyncJwksFetcher">AsyncJwksFetcher</a> | None = None,<br>cooldown_seconds: float = 30.0,<br>allow_private: bool = False,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncCachingJwksResolver:
+    &#34;&#34;&#34;Async JWKS resolver with per-URI cache and refetch cooldown.
+
+    Identical semantics to :class:`CachingJwksResolver` — per-``kid``
+    cache, cooldown-gated refresh on miss, SSRF errors surface as
+    ``request_signature_jwks_untrusted``, network errors as
+    ``request_signature_jwks_unavailable`` — but awaitable and backed by
+    :class:`httpx.AsyncClient`.
+
+    Concurrency: a single :class:`asyncio.Lock` serializes refreshes so
+    N parallel verifying tasks all driving the first miss don&#39;t fire N
+    fetches.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        jwks_uri: str,
+        *,
+        fetcher: AsyncJwksFetcher | None = None,
+        cooldown_seconds: float = DEFAULT_JWKS_COOLDOWN_SECONDS,
+        allow_private: bool = False,
+        clock: Callable[[], float] = time.monotonic,
+    ) -&gt; None:
+        self._jwks_uri = jwks_uri
+        self._fetcher = fetcher or async_default_jwks_fetcher
+        self._cooldown = cooldown_seconds
+        self._allow_private = allow_private
+        self._clock = clock
+        self._cache: dict[str, dict[str, Any]] = {}
+        self._last_attempt: float | None = None
+        self._primed = False
+        # Construct the lock eagerly. Lazy init was racy: two tasks both
+        # seeing ``self._lock is None`` would each construct a separate
+        # Lock and proceed in parallel without serialization. In Python
+        # 3.10+ ``asyncio.Lock()`` no longer requires a running loop at
+        # construction time — it binds to whatever loop is running the
+        # first ``async with`` call. Instances are per-loop: don&#39;t share
+        # across ``asyncio.run`` boundaries.
+        self._lock: asyncio.Lock = asyncio.Lock()
+
+    async def __call__(self, keyid: str) -&gt; dict[str, Any] | None:
+        if keyid in self._cache:
+            return self._cache[keyid]
+        now = self._clock()
+        if not self._primed or (
+            self._last_attempt is not None and now - self._last_attempt &gt;= self._cooldown
+        ):
+            async with self._lock:
+                # Re-check after acquiring: another task may have refreshed.
+                if keyid in self._cache:
+                    return self._cache[keyid]
+                now = self._clock()
+                if not self._primed or (
+                    self._last_attempt is not None
+                    and now - self._last_attempt &gt;= self._cooldown
+                ):
+                    await self._refresh(now)
+        return self._cache.get(keyid)
+
+    async def _refresh(self, now: float) -&gt; None:
+        self._last_attempt = now
+        try:
+            jwks = await self._fetcher(self._jwks_uri, allow_private=self._allow_private)
+        except SSRFValidationError as exc:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+                step=7,
+                message=f&#34;JWKS URI failed SSRF check: {exc}&#34;,
+            ) from exc
+        except (httpx.HTTPError, ValueError, OSError) as exc:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+                step=7,
+                message=f&#34;JWKS fetch failed: {exc}&#34;,
+            ) from exc
+        self._primed = True
+        self._cache = {jwk[&#34;kid&#34;]: jwk for jwk in jwks.get(&#34;keys&#34;, []) if &#34;kid&#34; in jwk}</code></pre>
+</details>
+<div class="desc"><p>Async JWKS resolver with per-URI cache and refetch cooldown.</p>
+<p>Identical semantics to :class:<code><a title="adcp.signing.jwks.CachingJwksResolver" href="#adcp.signing.jwks.CachingJwksResolver">CachingJwksResolver</a></code> — per-<code>kid</code>
+cache, cooldown-gated refresh on miss, SSRF errors surface as
+<code>request_signature_jwks_untrusted</code>, network errors as
+<code>request_signature_jwks_unavailable</code> — but awaitable and backed by
+:class:<code>httpx.AsyncClient</code>.</p>
+<p>Concurrency: a single :class:<code>asyncio.Lock</code> serializes refreshes so
+N parallel verifying tasks all driving the first miss don't fire N
+fetches.</p></div>
+</dd>
+<dt id="adcp.signing.jwks.AsyncJwksFetcher"><code class="flex name class">
+<span>class <span class="ident">AsyncJwksFetcher</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncJwksFetcher(Protocol):
+    &#34;&#34;&#34;Async variant of :class:`JwksFetcher`.&#34;&#34;&#34;
+
+    async def __call__(
+        self, uri: str, *, allow_private: bool = False
+    ) -&gt; dict[str, Any]: ...</code></pre>
+</details>
+<div class="desc"><p>Async variant of :class:<code><a title="adcp.signing.jwks.JwksFetcher" href="#adcp.signing.jwks.JwksFetcher">JwksFetcher</a></code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="adcp.signing.jwks.AsyncJwksResolver"><code class="flex name class">
+<span>class <span class="ident">AsyncJwksResolver</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncJwksResolver(Protocol):
+    &#34;&#34;&#34;Async variant of :class:`JwksResolver`.
+
+    Used by the async JWS document verifier and the async revocation
+    checker so JWKS cache-misses don&#39;t block the event loop.
+    Implementations: :class:`AsyncCachingJwksResolver`. For tests,
+    :class:`StaticJwksResolver` doubles as an async resolver if you wrap
+    it in a thin async callable — there&#39;s no async work, just a dict
+    lookup — but typically you&#39;ll just use the static one directly where
+    an :class:`AsyncJwksResolver` is expected via :func:`as_async`.
+    &#34;&#34;&#34;
+
+    async def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
+</details>
+<div class="desc"><p>Async variant of :class:<code><a title="adcp.signing.jwks.JwksResolver" href="#adcp.signing.jwks.JwksResolver">JwksResolver</a></code>.</p>
+<p>Used by the async JWS document verifier and the async revocation
+checker so JWKS cache-misses don't block the event loop.
+Implementations: :class:<code><a title="adcp.signing.jwks.AsyncCachingJwksResolver" href="#adcp.signing.jwks.AsyncCachingJwksResolver">AsyncCachingJwksResolver</a></code>. For tests,
+:class:<code><a title="adcp.signing.jwks.StaticJwksResolver" href="#adcp.signing.jwks.StaticJwksResolver">StaticJwksResolver</a></code> doubles as an async resolver if you wrap
+it in a thin async callable — there's no async work, just a dict
+lookup — but typically you'll just use the static one directly where
+an :class:<code><a title="adcp.signing.jwks.AsyncJwksResolver" href="#adcp.signing.jwks.AsyncJwksResolver">AsyncJwksResolver</a></code> is expected via :func:<code>as_async</code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
 <dt id="adcp.signing.jwks.CachingJwksResolver"><code class="flex name class">
 <span>class <span class="ident">CachingJwksResolver</span></span>
 <span>(</span><span>jwks_uri: str,<br>*,<br>fetcher: <a title="adcp.signing.jwks.JwksFetcher" href="#adcp.signing.jwks.JwksFetcher">JwksFetcher</a> | None = None,<br>cooldown_seconds: float = 30.0,<br>allow_private: bool = False,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;)</span>
@@ -248,19 +474,22 @@ failures surface as <code>request_signature_jwks_unavailable</code>.</p></div>
 <pre><code class="python">class JwksResolver(Protocol):
     &#34;&#34;&#34;Resolves a keyid to a JWK, or returns None if unknown.
 
-    The canonical Protocol used by both the RFC 9421 verifier and the JWS
-    document verifier. Implementations include
+    The canonical Protocol used by the sync RFC 9421 verifier and the
+    sync JWS document verifier. Implementations include
     :class:`StaticJwksResolver` (in-memory, for tests) and
     :class:`CachingJwksResolver` (fetches + caches from a URI).
+
+    Async callers use :class:`AsyncJwksResolver` instead.
     &#34;&#34;&#34;
 
     def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
 </details>
 <div class="desc"><p>Resolves a keyid to a JWK, or returns None if unknown.</p>
-<p>The canonical Protocol used by both the RFC 9421 verifier and the JWS
-document verifier. Implementations include
+<p>The canonical Protocol used by the sync RFC 9421 verifier and the
+sync JWS document verifier. Implementations include
 :class:<code><a title="adcp.signing.jwks.StaticJwksResolver" href="#adcp.signing.jwks.StaticJwksResolver">StaticJwksResolver</a></code> (in-memory, for tests) and
-:class:<code><a title="adcp.signing.jwks.CachingJwksResolver" href="#adcp.signing.jwks.CachingJwksResolver">CachingJwksResolver</a></code> (fetches + caches from a URI).</p></div>
+:class:<code><a title="adcp.signing.jwks.CachingJwksResolver" href="#adcp.signing.jwks.CachingJwksResolver">CachingJwksResolver</a></code> (fetches + caches from a URI).</p>
+<p>Async callers use :class:<code><a title="adcp.signing.jwks.AsyncJwksResolver" href="#adcp.signing.jwks.AsyncJwksResolver">AsyncJwksResolver</a></code> instead.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>typing.Protocol</li>
@@ -311,7 +540,9 @@ document verifier. Implementations include
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul></ul>
+<ul>
+<li><a href="#naming-conventions">Naming conventions</a></li>
+</ul>
 </div>
 <ul id="index">
 <li><h3>Super-module</h3>
@@ -321,12 +552,23 @@ document verifier. Implementations include
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="adcp.signing.jwks.as_async_resolver" href="#adcp.signing.jwks.as_async_resolver">as_async_resolver</a></code></li>
+<li><code><a title="adcp.signing.jwks.async_default_jwks_fetcher" href="#adcp.signing.jwks.async_default_jwks_fetcher">async_default_jwks_fetcher</a></code></li>
 <li><code><a title="adcp.signing.jwks.default_jwks_fetcher" href="#adcp.signing.jwks.default_jwks_fetcher">default_jwks_fetcher</a></code></li>
 <li><code><a title="adcp.signing.jwks.validate_jwks_uri" href="#adcp.signing.jwks.validate_jwks_uri">validate_jwks_uri</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="adcp.signing.jwks.AsyncCachingJwksResolver" href="#adcp.signing.jwks.AsyncCachingJwksResolver">AsyncCachingJwksResolver</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.jwks.AsyncJwksFetcher" href="#adcp.signing.jwks.AsyncJwksFetcher">AsyncJwksFetcher</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.jwks.AsyncJwksResolver" href="#adcp.signing.jwks.AsyncJwksResolver">AsyncJwksResolver</a></code></h4>
+</li>
 <li>
 <h4><code><a title="adcp.signing.jwks.CachingJwksResolver" href="#adcp.signing.jwks.CachingJwksResolver">CachingJwksResolver</a></code></h4>
 </li>

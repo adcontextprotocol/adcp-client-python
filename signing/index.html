@@ -130,6 +130,195 @@ See: <a href="https://adcontextprotocol.org/docs/building/implementation/securit
 </details>
 <div class="desc"><p>Map a JWK to its RFC 9421 alg name for the AdCP profile.</p></div>
 </dd>
+<dt id="adcp.signing.as_async_resolver"><code class="name flex">
+<span>def <span class="ident">as_async_resolver</span></span>(<span>resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>) ‑> <a title="adcp.signing.jwks.AsyncJwksResolver" href="jwks.html#adcp.signing.jwks.AsyncJwksResolver">AsyncJwksResolver</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_async_resolver(resolver: JwksResolver) -&gt; AsyncJwksResolver:
+    &#34;&#34;&#34;Wrap a sync :class:`JwksResolver` so it satisfies :class:`AsyncJwksResolver`.
+
+    Useful for tests: pass a :class:`StaticJwksResolver` through
+    :func:`as_async_resolver` to plug it into an async-verifier
+    pipeline that types ``AsyncJwksResolver``. There&#39;s no real async
+    work (just a dict lookup); the wrapper is a shape adapter.
+    &#34;&#34;&#34;
+
+    async def resolve(keyid: str) -&gt; dict[str, Any] | None:
+        return resolver(keyid)
+
+    return resolve</code></pre>
+</details>
+<div class="desc"><p>Wrap a sync :class:<code><a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a></code> so it satisfies :class:<code><a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a></code>.</p>
+<p>Useful for tests: pass a :class:<code><a title="adcp.signing.StaticJwksResolver" href="#adcp.signing.StaticJwksResolver">StaticJwksResolver</a></code> through
+:func:<code><a title="adcp.signing.as_async_resolver" href="#adcp.signing.as_async_resolver">as_async_resolver()</a></code> to plug it into an async-verifier
+pipeline that types <code><a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a></code>. There's no real async
+work (just a dict lookup); the wrapper is a shape adapter.</p></div>
+</dd>
+<dt id="adcp.signing.async_default_jwks_fetcher"><code class="name flex">
+<span>async def <span class="ident">async_default_jwks_fetcher</span></span>(<span>uri: str, *, allow_private: bool = False) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def async_default_jwks_fetcher(
+    uri: str, *, allow_private: bool = False
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Async counterpart to :func:`default_jwks_fetcher`.
+
+    Uses :class:`httpx.AsyncClient` so callers on an asyncio event loop
+    don&#39;t block the loop on JWKS fetches. Same SSRF + follow-redirects
+    rules as the sync version.
+    &#34;&#34;&#34;
+    validate_jwks_uri(uri, allow_private=allow_private)
+    async with httpx.AsyncClient(
+        timeout=DEFAULT_JWKS_TIMEOUT_SECONDS, follow_redirects=False
+    ) as client:
+        response = await client.get(uri, headers={&#34;Accept&#34;: &#34;application/json&#34;})
+        response.raise_for_status()
+        body = response.json()
+    if not isinstance(body, dict) or &#34;keys&#34; not in body:
+        raise ValueError(f&#34;JWKS document at {uri!r} has no &#39;keys&#39; array&#34;)
+    return body</code></pre>
+</details>
+<div class="desc"><p>Async counterpart to :func:<code><a title="adcp.signing.default_jwks_fetcher" href="#adcp.signing.default_jwks_fetcher">default_jwks_fetcher()</a></code>.</p>
+<p>Uses :class:<code>httpx.AsyncClient</code> so callers on an asyncio event loop
+don't block the loop on JWKS fetches. Same SSRF + follow-redirects
+rules as the sync version.</p></div>
+</dd>
+<dt id="adcp.signing.async_default_revocation_list_fetcher"><code class="name flex">
+<span>async def <span class="ident">async_default_revocation_list_fetcher</span></span>(<span>uri: str,<br>*,<br>if_none_match: str | None = None,<br>if_modified_since: str | None = None,<br>allow_private: bool = False,<br>timeout: float = 10.0) ‑> <a title="adcp.signing.revocation_fetcher.FetchResult" href="revocation_fetcher.html#adcp.signing.revocation_fetcher.FetchResult">FetchResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def async_default_revocation_list_fetcher(
+    uri: str,
+    *,
+    if_none_match: str | None = None,
+    if_modified_since: str | None = None,
+    allow_private: bool = False,
+    timeout: float = DEFAULT_JWKS_TIMEOUT_SECONDS,
+) -&gt; FetchResult:
+    &#34;&#34;&#34;Async counterpart to :func:`default_revocation_list_fetcher`.
+
+    Same SSRF + conditional-request behavior, but uses
+    :class:`httpx.AsyncClient` so the event loop isn&#39;t blocked during
+    the round-trip.
+    &#34;&#34;&#34;
+    validate_jwks_uri(uri, allow_private=allow_private)
+    headers = _build_fetch_headers(
+        if_none_match=if_none_match, if_modified_since=if_modified_since
+    )
+    try:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+            response = await client.get(uri, headers=headers)
+    except httpx.HTTPError as exc:
+        raise RevocationListFetchError(f&#34;revocation list GET {uri!r} failed: {exc}&#34;) from exc
+
+    return _fetch_result_from_response(
+        uri,
+        response.status_code,
+        response.text,
+        response.headers,
+        if_none_match=if_none_match,
+        if_modified_since=if_modified_since,
+    )</code></pre>
+</details>
+<div class="desc"><p>Async counterpart to :func:<code><a title="adcp.signing.default_revocation_list_fetcher" href="#adcp.signing.default_revocation_list_fetcher">default_revocation_list_fetcher()</a></code>.</p>
+<p>Same SSRF + conditional-request behavior, but uses
+:class:<code>httpx.AsyncClient</code> so the event loop isn't blocked during
+the round-trip.</p></div>
+</dd>
+<dt id="adcp.signing.averify_detached_jws"><code class="name flex">
+<span>async def <span class="ident">averify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def averify_detached_jws(
+    *,
+    b64_protected: str,
+    b64_payload: str,
+    signature: bytes,
+    jwks_resolver: AsyncJwksResolver,
+    expected_typ: str,
+    allowed_algs: frozenset[str] = ALLOWED_JWS_ALGS,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Async variant of :func:`verify_detached_jws`.
+
+    Awaits an :class:`AsyncJwksResolver` on the ``kid`` lookup; all
+    other work is pure CPU and runs inline.
+    &#34;&#34;&#34;
+    internal_alg, kid = _validate_header(
+        b64_protected, expected_typ=expected_typ, allowed_algs=allowed_algs
+    )
+    jwk = await jwks_resolver(kid)
+    if jwk is None:
+        raise JwsUnknownKeyError(f&#34;no JWK for kid {kid!r}&#34;)
+    return _verify_signature_and_decode_payload(
+        b64_protected=b64_protected,
+        b64_payload=b64_payload,
+        signature=signature,
+        jwk=jwk,
+        internal_alg=internal_alg,
+        kid=kid,
+    )</code></pre>
+</details>
+<div class="desc"><p>Async variant of :func:<code><a title="adcp.signing.verify_detached_jws" href="#adcp.signing.verify_detached_jws">verify_detached_jws()</a></code>.</p>
+<p>Awaits an :class:<code><a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a></code> on the <code>kid</code> lookup; all
+other work is pure CPU and runs inline.</p></div>
+</dd>
+<dt id="adcp.signing.averify_jws_document"><code class="name flex">
+<span>async def <span class="ident">averify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def averify_jws_document(
+    doc: str | dict[str, Any],
+    *,
+    jwks_resolver: AsyncJwksResolver,
+    expected_typ: str,
+    allowed_algs: frozenset[str] = ALLOWED_JWS_ALGS,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Async variant of :func:`verify_jws_document`.
+
+    Accepts an :class:`AsyncJwksResolver`; parsing and signature verify
+    are pure CPU and run inline.
+    &#34;&#34;&#34;
+    if isinstance(doc, str):
+        b64_header, b64_payload, signature = parse_compact_jws(doc)
+    elif isinstance(doc, dict):
+        b64_header, b64_payload, signature = parse_general_json_jws(doc)
+    else:
+        raise JwsMalformedError(
+            &#34;JWS document must be a compact string or JSON general-serialization object&#34;
+        )
+    return await averify_detached_jws(
+        b64_protected=b64_header,
+        b64_payload=b64_payload,
+        signature=signature,
+        jwks_resolver=jwks_resolver,
+        expected_typ=expected_typ,
+        allowed_algs=allowed_algs,
+    )</code></pre>
+</details>
+<div class="desc"><p>Async variant of :func:<code><a title="adcp.signing.verify_jws_document" href="#adcp.signing.verify_jws_document">verify_jws_document()</a></code>.</p>
+<p>Accepts an :class:<code><a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a></code>; parsing and signature verify
+are pure CPU and run inline.</p></div>
+</dd>
 <dt id="adcp.signing.b64url_decode"><code class="name flex">
 <span>def <span class="ident">b64url_decode</span></span>(<span>s: str) ‑> bytes</span>
 </code></dt>
@@ -325,56 +514,22 @@ by <code>@signature-params</code> as the last line.</p></div>
     available).
     &#34;&#34;&#34;
     validate_jwks_uri(uri, allow_private=allow_private)
-    headers = {&#34;Accept&#34;: &#34;application/jose+json, application/json, application/jose&#34;}
-    if if_none_match is not None:
-        headers[&#34;If-None-Match&#34;] = if_none_match
-    if if_modified_since is not None:
-        headers[&#34;If-Modified-Since&#34;] = if_modified_since
-
+    headers = _build_fetch_headers(
+        if_none_match=if_none_match, if_modified_since=if_modified_since
+    )
     try:
         with httpx.Client(timeout=timeout, follow_redirects=False) as client:
             response = client.get(uri, headers=headers)
     except httpx.HTTPError as exc:
         raise RevocationListFetchError(f&#34;revocation list GET {uri!r} failed: {exc}&#34;) from exc
 
-    if response.status_code == 304:
-        return FetchResult(
-            body=&#34;&#34;,
-            etag=if_none_match,
-            last_modified=if_modified_since,
-            not_modified=True,
-        )
-    if response.status_code != 200:
-        raise RevocationListFetchError(
-            f&#34;revocation list {uri!r} returned HTTP {response.status_code}&#34;
-        )
-
-    etag = response.headers.get(&#34;ETag&#34;)
-    last_modified = _sanitize_last_modified(response.headers.get(&#34;Last-Modified&#34;))
-    raw_body = response.text.strip()
-
-    # General JSON serialization starts with `{`; compact form is three
-    # base64url segments separated by dots. Dispatch by first-byte shape
-    # rather than trusting Content-Type, which is unreliable in practice.
-    if not raw_body:
-        raise RevocationListFetchError(f&#34;revocation list {uri!r} returned empty body&#34;)
-
-    body: str | dict[str, Any]
-    if raw_body.startswith(&#34;{&#34;):
-        try:
-            body = json.loads(raw_body)
-        except ValueError as exc:
-            raise RevocationListFetchError(
-                f&#34;revocation list {uri!r} body is neither compact JWS nor valid JSON: {exc}&#34;
-            ) from exc
-    else:
-        body = raw_body
-
-    return FetchResult(
-        body=body,
-        etag=etag,
-        last_modified=last_modified,
-        not_modified=False,
+    return _fetch_result_from_response(
+        uri,
+        response.status_code,
+        response.text,
+        response.headers,
+        if_none_match=if_none_match,
+        if_modified_since=if_modified_since,
     )</code></pre>
 </details>
 <div class="desc"><p>HTTPS GET the revocation list, honoring SSRF rules and conditional requests.</p>
@@ -803,6 +958,64 @@ outgoing HTTP request before sending.</p></div>
 </details>
 <div class="desc"><p>Raise SSRFValidationError if <code>uri</code> resolves to a blocked IP or has a bad scheme.</p></div>
 </dd>
+<dt id="adcp.signing.verify_detached_jws"><code class="name flex">
+<span>def <span class="ident">verify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_detached_jws(
+    *,
+    b64_protected: str,
+    b64_payload: str,
+    signature: bytes,
+    jwks_resolver: JwksResolver,
+    expected_typ: str,
+    allowed_algs: frozenset[str] = ALLOWED_JWS_ALGS,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Verify a parsed JWS and return the decoded payload JSON.
+
+    Performs, in order:
+    1. Decode + parse the protected header.
+    2. Reject if ``alg`` is absent, is ``none``, or not in ``allowed_algs``.
+    3. Reject if ``typ`` is not exactly ``expected_typ`` (byte equality, no
+       normalization — matches the AdCP spec).
+    4. Resolve ``kid`` via ``jwks_resolver``; reject unknown.
+    5. Verify the detached signature against the original b64 strings.
+    6. Decode the payload as JSON and return it.
+
+    Any failure raises a :class:`JwsError` subclass. The caller maps these
+    to transport-error codes (e.g. ``request_signature_revocation_stale``).
+    &#34;&#34;&#34;
+    internal_alg, kid = _validate_header(
+        b64_protected, expected_typ=expected_typ, allowed_algs=allowed_algs
+    )
+    jwk = jwks_resolver(kid)
+    if jwk is None:
+        raise JwsUnknownKeyError(f&#34;no JWK for kid {kid!r}&#34;)
+    return _verify_signature_and_decode_payload(
+        b64_protected=b64_protected,
+        b64_payload=b64_payload,
+        signature=signature,
+        jwk=jwk,
+        internal_alg=internal_alg,
+        kid=kid,
+    )</code></pre>
+</details>
+<div class="desc"><p>Verify a parsed JWS and return the decoded payload JSON.</p>
+<p>Performs, in order:
+1. Decode + parse the protected header.
+2. Reject if <code>alg</code> is absent, is <code>none</code>, or not in <code>allowed_algs</code>.
+3. Reject if <code>typ</code> is not exactly <code>expected_typ</code> (byte equality, no
+normalization — matches the AdCP spec).
+4. Resolve <code>kid</code> via <code>jwks_resolver</code>; reject unknown.
+5. Verify the detached signature against the original b64 strings.
+6. Decode the payload as JSON and return it.</p>
+<p>Any failure raises a :class:<code><a title="adcp.signing.JwsError" href="#adcp.signing.JwsError">JwsError</a></code> subclass. The caller maps these
+to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).</p></div>
+</dd>
 <dt id="adcp.signing.verify_flask_request"><code class="name flex">
 <span>def <span class="ident">verify_flask_request</span></span>(<span>request: Any,<br>*,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> <a title="adcp.signing.verifier.VerifiedSigner" href="verifier.html#adcp.signing.verifier.VerifiedSigner">VerifiedSigner</a></span>
 </code></dt>
@@ -862,7 +1075,7 @@ outgoing HTTP request before sending.</p></div>
 </details>
 <div class="desc"><p>Parse a JWS (compact string or general-JSON dict) and verify in one call.</p>
 <p>Dispatches to the right parser based on the input shape, then calls
-:func:<code>verify_detached_jws</code>. Returns the verified payload dict.</p></div>
+:func:<code><a title="adcp.signing.verify_detached_jws" href="#adcp.signing.verify_detached_jws">verify_detached_jws()</a></code>. Returns the verified payload dict.</p></div>
 </dd>
 <dt id="adcp.signing.verify_request_signature"><code class="name flex">
 <span>def <span class="ident">verify_request_signature</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> <a title="adcp.signing.verifier.VerifiedSigner" href="verifier.html#adcp.signing.verifier.VerifiedSigner">VerifiedSigner</a></span>
@@ -1129,6 +1342,491 @@ it must read <code>request.state</code> or the returned <code><a title="adcp.sig
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.signing.AsyncCachingJwksResolver"><code class="flex name class">
+<span>class <span class="ident">AsyncCachingJwksResolver</span></span>
+<span>(</span><span>jwks_uri: str,<br>*,<br>fetcher: <a title="adcp.signing.AsyncJwksFetcher" href="#adcp.signing.AsyncJwksFetcher">AsyncJwksFetcher</a> | None = None,<br>cooldown_seconds: float = 30.0,<br>allow_private: bool = False,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncCachingJwksResolver:
+    &#34;&#34;&#34;Async JWKS resolver with per-URI cache and refetch cooldown.
+
+    Identical semantics to :class:`CachingJwksResolver` — per-``kid``
+    cache, cooldown-gated refresh on miss, SSRF errors surface as
+    ``request_signature_jwks_untrusted``, network errors as
+    ``request_signature_jwks_unavailable`` — but awaitable and backed by
+    :class:`httpx.AsyncClient`.
+
+    Concurrency: a single :class:`asyncio.Lock` serializes refreshes so
+    N parallel verifying tasks all driving the first miss don&#39;t fire N
+    fetches.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        jwks_uri: str,
+        *,
+        fetcher: AsyncJwksFetcher | None = None,
+        cooldown_seconds: float = DEFAULT_JWKS_COOLDOWN_SECONDS,
+        allow_private: bool = False,
+        clock: Callable[[], float] = time.monotonic,
+    ) -&gt; None:
+        self._jwks_uri = jwks_uri
+        self._fetcher = fetcher or async_default_jwks_fetcher
+        self._cooldown = cooldown_seconds
+        self._allow_private = allow_private
+        self._clock = clock
+        self._cache: dict[str, dict[str, Any]] = {}
+        self._last_attempt: float | None = None
+        self._primed = False
+        # Construct the lock eagerly. Lazy init was racy: two tasks both
+        # seeing ``self._lock is None`` would each construct a separate
+        # Lock and proceed in parallel without serialization. In Python
+        # 3.10+ ``asyncio.Lock()`` no longer requires a running loop at
+        # construction time — it binds to whatever loop is running the
+        # first ``async with`` call. Instances are per-loop: don&#39;t share
+        # across ``asyncio.run`` boundaries.
+        self._lock: asyncio.Lock = asyncio.Lock()
+
+    async def __call__(self, keyid: str) -&gt; dict[str, Any] | None:
+        if keyid in self._cache:
+            return self._cache[keyid]
+        now = self._clock()
+        if not self._primed or (
+            self._last_attempt is not None and now - self._last_attempt &gt;= self._cooldown
+        ):
+            async with self._lock:
+                # Re-check after acquiring: another task may have refreshed.
+                if keyid in self._cache:
+                    return self._cache[keyid]
+                now = self._clock()
+                if not self._primed or (
+                    self._last_attempt is not None
+                    and now - self._last_attempt &gt;= self._cooldown
+                ):
+                    await self._refresh(now)
+        return self._cache.get(keyid)
+
+    async def _refresh(self, now: float) -&gt; None:
+        self._last_attempt = now
+        try:
+            jwks = await self._fetcher(self._jwks_uri, allow_private=self._allow_private)
+        except SSRFValidationError as exc:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+                step=7,
+                message=f&#34;JWKS URI failed SSRF check: {exc}&#34;,
+            ) from exc
+        except (httpx.HTTPError, ValueError, OSError) as exc:
+            raise SignatureVerificationError(
+                REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+                step=7,
+                message=f&#34;JWKS fetch failed: {exc}&#34;,
+            ) from exc
+        self._primed = True
+        self._cache = {jwk[&#34;kid&#34;]: jwk for jwk in jwks.get(&#34;keys&#34;, []) if &#34;kid&#34; in jwk}</code></pre>
+</details>
+<div class="desc"><p>Async JWKS resolver with per-URI cache and refetch cooldown.</p>
+<p>Identical semantics to :class:<code><a title="adcp.signing.CachingJwksResolver" href="#adcp.signing.CachingJwksResolver">CachingJwksResolver</a></code> — per-<code>kid</code>
+cache, cooldown-gated refresh on miss, SSRF errors surface as
+<code>request_signature_jwks_untrusted</code>, network errors as
+<code>request_signature_jwks_unavailable</code> — but awaitable and backed by
+:class:<code>httpx.AsyncClient</code>.</p>
+<p>Concurrency: a single :class:<code>asyncio.Lock</code> serializes refreshes so
+N parallel verifying tasks all driving the first miss don't fire N
+fetches.</p></div>
+</dd>
+<dt id="adcp.signing.AsyncCachingRevocationChecker"><code class="flex name class">
+<span>class <span class="ident">AsyncCachingRevocationChecker</span></span>
+<span>(</span><span>*,<br>revocation_uri: str,<br>issuer: str,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>fetcher: <a title="adcp.signing.AsyncRevocationListFetcher" href="#adcp.signing.AsyncRevocationListFetcher">AsyncRevocationListFetcher</a> | None = None,<br>grace_multiplier: float = 2.0,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;,<br>wall_clock: Callable[[], datetime] = &lt;function AsyncCachingRevocationChecker.&lt;lambda&gt;&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncCachingRevocationChecker(_CheckerState):
+    &#34;&#34;&#34;Async counterpart to :class:`CachingRevocationChecker`.
+
+    Same state machine, identical semantics — see the sync class for
+    full behavior documentation. Differences:
+
+    * ``__call__(keyid)`` is awaitable.
+    * :meth:`aprime` replaces :meth:`prime`.
+    * :meth:`is_jti_revoked` is awaitable.
+    * The ``jwks_resolver`` is an :class:`AsyncJwksResolver`.
+    * The ``fetcher`` is an :class:`AsyncRevocationListFetcher`.
+    * A single ``asyncio.Lock`` serializes refreshes so N concurrent
+      verifying tasks that all miss on the first verification fire
+      exactly one fetch. (The sync class is documented single-threaded;
+      async concurrency is the typical case.)
+
+    Wire it into :class:`adcp.signing.VerifyOptions.revocation_checker`
+    only if you have an async verifier pipeline — the sync
+    ``verify_request_signature`` expects a sync ``RevocationChecker``
+    and will not await this class.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        revocation_uri: str,
+        issuer: str,
+        jwks_resolver: AsyncJwksResolver,
+        fetcher: AsyncRevocationListFetcher | None = None,
+        grace_multiplier: float = DEFAULT_GRACE_MULTIPLIER,
+        clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    ) -&gt; None:
+        if clock is time.time:
+            raise ValueError(
+                &#34;clock must be a monotonic time source (use time.monotonic, &#34;
+                &#34;not time.time); wall-clock jumps would break cooldown math&#34;
+            )
+        if clock is wall_clock:  # type: ignore[comparison-overlap]
+            raise ValueError(
+                &#34;clock and wall_clock must be different sources — clock is &#34;
+                &#34;monotonic seconds (cooldown timing), wall_clock is a UTC &#34;
+                &#34;datetime source (freshness evaluation)&#34;
+            )
+
+        self._revocation_uri = revocation_uri
+        self._issuer = _normalize_issuer(issuer)
+        self._jwks_resolver = jwks_resolver
+        self._fetcher: AsyncRevocationListFetcher = (
+            fetcher or async_default_revocation_list_fetcher
+        )
+        self._grace_multiplier = grace_multiplier
+        self._clock = clock
+        self._wall_clock = wall_clock
+        self._init_state()
+        # Eager lock construction: lazy-init was racy (two tasks both
+        # seeing self._lock is None construct separate Locks and skip
+        # serialization). In Python 3.10+ asyncio.Lock() does not
+        # require a running loop at construction time. Instances are
+        # per-loop — don&#39;t reuse a checker across asyncio.run boundaries.
+        self._lock: asyncio.Lock = asyncio.Lock()
+
+    @classmethod
+    def from_issuer_origin(
+        cls,
+        origin: str,
+        *,
+        jwks_resolver: AsyncJwksResolver,
+        fetcher: AsyncRevocationListFetcher | None = None,
+        grace_multiplier: float = DEFAULT_GRACE_MULTIPLIER,
+        clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    ) -&gt; AsyncCachingRevocationChecker:
+        &#34;&#34;&#34;Async variant of :meth:`CachingRevocationChecker.from_issuer_origin`.&#34;&#34;&#34;
+        normalized = _normalize_issuer(origin)
+        revocation_uri = f&#34;{normalized}/.well-known/governance-revocations.json&#34;
+        return cls(
+            revocation_uri=revocation_uri,
+            issuer=normalized,
+            jwks_resolver=jwks_resolver,
+            fetcher=fetcher,
+            grace_multiplier=grace_multiplier,
+            clock=clock,
+            wall_clock=wall_clock,
+        )
+
+    async def aprime(self) -&gt; None:
+        &#34;&#34;&#34;Fetch and verify the revocation list. Call at startup for fail-fast.
+
+        Async counterpart to :meth:`CachingRevocationChecker.prime`.
+        &#34;&#34;&#34;
+        await self._ensure_fresh()
+
+    async def __call__(self, keyid: str) -&gt; bool:
+        &#34;&#34;&#34;Return True iff ``keyid`` is in the cached list&#39;s ``revoked_kids``.
+
+        See :meth:`CachingRevocationChecker.__call__`. For
+        governance-token ``jti`` checks use :meth:`is_jti_revoked`.
+        &#34;&#34;&#34;
+        await self._ensure_fresh()
+        if self._current_list is None:
+            raise RevocationListFreshnessError(&#34;revocation list not available&#34;)
+        return self._current_list.is_revoked(keyid)
+
+    async def is_jti_revoked(self, jti: str) -&gt; bool:
+        &#34;&#34;&#34;Async variant of :meth:`CachingRevocationChecker.is_jti_revoked`.&#34;&#34;&#34;
+        await self._ensure_fresh()
+        if self._current_list is None:
+            raise RevocationListFreshnessError(&#34;revocation list not available&#34;)
+        return jti in self._current_list.revoked_jtis
+
+    async def _ensure_fresh(self) -&gt; None:
+        if self._current_list is None:
+            async with self._lock:
+                if self._current_list is None:
+                    # Recompute clocks inside the lock: the awaiting task
+                    # may have been queued behind a slow refresh, so the
+                    # pre-lock clocks could be stale.
+                    now_wall = self._wall_clock()
+                    now_mono = self._clock()
+                    await self._refresh(
+                        conditional=False, now_wall=now_wall, now_mono=now_mono
+                    )
+            return
+
+        next_update = _parse_iso8601(self._current_list.next_update)
+        now_wall = self._wall_clock()
+        if now_wall &lt; next_update:
+            return
+
+        now_mono = self._clock()
+        since_last_attempt = (
+            now_mono - self._last_refresh_attempt
+            if self._last_refresh_attempt is not None
+            else float(&#34;inf&#34;)
+        )
+        if since_last_attempt &gt;= MIN_POLLING_INTERVAL_SECONDS:
+            try:
+                async with self._lock:
+                    # Re-check under the lock with fresh clock reads.
+                    now_mono_inside = self._clock()
+                    if self._last_refresh_attempt is None or (
+                        now_mono_inside - self._last_refresh_attempt
+                        &gt;= MIN_POLLING_INTERVAL_SECONDS
+                    ):
+                        now_wall_inside = self._wall_clock()
+                        await self._refresh(
+                            conditional=True,
+                            now_wall=now_wall_inside,
+                            now_mono=now_mono_inside,
+                        )
+                return
+            except (RevocationListFetchError, RevocationListParseError) as exc:
+                last_exc: Exception = exc
+        else:
+            last_exc = RevocationListFetchError(
+                f&#34;refresh cooldown not elapsed ({since_last_attempt:.0f}s &lt; &#34;
+                f&#34;{MIN_POLLING_INTERVAL_SECONDS}s)&#34;
+            )
+
+        grace_seconds = self._grace_seconds()
+        if now_wall.timestamp() &gt;= next_update.timestamp() + grace_seconds:
+            raise RevocationListFreshnessError(
+                f&#34;revocation list {self._revocation_uri!r} past next_update &#34;
+                f&#34;({self._current_list.next_update}) + grace ({grace_seconds:.0f}s); &#34;
+                f&#34;last refresh error: {last_exc}&#34;
+            ) from last_exc
+
+    async def _refresh(
+        self, *, conditional: bool, now_wall: datetime, now_mono: float
+    ) -&gt; None:
+        # Stamp the attempt BEFORE the awaitable. On CancelledError the
+        # finally block rolls it back so a cancelled task doesn&#39;t burn
+        # the 60s cooldown for the next caller — non-cancellation
+        # failures keep the cooldown (correct: a server rejection still
+        # counts as &#34;recently tried&#34;). Requires try/finally rather than
+        # setting post-fetch so the cooldown fires if the server replies
+        # before the caller cancels.
+        prior_attempt = self._last_refresh_attempt
+        self._last_refresh_attempt = now_mono
+        try:
+            if_none_match = self._current_etag if conditional else None
+            if_modified_since = self._current_last_modified if conditional else None
+            result = await self._fetcher(
+                self._revocation_uri,
+                if_none_match=if_none_match,
+                if_modified_since=if_modified_since,
+            )
+        except asyncio.CancelledError:
+            # Cancellation doesn&#39;t count as &#34;tried&#34; — don&#39;t burn the
+            # cooldown for the next (non-cancelled) caller.
+            self._last_refresh_attempt = prior_attempt
+            raise
+        if result.not_modified:
+            self._handle_not_modified(now_mono=now_mono)
+            return
+
+        try:
+            payload = await averify_jws_document(
+                result.body,
+                jwks_resolver=self._jwks_resolver,
+                expected_typ=REVOCATION_LIST_TYP,
+            )
+        except JwsError as exc:
+            raise RevocationListSignatureError(
+                f&#34;revocation list JWS verification failed: {exc}&#34;
+            ) from exc
+
+        revocation_list = _post_jws_validation(
+            payload,
+            expected_issuer=self._issuer,
+            now_wall=now_wall,
+            current_list=self._current_list,
+        )
+        self._commit(result=result, revocation_list=revocation_list, now_mono=now_mono)</code></pre>
+</details>
+<div class="desc"><p>Async counterpart to :class:<code><a title="adcp.signing.CachingRevocationChecker" href="#adcp.signing.CachingRevocationChecker">CachingRevocationChecker</a></code>.</p>
+<p>Same state machine, identical semantics — see the sync class for
+full behavior documentation. Differences:</p>
+<ul>
+<li><code>__call__(keyid)</code> is awaitable.</li>
+<li>:meth:<code>aprime</code> replaces :meth:<code>prime</code>.</li>
+<li>:meth:<code>is_jti_revoked</code> is awaitable.</li>
+<li>The <code>jwks_resolver</code> is an :class:<code><a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a></code>.</li>
+<li>The <code>fetcher</code> is an :class:<code><a title="adcp.signing.AsyncRevocationListFetcher" href="#adcp.signing.AsyncRevocationListFetcher">AsyncRevocationListFetcher</a></code>.</li>
+<li>A single <code>asyncio.Lock</code> serializes refreshes so N concurrent
+verifying tasks that all miss on the first verification fire
+exactly one fetch. (The sync class is documented single-threaded;
+async concurrency is the typical case.)</li>
+</ul>
+<p>Wire it into :class:<code><a title="adcp.signing.VerifyOptions.revocation_checker" href="#adcp.signing.VerifyOptions.revocation_checker">VerifyOptions.revocation_checker</a></code>
+only if you have an async verifier pipeline — the sync
+<code><a title="adcp.signing.verify_request_signature" href="#adcp.signing.verify_request_signature">verify_request_signature()</a></code> expects a sync <code><a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a></code>
+and will not await this class.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>adcp.signing.revocation_fetcher._CheckerState</li>
+</ul>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.signing.AsyncCachingRevocationChecker.from_issuer_origin"><code class="name flex">
+<span>def <span class="ident">from_issuer_origin</span></span>(<span>origin: str,<br>*,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>fetcher: <a title="adcp.signing.AsyncRevocationListFetcher" href="#adcp.signing.AsyncRevocationListFetcher">AsyncRevocationListFetcher</a> | None = None,<br>grace_multiplier: float = 2.0,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;,<br>wall_clock: Callable[[], datetime] = &lt;function AsyncCachingRevocationChecker.&lt;lambda&gt;&gt;) ‑> <a title="adcp.signing.revocation_fetcher.AsyncCachingRevocationChecker" href="revocation_fetcher.html#adcp.signing.revocation_fetcher.AsyncCachingRevocationChecker">AsyncCachingRevocationChecker</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Async variant of :meth:<code><a title="adcp.signing.CachingRevocationChecker.from_issuer_origin" href="#adcp.signing.CachingRevocationChecker.from_issuer_origin">CachingRevocationChecker.from_issuer_origin()</a></code>.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.AsyncCachingRevocationChecker.aprime"><code class="name flex">
+<span>async def <span class="ident">aprime</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def aprime(self) -&gt; None:
+    &#34;&#34;&#34;Fetch and verify the revocation list. Call at startup for fail-fast.
+
+    Async counterpart to :meth:`CachingRevocationChecker.prime`.
+    &#34;&#34;&#34;
+    await self._ensure_fresh()</code></pre>
+</details>
+<div class="desc"><p>Fetch and verify the revocation list. Call at startup for fail-fast.</p>
+<p>Async counterpart to :meth:<code><a title="adcp.signing.CachingRevocationChecker.prime" href="#adcp.signing.CachingRevocationChecker.prime">CachingRevocationChecker.prime()</a></code>.</p></div>
+</dd>
+<dt id="adcp.signing.AsyncCachingRevocationChecker.is_jti_revoked"><code class="name flex">
+<span>async def <span class="ident">is_jti_revoked</span></span>(<span>self, jti: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def is_jti_revoked(self, jti: str) -&gt; bool:
+    &#34;&#34;&#34;Async variant of :meth:`CachingRevocationChecker.is_jti_revoked`.&#34;&#34;&#34;
+    await self._ensure_fresh()
+    if self._current_list is None:
+        raise RevocationListFreshnessError(&#34;revocation list not available&#34;)
+    return jti in self._current_list.revoked_jtis</code></pre>
+</details>
+<div class="desc"><p>Async variant of :meth:<code><a title="adcp.signing.CachingRevocationChecker.is_jti_revoked" href="#adcp.signing.CachingRevocationChecker.is_jti_revoked">CachingRevocationChecker.is_jti_revoked()</a></code>.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.AsyncJwksFetcher"><code class="flex name class">
+<span>class <span class="ident">AsyncJwksFetcher</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncJwksFetcher(Protocol):
+    &#34;&#34;&#34;Async variant of :class:`JwksFetcher`.&#34;&#34;&#34;
+
+    async def __call__(
+        self, uri: str, *, allow_private: bool = False
+    ) -&gt; dict[str, Any]: ...</code></pre>
+</details>
+<div class="desc"><p>Async variant of :class:<code>JwksFetcher</code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="adcp.signing.AsyncJwksResolver"><code class="flex name class">
+<span>class <span class="ident">AsyncJwksResolver</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncJwksResolver(Protocol):
+    &#34;&#34;&#34;Async variant of :class:`JwksResolver`.
+
+    Used by the async JWS document verifier and the async revocation
+    checker so JWKS cache-misses don&#39;t block the event loop.
+    Implementations: :class:`AsyncCachingJwksResolver`. For tests,
+    :class:`StaticJwksResolver` doubles as an async resolver if you wrap
+    it in a thin async callable — there&#39;s no async work, just a dict
+    lookup — but typically you&#39;ll just use the static one directly where
+    an :class:`AsyncJwksResolver` is expected via :func:`as_async`.
+    &#34;&#34;&#34;
+
+    async def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
+</details>
+<div class="desc"><p>Async variant of :class:<code><a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a></code>.</p>
+<p>Used by the async JWS document verifier and the async revocation
+checker so JWKS cache-misses don't block the event loop.
+Implementations: :class:<code><a title="adcp.signing.AsyncCachingJwksResolver" href="#adcp.signing.AsyncCachingJwksResolver">AsyncCachingJwksResolver</a></code>. For tests,
+:class:<code><a title="adcp.signing.StaticJwksResolver" href="#adcp.signing.StaticJwksResolver">StaticJwksResolver</a></code> doubles as an async resolver if you wrap
+it in a thin async callable — there's no async work, just a dict
+lookup — but typically you'll just use the static one directly where
+an :class:<code><a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a></code> is expected via :func:<code>as_async</code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="adcp.signing.AsyncRevocationListFetcher"><code class="flex name class">
+<span>class <span class="ident">AsyncRevocationListFetcher</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncRevocationListFetcher(Protocol):
+    &#34;&#34;&#34;Async variant of :class:`RevocationListFetcher`.
+
+    Used by :class:`AsyncCachingRevocationChecker` so async verifier
+    pipelines don&#39;t block the event loop on revocation-list fetches.
+    &#34;&#34;&#34;
+
+    async def __call__(
+        self,
+        uri: str,
+        *,
+        if_none_match: str | None = None,
+        if_modified_since: str | None = None,
+    ) -&gt; FetchResult: ...</code></pre>
+</details>
+<div class="desc"><p>Async variant of :class:<code><a title="adcp.signing.RevocationListFetcher" href="#adcp.signing.RevocationListFetcher">RevocationListFetcher</a></code>.</p>
+<p>Used by :class:<code><a title="adcp.signing.AsyncCachingRevocationChecker" href="#adcp.signing.AsyncCachingRevocationChecker">AsyncCachingRevocationChecker</a></code> so async verifier
+pipelines don't block the event loop on revocation-list fetches.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
 <dt id="adcp.signing.CachingJwksResolver"><code class="flex name class">
 <span>class <span class="ident">CachingJwksResolver</span></span>
 <span>(</span><span>jwks_uri: str,<br>*,<br>fetcher: JwksFetcher | None = None,<br>cooldown_seconds: float = 30.0,<br>allow_private: bool = False,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;)</span>
@@ -1217,7 +1915,7 @@ failures surface as <code>request_signature_jwks_unavailable</code>.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class CachingRevocationChecker:
+<pre><code class="python">class CachingRevocationChecker(_CheckerState):
     &#34;&#34;&#34;Live revocation checker with caching, refetch, grace, and fail-closed.
 
     Implements the ``RevocationChecker`` Protocol — callable as
@@ -1314,16 +2012,7 @@ failures surface as <code>request_signature_jwks_unavailable</code>.</p></div>
         self._clock = clock
         self._wall_clock = wall_clock
 
-        self._current_list: RevocationList | None = None
-        self._current_etag: str | None = None
-        self._current_last_modified: str | None = None
-        self._last_successful_refresh: float | None = None
-        self._last_polling_interval_seconds: float | None = None
-        # Cooldown state: when a refresh attempt fails, we don&#39;t retry
-        # until at least MIN_POLLING_INTERVAL_SECONDS of monotonic time
-        # have elapsed. Stops a high-traffic verifier from hammering a
-        # dead revocation endpoint.
-        self._last_refresh_attempt: float | None = None
+        self._init_state()
 
     @classmethod
     def from_issuer_origin(
@@ -1460,25 +2149,7 @@ failures surface as <code>request_signature_jwks_unavailable</code>.</p></div>
             if_modified_since=if_modified_since,
         )
         if result.not_modified:
-            # 304: server confirms the cached list is still current. Advance
-            # the cached list&#39;s `next_update` by the declared polling
-            # interval so subsequent calls don&#39;t re-enter the past-
-            # next_update branch on every request — without this, the 60s
-            # cooldown gate would fire once per verification request once
-            # we cross the original next_update.
-            self._last_successful_refresh = now_mono
-            if self._current_list is not None and self._last_polling_interval_seconds:
-                prior = _parse_iso8601(self._current_list.next_update)
-                new_next_update = prior + timedelta(
-                    seconds=self._last_polling_interval_seconds
-                )
-                self._current_list = RevocationList(
-                    issuer=self._current_list.issuer,
-                    updated=self._current_list.updated,
-                    next_update=new_next_update.isoformat().replace(&#34;+00:00&#34;, &#34;Z&#34;),
-                    revoked_kids=self._current_list.revoked_kids,
-                    revoked_jtis=self._current_list.revoked_jtis,
-                )
+            self._handle_not_modified(now_mono=now_mono)
             return
 
         try:
@@ -1492,60 +2163,13 @@ failures surface as <code>request_signature_jwks_unavailable</code>.</p></div>
                 f&#34;revocation list JWS verification failed: {exc}&#34;
             ) from exc
 
-        revocation_list = _build_list_from_payload(payload, expected_issuer=self._issuer)
-
-        updated = _parse_iso8601(revocation_list.updated)
-        next_update = _parse_iso8601(revocation_list.next_update)
-
-        # Verify `updated` is not in the future beyond clock skew. An issuer
-        # whose clock is far ahead would otherwise force an immediate stale
-        # rejection.
-        if updated &gt; now_wall.replace(microsecond=0):
-            delta = (updated - now_wall).total_seconds()
-            if delta &gt; 60:  # 60s clock skew tolerance, mirrors JWS exp/iat rules
-                raise RevocationListParseError(
-                    f&#34;revocation list updated={revocation_list.updated!r} is &#34;
-                    f&#34;{delta:.0f}s in the future&#34;
-                )
-        if next_update &lt;= updated:
-            raise RevocationListParseError(
-                f&#34;revocation list next_update {revocation_list.next_update!r} is not &#34;
-                f&#34;after updated {revocation_list.updated!r}&#34;
-            )
-
-        # Reject a freshly-fetched list whose `updated` is older than the
-        # one we already have cached. Defense-in-depth against:
-        # - CDN replaying a stale list after a kid has been revoked,
-        # - operator-key compromise where an attacker serves an older list
-        #   with revocations removed.
-        # The spec doesn&#39;t permit un-revocation, so `updated` MUST be
-        # monotonically non-decreasing across refreshes.
-        if self._current_list is not None:
-            current_updated = _parse_iso8601(self._current_list.updated)
-            if updated &lt; current_updated:
-                raise RevocationListParseError(
-                    f&#34;revocation list updated={revocation_list.updated!r} is older &#34;
-                    f&#34;than cached list updated={self._current_list.updated!r} — &#34;
-                    f&#34;refusing to roll back&#34;
-                )
-
-        self._current_list = revocation_list
-        self._current_etag = result.etag
-        # Sanitize again at write-side: custom fetcher impls may not have
-        # validated the value before constructing FetchResult.
-        self._current_last_modified = _sanitize_last_modified(result.last_modified)
-        self._last_successful_refresh = now_mono
-        # Declared cadence is already validated &gt;= 60s and bounded above
-        # at parse time; clamp to the spec ceiling as defense against an
-        # issuer declaring an out-of-bounds ceiling value.
-        self._last_polling_interval_seconds = min(
-            MAX_POLLING_INTERVAL_SECONDS,
-            (next_update - updated).total_seconds(),
+        revocation_list = _post_jws_validation(
+            payload,
+            expected_issuer=self._issuer,
+            now_wall=now_wall,
+            current_list=self._current_list,
         )
-
-    def _grace_seconds(self) -&gt; float:
-        interval = self._last_polling_interval_seconds or MAX_POLLING_INTERVAL_SECONDS
-        return interval * self._grace_multiplier</code></pre>
+        self._commit(result=result, revocation_list=revocation_list, now_mono=now_mono)</code></pre>
 </details>
 <div class="desc"><p>Live revocation checker with caching, refetch, grace, and fail-closed.</p>
 <p>Implements the <code><a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a></code> Protocol — callable as
@@ -1596,6 +2220,10 @@ Wall-clock source returning a <code>datetime</code> in UTC. Used to
 evaluate <code>next_update</code> and <code>updated</code> against the current
 moment. Separate from <code>clock</code> because polling is measured as
 a duration but freshness is measured against absolute times.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>adcp.signing.revocation_fetcher._CheckerState</li>
+</ul>
 <h3>Static methods</h3>
 <dl>
 <dt id="adcp.signing.CachingRevocationChecker.from_issuer_origin"><code class="name flex">
@@ -1894,19 +2522,22 @@ wall-clock jumps (NTP adjustments, VM suspend/resume) don't race eviction.</p></
 <pre><code class="python">class JwksResolver(Protocol):
     &#34;&#34;&#34;Resolves a keyid to a JWK, or returns None if unknown.
 
-    The canonical Protocol used by both the RFC 9421 verifier and the JWS
-    document verifier. Implementations include
+    The canonical Protocol used by the sync RFC 9421 verifier and the
+    sync JWS document verifier. Implementations include
     :class:`StaticJwksResolver` (in-memory, for tests) and
     :class:`CachingJwksResolver` (fetches + caches from a URI).
+
+    Async callers use :class:`AsyncJwksResolver` instead.
     &#34;&#34;&#34;
 
     def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
 </details>
 <div class="desc"><p>Resolves a keyid to a JWK, or returns None if unknown.</p>
-<p>The canonical Protocol used by both the RFC 9421 verifier and the JWS
-document verifier. Implementations include
+<p>The canonical Protocol used by the sync RFC 9421 verifier and the
+sync JWS document verifier. Implementations include
 :class:<code><a title="adcp.signing.StaticJwksResolver" href="#adcp.signing.StaticJwksResolver">StaticJwksResolver</a></code> (in-memory, for tests) and
-:class:<code><a title="adcp.signing.CachingJwksResolver" href="#adcp.signing.CachingJwksResolver">CachingJwksResolver</a></code> (fetches + caches from a URI).</p></div>
+:class:<code><a title="adcp.signing.CachingJwksResolver" href="#adcp.signing.CachingJwksResolver">CachingJwksResolver</a></code> (fetches + caches from a URI).</p>
+<p>Async callers use :class:<code><a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a></code> instead.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>typing.Protocol</li>
@@ -2825,6 +3456,11 @@ class VerifyOptions:
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="adcp.signing.alg_for_jwk" href="#adcp.signing.alg_for_jwk">alg_for_jwk</a></code></li>
+<li><code><a title="adcp.signing.as_async_resolver" href="#adcp.signing.as_async_resolver">as_async_resolver</a></code></li>
+<li><code><a title="adcp.signing.async_default_jwks_fetcher" href="#adcp.signing.async_default_jwks_fetcher">async_default_jwks_fetcher</a></code></li>
+<li><code><a title="adcp.signing.async_default_revocation_list_fetcher" href="#adcp.signing.async_default_revocation_list_fetcher">async_default_revocation_list_fetcher</a></code></li>
+<li><code><a title="adcp.signing.averify_detached_jws" href="#adcp.signing.averify_detached_jws">averify_detached_jws</a></code></li>
+<li><code><a title="adcp.signing.averify_jws_document" href="#adcp.signing.averify_jws_document">averify_jws_document</a></code></li>
 <li><code><a title="adcp.signing.b64url_decode" href="#adcp.signing.b64url_decode">b64url_decode</a></code></li>
 <li><code><a title="adcp.signing.b64url_encode" href="#adcp.signing.b64url_encode">b64url_encode</a></code></li>
 <li><code><a title="adcp.signing.build_signature_base" href="#adcp.signing.build_signature_base">build_signature_base</a></code></li>
@@ -2844,6 +3480,7 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.sign_signature_base" href="#adcp.signing.sign_signature_base">sign_signature_base</a></code></li>
 <li><code><a title="adcp.signing.unauthorized_response_headers" href="#adcp.signing.unauthorized_response_headers">unauthorized_response_headers</a></code></li>
 <li><code><a title="adcp.signing.validate_jwks_uri" href="#adcp.signing.validate_jwks_uri">validate_jwks_uri</a></code></li>
+<li><code><a title="adcp.signing.verify_detached_jws" href="#adcp.signing.verify_detached_jws">verify_detached_jws</a></code></li>
 <li><code><a title="adcp.signing.verify_flask_request" href="#adcp.signing.verify_flask_request">verify_flask_request</a></code></li>
 <li><code><a title="adcp.signing.verify_jws_document" href="#adcp.signing.verify_jws_document">verify_jws_document</a></code></li>
 <li><code><a title="adcp.signing.verify_request_signature" href="#adcp.signing.verify_request_signature">verify_request_signature</a></code></li>
@@ -2853,6 +3490,26 @@ class VerifyOptions:
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="adcp.signing.AsyncCachingJwksResolver" href="#adcp.signing.AsyncCachingJwksResolver">AsyncCachingJwksResolver</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.AsyncCachingRevocationChecker" href="#adcp.signing.AsyncCachingRevocationChecker">AsyncCachingRevocationChecker</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.AsyncCachingRevocationChecker.aprime" href="#adcp.signing.AsyncCachingRevocationChecker.aprime">aprime</a></code></li>
+<li><code><a title="adcp.signing.AsyncCachingRevocationChecker.from_issuer_origin" href="#adcp.signing.AsyncCachingRevocationChecker.from_issuer_origin">from_issuer_origin</a></code></li>
+<li><code><a title="adcp.signing.AsyncCachingRevocationChecker.is_jti_revoked" href="#adcp.signing.AsyncCachingRevocationChecker.is_jti_revoked">is_jti_revoked</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.AsyncJwksFetcher" href="#adcp.signing.AsyncJwksFetcher">AsyncJwksFetcher</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.AsyncRevocationListFetcher" href="#adcp.signing.AsyncRevocationListFetcher">AsyncRevocationListFetcher</a></code></h4>
+</li>
 <li>
 <h4><code><a title="adcp.signing.CachingJwksResolver" href="#adcp.signing.CachingJwksResolver">CachingJwksResolver</a></code></h4>
 </li>

@@ -60,6 +60,88 @@ algorithm mapping below.</p>
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="adcp.signing.jws.averify_detached_jws"><code class="name flex">
+<span>async def <span class="ident">averify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def averify_detached_jws(
+    *,
+    b64_protected: str,
+    b64_payload: str,
+    signature: bytes,
+    jwks_resolver: AsyncJwksResolver,
+    expected_typ: str,
+    allowed_algs: frozenset[str] = ALLOWED_JWS_ALGS,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Async variant of :func:`verify_detached_jws`.
+
+    Awaits an :class:`AsyncJwksResolver` on the ``kid`` lookup; all
+    other work is pure CPU and runs inline.
+    &#34;&#34;&#34;
+    internal_alg, kid = _validate_header(
+        b64_protected, expected_typ=expected_typ, allowed_algs=allowed_algs
+    )
+    jwk = await jwks_resolver(kid)
+    if jwk is None:
+        raise JwsUnknownKeyError(f&#34;no JWK for kid {kid!r}&#34;)
+    return _verify_signature_and_decode_payload(
+        b64_protected=b64_protected,
+        b64_payload=b64_payload,
+        signature=signature,
+        jwk=jwk,
+        internal_alg=internal_alg,
+        kid=kid,
+    )</code></pre>
+</details>
+<div class="desc"><p>Async variant of :func:<code><a title="adcp.signing.jws.verify_detached_jws" href="#adcp.signing.jws.verify_detached_jws">verify_detached_jws()</a></code>.</p>
+<p>Awaits an :class:<code><a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a></code> on the <code>kid</code> lookup; all
+other work is pure CPU and runs inline.</p></div>
+</dd>
+<dt id="adcp.signing.jws.averify_jws_document"><code class="name flex">
+<span>async def <span class="ident">averify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def averify_jws_document(
+    doc: str | dict[str, Any],
+    *,
+    jwks_resolver: AsyncJwksResolver,
+    expected_typ: str,
+    allowed_algs: frozenset[str] = ALLOWED_JWS_ALGS,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Async variant of :func:`verify_jws_document`.
+
+    Accepts an :class:`AsyncJwksResolver`; parsing and signature verify
+    are pure CPU and run inline.
+    &#34;&#34;&#34;
+    if isinstance(doc, str):
+        b64_header, b64_payload, signature = parse_compact_jws(doc)
+    elif isinstance(doc, dict):
+        b64_header, b64_payload, signature = parse_general_json_jws(doc)
+    else:
+        raise JwsMalformedError(
+            &#34;JWS document must be a compact string or JSON general-serialization object&#34;
+        )
+    return await averify_detached_jws(
+        b64_protected=b64_header,
+        b64_payload=b64_payload,
+        signature=signature,
+        jwks_resolver=jwks_resolver,
+        expected_typ=expected_typ,
+        allowed_algs=allowed_algs,
+    )</code></pre>
+</details>
+<div class="desc"><p>Async variant of :func:<code><a title="adcp.signing.jws.verify_jws_document" href="#adcp.signing.jws.verify_jws_document">verify_jws_document()</a></code>.</p>
+<p>Accepts an :class:<code><a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a></code>; parsing and signature verify
+are pure CPU and run inline.</p></div>
+</dd>
 <dt id="adcp.signing.jws.parse_compact_jws"><code class="name flex">
 <span>def <span class="ident">parse_compact_jws</span></span>(<span>token: str) ‑> tuple[str, str, bytes]</span>
 </code></dt>
@@ -175,79 +257,26 @@ for this profile.</p></div>
     3. Reject if ``typ`` is not exactly ``expected_typ`` (byte equality, no
        normalization — matches the AdCP spec).
     4. Resolve ``kid`` via ``jwks_resolver``; reject unknown.
-    5. Reconstruct the signature base
-       (``b64_protected + &#34;.&#34; + b64_payload``) using the ORIGINAL
-       base64url strings and verify the signature bytes with the existing
-       HTTP-signature crypto. Using the original strings (not decode +
-       re-encode) defends against lenient-decode mismatches.
+    5. Verify the detached signature against the original b64 strings.
     6. Decode the payload as JSON and return it.
 
     Any failure raises a :class:`JwsError` subclass. The caller maps these
     to transport-error codes (e.g. ``request_signature_revocation_stale``).
     &#34;&#34;&#34;
-    header = _decode_protected_header(b64_protected)
-
-    alg = header.get(&#34;alg&#34;)
-    if not isinstance(alg, str) or alg == &#34;none&#34; or alg not in allowed_algs:
-        raise JwsMalformedError(
-            f&#34;JWS alg {alg!r} not allowed; permitted values: {sorted(allowed_algs)}&#34;
-        )
-    internal_alg = JWS_ALG_TO_INTERNAL[alg]
-
-    typ = header.get(&#34;typ&#34;)
-    if typ != expected_typ:
-        raise JwsMalformedError(
-            f&#34;JWS typ {typ!r} does not match expected {expected_typ!r}&#34;
-        )
-
-    # crit handling: the AdCP profile defines no extensions, so any
-    # unrecognized crit entry means the caller can&#39;t safely process it.
-    # Only allow crit if it&#39;s empty / absent.
-    crit = header.get(&#34;crit&#34;)
-    if crit is not None and (not isinstance(crit, list) or len(crit) &gt; 0):
-        raise JwsMalformedError(
-            &#34;JWS &#39;crit&#39; header is not supported for this profile&#34;
-        )
-
-    kid = header.get(&#34;kid&#34;)
-    if not isinstance(kid, str) or not kid:
-        raise JwsMalformedError(&#34;JWS protected header must include a non-empty &#39;kid&#39;&#34;)
-
+    internal_alg, kid = _validate_header(
+        b64_protected, expected_typ=expected_typ, allowed_algs=allowed_algs
+    )
     jwk = jwks_resolver(kid)
     if jwk is None:
         raise JwsUnknownKeyError(f&#34;no JWK for kid {kid!r}&#34;)
-
-    # Reconstruct the detached signature base per RFC 7515 §5.1 step 5:
-    # ASCII(BASE64URL(protected header)) || &#34;.&#34; || ASCII(BASE64URL(payload)).
-    # Use the ORIGINAL base64url strings — don&#39;t decode-then-re-encode, since
-    # ``urlsafe_b64decode`` is lenient (accepts padding, tolerates some
-    # alphabet variants) and a round-trip can produce different bytes than
-    # the wire form. Verifying against the re-encoded bytes would let a
-    # crafted token verify against bytes the signer never signed.
-    signing_input = (b64_protected + &#34;.&#34; + b64_payload).encode(&#34;ascii&#34;)
-
-    public_key = public_key_from_jwk(jwk)
-    if not verify_signature(
-        alg=internal_alg,
-        public_key=public_key,
-        signature_base=signing_input,
+    return _verify_signature_and_decode_payload(
+        b64_protected=b64_protected,
+        b64_payload=b64_payload,
         signature=signature,
-    ):
-        raise JwsSignatureInvalidError(f&#34;signature did not verify for kid {kid!r}&#34;)
-
-    # Now that the signature is verified, decode the payload bytes from the
-    # trusted b64 string and parse as JSON.
-    try:
-        payload_bytes = b64url_decode(b64_payload)
-    except (ValueError, binascii.Error) as exc:
-        raise JwsMalformedError(f&#34;JWS payload is not valid base64url: {exc}&#34;) from exc
-    try:
-        decoded_payload = json.loads(payload_bytes.decode(&#34;utf-8&#34;))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise JwsMalformedError(f&#34;JWS payload is not valid JSON: {exc}&#34;) from exc
-    if not isinstance(decoded_payload, dict):
-        raise JwsMalformedError(&#34;JWS payload is not a JSON object&#34;)
-    return decoded_payload</code></pre>
+        jwk=jwk,
+        internal_alg=internal_alg,
+        kid=kid,
+    )</code></pre>
 </details>
 <div class="desc"><p>Verify a parsed JWS and return the decoded payload JSON.</p>
 <p>Performs, in order:
@@ -256,11 +285,7 @@ for this profile.</p></div>
 3. Reject if <code>typ</code> is not exactly <code>expected_typ</code> (byte equality, no
 normalization — matches the AdCP spec).
 4. Resolve <code>kid</code> via <code>jwks_resolver</code>; reject unknown.
-5. Reconstruct the signature base
-(<code>b64_protected + "." + b64_payload</code>) using the ORIGINAL
-base64url strings and verify the signature bytes with the existing
-HTTP-signature crypto. Using the original strings (not decode +
-re-encode) defends against lenient-decode mismatches.
+5. Verify the detached signature against the original b64 strings.
 6. Decode the payload as JSON and return it.</p>
 <p>Any failure raises a :class:<code><a title="adcp.signing.jws.JwsError" href="#adcp.signing.jws.JwsError">JwsError</a></code> subclass. The caller maps these
 to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).</p></div>
@@ -311,6 +336,43 @@ to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.signing.jws.AsyncJwksResolver"><code class="flex name class">
+<span>class <span class="ident">AsyncJwksResolver</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncJwksResolver(Protocol):
+    &#34;&#34;&#34;Async variant of :class:`JwksResolver`.
+
+    Used by the async JWS document verifier and the async revocation
+    checker so JWKS cache-misses don&#39;t block the event loop.
+    Implementations: :class:`AsyncCachingJwksResolver`. For tests,
+    :class:`StaticJwksResolver` doubles as an async resolver if you wrap
+    it in a thin async callable — there&#39;s no async work, just a dict
+    lookup — but typically you&#39;ll just use the static one directly where
+    an :class:`AsyncJwksResolver` is expected via :func:`as_async`.
+    &#34;&#34;&#34;
+
+    async def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
+</details>
+<div class="desc"><p>Async variant of :class:<code><a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a></code>.</p>
+<p>Used by the async JWS document verifier and the async revocation
+checker so JWKS cache-misses don't block the event loop.
+Implementations: :class:<code>AsyncCachingJwksResolver</code>. For tests,
+:class:<code>StaticJwksResolver</code> doubles as an async resolver if you wrap
+it in a thin async callable — there's no async work, just a dict
+lookup — but typically you'll just use the static one directly where
+an :class:<code><a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a></code> is expected via :func:<code>as_async</code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
 <dt id="adcp.signing.jws.JwksResolver"><code class="flex name class">
 <span>class <span class="ident">JwksResolver</span></span>
 <span>(</span><span>*args, **kwargs)</span>
@@ -323,19 +385,22 @@ to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).
 <pre><code class="python">class JwksResolver(Protocol):
     &#34;&#34;&#34;Resolves a keyid to a JWK, or returns None if unknown.
 
-    The canonical Protocol used by both the RFC 9421 verifier and the JWS
-    document verifier. Implementations include
+    The canonical Protocol used by the sync RFC 9421 verifier and the
+    sync JWS document verifier. Implementations include
     :class:`StaticJwksResolver` (in-memory, for tests) and
     :class:`CachingJwksResolver` (fetches + caches from a URI).
+
+    Async callers use :class:`AsyncJwksResolver` instead.
     &#34;&#34;&#34;
 
     def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
 </details>
 <div class="desc"><p>Resolves a keyid to a JWK, or returns None if unknown.</p>
-<p>The canonical Protocol used by both the RFC 9421 verifier and the JWS
-document verifier. Implementations include
+<p>The canonical Protocol used by the sync RFC 9421 verifier and the
+sync JWS document verifier. Implementations include
 :class:<code>StaticJwksResolver</code> (in-memory, for tests) and
-:class:<code>CachingJwksResolver</code> (fetches + caches from a URI).</p></div>
+:class:<code>CachingJwksResolver</code> (fetches + caches from a URI).</p>
+<p>Async callers use :class:<code><a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a></code> instead.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>typing.Protocol</li>
@@ -442,6 +507,8 @@ document verifier. Implementations include
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="adcp.signing.jws.averify_detached_jws" href="#adcp.signing.jws.averify_detached_jws">averify_detached_jws</a></code></li>
+<li><code><a title="adcp.signing.jws.averify_jws_document" href="#adcp.signing.jws.averify_jws_document">averify_jws_document</a></code></li>
 <li><code><a title="adcp.signing.jws.parse_compact_jws" href="#adcp.signing.jws.parse_compact_jws">parse_compact_jws</a></code></li>
 <li><code><a title="adcp.signing.jws.parse_general_json_jws" href="#adcp.signing.jws.parse_general_json_jws">parse_general_json_jws</a></code></li>
 <li><code><a title="adcp.signing.jws.verify_detached_jws" href="#adcp.signing.jws.verify_detached_jws">verify_detached_jws</a></code></li>
@@ -450,6 +517,9 @@ document verifier. Implementations include
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a></code></h4>
+</li>
 <li>
 <h4><code><a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a></code></h4>
 </li>
