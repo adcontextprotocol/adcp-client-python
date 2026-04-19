@@ -205,6 +205,7 @@ el.replaceWith(d);
 <li><a title="adcp.exceptions.ADCPConnectionError" href="#adcp.exceptions.ADCPConnectionError">ADCPConnectionError</a></li>
 <li><a title="adcp.exceptions.ADCPFeatureUnsupportedError" href="#adcp.exceptions.ADCPFeatureUnsupportedError">ADCPFeatureUnsupportedError</a></li>
 <li><a title="adcp.exceptions.ADCPProtocolError" href="#adcp.exceptions.ADCPProtocolError">ADCPProtocolError</a></li>
+<li><a title="adcp.exceptions.ADCPSigningRequiredError" href="#adcp.exceptions.ADCPSigningRequiredError">ADCPSigningRequiredError</a></li>
 <li><a title="adcp.exceptions.ADCPSimpleAPIError" href="#adcp.exceptions.ADCPSimpleAPIError">ADCPSimpleAPIError</a></li>
 <li><a title="adcp.exceptions.ADCPTaskError" href="#adcp.exceptions.ADCPTaskError">ADCPTaskError</a></li>
 <li><a title="adcp.exceptions.ADCPTimeoutError" href="#adcp.exceptions.ADCPTimeoutError">ADCPTimeoutError</a></li>
@@ -323,6 +324,64 @@ def is_retryable(self) -&gt; bool:
 </details>
 <div class="desc"><p>Protocol-level error (malformed response, unexpected format).</p>
 <p>Initialize protocol error.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.exceptions.ADCPError.is_retryable" href="#adcp.exceptions.ADCPError.is_retryable">is_retryable</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.exceptions.ADCPSigningRequiredError"><code class="flex name class">
+<span>class <span class="ident">ADCPSigningRequiredError</span></span>
+<span>(</span><span>operation: str, agent_id: str | None = None, agent_uri: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ADCPSigningRequiredError(ADCPError):
+    &#34;&#34;&#34;Raised when an operation in the seller&#39;s ``request_signing.required_for``
+    is called without a ``SigningConfig`` on the client.
+
+    Signing a ``required_for`` operation is mandatory — sending it unsigned
+    would produce a ``request_signature_required`` rejection from the seller.
+    Raising locally before the wire call saves a round-trip and gives the
+    caller a clear, actionable error.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        operation: str,
+        agent_id: str | None = None,
+        agent_uri: str | None = None,
+    ):
+        self.operation = operation
+        message = (
+            f&#34;Operation {operation!r} is in the seller&#39;s request_signing.required_for &#34;
+            f&#34;list; signing is mandatory but no SigningConfig was provided&#34;
+        )
+        suggestion = (
+            &#34;Pass signing=SigningConfig(private_key=..., key_id=...) when &#34;
+            &#34;constructing ADCPClient. See adcp-keygen for key generation.&#34;
+        )
+        super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
+</details>
+<div class="desc"><p>Raised when an operation in the seller's <code>request_signing.required_for</code>
+is called without a <code>SigningConfig</code> on the client.</p>
+<p>Signing a <code>required_for</code> operation is mandatory — sending it unsigned
+would produce a <code>request_signature_required</code> rejection from the seller.
+Raising locally before the wire call saves a round-trip and gives the
+caller a clear, actionable error.</p>
+<p>Initialize exception with context.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="adcp.exceptions.ADCPError" href="#adcp.exceptions.ADCPError">ADCPError</a></li>
@@ -1059,6 +1118,9 @@ missing this field.</p>
 </li>
 <li>
 <h4><code><a title="adcp.exceptions.ADCPProtocolError" href="#adcp.exceptions.ADCPProtocolError">ADCPProtocolError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.exceptions.ADCPSigningRequiredError" href="#adcp.exceptions.ADCPSigningRequiredError">ADCPSigningRequiredError</a></code></h4>
 </li>
 <li>
 <h4><code><a title="adcp.exceptions.ADCPSimpleAPIError" href="#adcp.exceptions.ADCPSimpleAPIError">ADCPSimpleAPIError</a></code></h4>

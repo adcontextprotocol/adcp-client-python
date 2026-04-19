@@ -304,6 +304,24 @@ if it is a non-array object that is NOT <code>adcp_error</code>-only.</li>
                 base_uri = self.agent_config.agent_uri.rstrip(&#34;/&#34;)
                 urls_to_try.append(f&#34;{base_uri}/mcp&#34;)
 
+            # RFC 9421 auto-signing: if ADCPClient installed a signing request
+            # hook, wire it into streamable_http via a custom httpx client
+            # factory. SSE transport has no equivalent knob — warn the user
+            # and fall through to unsigned SSE.
+            streamable_http_extra: dict[str, Any] = {}
+            if self.signing_request_hook is not None:
+                if self.agent_config.mcp_transport == &#34;streamable_http&#34;:
+                    streamable_http_extra[&#34;httpx_client_factory&#34;] = (
+                        _make_signing_http_factory(self.signing_request_hook)
+                    )
+                else:
+                    logger.warning(
+                        &#34;RFC 9421 auto-signing is not supported on MCP SSE &#34;
+                        &#34;transport for agent %s; use mcp_transport=&#39;streamable_http&#39; &#34;
+                        &#34;to sign outgoing requests.&#34;,
+                        self.agent_config.id,
+                    )
+
             last_error = None
             for url in urls_to_try:
                 try:
@@ -312,7 +330,10 @@ if it is a non-array object that is NOT <code>adcp_error</code>-only.</li>
                         # Use streamable HTTP transport (newer, bidirectional)
                         read, write, _get_session_id = await self._exit_stack.enter_async_context(
                             streamablehttp_client(
-                                url, headers=headers, timeout=self.agent_config.timeout
+                                url,
+                                headers=headers,
+                                timeout=self.agent_config.timeout,
+                                **streamable_http_extra,
                             )
                         )
                     else:
@@ -445,8 +466,17 @@ if it is a non-array object that is NOT <code>adcp_error</code>-only.</li>
                     &#34;transport&#34;: self.agent_config.mcp_transport,
                 }
 
-            # Call the tool using MCP client session
-            result = await session.call_tool(tool_name, params)
+            # Stamp the AdCP operation name so the httpx request event hook
+            # installed by ADCPClient (when a SigningConfig is present) can
+            # look up the seller&#39;s signing policy for this call. Scoped
+            # tightly around call_tool so session.initialize() above and
+            # other out-of-band traffic stay outside the signing scope.
+            signing_token = _signing_operation.set(tool_name)
+            try:
+                # Call the tool using MCP client session
+                result = await session.call_tool(tool_name, params)
+            finally:
+                _signing_operation.reset(signing_token)
 
             # Check if this is an error response
             is_error = hasattr(result, &#34;isError&#34;) and result.isError

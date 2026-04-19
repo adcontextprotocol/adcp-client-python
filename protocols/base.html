@@ -75,6 +75,13 @@ el.replaceWith(d);
         # ``use_idempotency_key`` so a key pinned on one client does not bleed
         # to sibling clients (cross-seller correlation risk per AdCP #2315).
         self.idempotency_client_token: str | None = None
+        # Optional httpx request event hook. ADCPClient installs one when a
+        # SigningConfig is present; the hook attaches RFC 9421 Signature-Input
+        # / Signature / Content-Digest headers to outgoing requests that the
+        # seller&#39;s capability policy says should be signed. A2A consumes this
+        # via its httpx client&#39;s event_hooks; MCP consumes it via a custom
+        # httpx_client_factory passed to streamablehttp_client.
+        self.signing_request_hook: Callable[[httpx.Request], Awaitable[None]] | None = None
 
     # ========================================================================
     # Helper methods for response parsing

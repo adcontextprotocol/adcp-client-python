@@ -48,7 +48,7 @@ el.replaceWith(d);
 <dl>
 <dt id="adcp.client.ADCPClient"><code class="flex name class">
 <span>class <span class="ident">ADCPClient</span></span>
-<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300,<br>capabilities_ttl: float = 3600.0,<br>validate_features: bool = False,<br>strict_idempotency: bool = False)</span>
+<span>(</span><span>agent_config: AgentConfig,<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>webhook_timestamp_tolerance: int = 300,<br>capabilities_ttl: float = 3600.0,<br>validate_features: bool = False,<br>strict_idempotency: bool = False,<br>signing: SigningConfig | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -68,6 +68,7 @@ el.replaceWith(d);
         capabilities_ttl: float = 3600.0,
         validate_features: bool = False,
         strict_idempotency: bool = False,
+        signing: SigningConfig | None = None,
     ):
         &#34;&#34;&#34;
         Initialize ADCP client for a single agent.
@@ -91,6 +92,17 @@ el.replaceWith(d);
                 ``IdempotencyUnsupportedError`` if the declaration is missing —
                 sellers that don&#39;t declare it provide no retry-safety guarantee
                 per AdCP #2315. Defaults to False for backward compatibility.
+            signing: Optional RFC 9421 request-signing config. When provided,
+                the client automatically attaches ``Signature`` /
+                ``Signature-Input`` / ``Content-Digest`` headers to operations
+                the seller&#39;s ``request_signing`` capability lists in
+                ``required_for``, ``warn_for``, or ``supported_for``. The
+                seller&#39;s ``covers_content_digest`` policy determines whether
+                the body is bound to the signature. Generate a key with
+                ``adcp-keygen`` and publish the public JWK at your
+                ``jwks_uri``. Supported on both A2A and MCP
+                (``mcp_transport=&#34;streamable_http&#34;``); SSE-transport MCP
+                logs a warning and falls through unsigned.
         &#34;&#34;&#34;
         self.agent_config = agent_config
         self.webhook_url_template = webhook_url_template
@@ -100,6 +112,7 @@ el.replaceWith(d);
         self.capabilities_ttl = capabilities_ttl
         self.validate_features = validate_features
         self.strict_idempotency = strict_idempotency
+        self.signing = signing
 
         # Capabilities cache
         self._capabilities: GetAdcpCapabilitiesResponse | None = None
@@ -124,6 +137,8 @@ el.replaceWith(d);
         self.adapter.idempotency_client_token = self._idempotency_client_token
         if strict_idempotency:
             self.adapter.idempotency_capability_check = self._ensure_idempotency_capability
+        if signing is not None:
+            self.adapter.signing_request_hook = self._sign_outgoing_request
 
         # Initialize simple API accessor (lazy import to avoid circular dependency)
         from adcp.simple import SimpleAPI
@@ -166,6 +181,89 @@ el.replaceWith(d);
         except Exception:
             self._idempotency_capability_verified = False
             raise
+
+    async def _sign_outgoing_request(self, request: httpx.Request) -&gt; None:
+        &#34;&#34;&#34;httpx request event hook that attaches RFC 9421 signature headers.
+
+        Installed on the protocol adapter&#39;s httpx client when a
+        ``SigningConfig`` was passed to ``ADCPClient``. Consults the
+        seller&#39;s advertised ``request_signing`` capability and signs only
+        the operations the seller listed in ``required_for``, ``warn_for``,
+        or ``supported_for`` — other requests (including the agent-card
+        fetch and ``get_adcp_capabilities`` itself) pass through unsigned.
+        The ``covers_content_digest`` tri-state determines whether the
+        body is bound to the signature.
+        &#34;&#34;&#34;
+        if self.signing is None:
+            return
+        operation = _signing_current_operation.get()
+        # Unset ContextVar → out-of-band call (agent-card fetch, session
+        # initialize, etc). Skip without fetching capabilities.
+        #
+        # get_adcp_capabilities → bootstrap carve-out: signing it would
+        # require capabilities we don&#39;t have yet, and if a pathological
+        # seller listed this op in its own required_for we&#39;d recurse.
+        # Keep this check narrow — only operations strictly required to
+        # *obtain* capabilities belong here. Today that&#39;s just
+        # get_adcp_capabilities. A future adapter that adds another
+        # capabilities-precondition op MUST extend this guard.
+        if operation is None or operation == &#34;get_adcp_capabilities&#34;:
+            return
+
+        caps = await self.fetch_capabilities()
+        req_signing = getattr(caps, &#34;request_signing&#34;, None)
+
+        # Detect and surface a malformed seller config: supported=False is
+        # &#34;signatures are ignored&#34;, but populating required_for alongside
+        # it is contradictory. The classifier correctly skips (matches
+        # verifier behavior) but the silent downgrade hides a config bug
+        # that will bite pilots.
+        if (
+            req_signing is not None
+            and not req_signing.supported
+            and (req_signing.required_for or req_signing.warn_for)
+        ):
+            logger.warning(
+                &#34;Seller %s advertises request_signing.supported=false but &#34;
+                &#34;populates required_for/warn_for — treating as unsupported &#34;
+                &#34;per spec. Verify the seller&#39;s capability advertisement.&#34;,
+                self.agent_config.id,
+            )
+
+        decision = operation_needs_signing(req_signing, operation)
+        if decision == &#34;skip&#34;:
+            return
+
+        covers_policy: str | None = None
+        if req_signing is not None and req_signing.covers_content_digest is not None:
+            covers_policy = req_signing.covers_content_digest.value
+        if covers_policy == &#34;forbidden&#34;:
+            cover_digest = False
+        elif covers_policy == &#34;required&#34;:
+            cover_digest = True
+        else:
+            # &#34;either&#34; or absent — signer&#39;s choice; default stricter.
+            cover_digest = True
+
+        body = request.content
+        signed = sign_request(
+            method=request.method,
+            url=str(request.url),
+            headers=dict(request.headers),
+            body=body,
+            private_key=self.signing.private_key,
+            key_id=self.signing.key_id,
+            alg=self.signing.alg,
+            cover_content_digest=cover_digest,
+            tag=self.signing.tag,
+        )
+        # pop-then-set ensures our signed values are authoritative even if
+        # another hook or earlier layer added a same-named header. httpx
+        # headers are a case-insensitive MultiDict, so a naive assignment
+        # could leave a duplicate value in a different case.
+        for header_name, header_value in signed.as_dict().items():
+            request.headers.pop(header_name, None)
+            request.headers[header_name] = header_value
 
     def get_webhook_url(self, task_type: str, operation_id: str) -&gt; str:
         &#34;&#34;&#34;Generate webhook URL for a task.&#34;&#34;&#34;
@@ -3475,6 +3573,18 @@ mutating call. Fetches capabilities lazily on first use. Raises
 <code>IdempotencyUnsupportedError</code> if the declaration is missing —
 sellers that don't declare it provide no retry-safety guarantee
 per AdCP #2315. Defaults to False for backward compatibility.</dd>
+<dt><strong><code>signing</code></strong></dt>
+<dd>Optional RFC 9421 request-signing config. When provided,
+the client automatically attaches <code>Signature</code> /
+<code>Signature-Input</code> / <code>Content-Digest</code> headers to operations
+the seller's <code>request_signing</code> capability lists in
+<code>required_for</code>, <code>warn_for</code>, or <code>supported_for</code>. The
+seller's <code>covers_content_digest</code> policy determines whether
+the body is bound to the signature. Generate a key with
+<code>adcp-keygen</code> and publish the public JWK at your
+<code>jwks_uri</code>. Supported on both A2A and MCP
+(<code>mcp_transport="streamable_http"</code>); SSE-transport MCP
+logs a warning and falls through unsigned.</dd>
 </dl></div>
 <h3>Instance variables</h3>
 <dl>
@@ -7613,7 +7723,7 @@ raises <code>RuntimeError</code>.</li>
 </dd>
 <dt id="adcp.client.ADCPMultiAgentClient"><code class="flex name class">
 <span>class <span class="ident">ADCPMultiAgentClient</span></span>
-<span>(</span><span>agents: list[AgentConfig],<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>handlers: dict[str, Callable[..., Any]] | None = None)</span>
+<span>(</span><span>agents: list[AgentConfig],<br>webhook_url_template: str | None = None,<br>webhook_secret: str | None = None,<br>on_activity: Callable[[Activity], None] | None = None,<br>handlers: dict[str, Callable[..., Any]] | None = None,<br>signing: SigningConfig | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -7630,6 +7740,7 @@ raises <code>RuntimeError</code>.</li>
         webhook_secret: str | None = None,
         on_activity: Callable[[Activity], None] | None = None,
         handlers: dict[str, Callable[..., Any]] | None = None,
+        signing: SigningConfig | None = None,
     ):
         &#34;&#34;&#34;
         Initialize multi-agent client.
@@ -7640,6 +7751,9 @@ raises <code>RuntimeError</code>.</li>
             webhook_secret: Secret for webhook verification
             on_activity: Callback for activity events
             handlers: Task completion handlers
+            signing: Optional RFC 9421 signing config forwarded to every
+                per-agent ADCPClient. The same identity signs traffic to
+                all agents. See ADCPClient.__init__ for details.
         &#34;&#34;&#34;
         self.agents = {
             agent.id: ADCPClient(
@@ -7647,6 +7761,7 @@ raises <code>RuntimeError</code>.</li>
                 webhook_url_template=webhook_url_template,
                 webhook_secret=webhook_secret,
                 on_activity=on_activity,
+                signing=signing,
             )
             for agent in agents
         }
@@ -7727,6 +7842,10 @@ raises <code>RuntimeError</code>.</li>
 <dd>Callback for activity events</dd>
 <dt><strong><code>handlers</code></strong></dt>
 <dd>Task completion handlers</dd>
+<dt><strong><code>signing</code></strong></dt>
+<dd>Optional RFC 9421 signing config forwarded to every
+per-agent ADCPClient. The same identity signs traffic to
+all agents. See ADCPClient.<strong>init</strong> for details.</dd>
 </dl></div>
 <h3>Static methods</h3>
 <dl>

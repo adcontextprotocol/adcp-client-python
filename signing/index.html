@@ -43,6 +43,10 @@ See: <a href="https://adcontextprotocol.org/docs/building/implementation/securit
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
+<dt><code class="name"><a title="adcp.signing.autosign" href="autosign.html">adcp.signing.autosign</a></code></dt>
+<dd>
+<div class="desc"><p>Client-side orchestration for auto-signing outgoing AdCP requests …</p></div>
+</dd>
 <dt><code class="name"><a title="adcp.signing.canonical" href="canonical.html">adcp.signing.canonical</a></code></dt>
 <dd>
 <div class="desc"><p>RFC 9421 canonicalization for the AdCP request-signing profile …</p></div>
@@ -339,6 +343,64 @@ are accepted here (standard tried first; url as fallback).</p></div>
     return f&#34;{label}=:{b64url_encode(signature)}:&#34;</code></pre>
 </details>
 <div class="desc"><p>Produce a Signature header value for a single-label signature.</p></div>
+</dd>
+<dt id="adcp.signing.operation_needs_signing"><code class="name flex">
+<span>def <span class="ident">operation_needs_signing</span></span>(<span>capability: RequestSigning | None, operation: str) ‑> SigningDecision</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def operation_needs_signing(
+    capability: RequestSigning | None,
+    operation: str,
+) -&gt; SigningDecision:
+    &#34;&#34;&#34;Classify whether to sign an outgoing operation against a seller&#39;s policy.
+
+    Precedence follows the spec: ``required_for`` &gt; ``warn_for`` &gt;
+    ``supported_for``. An operation named in ``required_for`` is classified
+    ``&#34;required&#34;`` even if it also appears in the weaker lists.
+
+    If ``capability`` is ``None`` (the seller doesn&#39;t advertise a
+    ``request_signing`` block at all) or ``capability.supported`` is
+    ``False``, always returns ``&#34;skip&#34;``.
+
+    Parameters
+    ----------
+    capability:
+        The ``request_signing`` block from the seller&#39;s
+        ``get_adcp_capabilities`` response, or ``None``.
+    operation:
+        The AdCP protocol operation name, e.g. ``&#34;create_media_buy&#34;``. Not
+        an MCP tool name or A2A skill name — the verifier compares against
+        the protocol names.
+    &#34;&#34;&#34;
+    if capability is None or not capability.supported:
+        return &#34;skip&#34;
+
+    lists = _extract(capability)
+    if operation in lists.required:
+        return &#34;required&#34;
+    if operation in lists.warn or operation in lists.supported:
+        return &#34;optional&#34;
+    return &#34;skip&#34;</code></pre>
+</details>
+<div class="desc"><p>Classify whether to sign an outgoing operation against a seller's policy.</p>
+<p>Precedence follows the spec: <code>required_for</code> &gt; <code>warn_for</code> &gt;
+<code>supported_for</code>. An operation named in <code>required_for</code> is classified
+<code>"required"</code> even if it also appears in the weaker lists.</p>
+<p>If <code>capability</code> is <code>None</code> (the seller doesn't advertise a
+<code>request_signing</code> block at all) or <code>capability.supported</code> is
+<code>False</code>, always returns <code>"skip"</code>.</p>
+<h2 id="parameters">Parameters</h2>
+<p>capability:
+The <code>request_signing</code> block from the seller's
+<code>get_adcp_capabilities</code> response, or <code>None</code>.
+operation:
+The AdCP protocol operation name, e.g. <code>"create_media_buy"</code>. Not
+an MCP tool name or A2A skill name — the verifier compares against
+the protocol names.</p></div>
 </dd>
 <dt id="adcp.signing.parse_signature_input_header"><code class="name flex">
 <span>def <span class="ident">parse_signature_input_header</span></span>(<span>header_value: str) ‑> dict[str, <a title="adcp.signing.canonical.SignatureInputLabel" href="canonical.html#adcp.signing.canonical.SignatureInputLabel">SignatureInputLabel</a>]</span>
@@ -1540,6 +1602,102 @@ class SignedHeaders:
 </dd>
 </dl>
 </dd>
+<dt id="adcp.signing.SigningConfig"><code class="flex name class">
+<span>class <span class="ident">SigningConfig</span></span>
+<span>(</span><span>private_key: PrivateKey,<br>key_id: str,<br>alg: str = 'ed25519',<br>tag: str = 'adcp/request-signing/v1')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class SigningConfig:
+    &#34;&#34;&#34;Client-side signing credentials for RFC 9421 request signing.
+
+    Passed to ``ADCPClient`` / ``ADCPMultiAgentClient`` at construction.
+    The same config signs traffic to every agent the client talks to —
+    the buyer is one identity from the seller&#39;s point of view.
+
+    Parameters
+    ----------
+    private_key:
+        The signing key (``Ed25519PrivateKey`` or ``EllipticCurvePrivateKey``
+        on P-256). Generated via the ``adcp-keygen`` CLI or loaded from an
+        existing PEM via ``cryptography.hazmat.primitives.serialization``.
+    key_id:
+        The ``kid`` value the verifier will look up in the seller-side JWKS.
+        Must match the ``kid`` of the public key published at the buyer&#39;s
+        ``jwks_uri`` (advertised in the buyer&#39;s ``brand.json``).
+    alg:
+        RFC 9421 algorithm identifier. One of ``&#34;ed25519&#34;`` or
+        ``&#34;ecdsa-p256-sha256&#34;``. Defaults to ``&#34;ed25519&#34;``.
+    tag:
+        Signature tag. Defaults to the AdCP request-signing tag and should
+        not need to be overridden.
+    &#34;&#34;&#34;
+
+    private_key: PrivateKey
+    key_id: str
+    alg: str = ALG_ED25519
+    tag: str = DEFAULT_TAG
+
+    def __post_init__(self) -&gt; None:
+        if self.alg not in ALLOWED_ALGS:
+            raise ValueError(
+                f&#34;alg must be one of {sorted(ALLOWED_ALGS)}, got {self.alg!r}&#34;
+            )
+        if not self.key_id:
+            raise ValueError(&#34;key_id must be a non-empty string&#34;)
+
+    def __repr__(self) -&gt; str:
+        # Redact the private key from string representations so accidental
+        # logging of the config (or of an exception that closes over it)
+        # doesn&#39;t surface key material even in summary form.
+        return (
+            f&#34;SigningConfig(key_id={self.key_id!r}, alg={self.alg!r}, &#34;
+            f&#34;tag={self.tag!r}, private_key=&lt;redacted&gt;)&#34;
+        )</code></pre>
+</details>
+<div class="desc"><p>Client-side signing credentials for RFC 9421 request signing.</p>
+<p>Passed to <code>ADCPClient</code> / <code>ADCPMultiAgentClient</code> at construction.
+The same config signs traffic to every agent the client talks to —
+the buyer is one identity from the seller's point of view.</p>
+<h2 id="parameters">Parameters</h2>
+<p>private_key:
+The signing key (<code>Ed25519PrivateKey</code> or <code>EllipticCurvePrivateKey</code>
+on P-256). Generated via the <code>adcp-keygen</code> CLI or loaded from an
+existing PEM via <code>cryptography.hazmat.primitives.serialization</code>.
+key_id:
+The <code>kid</code> value the verifier will look up in the seller-side JWKS.
+Must match the <code>kid</code> of the public key published at the buyer's
+<code>jwks_uri</code> (advertised in the buyer's <code>brand.json</code>).
+alg:
+RFC 9421 algorithm identifier. One of <code>"ed25519"</code> or
+<code>"ecdsa-p256-sha256"</code>. Defaults to <code>"ed25519"</code>.
+tag:
+Signature tag. Defaults to the AdCP request-signing tag and should
+not need to be overridden.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.SigningConfig.alg"><code class="name">var <span class="ident">alg</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.SigningConfig.key_id"><code class="name">var <span class="ident">key_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.SigningConfig.private_key"><code class="name">var <span class="ident">private_key</span> : cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey | cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.SigningConfig.tag"><code class="name">var <span class="ident">tag</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.signing.StaticJwksResolver"><code class="flex name class">
 <span>class <span class="ident">StaticJwksResolver</span></span>
 <span>(</span><span>jwks: dict[str, Any])</span>
@@ -1655,7 +1813,7 @@ requests — only pick <code>"either"</code> if you've weighed that tradeoff.</p
 </dd>
 <dt id="adcp.signing.VerifyOptions"><code class="flex name class">
 <span>class <span class="ident">VerifyOptions</span></span>
-<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>replay_store: <a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a> | None = None,<br>revocation_checker: <a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a> | None = None,<br>revocation_list: <a title="adcp.signing.RevocationList" href="#adcp.signing.RevocationList">RevocationList</a> | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>agent_url: str | None = None)</span>
+<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>replay_store: <a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a> | None = None,<br>revocation_checker: <a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a> | None = None,<br>revocation_list: <a title="adcp.signing.RevocationList" href="#adcp.signing.RevocationList">RevocationList</a> | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>allowed_algs: frozenset[str] = frozenset({'ed25519', 'ecdsa-p256-sha256'}),<br>agent_url: str | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1678,7 +1836,7 @@ class VerifyOptions:
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None</code></pre>
 </details>
-<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', allowed_algs: 'frozenset[str]' = frozenset({'ecdsa-p256-sha256', 'ed25519'}), agent_url: 'str | None' = None)</p></div>
+<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', allowed_algs: 'frozenset[str]' = frozenset({'ed25519', 'ecdsa-p256-sha256'}), agent_url: 'str | None' = None)</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="adcp.signing.VerifyOptions.agent_url"><code class="name">var <span class="ident">agent_url</span> : str | None</code></dt>
@@ -1750,6 +1908,7 @@ class VerifyOptions:
 </li>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
+<li><code><a title="adcp.signing.autosign" href="autosign.html">adcp.signing.autosign</a></code></li>
 <li><code><a title="adcp.signing.canonical" href="canonical.html">adcp.signing.canonical</a></code></li>
 <li><code><a title="adcp.signing.constants" href="constants.html">adcp.signing.constants</a></code></li>
 <li><code><a title="adcp.signing.crypto" href="crypto.html">adcp.signing.crypto</a></code></li>
@@ -1777,6 +1936,7 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.default_jwks_fetcher" href="#adcp.signing.default_jwks_fetcher">default_jwks_fetcher</a></code></li>
 <li><code><a title="adcp.signing.extract_signature_bytes" href="#adcp.signing.extract_signature_bytes">extract_signature_bytes</a></code></li>
 <li><code><a title="adcp.signing.format_signature_header" href="#adcp.signing.format_signature_header">format_signature_header</a></code></li>
+<li><code><a title="adcp.signing.operation_needs_signing" href="#adcp.signing.operation_needs_signing">operation_needs_signing</a></code></li>
 <li><code><a title="adcp.signing.parse_signature_input_header" href="#adcp.signing.parse_signature_input_header">parse_signature_input_header</a></code></li>
 <li><code><a title="adcp.signing.private_key_from_jwk" href="#adcp.signing.private_key_from_jwk">private_key_from_jwk</a></code></li>
 <li><code><a title="adcp.signing.public_key_from_jwk" href="#adcp.signing.public_key_from_jwk">public_key_from_jwk</a></code></li>
@@ -1853,6 +2013,15 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.SignedHeaders.content_digest" href="#adcp.signing.SignedHeaders.content_digest">content_digest</a></code></li>
 <li><code><a title="adcp.signing.SignedHeaders.signature" href="#adcp.signing.SignedHeaders.signature">signature</a></code></li>
 <li><code><a title="adcp.signing.SignedHeaders.signature_input" href="#adcp.signing.SignedHeaders.signature_input">signature_input</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.SigningConfig" href="#adcp.signing.SigningConfig">SigningConfig</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.SigningConfig.alg" href="#adcp.signing.SigningConfig.alg">alg</a></code></li>
+<li><code><a title="adcp.signing.SigningConfig.key_id" href="#adcp.signing.SigningConfig.key_id">key_id</a></code></li>
+<li><code><a title="adcp.signing.SigningConfig.private_key" href="#adcp.signing.SigningConfig.private_key">private_key</a></code></li>
+<li><code><a title="adcp.signing.SigningConfig.tag" href="#adcp.signing.SigningConfig.tag">tag</a></code></li>
 </ul>
 </li>
 <li>
