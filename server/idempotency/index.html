@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.server.idempotency API documentation</title>
+<meta name="description" content="Server-side idempotency middleware for AdCP mutating tool handlers …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.server.idempotency</code></h1>
+</header>
+<section id="section-intro">
+<p>Server-side idempotency middleware for AdCP mutating tool handlers.</p>
+<p>Implements the seller side of AdCP #2315: extract <code>idempotency_key</code>, look up
+cached responses scoped by <code>(authenticated_principal, idempotency_key)</code>, and
+replay the cached response verbatim when a subsequent request carries the same
+key + canonicalized-equivalent payload. Reject key reuse with a different
+payload as <code>IDEMPOTENCY_CONFLICT</code>.</p>
+<p>The spec contract lives at
+<code>adcontextprotocol/adcp/docs/building/implementation/security.mdx#idempotency</code>.</p>
+<p>Typical usage::</p>
+<pre><code>from adcp.server import ADCPHandler, IdempotencyStore, MemoryBackend, ToolContext
+from adcp.server.responses import capabilities_response
+
+idempotency = IdempotencyStore(
+    backend=MemoryBackend(),
+    ttl_seconds=86400,  # 24 hours, matches spec minimum
+)
+
+class MySeller(ADCPHandler):
+    @idempotency.wrap
+    async def create_media_buy(self, params, context=None):
+        # &lt;code&gt;params&lt;/code&gt; carries &lt;code&gt;idempotency\_key&lt;/code&gt;; &lt;code&gt;context.caller\_identity&lt;/code&gt;
+        # identifies the principal. Without either, the middleware falls
+        # through to this handler with no dedup (schema validation above
+        # us rejects missing keys per AdCP #2315).
+        return my_create_logic(params)
+
+    async def get_adcp_capabilities(self, params, context=None):
+        return capabilities_response(
+            ["media_buy"],
+            idempotency=idempotency.capability(),
+        )
+</code></pre>
+<p>Callers who invoke the handler directly (tests, non-HTTP code paths) must
+pass a :class:<code><a title="adcp.server.base.ToolContext" href="../base.html#adcp.server.base.ToolContext">ToolContext</a></code> with <code>caller_identity</code> set —
+it's how the middleware scopes the cache namespace per-principal::</p>
+<pre><code>ctx = ToolContext(caller_identity="buyer-acme")
+result = await seller.create_media_buy(
+    {"idempotency_key": key, ...}, ctx
+)
+</code></pre>
+<p>Backends:</p>
+<ul>
+<li>:class:<code><a title="adcp.server.idempotency.MemoryBackend" href="#adcp.server.idempotency.MemoryBackend">MemoryBackend</a></code> — in-process dict with TTL; use for tests and
+single-process reference implementations.</li>
+<li>:class:<code><a title="adcp.server.idempotency.PgBackend" href="#adcp.server.idempotency.PgBackend">PgBackend</a></code> — scaffold for a SQLAlchemy/asyncpg-backed store that can
+commit cache writes atomically with business writes. Implementation arrives
+in a follow-up PR.</li>
+</ul>
+</section>
+<section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="adcp.server.idempotency.backends" href="backends.html">adcp.server.idempotency.backends</a></code></dt>
+<dd>
+<div class="desc"><p>Storage backends for :class:<code>~adcp.server.idempotency.IdempotencyStore</code> …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.server.idempotency.canonicalize" href="canonicalize.html">adcp.server.idempotency.canonicalize</a></code></dt>
+<dd>
+<div class="desc"><p>Canonical payload hashing for AdCP idempotency replay detection …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.server.idempotency.store" href="store.html">adcp.server.idempotency.store</a></code></dt>
+<dd>
+<div class="desc"><p>The :class:<code><a title="adcp.server.idempotency.IdempotencyStore" href="#adcp.server.idempotency.IdempotencyStore">IdempotencyStore</a></code> coordinator: canonical hashing + backend + decorator …</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.server.idempotency.canonical_json_sha256"><code class="name flex">
+<span>def <span class="ident">canonical_json_sha256</span></span>(<span>payload: dict[str, Any]) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def canonical_json_sha256(payload: dict[str, Any]) -&gt; str:
+    &#34;&#34;&#34;Compute the spec&#39;s canonical payload fingerprint.
+
+    1. Strip the spec&#39;s exclusion list (see :func:`strip_excluded_fields`).
+    2. RFC 8785 JCS canonicalize (stable key order, compact, UTF-8, spec-
+       compliant number serialization).
+    3. SHA-256 over the canonical bytes; return hex digest.
+
+    The result is stable across all conforming JCS implementations. Two
+    payloads whose hashes match are equivalent under AdCP replay semantics;
+    two with different hashes are distinct and MUST be treated as a conflict
+    when the caller supplies the same ``idempotency_key``.
+    &#34;&#34;&#34;
+    stripped = strip_excluded_fields(payload)
+    canonical = rfc8785.dumps(stripped)
+    return hashlib.sha256(canonical).hexdigest()</code></pre>
+</details>
+<div class="desc"><p>Compute the spec's canonical payload fingerprint.</p>
+<ol>
+<li>Strip the spec's exclusion list (see :func:<code><a title="adcp.server.idempotency.strip_excluded_fields" href="#adcp.server.idempotency.strip_excluded_fields">strip_excluded_fields()</a></code>).</li>
+<li>RFC 8785 JCS canonicalize (stable key order, compact, UTF-8, spec-
+compliant number serialization).</li>
+<li>SHA-256 over the canonical bytes; return hex digest.</li>
+</ol>
+<p>The result is stable across all conforming JCS implementations. Two
+payloads whose hashes match are equivalent under AdCP replay semantics;
+two with different hashes are distinct and MUST be treated as a conflict
+when the caller supplies the same <code>idempotency_key</code>.</p></div>
+</dd>
+<dt id="adcp.server.idempotency.strip_excluded_fields"><code class="name flex">
+<span>def <span class="ident">strip_excluded_fields</span></span>(<span>payload: dict[str, Any]) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def strip_excluded_fields(payload: dict[str, Any]) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Return a deep copy of ``payload`` with the spec&#39;s exclusion list removed.
+
+    Top-level keys in :data:`EXCLUDED_FIELDS` are dropped. Nested paths in
+    ``_NESTED_EXCLUSIONS`` are traversed; the final leaf key is removed if the
+    traversal reaches it. Missing intermediate keys are a no-op — the caller&#39;s
+    payload is free to omit the push_notification_config entirely.
+
+    The input dict is never mutated.
+    &#34;&#34;&#34;
+    out: dict[str, Any] = copy.deepcopy(payload)
+    for key in EXCLUDED_FIELDS:
+        out.pop(key, None)
+    for path in _NESTED_EXCLUSIONS:
+        _drop_nested(out, path)
+    return out</code></pre>
+</details>
+<div class="desc"><p>Return a deep copy of <code>payload</code> with the spec's exclusion list removed.</p>
+<p>Top-level keys in :data:<code>EXCLUDED_FIELDS</code> are dropped. Nested paths in
+<code>_NESTED_EXCLUSIONS</code> are traversed; the final leaf key is removed if the
+traversal reaches it. Missing intermediate keys are a no-op — the caller's
+payload is free to omit the push_notification_config entirely.</p>
+<p>The input dict is never mutated.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.server.idempotency.CachedResponse"><code class="flex name class">
+<span>class <span class="ident">CachedResponse</span></span>
+<span>(</span><span>payload_hash: str, response: dict[str, Any], expires_at_epoch: float)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class CachedResponse:
+    &#34;&#34;&#34;A single cached handler response keyed by ``(principal_id, key)``.
+
+    :param payload_hash: Canonical JSON SHA-256 of the *original* request. On
+        replay we compare the new request&#39;s hash to this value; mismatch is
+        ``IDEMPOTENCY_CONFLICT``.
+    :param response: The response dict the handler returned. Returned verbatim
+        on replay — the seller injects ``replayed: true`` at the envelope
+        level before sending.
+    :param expires_at_epoch: Unix timestamp (seconds) when this entry becomes
+        eligible for eviction. Reads after this time return None.
+    &#34;&#34;&#34;
+
+    payload_hash: str
+    response: dict[str, Any]
+    expires_at_epoch: float</code></pre>
+</details>
+<div class="desc"><p>A single cached handler response keyed by <code>(principal_id, key)</code>.</p>
+<p>:param payload_hash: Canonical JSON SHA-256 of the <em>original</em> request. On
+replay we compare the new request's hash to this value; mismatch is
+<code>IDEMPOTENCY_CONFLICT</code>.
+:param response: The response dict the handler returned. Returned verbatim
+on replay — the seller injects <code>replayed: true</code> at the envelope
+level before sending.
+:param expires_at_epoch: Unix timestamp (seconds) when this entry becomes
+eligible for eviction. Reads after this time return None.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.server.idempotency.CachedResponse.expires_at_epoch"><code class="name">var <span class="ident">expires_at_epoch</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.server.idempotency.CachedResponse.payload_hash"><code class="name">var <span class="ident">payload_hash</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.server.idempotency.CachedResponse.response"><code class="name">var <span class="ident">response</span> : dict[str, typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.server.idempotency.IdempotencyBackend"><code class="flex name class">
+<span>class <span class="ident">IdempotencyBackend</span></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IdempotencyBackend(ABC):
+    &#34;&#34;&#34;Abstract storage backend contract.
+
+    All methods are async. Implementations MUST be safe to call concurrently
+    from multiple asyncio tasks — :class:`IdempotencyStore` does not serialize
+    access on the caller&#39;s behalf.
+    &#34;&#34;&#34;
+
+    @abstractmethod
+    async def get(
+        self, principal_id: str, key: str
+    ) -&gt; CachedResponse | None:
+        &#34;&#34;&#34;Return the cached entry, or None if missing or expired.&#34;&#34;&#34;
+
+    @abstractmethod
+    async def put(
+        self,
+        principal_id: str,
+        key: str,
+        entry: CachedResponse,
+    ) -&gt; None:
+        &#34;&#34;&#34;Store ``entry`` under ``(principal_id, key)``. Overwrites any prior
+        entry — the store only calls ``put`` after verifying the slot is empty
+        or expired, so an overwrite in that window is a legitimate retry of
+        the write itself.&#34;&#34;&#34;
+
+    @abstractmethod
+    async def delete_expired(self, now_epoch: float | None = None) -&gt; int:
+        &#34;&#34;&#34;Best-effort sweep of expired entries. Returns the count removed.
+
+        Sweeping is optional — :meth:`get` MUST self-filter expired entries.
+        Backends that have natural TTL primitives (Redis ``EXPIRE``, Postgres
+        partial indexes) may implement this as a no-op.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Abstract storage backend contract.</p>
+<p>All methods are async. Implementations MUST be safe to call concurrently
+from multiple asyncio tasks — :class:<code><a title="adcp.server.idempotency.IdempotencyStore" href="#adcp.server.idempotency.IdempotencyStore">IdempotencyStore</a></code> does not serialize
+access on the caller's behalf.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.server.idempotency.backends.MemoryBackend" href="backends.html#adcp.server.idempotency.backends.MemoryBackend">MemoryBackend</a></li>
+<li><a title="adcp.server.idempotency.backends.PgBackend" href="backends.html#adcp.server.idempotency.backends.PgBackend">PgBackend</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.idempotency.IdempotencyBackend.delete_expired"><code class="name flex">
+<span>async def <span class="ident">delete_expired</span></span>(<span>self, now_epoch: float | None = None) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def delete_expired(self, now_epoch: float | None = None) -&gt; int:
+    &#34;&#34;&#34;Best-effort sweep of expired entries. Returns the count removed.
+
+    Sweeping is optional — :meth:`get` MUST self-filter expired entries.
+    Backends that have natural TTL primitives (Redis ``EXPIRE``, Postgres
+    partial indexes) may implement this as a no-op.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Best-effort sweep of expired entries. Returns the count removed.</p>
+<p>Sweeping is optional — :meth:<code>get</code> MUST self-filter expired entries.
+Backends that have natural TTL primitives (Redis <code>EXPIRE</code>, Postgres
+partial indexes) may implement this as a no-op.</p></div>
+</dd>
+<dt id="adcp.server.idempotency.IdempotencyBackend.get"><code class="name flex">
+<span>async def <span class="ident">get</span></span>(<span>self, principal_id: str, key: str) ‑> <a title="adcp.server.idempotency.backends.CachedResponse" href="backends.html#adcp.server.idempotency.backends.CachedResponse">CachedResponse</a> | None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def get(
+    self, principal_id: str, key: str
+) -&gt; CachedResponse | None:
+    &#34;&#34;&#34;Return the cached entry, or None if missing or expired.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Return the cached entry, or None if missing or expired.</p></div>
+</dd>
+<dt id="adcp.server.idempotency.IdempotencyBackend.put"><code class="name flex">
+<span>async def <span class="ident">put</span></span>(<span>self,<br>principal_id: str,<br>key: str,<br>entry: <a title="adcp.server.idempotency.CachedResponse" href="#adcp.server.idempotency.CachedResponse">CachedResponse</a>) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def put(
+    self,
+    principal_id: str,
+    key: str,
+    entry: CachedResponse,
+) -&gt; None:
+    &#34;&#34;&#34;Store ``entry`` under ``(principal_id, key)``. Overwrites any prior
+    entry — the store only calls ``put`` after verifying the slot is empty
+    or expired, so an overwrite in that window is a legitimate retry of
+    the write itself.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Store <code>entry</code> under <code>(principal_id, key)</code>. Overwrites any prior
+entry — the store only calls <code>put</code> after verifying the slot is empty
+or expired, so an overwrite in that window is a legitimate retry of
+the write itself.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.server.idempotency.IdempotencyStore"><code class="flex name class">
+<span>class <span class="ident">IdempotencyStore</span></span>
+<span>(</span><span>backend: <a title="adcp.server.idempotency.IdempotencyBackend" href="#adcp.server.idempotency.IdempotencyBackend">IdempotencyBackend</a>,<br>ttl_seconds: int = 86400,<br>hash_fn: Callable[[dict[str, Any]], str] = &lt;function canonical_json_sha256&gt;,<br>*,<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IdempotencyStore:
+    &#34;&#34;&#34;Coordinator that binds canonical hashing to a storage backend.
+
+    :param backend: A concrete :class:`IdempotencyBackend`.
+    :param ttl_seconds: How long cached responses remain replayable. Must be
+        within the spec&#39;s ``[3600, 604800]`` range (1h to 7d). 86400 (24h) is
+        the recommended floor and matches the compliance storyboard.
+    :param hash_fn: Optional override for the canonical hash function. Defaults
+        to :func:`canonical_json_sha256`. Exposed for tests and for anyone who
+        wants to experiment with alternative equivalence rules — though note
+        the spec mandates RFC 8785 JCS for interop.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        backend: IdempotencyBackend,
+        ttl_seconds: int = 86400,
+        hash_fn: Callable[[dict[str, Any]], str] = canonical_json_sha256,
+        *,
+        clock: Callable[[], float] = time.time,
+    ) -&gt; None:
+        if not _MIN_TTL_SECONDS &lt;= ttl_seconds &lt;= _MAX_TTL_SECONDS:
+            raise ValueError(
+                f&#34;ttl_seconds must be in [{_MIN_TTL_SECONDS}, {_MAX_TTL_SECONDS}] &#34;
+                f&#34;per AdCP spec (capabilities.idempotency.replay_ttl_seconds), &#34;
+                f&#34;got {ttl_seconds}&#34;
+            )
+        self.backend = backend
+        self.ttl_seconds = ttl_seconds
+        self._hash_fn = hash_fn
+        self._clock = clock
+
+    def capability(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Return the capabilities fragment declaring this store&#39;s replay window.
+
+        Embed under ``capabilities.adcp.idempotency`` on the seller&#39;s
+        ``get_adcp_capabilities`` response. Buyers read this to reason about
+        retry-safe windows (AdCP #2315)::
+
+            caps.adcp.idempotency = idempotency.capability()
+            # → {&#34;replay_ttl_seconds&#34;: 86400}
+        &#34;&#34;&#34;
+        return {&#34;replay_ttl_seconds&#34;: self.ttl_seconds}
+
+    def wrap(self, handler: HandlerFn) -&gt; HandlerFn:
+        &#34;&#34;&#34;Decorator that adds idempotency semantics to an AdCP handler method.
+
+        The wrapped handler is called as ``handler(self, params, context)``.
+        ``params`` may be a dict or a Pydantic model — both are normalized to
+        a dict before hashing. The return value is coerced to a dict for
+        caching (via ``model_dump`` if Pydantic).
+
+        The decorator always returns the handler&#39;s original object on a cache
+        miss and a best-effort Pydantic re-validation on a hit (when the
+        handler&#39;s declared return type exposes ``model_validate``). Callers
+        that return raw dicts get dicts back.
+        &#34;&#34;&#34;
+
+        @wraps(handler)
+        async def _wrapped(
+            handler_self: Any,
+            params: Any,
+            context: Any = None,
+            *args: Any,
+            **kwargs: Any,
+        ) -&gt; Any:
+            principal_id, idempotency_key, params_dict = self._prepare(params, context)
+            if principal_id is None or idempotency_key is None:
+                # No key → spec says the server MUST reject with INVALID_REQUEST.
+                # We let the handler run so validation layers above us (Pydantic,
+                # FastAPI, etc.) can reject with a typed error; the middleware&#39;s
+                # job is only to dedup when a key IS present.
+                return await handler(handler_self, params, context, *args, **kwargs)
+
+            payload_hash = self._hash_fn(params_dict)
+
+            cached = await self.backend.get(principal_id, idempotency_key)
+            if cached is not None:
+                if cached.payload_hash == payload_hash:
+                    logger.debug(
+                        &#34;idempotency replay: principal=%s key_prefix=%s&#34;,
+                        principal_id,
+                        idempotency_key[:8],
+                    )
+                    return _clone_response(cached.response)
+                # Same key, different payload — spec-defined conflict.
+                raise IdempotencyConflictError(
+                    operation=getattr(handler, &#34;__name__&#34;, &#34;handler&#34;),
+                    errors=[
+                        {
+                            &#34;code&#34;: &#34;IDEMPOTENCY_CONFLICT&#34;,
+                            &#34;message&#34;: (
+                                &#34;idempotency_key reused with a different payload &#34;
+                                &#34;(canonical hash mismatch)&#34;
+                            ),
+                        }
+                    ],
+                )
+
+            response = await handler(handler_self, params, context, *args, **kwargs)
+            # Deep-copy when caching so post-return mutation of the caller&#39;s
+            # copy can&#39;t poison future replays. `_clone_response` also deep-
+            # copies on the hit path, giving independent objects per replay.
+            response_dict = copy.deepcopy(_to_dict(response))
+            entry = CachedResponse(
+                payload_hash=payload_hash,
+                response=response_dict,
+                expires_at_epoch=self._clock() + self.ttl_seconds,
+            )
+            # Commit cache AFTER handler returns. Atomicity with the handler&#39;s
+            # side effects depends on the backend: MemoryBackend is best-effort
+            # (no transactional relationship to external resources); PgBackend
+            # (follow-up) will commit in the same transaction when the handler
+            # uses the same engine. On put failure we log loudly and return
+            # the handler&#39;s response — swallowing the exception would be wrong
+            # (operators need the signal that caching is broken), and raising
+            # would look to the caller like the handler failed, triggering a
+            # retry that re-executes side effects. Best compromise: warn
+            # operators, return the result, and accept that the next retry
+            # with this key will re-execute.
+            try:
+                await self.backend.put(principal_id, idempotency_key, entry)
+            except Exception:
+                logger.warning(
+                    &#34;Idempotency cache put failed for principal=%s key_prefix=%s — &#34;
+                    &#34;handler completed but a subsequent retry with this key will &#34;
+                    &#34;re-execute rather than replay. This indicates an operational &#34;
+                    &#34;issue with the idempotency backend.&#34;,
+                    principal_id,
+                    idempotency_key[:8],
+                    exc_info=True,
+                )
+            return response
+
+        return _wrapped
+
+    def _prepare(
+        self, params: Any, context: Any
+    ) -&gt; tuple[str | None, str | None, dict[str, Any]]:
+        &#34;&#34;&#34;Normalize inputs and extract the (principal, key, params_dict) tuple.
+
+        Returns ``(None, None, params_dict)`` when idempotency doesn&#39;t apply
+        (no caller identity or no key supplied). The caller falls through to
+        the plain handler in that case — validation of missing-key lives in
+        the request schema, not here.
+        &#34;&#34;&#34;
+        params_dict = _to_dict(params)
+        idempotency_key = params_dict.get(&#34;idempotency_key&#34;)
+        if not isinstance(idempotency_key, str) or not idempotency_key:
+            return None, None, params_dict
+        principal_id = _extract_principal_id(context)
+        if principal_id is None:
+            # No caller identity: we can&#39;t safely scope the key. Spec requires
+            # per-principal scope; anything else is a cross-principal replay
+            # attack surface. Fall through to the handler (which will process
+            # the request normally — no dedup, but no security regression).
+            return None, None, params_dict
+        return principal_id, idempotency_key, params_dict</code></pre>
+</details>
+<div class="desc"><p>Coordinator that binds canonical hashing to a storage backend.</p>
+<p>:param backend: A concrete :class:<code><a title="adcp.server.idempotency.IdempotencyBackend" href="#adcp.server.idempotency.IdempotencyBackend">IdempotencyBackend</a></code>.
+:param ttl_seconds: How long cached responses remain replayable. Must be
+within the spec's <code>[3600, 604800]</code> range (1h to 7d). 86400 (24h) is
+the recommended floor and matches the compliance storyboard.
+:param hash_fn: Optional override for the canonical hash function. Defaults
+to :func:<code><a title="adcp.server.idempotency.canonical_json_sha256" href="#adcp.server.idempotency.canonical_json_sha256">canonical_json_sha256()</a></code>. Exposed for tests and for anyone who
+wants to experiment with alternative equivalence rules — though note
+the spec mandates RFC 8785 JCS for interop.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.idempotency.IdempotencyStore.capability"><code class="name flex">
+<span>def <span class="ident">capability</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def capability(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Return the capabilities fragment declaring this store&#39;s replay window.
+
+    Embed under ``capabilities.adcp.idempotency`` on the seller&#39;s
+    ``get_adcp_capabilities`` response. Buyers read this to reason about
+    retry-safe windows (AdCP #2315)::
+
+        caps.adcp.idempotency = idempotency.capability()
+        # → {&#34;replay_ttl_seconds&#34;: 86400}
+    &#34;&#34;&#34;
+    return {&#34;replay_ttl_seconds&#34;: self.ttl_seconds}</code></pre>
+</details>
+<div class="desc"><p>Return the capabilities fragment declaring this store's replay window.</p>
+<p>Embed under <code>capabilities.adcp.idempotency</code> on the seller's
+<code>get_adcp_capabilities</code> response. Buyers read this to reason about
+retry-safe windows (AdCP #2315)::</p>
+<pre><code>caps.adcp.idempotency = idempotency.capability()
+# → {"replay_ttl_seconds": 86400}
+</code></pre></div>
+</dd>
+<dt id="adcp.server.idempotency.IdempotencyStore.wrap"><code class="name flex">
+<span>def <span class="ident">wrap</span></span>(<span>self, handler: HandlerFn) ‑> Callable[..., Awaitable[typing.Any]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def wrap(self, handler: HandlerFn) -&gt; HandlerFn:
+    &#34;&#34;&#34;Decorator that adds idempotency semantics to an AdCP handler method.
+
+    The wrapped handler is called as ``handler(self, params, context)``.
+    ``params`` may be a dict or a Pydantic model — both are normalized to
+    a dict before hashing. The return value is coerced to a dict for
+    caching (via ``model_dump`` if Pydantic).
+
+    The decorator always returns the handler&#39;s original object on a cache
+    miss and a best-effort Pydantic re-validation on a hit (when the
+    handler&#39;s declared return type exposes ``model_validate``). Callers
+    that return raw dicts get dicts back.
+    &#34;&#34;&#34;
+
+    @wraps(handler)
+    async def _wrapped(
+        handler_self: Any,
+        params: Any,
+        context: Any = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -&gt; Any:
+        principal_id, idempotency_key, params_dict = self._prepare(params, context)
+        if principal_id is None or idempotency_key is None:
+            # No key → spec says the server MUST reject with INVALID_REQUEST.
+            # We let the handler run so validation layers above us (Pydantic,
+            # FastAPI, etc.) can reject with a typed error; the middleware&#39;s
+            # job is only to dedup when a key IS present.
+            return await handler(handler_self, params, context, *args, **kwargs)
+
+        payload_hash = self._hash_fn(params_dict)
+
+        cached = await self.backend.get(principal_id, idempotency_key)
+        if cached is not None:
+            if cached.payload_hash == payload_hash:
+                logger.debug(
+                    &#34;idempotency replay: principal=%s key_prefix=%s&#34;,
+                    principal_id,
+                    idempotency_key[:8],
+                )
+                return _clone_response(cached.response)
+            # Same key, different payload — spec-defined conflict.
+            raise IdempotencyConflictError(
+                operation=getattr(handler, &#34;__name__&#34;, &#34;handler&#34;),
+                errors=[
+                    {
+                        &#34;code&#34;: &#34;IDEMPOTENCY_CONFLICT&#34;,
+                        &#34;message&#34;: (
+                            &#34;idempotency_key reused with a different payload &#34;
+                            &#34;(canonical hash mismatch)&#34;
+                        ),
+                    }
+                ],
+            )
+
+        response = await handler(handler_self, params, context, *args, **kwargs)
+        # Deep-copy when caching so post-return mutation of the caller&#39;s
+        # copy can&#39;t poison future replays. `_clone_response` also deep-
+        # copies on the hit path, giving independent objects per replay.
+        response_dict = copy.deepcopy(_to_dict(response))
+        entry = CachedResponse(
+            payload_hash=payload_hash,
+            response=response_dict,
+            expires_at_epoch=self._clock() + self.ttl_seconds,
+        )
+        # Commit cache AFTER handler returns. Atomicity with the handler&#39;s
+        # side effects depends on the backend: MemoryBackend is best-effort
+        # (no transactional relationship to external resources); PgBackend
+        # (follow-up) will commit in the same transaction when the handler
+        # uses the same engine. On put failure we log loudly and return
+        # the handler&#39;s response — swallowing the exception would be wrong
+        # (operators need the signal that caching is broken), and raising
+        # would look to the caller like the handler failed, triggering a
+        # retry that re-executes side effects. Best compromise: warn
+        # operators, return the result, and accept that the next retry
+        # with this key will re-execute.
+        try:
+            await self.backend.put(principal_id, idempotency_key, entry)
+        except Exception:
+            logger.warning(
+                &#34;Idempotency cache put failed for principal=%s key_prefix=%s — &#34;
+                &#34;handler completed but a subsequent retry with this key will &#34;
+                &#34;re-execute rather than replay. This indicates an operational &#34;
+                &#34;issue with the idempotency backend.&#34;,
+                principal_id,
+                idempotency_key[:8],
+                exc_info=True,
+            )
+        return response
+
+    return _wrapped</code></pre>
+</details>
+<div class="desc"><p>Decorator that adds idempotency semantics to an AdCP handler method.</p>
+<p>The wrapped handler is called as <code>handler(self, params, context)</code>.
+<code>params</code> may be a dict or a Pydantic model — both are normalized to
+a dict before hashing. The return value is coerced to a dict for
+caching (via <code>model_dump</code> if Pydantic).</p>
+<p>The decorator always returns the handler's original object on a cache
+miss and a best-effort Pydantic re-validation on a hit (when the
+handler's declared return type exposes <code>model_validate</code>). Callers
+that return raw dicts get dicts back.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.server.idempotency.MemoryBackend"><code class="flex name class">
+<span>class <span class="ident">MemoryBackend</span></span>
+<span>(</span><span>*, clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MemoryBackend(IdempotencyBackend):
+    &#34;&#34;&#34;In-process dict-backed store.
+
+    Suitable for tests, single-process reference implementations, and local
+    development. **Not suitable for multi-process deployments** — each worker
+    has its own cache, so a retry that lands on a different worker is treated
+    as a fresh request.
+
+    Thread safety: the backend uses an :class:`asyncio.Lock` to serialize
+    mutations of the shared dict. Reads go through the lock too; for a pure
+    in-process backend this is cheap and prevents torn reads across concurrent
+    ``get``/``put`` interleaving.
+
+    :param clock: Callable returning the current epoch seconds. Override for
+        tests that need to advance time deterministically without monkeypatching
+        :mod:`time`. Defaults to :func:`time.time`.
+    &#34;&#34;&#34;
+
+    def __init__(self, *, clock: Callable[[], float] = time.time) -&gt; None:
+        self._store: dict[tuple[str, str], CachedResponse] = {}
+        self._lock = asyncio.Lock()
+        self._clock = clock
+
+    async def get(
+        self, principal_id: str, key: str
+    ) -&gt; CachedResponse | None:
+        async with self._lock:
+            entry = self._store.get((principal_id, key))
+            if entry is None:
+                return None
+            if entry.expires_at_epoch &lt;= self._clock():
+                # Lazy expiry — drop the stale entry so the next request
+                # treats the slot as fresh and races to repopulate.
+                del self._store[(principal_id, key)]
+                return None
+            return entry
+
+    async def put(
+        self,
+        principal_id: str,
+        key: str,
+        entry: CachedResponse,
+    ) -&gt; None:
+        async with self._lock:
+            self._store[(principal_id, key)] = entry
+
+    async def delete_expired(self, now_epoch: float | None = None) -&gt; int:
+        cutoff = now_epoch if now_epoch is not None else self._clock()
+        async with self._lock:
+            stale = [k for k, v in self._store.items() if v.expires_at_epoch &lt;= cutoff]
+            for k in stale:
+                del self._store[k]
+            return len(stale)
+
+    async def clear(self) -&gt; None:
+        &#34;&#34;&#34;Remove all cached entries.
+
+        Test-suite hook — handy for resetting state between fixtures when a
+        single :class:`MemoryBackend` is shared across multiple tests.
+        &#34;&#34;&#34;
+        async with self._lock:
+            self._store.clear()
+
+    async def _size(self) -&gt; int:
+        &#34;&#34;&#34;Test-only: return the current entry count.&#34;&#34;&#34;
+        async with self._lock:
+            return len(self._store)</code></pre>
+</details>
+<div class="desc"><p>In-process dict-backed store.</p>
+<p>Suitable for tests, single-process reference implementations, and local
+development. <strong>Not suitable for multi-process deployments</strong> — each worker
+has its own cache, so a retry that lands on a different worker is treated
+as a fresh request.</p>
+<p>Thread safety: the backend uses an :class:<code>asyncio.Lock</code> to serialize
+mutations of the shared dict. Reads go through the lock too; for a pure
+in-process backend this is cheap and prevents torn reads across concurrent
+<code>get</code>/<code>put</code> interleaving.</p>
+<p>:param clock: Callable returning the current epoch seconds. Override for
+tests that need to advance time deterministically without monkeypatching
+:mod:<code>time</code>. Defaults to :func:<code>time.time</code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.server.idempotency.backends.IdempotencyBackend" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend">IdempotencyBackend</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.idempotency.MemoryBackend.clear"><code class="name flex">
+<span>async def <span class="ident">clear</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def clear(self) -&gt; None:
+    &#34;&#34;&#34;Remove all cached entries.
+
+    Test-suite hook — handy for resetting state between fixtures when a
+    single :class:`MemoryBackend` is shared across multiple tests.
+    &#34;&#34;&#34;
+    async with self._lock:
+        self._store.clear()</code></pre>
+</details>
+<div class="desc"><p>Remove all cached entries.</p>
+<p>Test-suite hook — handy for resetting state between fixtures when a
+single :class:<code><a title="adcp.server.idempotency.MemoryBackend" href="#adcp.server.idempotency.MemoryBackend">MemoryBackend</a></code> is shared across multiple tests.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.server.idempotency.backends.IdempotencyBackend" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend">IdempotencyBackend</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.delete_expired" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend.delete_expired">delete_expired</a></code></li>
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.get" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend.get">get</a></code></li>
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.put" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend.put">put</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.server.idempotency.PgBackend"><code class="flex name class">
+<span>class <span class="ident">PgBackend</span></span>
+<span>(</span><span>*args: Any, **kwargs: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PgBackend(IdempotencyBackend):
+    &#34;&#34;&#34;PostgreSQL-backed store — **scaffold, not yet implemented**.
+
+    .. warning::
+       Calling ``PgBackend(...)`` raises ``NotImplementedError`` today. Use
+       :class:`MemoryBackend` for tests, or implement your own
+       :class:`IdempotencyBackend` subclass against the database of your
+       choice until this implementation lands. Tracked at
+       https://github.com/adcontextprotocol/adcp-client-python/issues/182.
+
+    **Design intent.** Share a transaction with the handler&#39;s business
+    writes so the cache entry commits atomically with side effects. Without
+    that, a crash between ``handler success`` and ``cache commit`` causes
+    the retry to re-execute the handler, duplicating side effects.
+
+    **Schema sketch for the implementer.**
+
+    .. code-block:: sql
+
+        CREATE TABLE adcp_idempotency (
+            principal_id TEXT       COLLATE &#34;C&#34; NOT NULL,
+            key          TEXT       COLLATE &#34;C&#34; NOT NULL,
+            payload_hash TEXT       NOT NULL,
+            response     JSONB      NOT NULL,
+            expires_at   TIMESTAMPTZ NOT NULL,
+            PRIMARY KEY (principal_id, key)
+        );
+
+    Notes:
+
+    * ``COLLATE &#34;C&#34;`` (or ``CITEXT`` with a deliberate case policy) — avoid
+      the default locale collation on the identifier columns. On some
+      locales ``Principal-A`` and ``principal-a`` compare equal, which
+      would collapse distinct tenants into the same cache slot.
+    * Queries MUST filter on ``principal_id`` in the ``WHERE`` clause even
+      with the composite PK — row-level security (RLS) enforced via a
+      policy like ``USING (principal_id = current_setting(&#39;adcp.principal_id&#39;)::text)``
+      gives belt-and-suspenders protection against accidental cross-tenant
+      reads in future handlers.
+    * ``get`` uses ``SELECT ... WHERE expires_at &gt; now()``.
+    * ``put`` uses ``INSERT ... ON CONFLICT (principal_id, key) DO UPDATE``.
+    * Accept a SQLAlchemy/asyncpg session factory so the caller can thread
+      the handler&#39;s transaction through for atomic commit — the atomicity
+      guarantee is the whole reason to use a SQL backend.
+    &#34;&#34;&#34;
+
+    def __init__(self, *args: Any, **kwargs: Any) -&gt; None:
+        raise NotImplementedError(
+            &#34;PgBackend is scaffolded but not yet implemented. Use MemoryBackend &#34;
+            &#34;for tests, or implement your own IdempotencyBackend subclass &#34;
+            &#34;against your database of choice until the PgBackend implementation &#34;
+            &#34;lands. Tracking: &#34;
+            &#34;https://github.com/adcontextprotocol/adcp-client-python/issues/182.&#34;
+        )
+
+    async def get(
+        self, principal_id: str, key: str
+    ) -&gt; CachedResponse | None:  # pragma: no cover
+        raise NotImplementedError
+
+    async def put(
+        self,
+        principal_id: str,
+        key: str,
+        entry: CachedResponse,
+    ) -&gt; None:  # pragma: no cover
+        raise NotImplementedError
+
+    async def delete_expired(
+        self, now_epoch: float | None = None
+    ) -&gt; int:  # pragma: no cover
+        raise NotImplementedError</code></pre>
+</details>
+<div class="desc"><p>PostgreSQL-backed store — <strong>scaffold, not yet implemented</strong>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Calling <code><a title="adcp.server.idempotency.PgBackend" href="#adcp.server.idempotency.PgBackend">PgBackend</a>(&hellip;)</code> raises <code>NotImplementedError</code> today. Use
+:class:<code><a title="adcp.server.idempotency.MemoryBackend" href="#adcp.server.idempotency.MemoryBackend">MemoryBackend</a></code> for tests, or implement your own
+:class:<code><a title="adcp.server.idempotency.IdempotencyBackend" href="#adcp.server.idempotency.IdempotencyBackend">IdempotencyBackend</a></code> subclass against the database of your
+choice until this implementation lands. Tracked at
+<a href="https://github.com/adcontextprotocol/adcp-client-python/issues/182.">https://github.com/adcontextprotocol/adcp-client-python/issues/182.</a></p>
+</div>
+<p><strong>Design intent.</strong> Share a transaction with the handler's business
+writes so the cache entry commits atomically with side effects. Without
+that, a crash between <code>handler success</code> and <code>cache commit</code> causes
+the retry to re-execute the handler, duplicating side effects.</p>
+<p><strong>Schema sketch for the implementer.</strong></p>
+<p>.. code-block:: sql</p>
+<pre><code>CREATE TABLE adcp_idempotency (
+    principal_id TEXT       COLLATE "C" NOT NULL,
+    key          TEXT       COLLATE "C" NOT NULL,
+    payload_hash TEXT       NOT NULL,
+    response     JSONB      NOT NULL,
+    expires_at   TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (principal_id, key)
+);
+</code></pre>
+<p>Notes:</p>
+<ul>
+<li><code>COLLATE "C"</code> (or <code>CITEXT</code> with a deliberate case policy) — avoid
+the default locale collation on the identifier columns. On some
+locales <code>Principal-A</code> and <code>principal-a</code> compare equal, which
+would collapse distinct tenants into the same cache slot.</li>
+<li>Queries MUST filter on <code>principal_id</code> in the <code>WHERE</code> clause even
+with the composite PK — row-level security (RLS) enforced via a
+policy like <code>USING (principal_id = current_setting('adcp.principal_id')::text)</code>
+gives belt-and-suspenders protection against accidental cross-tenant
+reads in future handlers.</li>
+<li><code>get</code> uses <code>SELECT ... WHERE expires_at &gt; now()</code>.</li>
+<li><code>put</code> uses <code>INSERT &hellip; ON CONFLICT (principal_id, key) DO UPDATE</code>.</li>
+<li>Accept a SQLAlchemy/asyncpg session factory so the caller can thread
+the handler's transaction through for atomic commit — the atomicity
+guarantee is the whole reason to use a SQL backend.</li>
+</ul></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.server.idempotency.backends.IdempotencyBackend" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend">IdempotencyBackend</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.server.idempotency.backends.IdempotencyBackend" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend">IdempotencyBackend</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.delete_expired" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend.delete_expired">delete_expired</a></code></li>
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.get" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend.get">get</a></code></li>
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.put" href="backends.html#adcp.server.idempotency.backends.IdempotencyBackend.put">put</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.server" href="../index.html">adcp.server</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="adcp.server.idempotency.backends" href="backends.html">adcp.server.idempotency.backends</a></code></li>
+<li><code><a title="adcp.server.idempotency.canonicalize" href="canonicalize.html">adcp.server.idempotency.canonicalize</a></code></li>
+<li><code><a title="adcp.server.idempotency.store" href="store.html">adcp.server.idempotency.store</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.server.idempotency.canonical_json_sha256" href="#adcp.server.idempotency.canonical_json_sha256">canonical_json_sha256</a></code></li>
+<li><code><a title="adcp.server.idempotency.strip_excluded_fields" href="#adcp.server.idempotency.strip_excluded_fields">strip_excluded_fields</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.server.idempotency.CachedResponse" href="#adcp.server.idempotency.CachedResponse">CachedResponse</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.idempotency.CachedResponse.expires_at_epoch" href="#adcp.server.idempotency.CachedResponse.expires_at_epoch">expires_at_epoch</a></code></li>
+<li><code><a title="adcp.server.idempotency.CachedResponse.payload_hash" href="#adcp.server.idempotency.CachedResponse.payload_hash">payload_hash</a></code></li>
+<li><code><a title="adcp.server.idempotency.CachedResponse.response" href="#adcp.server.idempotency.CachedResponse.response">response</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.server.idempotency.IdempotencyBackend" href="#adcp.server.idempotency.IdempotencyBackend">IdempotencyBackend</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.idempotency.IdempotencyBackend.delete_expired" href="#adcp.server.idempotency.IdempotencyBackend.delete_expired">delete_expired</a></code></li>
+<li><code><a title="adcp.server.idempotency.IdempotencyBackend.get" href="#adcp.server.idempotency.IdempotencyBackend.get">get</a></code></li>
+<li><code><a title="adcp.server.idempotency.IdempotencyBackend.put" href="#adcp.server.idempotency.IdempotencyBackend.put">put</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.server.idempotency.IdempotencyStore" href="#adcp.server.idempotency.IdempotencyStore">IdempotencyStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.idempotency.IdempotencyStore.capability" href="#adcp.server.idempotency.IdempotencyStore.capability">capability</a></code></li>
+<li><code><a title="adcp.server.idempotency.IdempotencyStore.wrap" href="#adcp.server.idempotency.IdempotencyStore.wrap">wrap</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.server.idempotency.MemoryBackend" href="#adcp.server.idempotency.MemoryBackend">MemoryBackend</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.idempotency.MemoryBackend.clear" href="#adcp.server.idempotency.MemoryBackend.clear">clear</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.server.idempotency.PgBackend" href="#adcp.server.idempotency.PgBackend">PgBackend</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

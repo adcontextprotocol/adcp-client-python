@@ -128,7 +128,7 @@ Each manifest should include: format_id, name, assets.</p>
 List matches BuildCreativeResponse2 (multi-format).</p></div>
 </dd>
 <dt id="adcp.server.responses.capabilities_response"><code class="name flex">
-<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None,<br>idempotency: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -141,6 +141,7 @@ List matches BuildCreativeResponse2 (multi-format).</p></div>
     major_versions: list[int] | None = None,
     sandbox: bool = True,
     features: dict[str, Any] | None = None,
+    idempotency: dict[str, Any] | None = None,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;Build a get_adcp_capabilities response.
 
@@ -150,9 +151,27 @@ List matches BuildCreativeResponse2 (multi-format).</p></div>
         major_versions: AdCP major versions. Defaults to [3].
         sandbox: Whether this is a sandbox agent. Defaults to True.
         features: Additional feature flags.
+        idempotency: Optional idempotency declaration, nested under
+            ``adcp.idempotency`` per AdCP #2315. Pass the output of
+            :meth:`adcp.server.idempotency.IdempotencyStore.capability` here
+            to declare the seller&#39;s ``replay_ttl_seconds``.
+
+    Example::
+
+        from adcp.server.responses import capabilities_response
+        from adcp.server.idempotency import IdempotencyStore, MemoryBackend
+
+        store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
+        return capabilities_response(
+            [&#34;media_buy&#34;],
+            idempotency=store.capability(),
+        )
     &#34;&#34;&#34;
+    adcp_info: dict[str, Any] = {&#34;major_versions&#34;: major_versions or [3]}
+    if idempotency:
+        adcp_info[&#34;idempotency&#34;] = idempotency
     resp: dict[str, Any] = {
-        &#34;adcp&#34;: {&#34;major_versions&#34;: major_versions or [3]},
+        &#34;adcp&#34;: adcp_info,
         &#34;supported_protocols&#34;: supported_protocols,
         &#34;sandbox&#34;: sandbox,
     }
@@ -172,7 +191,22 @@ List matches BuildCreativeResponse2 (multi-format).</p></div>
 <dd>Whether this is a sandbox agent. Defaults to True.</dd>
 <dt><strong><code>features</code></strong></dt>
 <dd>Additional feature flags.</dd>
-</dl></div>
+<dt><strong><code>idempotency</code></strong></dt>
+<dd>Optional idempotency declaration, nested under
+<code>adcp.idempotency</code> per AdCP #2315. Pass the output of
+:meth:<code><a title="adcp.server.idempotency.IdempotencyStore.capability" href="idempotency/index.html#adcp.server.idempotency.IdempotencyStore.capability">IdempotencyStore.capability()</a></code> here
+to declare the seller's <code>replay_ttl_seconds</code>.</dd>
+</dl>
+<p>Example::</p>
+<pre><code>from adcp.server.responses import capabilities_response
+from adcp.server.idempotency import IdempotencyStore, MemoryBackend
+
+store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
+return capabilities_response(
+    ["media_buy"],
+    idempotency=store.capability(),
+)
+</code></pre></div>
 </dd>
 <dt id="adcp.server.responses.creative_formats_response"><code class="name flex">
 <span>def <span class="ident">creative_formats_response</span></span>(<span>formats: list[Any], *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>

@@ -204,6 +204,16 @@ serve(MyHandler(), name="my-agent", transport="a2a")
         try:
             result = await self._tool_callers[skill_name](params)
             await self._send_result(event_queue, context, skill_name, result)
+        except ADCPError as exc:
+            # Application-layer AdCP error (IdempotencyConflictError etc.).
+            # Emit a failed task with the adcp_error in a DataPart per
+            # transport-errors.mdx §A2A Binding, plus a human-readable text
+            # part. The JSON-RPC channel is reserved for transport-level
+            # errors (auth rejected, rate-limited pre-dispatch).
+            logger.info(
+                &#34;AdCP application error for skill %s: %s&#34;, skill_name, exc
+            )
+            await self._send_adcp_error(event_queue, context, exc)
         except Exception:
             logger.exception(&#34;Error executing skill %s&#34;, skill_name)
             await self._send_error(
@@ -310,6 +320,44 @@ serve(MyHandler(), name="my-agent", transport="a2a")
             state=TaskState.failed,
             message=error_msg,
         )
+        await event_queue.enqueue_event(task)
+
+    async def _send_adcp_error(
+        self,
+        event_queue: EventQueue,
+        context: RequestContext,
+        exc: ADCPError,
+    ) -&gt; None:
+        &#34;&#34;&#34;Publish a failed task carrying an AdCP ``adcp_error`` payload.
+
+        Follows transport-errors.mdx §A2A Binding: failed task with artifact
+        containing a ``DataPart`` keyed under ``adcp_error`` plus a terse
+        ``TextPart`` for human/LLM consumption.
+        &#34;&#34;&#34;
+        # Derive the spec error code. ADCPTaskError carries a list of codes
+        # (e.g. IdempotencyConflictError → IDEMPOTENCY_CONFLICT); fall back
+        # to a generic INTERNAL_ERROR when the exception doesn&#39;t supply one.
+        code = &#34;INTERNAL_ERROR&#34;
+        if isinstance(exc, ADCPTaskError) and exc.error_codes:
+            code = str(exc.error_codes[0])
+
+        adcp_error: dict[str, Any] = {
+            &#34;code&#34;: code,
+            &#34;message&#34;: exc.message,
+        }
+        recovery = STANDARD_ERROR_CODES.get(code, {}).get(&#34;recovery&#34;)
+        if recovery:
+            adcp_error[&#34;recovery&#34;] = recovery
+        suggestion = getattr(exc, &#34;suggestion&#34;, None)
+        if suggestion:
+            adcp_error[&#34;suggestion&#34;] = suggestion
+
+        task = _make_task(
+            context,
+            state=TaskState.failed,
+            data={&#34;adcp_error&#34;: adcp_error},
+            message=exc.message,
+        )
         await event_queue.enqueue_event(task)</code></pre>
 </details>
 <div class="desc"><p>Bridges ADCPHandler methods to the a2a-sdk AgentExecutor interface.</p>
@@ -391,6 +439,16 @@ def supported_skills(self) -&gt; list[str]:
     try:
         result = await self._tool_callers[skill_name](params)
         await self._send_result(event_queue, context, skill_name, result)
+    except ADCPError as exc:
+        # Application-layer AdCP error (IdempotencyConflictError etc.).
+        # Emit a failed task with the adcp_error in a DataPart per
+        # transport-errors.mdx §A2A Binding, plus a human-readable text
+        # part. The JSON-RPC channel is reserved for transport-level
+        # errors (auth rejected, rate-limited pre-dispatch).
+        logger.info(
+            &#34;AdCP application error for skill %s: %s&#34;, skill_name, exc
+        )
+        await self._send_adcp_error(event_queue, context, exc)
     except Exception:
         logger.exception(&#34;Error executing skill %s&#34;, skill_name)
         await self._send_error(

@@ -119,6 +119,10 @@ handler code runs.</li>
 <dd>
 <div class="desc"><p>DX helpers for ADCP server builders …</p></div>
 </dd>
+<dt><code class="name"><a title="adcp.server.idempotency" href="idempotency/index.html">adcp.server.idempotency</a></code></dt>
+<dd>
+<div class="desc"><p>Server-side idempotency middleware for AdCP mutating tool handlers …</p></div>
+</dd>
 <dt><code class="name"><a title="adcp.server.mcp_tools" href="mcp_tools.html">adcp.server.mcp_tools</a></code></dt>
 <dd>
 <div class="desc"><p>MCP server integration helpers …</p></div>
@@ -378,7 +382,7 @@ Requires canceled_by ("buyer" or "seller") - the field developers
 most commonly forget.</p></div>
 </dd>
 <dt id="adcp.server.capabilities_response"><code class="name flex">
-<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None,<br>idempotency: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -391,6 +395,7 @@ most commonly forget.</p></div>
     major_versions: list[int] | None = None,
     sandbox: bool = True,
     features: dict[str, Any] | None = None,
+    idempotency: dict[str, Any] | None = None,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;Build a get_adcp_capabilities response.
 
@@ -400,9 +405,27 @@ most commonly forget.</p></div>
         major_versions: AdCP major versions. Defaults to [3].
         sandbox: Whether this is a sandbox agent. Defaults to True.
         features: Additional feature flags.
+        idempotency: Optional idempotency declaration, nested under
+            ``adcp.idempotency`` per AdCP #2315. Pass the output of
+            :meth:`adcp.server.idempotency.IdempotencyStore.capability` here
+            to declare the seller&#39;s ``replay_ttl_seconds``.
+
+    Example::
+
+        from adcp.server.responses import capabilities_response
+        from adcp.server.idempotency import IdempotencyStore, MemoryBackend
+
+        store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
+        return capabilities_response(
+            [&#34;media_buy&#34;],
+            idempotency=store.capability(),
+        )
     &#34;&#34;&#34;
+    adcp_info: dict[str, Any] = {&#34;major_versions&#34;: major_versions or [3]}
+    if idempotency:
+        adcp_info[&#34;idempotency&#34;] = idempotency
     resp: dict[str, Any] = {
-        &#34;adcp&#34;: {&#34;major_versions&#34;: major_versions or [3]},
+        &#34;adcp&#34;: adcp_info,
         &#34;supported_protocols&#34;: supported_protocols,
         &#34;sandbox&#34;: sandbox,
     }
@@ -422,7 +445,22 @@ most commonly forget.</p></div>
 <dd>Whether this is a sandbox agent. Defaults to True.</dd>
 <dt><strong><code>features</code></strong></dt>
 <dd>Additional feature flags.</dd>
-</dl></div>
+<dt><strong><code>idempotency</code></strong></dt>
+<dd>Optional idempotency declaration, nested under
+<code>adcp.idempotency</code> per AdCP #2315. Pass the output of
+:meth:<code><a title="adcp.server.idempotency.IdempotencyStore.capability" href="idempotency/index.html#adcp.server.idempotency.IdempotencyStore.capability">IdempotencyStore.capability()</a></code> here
+to declare the seller's <code>replay_ttl_seconds</code>.</dd>
+</dl>
+<p>Example::</p>
+<pre><code>from adcp.server.responses import capabilities_response
+from adcp.server.idempotency import IdempotencyStore, MemoryBackend
+
+store = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86400)
+return capabilities_response(
+    ["media_buy"],
+    idempotency=store.capability(),
+)
+</code></pre></div>
 </dd>
 <dt id="adcp.server.create_a2a_server"><code class="name flex">
 <span>def <span class="ident">create_a2a_server</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>description: str | None = None,<br>version: str = '1.0.0',<br>test_controller: <a title="adcp.server.TestControllerStore" href="#adcp.server.TestControllerStore">TestControllerStore</a> | None = None) ‑> Any</span>
@@ -1737,6 +1775,16 @@ whose corresponding handler methods are not overridden from the base class.</p>
         try:
             result = await self._tool_callers[skill_name](params)
             await self._send_result(event_queue, context, skill_name, result)
+        except ADCPError as exc:
+            # Application-layer AdCP error (IdempotencyConflictError etc.).
+            # Emit a failed task with the adcp_error in a DataPart per
+            # transport-errors.mdx §A2A Binding, plus a human-readable text
+            # part. The JSON-RPC channel is reserved for transport-level
+            # errors (auth rejected, rate-limited pre-dispatch).
+            logger.info(
+                &#34;AdCP application error for skill %s: %s&#34;, skill_name, exc
+            )
+            await self._send_adcp_error(event_queue, context, exc)
         except Exception:
             logger.exception(&#34;Error executing skill %s&#34;, skill_name)
             await self._send_error(
@@ -1843,6 +1891,44 @@ whose corresponding handler methods are not overridden from the base class.</p>
             state=TaskState.failed,
             message=error_msg,
         )
+        await event_queue.enqueue_event(task)
+
+    async def _send_adcp_error(
+        self,
+        event_queue: EventQueue,
+        context: RequestContext,
+        exc: ADCPError,
+    ) -&gt; None:
+        &#34;&#34;&#34;Publish a failed task carrying an AdCP ``adcp_error`` payload.
+
+        Follows transport-errors.mdx §A2A Binding: failed task with artifact
+        containing a ``DataPart`` keyed under ``adcp_error`` plus a terse
+        ``TextPart`` for human/LLM consumption.
+        &#34;&#34;&#34;
+        # Derive the spec error code. ADCPTaskError carries a list of codes
+        # (e.g. IdempotencyConflictError → IDEMPOTENCY_CONFLICT); fall back
+        # to a generic INTERNAL_ERROR when the exception doesn&#39;t supply one.
+        code = &#34;INTERNAL_ERROR&#34;
+        if isinstance(exc, ADCPTaskError) and exc.error_codes:
+            code = str(exc.error_codes[0])
+
+        adcp_error: dict[str, Any] = {
+            &#34;code&#34;: code,
+            &#34;message&#34;: exc.message,
+        }
+        recovery = STANDARD_ERROR_CODES.get(code, {}).get(&#34;recovery&#34;)
+        if recovery:
+            adcp_error[&#34;recovery&#34;] = recovery
+        suggestion = getattr(exc, &#34;suggestion&#34;, None)
+        if suggestion:
+            adcp_error[&#34;suggestion&#34;] = suggestion
+
+        task = _make_task(
+            context,
+            state=TaskState.failed,
+            data={&#34;adcp_error&#34;: adcp_error},
+            message=exc.message,
+        )
         await event_queue.enqueue_event(task)</code></pre>
 </details>
 <div class="desc"><p>Bridges ADCPHandler methods to the a2a-sdk AgentExecutor interface.</p>
@@ -1924,6 +2010,16 @@ def supported_skills(self) -&gt; list[str]:
     try:
         result = await self._tool_callers[skill_name](params)
         await self._send_result(event_queue, context, skill_name, result)
+    except ADCPError as exc:
+        # Application-layer AdCP error (IdempotencyConflictError etc.).
+        # Emit a failed task with the adcp_error in a DataPart per
+        # transport-errors.mdx §A2A Binding, plus a human-readable text
+        # part. The JSON-RPC channel is reserved for transport-level
+        # errors (auth rejected, rate-limited pre-dispatch).
+        logger.info(
+            &#34;AdCP application error for skill %s: %s&#34;, skill_name, exc
+        )
+        await self._send_adcp_error(event_queue, context, exc)
     except Exception:
         logger.exception(&#34;Error executing skill %s&#34;, skill_name)
         await self._send_error(
@@ -5602,6 +5698,325 @@ async def handle_update_property_list(
 </li>
 </ul>
 </dd>
+<dt id="adcp.server.IdempotencyStore"><code class="flex name class">
+<span>class <span class="ident">IdempotencyStore</span></span>
+<span>(</span><span>backend: IdempotencyBackend,<br>ttl_seconds: int = 86400,<br>hash_fn: Callable[[dict[str, Any]], str] = &lt;function canonical_json_sha256&gt;,<br>*,<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IdempotencyStore:
+    &#34;&#34;&#34;Coordinator that binds canonical hashing to a storage backend.
+
+    :param backend: A concrete :class:`IdempotencyBackend`.
+    :param ttl_seconds: How long cached responses remain replayable. Must be
+        within the spec&#39;s ``[3600, 604800]`` range (1h to 7d). 86400 (24h) is
+        the recommended floor and matches the compliance storyboard.
+    :param hash_fn: Optional override for the canonical hash function. Defaults
+        to :func:`canonical_json_sha256`. Exposed for tests and for anyone who
+        wants to experiment with alternative equivalence rules — though note
+        the spec mandates RFC 8785 JCS for interop.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        backend: IdempotencyBackend,
+        ttl_seconds: int = 86400,
+        hash_fn: Callable[[dict[str, Any]], str] = canonical_json_sha256,
+        *,
+        clock: Callable[[], float] = time.time,
+    ) -&gt; None:
+        if not _MIN_TTL_SECONDS &lt;= ttl_seconds &lt;= _MAX_TTL_SECONDS:
+            raise ValueError(
+                f&#34;ttl_seconds must be in [{_MIN_TTL_SECONDS}, {_MAX_TTL_SECONDS}] &#34;
+                f&#34;per AdCP spec (capabilities.idempotency.replay_ttl_seconds), &#34;
+                f&#34;got {ttl_seconds}&#34;
+            )
+        self.backend = backend
+        self.ttl_seconds = ttl_seconds
+        self._hash_fn = hash_fn
+        self._clock = clock
+
+    def capability(self) -&gt; dict[str, Any]:
+        &#34;&#34;&#34;Return the capabilities fragment declaring this store&#39;s replay window.
+
+        Embed under ``capabilities.adcp.idempotency`` on the seller&#39;s
+        ``get_adcp_capabilities`` response. Buyers read this to reason about
+        retry-safe windows (AdCP #2315)::
+
+            caps.adcp.idempotency = idempotency.capability()
+            # → {&#34;replay_ttl_seconds&#34;: 86400}
+        &#34;&#34;&#34;
+        return {&#34;replay_ttl_seconds&#34;: self.ttl_seconds}
+
+    def wrap(self, handler: HandlerFn) -&gt; HandlerFn:
+        &#34;&#34;&#34;Decorator that adds idempotency semantics to an AdCP handler method.
+
+        The wrapped handler is called as ``handler(self, params, context)``.
+        ``params`` may be a dict or a Pydantic model — both are normalized to
+        a dict before hashing. The return value is coerced to a dict for
+        caching (via ``model_dump`` if Pydantic).
+
+        The decorator always returns the handler&#39;s original object on a cache
+        miss and a best-effort Pydantic re-validation on a hit (when the
+        handler&#39;s declared return type exposes ``model_validate``). Callers
+        that return raw dicts get dicts back.
+        &#34;&#34;&#34;
+
+        @wraps(handler)
+        async def _wrapped(
+            handler_self: Any,
+            params: Any,
+            context: Any = None,
+            *args: Any,
+            **kwargs: Any,
+        ) -&gt; Any:
+            principal_id, idempotency_key, params_dict = self._prepare(params, context)
+            if principal_id is None or idempotency_key is None:
+                # No key → spec says the server MUST reject with INVALID_REQUEST.
+                # We let the handler run so validation layers above us (Pydantic,
+                # FastAPI, etc.) can reject with a typed error; the middleware&#39;s
+                # job is only to dedup when a key IS present.
+                return await handler(handler_self, params, context, *args, **kwargs)
+
+            payload_hash = self._hash_fn(params_dict)
+
+            cached = await self.backend.get(principal_id, idempotency_key)
+            if cached is not None:
+                if cached.payload_hash == payload_hash:
+                    logger.debug(
+                        &#34;idempotency replay: principal=%s key_prefix=%s&#34;,
+                        principal_id,
+                        idempotency_key[:8],
+                    )
+                    return _clone_response(cached.response)
+                # Same key, different payload — spec-defined conflict.
+                raise IdempotencyConflictError(
+                    operation=getattr(handler, &#34;__name__&#34;, &#34;handler&#34;),
+                    errors=[
+                        {
+                            &#34;code&#34;: &#34;IDEMPOTENCY_CONFLICT&#34;,
+                            &#34;message&#34;: (
+                                &#34;idempotency_key reused with a different payload &#34;
+                                &#34;(canonical hash mismatch)&#34;
+                            ),
+                        }
+                    ],
+                )
+
+            response = await handler(handler_self, params, context, *args, **kwargs)
+            # Deep-copy when caching so post-return mutation of the caller&#39;s
+            # copy can&#39;t poison future replays. `_clone_response` also deep-
+            # copies on the hit path, giving independent objects per replay.
+            response_dict = copy.deepcopy(_to_dict(response))
+            entry = CachedResponse(
+                payload_hash=payload_hash,
+                response=response_dict,
+                expires_at_epoch=self._clock() + self.ttl_seconds,
+            )
+            # Commit cache AFTER handler returns. Atomicity with the handler&#39;s
+            # side effects depends on the backend: MemoryBackend is best-effort
+            # (no transactional relationship to external resources); PgBackend
+            # (follow-up) will commit in the same transaction when the handler
+            # uses the same engine. On put failure we log loudly and return
+            # the handler&#39;s response — swallowing the exception would be wrong
+            # (operators need the signal that caching is broken), and raising
+            # would look to the caller like the handler failed, triggering a
+            # retry that re-executes side effects. Best compromise: warn
+            # operators, return the result, and accept that the next retry
+            # with this key will re-execute.
+            try:
+                await self.backend.put(principal_id, idempotency_key, entry)
+            except Exception:
+                logger.warning(
+                    &#34;Idempotency cache put failed for principal=%s key_prefix=%s — &#34;
+                    &#34;handler completed but a subsequent retry with this key will &#34;
+                    &#34;re-execute rather than replay. This indicates an operational &#34;
+                    &#34;issue with the idempotency backend.&#34;,
+                    principal_id,
+                    idempotency_key[:8],
+                    exc_info=True,
+                )
+            return response
+
+        return _wrapped
+
+    def _prepare(
+        self, params: Any, context: Any
+    ) -&gt; tuple[str | None, str | None, dict[str, Any]]:
+        &#34;&#34;&#34;Normalize inputs and extract the (principal, key, params_dict) tuple.
+
+        Returns ``(None, None, params_dict)`` when idempotency doesn&#39;t apply
+        (no caller identity or no key supplied). The caller falls through to
+        the plain handler in that case — validation of missing-key lives in
+        the request schema, not here.
+        &#34;&#34;&#34;
+        params_dict = _to_dict(params)
+        idempotency_key = params_dict.get(&#34;idempotency_key&#34;)
+        if not isinstance(idempotency_key, str) or not idempotency_key:
+            return None, None, params_dict
+        principal_id = _extract_principal_id(context)
+        if principal_id is None:
+            # No caller identity: we can&#39;t safely scope the key. Spec requires
+            # per-principal scope; anything else is a cross-principal replay
+            # attack surface. Fall through to the handler (which will process
+            # the request normally — no dedup, but no security regression).
+            return None, None, params_dict
+        return principal_id, idempotency_key, params_dict</code></pre>
+</details>
+<div class="desc"><p>Coordinator that binds canonical hashing to a storage backend.</p>
+<p>:param backend: A concrete :class:<code>IdempotencyBackend</code>.
+:param ttl_seconds: How long cached responses remain replayable. Must be
+within the spec's <code>[3600, 604800]</code> range (1h to 7d). 86400 (24h) is
+the recommended floor and matches the compliance storyboard.
+:param hash_fn: Optional override for the canonical hash function. Defaults
+to :func:<code>canonical_json_sha256</code>. Exposed for tests and for anyone who
+wants to experiment with alternative equivalence rules — though note
+the spec mandates RFC 8785 JCS for interop.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.IdempotencyStore.capability"><code class="name flex">
+<span>def <span class="ident">capability</span></span>(<span>self) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def capability(self) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Return the capabilities fragment declaring this store&#39;s replay window.
+
+    Embed under ``capabilities.adcp.idempotency`` on the seller&#39;s
+    ``get_adcp_capabilities`` response. Buyers read this to reason about
+    retry-safe windows (AdCP #2315)::
+
+        caps.adcp.idempotency = idempotency.capability()
+        # → {&#34;replay_ttl_seconds&#34;: 86400}
+    &#34;&#34;&#34;
+    return {&#34;replay_ttl_seconds&#34;: self.ttl_seconds}</code></pre>
+</details>
+<div class="desc"><p>Return the capabilities fragment declaring this store's replay window.</p>
+<p>Embed under <code>capabilities.adcp.idempotency</code> on the seller's
+<code>get_adcp_capabilities</code> response. Buyers read this to reason about
+retry-safe windows (AdCP #2315)::</p>
+<pre><code>caps.adcp.idempotency = idempotency.capability()
+# → {"replay_ttl_seconds": 86400}
+</code></pre></div>
+</dd>
+<dt id="adcp.server.IdempotencyStore.wrap"><code class="name flex">
+<span>def <span class="ident">wrap</span></span>(<span>self, handler: HandlerFn) ‑> Callable[..., Awaitable[typing.Any]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def wrap(self, handler: HandlerFn) -&gt; HandlerFn:
+    &#34;&#34;&#34;Decorator that adds idempotency semantics to an AdCP handler method.
+
+    The wrapped handler is called as ``handler(self, params, context)``.
+    ``params`` may be a dict or a Pydantic model — both are normalized to
+    a dict before hashing. The return value is coerced to a dict for
+    caching (via ``model_dump`` if Pydantic).
+
+    The decorator always returns the handler&#39;s original object on a cache
+    miss and a best-effort Pydantic re-validation on a hit (when the
+    handler&#39;s declared return type exposes ``model_validate``). Callers
+    that return raw dicts get dicts back.
+    &#34;&#34;&#34;
+
+    @wraps(handler)
+    async def _wrapped(
+        handler_self: Any,
+        params: Any,
+        context: Any = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -&gt; Any:
+        principal_id, idempotency_key, params_dict = self._prepare(params, context)
+        if principal_id is None or idempotency_key is None:
+            # No key → spec says the server MUST reject with INVALID_REQUEST.
+            # We let the handler run so validation layers above us (Pydantic,
+            # FastAPI, etc.) can reject with a typed error; the middleware&#39;s
+            # job is only to dedup when a key IS present.
+            return await handler(handler_self, params, context, *args, **kwargs)
+
+        payload_hash = self._hash_fn(params_dict)
+
+        cached = await self.backend.get(principal_id, idempotency_key)
+        if cached is not None:
+            if cached.payload_hash == payload_hash:
+                logger.debug(
+                    &#34;idempotency replay: principal=%s key_prefix=%s&#34;,
+                    principal_id,
+                    idempotency_key[:8],
+                )
+                return _clone_response(cached.response)
+            # Same key, different payload — spec-defined conflict.
+            raise IdempotencyConflictError(
+                operation=getattr(handler, &#34;__name__&#34;, &#34;handler&#34;),
+                errors=[
+                    {
+                        &#34;code&#34;: &#34;IDEMPOTENCY_CONFLICT&#34;,
+                        &#34;message&#34;: (
+                            &#34;idempotency_key reused with a different payload &#34;
+                            &#34;(canonical hash mismatch)&#34;
+                        ),
+                    }
+                ],
+            )
+
+        response = await handler(handler_self, params, context, *args, **kwargs)
+        # Deep-copy when caching so post-return mutation of the caller&#39;s
+        # copy can&#39;t poison future replays. `_clone_response` also deep-
+        # copies on the hit path, giving independent objects per replay.
+        response_dict = copy.deepcopy(_to_dict(response))
+        entry = CachedResponse(
+            payload_hash=payload_hash,
+            response=response_dict,
+            expires_at_epoch=self._clock() + self.ttl_seconds,
+        )
+        # Commit cache AFTER handler returns. Atomicity with the handler&#39;s
+        # side effects depends on the backend: MemoryBackend is best-effort
+        # (no transactional relationship to external resources); PgBackend
+        # (follow-up) will commit in the same transaction when the handler
+        # uses the same engine. On put failure we log loudly and return
+        # the handler&#39;s response — swallowing the exception would be wrong
+        # (operators need the signal that caching is broken), and raising
+        # would look to the caller like the handler failed, triggering a
+        # retry that re-executes side effects. Best compromise: warn
+        # operators, return the result, and accept that the next retry
+        # with this key will re-execute.
+        try:
+            await self.backend.put(principal_id, idempotency_key, entry)
+        except Exception:
+            logger.warning(
+                &#34;Idempotency cache put failed for principal=%s key_prefix=%s — &#34;
+                &#34;handler completed but a subsequent retry with this key will &#34;
+                &#34;re-execute rather than replay. This indicates an operational &#34;
+                &#34;issue with the idempotency backend.&#34;,
+                principal_id,
+                idempotency_key[:8],
+                exc_info=True,
+            )
+        return response
+
+    return _wrapped</code></pre>
+</details>
+<div class="desc"><p>Decorator that adds idempotency semantics to an AdCP handler method.</p>
+<p>The wrapped handler is called as <code>handler(self, params, context)</code>.
+<code>params</code> may be a dict or a Pydantic model — both are normalized to
+a dict before hashing. The return value is coerced to a dict for
+caching (via <code>model_dump</code> if Pydantic).</p>
+<p>The decorator always returns the handler's original object on a cache
+miss and a best-effort Pydantic re-validation on a hit (when the
+handler's declared return type exposes <code>model_validate</code>). Callers
+that return raw dicts get dicts back.</p></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.server.MCPToolSet"><code class="flex name class">
 <span>class <span class="ident">MCPToolSet</span></span>
 <span>(</span><span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>)</span>
@@ -5740,6 +6155,135 @@ def tool_definitions(self) -&gt; list[dict[str, Any]]:
 <div class="desc"><p>Get list of available tool names.</p></div>
 </dd>
 </dl>
+</dd>
+<dt id="adcp.server.MemoryBackend"><code class="flex name class">
+<span>class <span class="ident">MemoryBackend</span></span>
+<span>(</span><span>*, clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MemoryBackend(IdempotencyBackend):
+    &#34;&#34;&#34;In-process dict-backed store.
+
+    Suitable for tests, single-process reference implementations, and local
+    development. **Not suitable for multi-process deployments** — each worker
+    has its own cache, so a retry that lands on a different worker is treated
+    as a fresh request.
+
+    Thread safety: the backend uses an :class:`asyncio.Lock` to serialize
+    mutations of the shared dict. Reads go through the lock too; for a pure
+    in-process backend this is cheap and prevents torn reads across concurrent
+    ``get``/``put`` interleaving.
+
+    :param clock: Callable returning the current epoch seconds. Override for
+        tests that need to advance time deterministically without monkeypatching
+        :mod:`time`. Defaults to :func:`time.time`.
+    &#34;&#34;&#34;
+
+    def __init__(self, *, clock: Callable[[], float] = time.time) -&gt; None:
+        self._store: dict[tuple[str, str], CachedResponse] = {}
+        self._lock = asyncio.Lock()
+        self._clock = clock
+
+    async def get(
+        self, principal_id: str, key: str
+    ) -&gt; CachedResponse | None:
+        async with self._lock:
+            entry = self._store.get((principal_id, key))
+            if entry is None:
+                return None
+            if entry.expires_at_epoch &lt;= self._clock():
+                # Lazy expiry — drop the stale entry so the next request
+                # treats the slot as fresh and races to repopulate.
+                del self._store[(principal_id, key)]
+                return None
+            return entry
+
+    async def put(
+        self,
+        principal_id: str,
+        key: str,
+        entry: CachedResponse,
+    ) -&gt; None:
+        async with self._lock:
+            self._store[(principal_id, key)] = entry
+
+    async def delete_expired(self, now_epoch: float | None = None) -&gt; int:
+        cutoff = now_epoch if now_epoch is not None else self._clock()
+        async with self._lock:
+            stale = [k for k, v in self._store.items() if v.expires_at_epoch &lt;= cutoff]
+            for k in stale:
+                del self._store[k]
+            return len(stale)
+
+    async def clear(self) -&gt; None:
+        &#34;&#34;&#34;Remove all cached entries.
+
+        Test-suite hook — handy for resetting state between fixtures when a
+        single :class:`MemoryBackend` is shared across multiple tests.
+        &#34;&#34;&#34;
+        async with self._lock:
+            self._store.clear()
+
+    async def _size(self) -&gt; int:
+        &#34;&#34;&#34;Test-only: return the current entry count.&#34;&#34;&#34;
+        async with self._lock:
+            return len(self._store)</code></pre>
+</details>
+<div class="desc"><p>In-process dict-backed store.</p>
+<p>Suitable for tests, single-process reference implementations, and local
+development. <strong>Not suitable for multi-process deployments</strong> — each worker
+has its own cache, so a retry that lands on a different worker is treated
+as a fresh request.</p>
+<p>Thread safety: the backend uses an :class:<code>asyncio.Lock</code> to serialize
+mutations of the shared dict. Reads go through the lock too; for a pure
+in-process backend this is cheap and prevents torn reads across concurrent
+<code>get</code>/<code>put</code> interleaving.</p>
+<p>:param clock: Callable returning the current epoch seconds. Override for
+tests that need to advance time deterministically without monkeypatching
+:mod:<code>time</code>. Defaults to :func:<code>time.time</code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.server.idempotency.backends.IdempotencyBackend" href="idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend">IdempotencyBackend</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.MemoryBackend.clear"><code class="name flex">
+<span>async def <span class="ident">clear</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def clear(self) -&gt; None:
+    &#34;&#34;&#34;Remove all cached entries.
+
+    Test-suite hook — handy for resetting state between fixtures when a
+    single :class:`MemoryBackend` is shared across multiple tests.
+    &#34;&#34;&#34;
+    async with self._lock:
+        self._store.clear()</code></pre>
+</details>
+<div class="desc"><p>Remove all cached entries.</p>
+<p>Test-suite hook — handy for resetting state between fixtures when a
+single :class:<code><a title="adcp.server.MemoryBackend" href="#adcp.server.MemoryBackend">MemoryBackend</a></code> is shared across multiple tests.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.server.idempotency.backends.IdempotencyBackend" href="idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend">IdempotencyBackend</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.delete_expired" href="idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend.delete_expired">delete_expired</a></code></li>
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.get" href="idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend.get">get</a></code></li>
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.put" href="idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend.put">put</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="adcp.server.NotImplementedResponse"><code class="flex name class">
 <span>class <span class="ident">NotImplementedResponse</span></span>
@@ -7355,6 +7899,7 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 <li><code><a title="adcp.server.content_standards" href="content_standards.html">adcp.server.content_standards</a></code></li>
 <li><code><a title="adcp.server.governance" href="governance.html">adcp.server.governance</a></code></li>
 <li><code><a title="adcp.server.helpers" href="helpers.html">adcp.server.helpers</a></code></li>
+<li><code><a title="adcp.server.idempotency" href="idempotency/index.html">adcp.server.idempotency</a></code></li>
 <li><code><a title="adcp.server.mcp_tools" href="mcp_tools.html">adcp.server.mcp_tools</a></code></li>
 <li><code><a title="adcp.server.proposal" href="proposal.html">adcp.server.proposal</a></code></li>
 <li><code><a title="adcp.server.responses" href="responses.html">adcp.server.responses</a></code></li>
@@ -7533,11 +8078,24 @@ for logging, authorization, or other cross-cutting concerns.</p></div>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.server.IdempotencyStore" href="#adcp.server.IdempotencyStore">IdempotencyStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.IdempotencyStore.capability" href="#adcp.server.IdempotencyStore.capability">capability</a></code></li>
+<li><code><a title="adcp.server.IdempotencyStore.wrap" href="#adcp.server.IdempotencyStore.wrap">wrap</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.server.MCPToolSet" href="#adcp.server.MCPToolSet">MCPToolSet</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.server.MCPToolSet.call_tool" href="#adcp.server.MCPToolSet.call_tool">call_tool</a></code></li>
 <li><code><a title="adcp.server.MCPToolSet.get_tool_names" href="#adcp.server.MCPToolSet.get_tool_names">get_tool_names</a></code></li>
 <li><code><a title="adcp.server.MCPToolSet.tool_definitions" href="#adcp.server.MCPToolSet.tool_definitions">tool_definitions</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.server.MemoryBackend" href="#adcp.server.MemoryBackend">MemoryBackend</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.MemoryBackend.clear" href="#adcp.server.MemoryBackend.clear">clear</a></code></li>
 </ul>
 </li>
 <li>
