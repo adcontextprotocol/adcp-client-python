@@ -37,8 +37,43 @@ el.replaceWith(d);
 </header>
 <section id="section-intro">
 <p>AdCP RFC 9421 request-signing profile.</p>
-<p>Implements the transport-layer signed-request profile from the AdCP specification.
-See: <a href="https://adcontextprotocol.org/docs/building/implementation/security#signed-requests-transport-layer">https://adcontextprotocol.org/docs/building/implementation/security#signed-requests-transport-layer</a></p>
+<p>Implements the transport-layer signed-request profile from the AdCP
+specification. See:
+<a href="https://adcontextprotocol.org/docs/building/implementation/security#signed-requests-transport-layer">https://adcontextprotocol.org/docs/building/implementation/security#signed-requests-transport-layer</a></p>
+<h1 id="quickstart">Quickstart</h1>
+<p>The core names you'll reach for (everything else is for advanced use):</p>
+<p><strong>Buyers</strong> (signing outgoing requests):</p>
+<ul>
+<li>:func:<code><a title="adcp.signing.sign_request" href="#adcp.signing.sign_request">sign_request()</a></code> — produce <code>Signature</code> / <code>Signature-Input</code>
+headers for one request</li>
+<li>:func:<code><a title="adcp.signing.load_private_key_pem" href="#adcp.signing.load_private_key_pem">load_private_key_pem()</a></code> — rehydrate the PEM <code>adcp-keygen</code> wrote</li>
+<li>:class:<code><a title="adcp.signing.SigningConfig" href="#adcp.signing.SigningConfig">SigningConfig</a></code> — bundle key material for auto-signing via
+<code>ADCPClient(signing=...)</code></li>
+</ul>
+<p><strong>Sellers</strong> (verifying incoming requests):</p>
+<ul>
+<li>:func:<code><a title="adcp.signing.verify_starlette_request" href="#adcp.signing.verify_starlette_request">verify_starlette_request()</a></code> / :func:<code><a title="adcp.signing.verify_flask_request" href="#adcp.signing.verify_flask_request">verify_flask_request()</a></code> —
+framework-shaped wrappers around :func:<code><a title="adcp.signing.verify_request_signature" href="#adcp.signing.verify_request_signature">verify_request_signature()</a></code></li>
+<li>:class:<code><a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a></code> — the knobs (capability, jwks_resolver,
+replay_store, revocation_checker)</li>
+<li>:class:<code><a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a></code> — what the seller advertises (e.g.
+<code>required_for={"create_media_buy"}</code>)</li>
+<li>:class:<code><a title="adcp.signing.StaticJwksResolver" href="#adcp.signing.StaticJwksResolver">StaticJwksResolver</a></code> — for testing; use
+:class:<code><a title="adcp.signing.CachingJwksResolver" href="#adcp.signing.CachingJwksResolver">CachingJwksResolver</a></code> against a live <code>jwks_uri</code></li>
+<li>:class:<code><a title="adcp.signing.SignatureVerificationError" href="#adcp.signing.SignatureVerificationError">SignatureVerificationError</a></code> — raised on rejection; <code>.code</code>
+is the spec error string</li>
+<li>:func:<code><a title="adcp.signing.unauthorized_response_headers" href="#adcp.signing.unauthorized_response_headers">unauthorized_response_headers()</a></code> — builds the 401
+<code>WWW-Authenticate: Signature error="..."</code> header</li>
+<li>:class:<code><a title="adcp.signing.InMemoryReplayStore" href="#adcp.signing.InMemoryReplayStore">InMemoryReplayStore</a></code> for single-process deployments;
+:class:<code><a title="adcp.signing.PgReplayStore" href="#adcp.signing.PgReplayStore">PgReplayStore</a></code> (behind <code>[<a title="adcp.signing.pg" href="pg/index.html">adcp.signing.pg</a>]</code> extra) for multi-worker</li>
+</ul>
+<p><strong>Governance agents</strong>:</p>
+<ul>
+<li>:class:<code><a title="adcp.signing.CachingRevocationChecker" href="#adcp.signing.CachingRevocationChecker">CachingRevocationChecker</a></code> — fetches + caches a signed
+revocation list from <code>{issuer}/.well-known/governance-revocations.json</code></li>
+<li>Async variants: :class:<code><a title="adcp.signing.AsyncCachingJwksResolver" href="#adcp.signing.AsyncCachingJwksResolver">AsyncCachingJwksResolver</a></code>,
+:class:<code><a title="adcp.signing.AsyncCachingRevocationChecker" href="#adcp.signing.AsyncCachingRevocationChecker">AsyncCachingRevocationChecker</a></code></li>
+</ul>
 </section>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
@@ -82,6 +117,10 @@ See: <a href="https://adcontextprotocol.org/docs/building/implementation/securit
 <dt><code class="name"><a title="adcp.signing.middleware" href="middleware.html">adcp.signing.middleware</a></code></dt>
 <dd>
 <div class="desc"><p>Framework helpers for running the AdCP request-signing verifier …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.pg" href="pg/index.html">adcp.signing.pg</a></code></dt>
+<dd>
+<div class="desc"><p>PostgreSQL-backed implementations for the signing module …</p></div>
 </dd>
 <dt><code class="name"><a title="adcp.signing.replay" href="replay.html">adcp.signing.replay</a></code></dt>
 <dd>
@@ -594,6 +633,83 @@ are accepted here (standard tried first; url as fallback).</p></div>
     return f&#34;{label}=:{b64url_encode(signature)}:&#34;</code></pre>
 </details>
 <div class="desc"><p>Produce a Signature header value for a single-label signature.</p></div>
+</dd>
+<dt id="adcp.signing.load_private_key_pem"><code class="name flex">
+<span>def <span class="ident">load_private_key_pem</span></span>(<span>pem: bytes, *, password: bytes | None = None) ‑> cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey | cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_private_key_pem(pem: bytes, *, password: bytes | None = None) -&gt; PrivateKey:
+    &#34;&#34;&#34;Load an Ed25519 or P-256 private key from PKCS8 PEM bytes.
+
+    Closes the loop between ``adcp-keygen`` (which writes a PEM) and
+    :func:`sign_request` (which takes a ``PrivateKey`` object), so
+    integrators don&#39;t need a direct ``cryptography`` import just to
+    rehydrate the key.
+
+    Parameters
+    ----------
+    pem:
+        PEM-encoded PKCS8 private key as bytes. Read via
+        ``pathlib.Path(...).read_bytes()``.
+    password:
+        Passphrase if the PEM is encrypted (``adcp-keygen --encrypt``).
+        Passed through to the cryptography loader as bytes.
+
+    Returns
+    -------
+    PrivateKey
+        An :class:`Ed25519PrivateKey` or
+        :class:`EllipticCurvePrivateKey` ready to pass into
+        :func:`sign_request`.
+
+    Raises
+    ------
+    ValueError
+        The PEM is not Ed25519 or ES256 (P-256). These are the only
+        algorithms the AdCP request-signing profile allows.
+    &#34;&#34;&#34;
+    key = serialization.load_pem_private_key(pem, password=password)
+    if not isinstance(key, (ed25519.Ed25519PrivateKey, ec.EllipticCurvePrivateKey)):
+        raise ValueError(
+            f&#34;unsupported private key type {type(key).__name__} — &#34;
+            f&#34;AdCP signing accepts Ed25519 or ECDSA-P-256 only&#34;
+        )
+    if isinstance(key, ec.EllipticCurvePrivateKey) and not isinstance(key.curve, ec.SECP256R1):
+        raise ValueError(
+            f&#34;EC key curve {key.curve.name} is not supported — only &#34;
+            f&#34;P-256 (SECP256R1) is allowed&#34;
+        )
+    return key</code></pre>
+</details>
+<div class="desc"><p>Load an Ed25519 or P-256 private key from PKCS8 PEM bytes.</p>
+<p>Closes the loop between <code>adcp-keygen</code> (which writes a PEM) and
+:func:<code><a title="adcp.signing.sign_request" href="#adcp.signing.sign_request">sign_request()</a></code> (which takes a <code>PrivateKey</code> object), so
+integrators don't need a direct <code>cryptography</code> import just to
+rehydrate the key.</p>
+<h2 id="parameters">Parameters</h2>
+<p>pem:
+PEM-encoded PKCS8 private key as bytes. Read via
+<code>pathlib.Path(&hellip;).read_bytes()</code>.
+password:
+Passphrase if the PEM is encrypted (<code>adcp-keygen --encrypt</code>).
+Passed through to the cryptography loader as bytes.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>PrivateKey</code></dt>
+<dd>An :class:<code>Ed25519PrivateKey</code> or
+:class:<code>EllipticCurvePrivateKey</code> ready to pass into
+:func:<code><a title="adcp.signing.sign_request" href="#adcp.signing.sign_request">sign_request()</a></code>.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd>The PEM is not Ed25519 or ES256 (P-256). These are the only
+algorithms the AdCP request-signing profile allows.</dd>
+</dl></div>
 </dd>
 <dt id="adcp.signing.operation_needs_signing"><code class="name flex">
 <span>def <span class="ident">operation_needs_signing</span></span>(<span>capability: RequestSigning | None, operation: str) ‑> SigningDecision</span>
@@ -1319,10 +1435,28 @@ to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def verify_starlette_request(request: Any, *, options: VerifyOptions) -&gt; VerifiedSigner:
-    &#34;&#34;&#34;Verify a Starlette / FastAPI `Request` object against the AdCP profile.
+    &#34;&#34;&#34;Verify a Starlette / FastAPI ``Request`` object against the AdCP profile.
 
-    Consumes `await request.body()` — if downstream code also needs the body,
-    it must read `request.state` or the returned `VerifiedSigner`-side context.
+    Consumes ``await request.body()`` once — Starlette caches the result
+    internally, so downstream handlers calling ``request.body()`` or
+    ``request.json()`` again will get the same bytes. If your handler
+    needs the parsed body AFTER this verifier succeeds, call
+    ``await request.body()`` yourself downstream; there&#39;s no hidden
+    side channel on the returned :class:`VerifiedSigner`.
+
+    Returns
+    -------
+    VerifiedSigner
+        On success — carries the verified ``key_id`` and metadata.
+
+    Raises
+    ------
+    SignatureVerificationError
+        On any failure of the AdCP verifier checklist. The ``.code``
+        attribute holds the spec&#39;s error code string (e.g.
+        ``request_signature_replayed``) and ``.step`` points at the
+        failed checklist step. Frameworks typically map this to a 401
+        with :func:`unauthorized_response_headers`.
     &#34;&#34;&#34;
     body = await request.body()
     return verify_request_signature(
@@ -1334,8 +1468,26 @@ to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).
     )</code></pre>
 </details>
 <div class="desc"><p>Verify a Starlette / FastAPI <code>Request</code> object against the AdCP profile.</p>
-<p>Consumes <code>await request.body()</code> — if downstream code also needs the body,
-it must read <code>request.state</code> or the returned <code><a title="adcp.signing.VerifiedSigner" href="#adcp.signing.VerifiedSigner">VerifiedSigner</a></code>-side context.</p></div>
+<p>Consumes <code>await request.body()</code> once — Starlette caches the result
+internally, so downstream handlers calling <code>request.body()</code> or
+<code>request.json()</code> again will get the same bytes. If your handler
+needs the parsed body AFTER this verifier succeeds, call
+<code>await request.body()</code> yourself downstream; there's no hidden
+side channel on the returned :class:<code><a title="adcp.signing.VerifiedSigner" href="#adcp.signing.VerifiedSigner">VerifiedSigner</a></code>.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="adcp.signing.VerifiedSigner" href="#adcp.signing.VerifiedSigner">VerifiedSigner</a></code></dt>
+<dd>On success — carries the verified <code>key_id</code> and metadata.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.signing.SignatureVerificationError" href="#adcp.signing.SignatureVerificationError">SignatureVerificationError</a></code></dt>
+<dd>On any failure of the AdCP verifier checklist. The <code>.code</code>
+attribute holds the spec's error code string (e.g.
+<code>request_signature_replayed</code>) and <code>.step</code> points at the
+failed checklist step. Frameworks typically map this to a 401
+with :func:<code><a title="adcp.signing.unauthorized_response_headers" href="#adcp.signing.unauthorized_response_headers">unauthorized_response_headers()</a></code>.</dd>
+</dl></div>
 </dd>
 </dl>
 </section>
@@ -2629,6 +2781,411 @@ sync JWS document verifier. Implementations include
 <li>builtins.BaseException</li>
 </ul>
 </dd>
+<dt id="adcp.signing.PgReplayStore"><code class="flex name class">
+<span>class <span class="ident">PgReplayStore</span></span>
+<span>(</span><span>*,<br>pool: ConnectionPool,<br>per_keyid_cap: int = 1000000,<br>table_name: str = 'adcp_replay')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PgReplayStore:
+    &#34;&#34;&#34;PostgreSQL-backed replay store implementing :class:`ReplayStore`.
+
+    Parameters
+    ----------
+    pool:
+        A :class:`psycopg_pool.ConnectionPool` owned by the caller. Each
+        operation acquires a short-lived connection, runs a single
+        statement, and returns the connection. No long-lived
+        transactions, no cross-operation state.
+    per_keyid_cap:
+        Maximum number of live (non-expired) nonces per ``keyid``.
+        Mirrors :class:`InMemoryReplayStore`; spec-recommended 1M.
+        When :meth:`at_capacity` reports True, the verifier rejects
+        with ``request_signature_rate_abuse`` rather than silently
+        evicting older entries (which would create a replay window
+        under attack).
+    table_name:
+        Override the default ``adcp_replay`` table if two tenants share
+        a database and need separate replay stores. Must be a
+        byte-equal-clean identifier — we don&#39;t quote it into the SQL
+        dynamically for obvious injection reasons; the constructor
+        validates shape.
+
+    Concurrency
+    -----------
+
+    Safe to share across threads and processes. Postgres provides the
+    cross-instance locking we need via PK conflict resolution on
+    ``INSERT ... ON CONFLICT``.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        pool: ConnectionPool,
+        per_keyid_cap: int = 1_000_000,
+        table_name: str = DEFAULT_TABLE_NAME,
+    ) -&gt; None:
+        if not PG_AVAILABLE:
+            raise ImportError(_INSTALL_HINT)
+        if not _is_safe_identifier(table_name):
+            raise ValueError(
+                f&#34;table_name must match [a-z_][a-z0-9_]* (ASCII only), &#34; f&#34;got {table_name!r}&#34;
+            )
+        self._pool = pool
+        self._per_keyid_cap = per_keyid_cap
+        self._table = table_name
+
+        # Pre-format queries with the validated table name so the hot
+        # path doesn&#39;t f-string per call.
+        self._sql_seen = (
+            f&#34;SELECT 1 FROM {self._table} &#34;  # noqa: S608 — table name is whitelisted
+            f&#34;WHERE keyid = %s AND nonce = %s AND expires_at &gt; now()&#34;
+        )
+        # ``WHERE EXCLUDED.expires_at &gt; {table}.expires_at`` avoids write
+        # amplification on the common case (a row is already present
+        # with a later-or-equal expiry). Without the predicate, every
+        # remember() would re-write the MVCC tuple even when the new
+        # TTL is shorter or equal.
+        self._sql_remember = (
+            f&#34;INSERT INTO {self._table} (keyid, nonce, expires_at) &#34;  # noqa: S608
+            f&#34;VALUES (%s, %s, now() + make_interval(secs =&gt; %s)) &#34;
+            f&#34;ON CONFLICT (keyid, nonce) DO UPDATE &#34;
+            f&#34;SET expires_at = EXCLUDED.expires_at &#34;
+            f&#34;WHERE EXCLUDED.expires_at &gt; {self._table}.expires_at&#34;
+        )
+        self._sql_at_capacity = (
+            f&#34;SELECT COUNT(*) &gt;= %s FROM {self._table} &#34;  # noqa: S608
+            f&#34;WHERE keyid = %s AND expires_at &gt; now()&#34;
+        )
+        self._sql_sweep = f&#34;DELETE FROM {self._table} WHERE expires_at &lt;= now()&#34;  # noqa: S608
+
+    # -- schema bootstrap --------------------------------------------
+
+    def create_schema(self) -&gt; None:
+        &#34;&#34;&#34;Create the replay table + indexes for this store&#39;s ``table_name``.
+
+        Honors the ``table_name`` kwarg the store was constructed with —
+        integrators using per-tenant tables get the right DDL without
+        extra plumbing. Idempotent via ``CREATE ... IF NOT EXISTS``;
+        safe to call on every app boot.
+
+        The equivalent raw DDL ships at
+        :file:`src/adcp/signing/pg/replay_store.sql` for integrators
+        using a migration tool (Alembic, Flyway, psql) — that file
+        uses the canonical ``adcp_replay`` name.
+        &#34;&#34;&#34;
+        table = self._table  # already validated at __init__
+        ddl = (
+            f&#34;CREATE TABLE IF NOT EXISTS {table} (&#34;  # noqa: S608 — validated
+            f&#39;    keyid      TEXT        COLLATE &#34;C&#34; NOT NULL,&#39;
+            f&#39;    nonce      TEXT        COLLATE &#34;C&#34; NOT NULL,&#39;
+            f&#34;    expires_at TIMESTAMPTZ NOT NULL,&#34;
+            f&#34;    PRIMARY KEY (keyid, nonce)&#34;
+            f&#34;);&#34;
+            f&#34;CREATE INDEX IF NOT EXISTS {table}_expires_idx &#34;  # noqa: S608
+            f&#34;    ON {table} (expires_at);&#34;
+        )
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(ddl)
+
+    # -- ReplayStore Protocol -----------------------------------------
+
+    def seen(self, keyid: str, nonce: str) -&gt; bool:
+        &#34;&#34;&#34;Return True iff ``(keyid, nonce)`` has a live entry.&#34;&#34;&#34;
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._sql_seen, (keyid, nonce))
+            return cur.fetchone() is not None
+
+    def remember(self, keyid: str, nonce: str, ttl_seconds: float) -&gt; None:
+        &#34;&#34;&#34;Record ``(keyid, nonce)`` with a TTL.
+
+        ``ON CONFLICT ... DO UPDATE`` refreshes the expiry on a
+        legitimate retry of the same nonce in-window — matches
+        :class:`InMemoryReplayStore` behavior.
+        &#34;&#34;&#34;
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._sql_remember, (keyid, nonce, ttl_seconds))
+
+    def at_capacity(self, keyid: str) -&gt; bool:
+        &#34;&#34;&#34;Return True iff the live row count for ``keyid`` meets the cap.
+
+        Implementation note: ``COUNT(*) &gt;= cap`` uses the PK for the
+        keyid filter and the expires index for the time predicate.
+        For the spec-recommended 1M cap, the expensive case is exactly
+        when a signer is misbehaving, so paying for accuracy is the
+        right trade.
+
+        For deployments that need faster short-circuiting on a hot
+        keyid, an alternative shape is::
+
+            SELECT 1 FROM {table}
+             WHERE keyid = %s AND expires_at &gt; now()
+             OFFSET %s LIMIT 1
+
+        which stops scanning once ``cap+1`` rows are seen. Swap in if
+        profiling identifies ``at_capacity`` as hot.
+        &#34;&#34;&#34;
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._sql_at_capacity, (self._per_keyid_cap, keyid))
+            row = cur.fetchone()
+            return bool(row[0]) if row is not None else False
+
+    # -- admin / cron ------------------------------------------------
+
+    def sweep_expired(self) -&gt; int:
+        &#34;&#34;&#34;Delete all rows whose ``expires_at`` is in the past.
+
+        Returns the number of rows removed. Safe to call concurrently
+        with :meth:`seen` / :meth:`remember`.
+
+        Call from a cron or admin endpoint. :meth:`seen` self-filters
+        so expired rows never cause false positives, but they do
+        accumulate and grow the table.
+        &#34;&#34;&#34;
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._sql_sweep)
+            return cur.rowcount or 0
+
+    def live_count(self, keyid: str) -&gt; int:
+        &#34;&#34;&#34;Return the number of live (non-expired) rows for ``keyid``.
+
+        Mostly useful for tests, monitoring, and admin tooling. Not on
+        the :class:`ReplayStore` Protocol — hit-path code should call
+        :meth:`at_capacity` which short-circuits at the cap without
+        materializing the count.
+        &#34;&#34;&#34;
+        sql = (
+            f&#34;SELECT COUNT(*) FROM {self._table} &#34;  # noqa: S608
+            f&#34;WHERE keyid = %s AND expires_at &gt; now()&#34;
+        )
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(sql, (keyid,))
+            row = cur.fetchone()
+            return int(row[0]) if row is not None else 0</code></pre>
+</details>
+<div class="desc"><p>PostgreSQL-backed replay store implementing :class:<code><a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<p>pool:
+A :class:<code>psycopg_pool.ConnectionPool</code> owned by the caller. Each
+operation acquires a short-lived connection, runs a single
+statement, and returns the connection. No long-lived
+transactions, no cross-operation state.
+per_keyid_cap:
+Maximum number of live (non-expired) nonces per <code>keyid</code>.
+Mirrors :class:<code><a title="adcp.signing.InMemoryReplayStore" href="#adcp.signing.InMemoryReplayStore">InMemoryReplayStore</a></code>; spec-recommended 1M.
+When :meth:<code>at_capacity</code> reports True, the verifier rejects
+with <code>request_signature_rate_abuse</code> rather than silently
+evicting older entries (which would create a replay window
+under attack).
+table_name:
+Override the default <code>adcp_replay</code> table if two tenants share
+a database and need separate replay stores. Must be a
+byte-equal-clean identifier — we don't quote it into the SQL
+dynamically for obvious injection reasons; the constructor
+validates shape.</p>
+<h2 id="concurrency">Concurrency</h2>
+<p>Safe to share across threads and processes. Postgres provides the
+cross-instance locking we need via PK conflict resolution on
+<code>INSERT &hellip; ON CONFLICT</code>.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.PgReplayStore.at_capacity"><code class="name flex">
+<span>def <span class="ident">at_capacity</span></span>(<span>self, keyid: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def at_capacity(self, keyid: str) -&gt; bool:
+    &#34;&#34;&#34;Return True iff the live row count for ``keyid`` meets the cap.
+
+    Implementation note: ``COUNT(*) &gt;= cap`` uses the PK for the
+    keyid filter and the expires index for the time predicate.
+    For the spec-recommended 1M cap, the expensive case is exactly
+    when a signer is misbehaving, so paying for accuracy is the
+    right trade.
+
+    For deployments that need faster short-circuiting on a hot
+    keyid, an alternative shape is::
+
+        SELECT 1 FROM {table}
+         WHERE keyid = %s AND expires_at &gt; now()
+         OFFSET %s LIMIT 1
+
+    which stops scanning once ``cap+1`` rows are seen. Swap in if
+    profiling identifies ``at_capacity`` as hot.
+    &#34;&#34;&#34;
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(self._sql_at_capacity, (self._per_keyid_cap, keyid))
+        row = cur.fetchone()
+        return bool(row[0]) if row is not None else False</code></pre>
+</details>
+<div class="desc"><p>Return True iff the live row count for <code>keyid</code> meets the cap.</p>
+<p>Implementation note: <code>COUNT(*) &gt;= cap</code> uses the PK for the
+keyid filter and the expires index for the time predicate.
+For the spec-recommended 1M cap, the expensive case is exactly
+when a signer is misbehaving, so paying for accuracy is the
+right trade.</p>
+<p>For deployments that need faster short-circuiting on a hot
+keyid, an alternative shape is::</p>
+<pre><code>SELECT 1 FROM {table}
+ WHERE keyid = %s AND expires_at &gt; now()
+ OFFSET %s LIMIT 1
+</code></pre>
+<p>which stops scanning once <code>cap+1</code> rows are seen. Swap in if
+profiling identifies <code>at_capacity</code> as hot.</p></div>
+</dd>
+<dt id="adcp.signing.PgReplayStore.create_schema"><code class="name flex">
+<span>def <span class="ident">create_schema</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_schema(self) -&gt; None:
+    &#34;&#34;&#34;Create the replay table + indexes for this store&#39;s ``table_name``.
+
+    Honors the ``table_name`` kwarg the store was constructed with —
+    integrators using per-tenant tables get the right DDL without
+    extra plumbing. Idempotent via ``CREATE ... IF NOT EXISTS``;
+    safe to call on every app boot.
+
+    The equivalent raw DDL ships at
+    :file:`src/adcp/signing/pg/replay_store.sql` for integrators
+    using a migration tool (Alembic, Flyway, psql) — that file
+    uses the canonical ``adcp_replay`` name.
+    &#34;&#34;&#34;
+    table = self._table  # already validated at __init__
+    ddl = (
+        f&#34;CREATE TABLE IF NOT EXISTS {table} (&#34;  # noqa: S608 — validated
+        f&#39;    keyid      TEXT        COLLATE &#34;C&#34; NOT NULL,&#39;
+        f&#39;    nonce      TEXT        COLLATE &#34;C&#34; NOT NULL,&#39;
+        f&#34;    expires_at TIMESTAMPTZ NOT NULL,&#34;
+        f&#34;    PRIMARY KEY (keyid, nonce)&#34;
+        f&#34;);&#34;
+        f&#34;CREATE INDEX IF NOT EXISTS {table}_expires_idx &#34;  # noqa: S608
+        f&#34;    ON {table} (expires_at);&#34;
+    )
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(ddl)</code></pre>
+</details>
+<div class="desc"><p>Create the replay table + indexes for this store's <code>table_name</code>.</p>
+<p>Honors the <code>table_name</code> kwarg the store was constructed with —
+integrators using per-tenant tables get the right DDL without
+extra plumbing. Idempotent via <code>CREATE &hellip; IF NOT EXISTS</code>;
+safe to call on every app boot.</p>
+<p>The equivalent raw DDL ships at
+:file:<code>src/adcp/signing/pg/replay_store.sql</code> for integrators
+using a migration tool (Alembic, Flyway, psql) — that file
+uses the canonical <code>adcp_replay</code> name.</p></div>
+</dd>
+<dt id="adcp.signing.PgReplayStore.live_count"><code class="name flex">
+<span>def <span class="ident">live_count</span></span>(<span>self, keyid: str) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def live_count(self, keyid: str) -&gt; int:
+    &#34;&#34;&#34;Return the number of live (non-expired) rows for ``keyid``.
+
+    Mostly useful for tests, monitoring, and admin tooling. Not on
+    the :class:`ReplayStore` Protocol — hit-path code should call
+    :meth:`at_capacity` which short-circuits at the cap without
+    materializing the count.
+    &#34;&#34;&#34;
+    sql = (
+        f&#34;SELECT COUNT(*) FROM {self._table} &#34;  # noqa: S608
+        f&#34;WHERE keyid = %s AND expires_at &gt; now()&#34;
+    )
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(sql, (keyid,))
+        row = cur.fetchone()
+        return int(row[0]) if row is not None else 0</code></pre>
+</details>
+<div class="desc"><p>Return the number of live (non-expired) rows for <code>keyid</code>.</p>
+<p>Mostly useful for tests, monitoring, and admin tooling. Not on
+the :class:<code><a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a></code> Protocol — hit-path code should call
+:meth:<code>at_capacity</code> which short-circuits at the cap without
+materializing the count.</p></div>
+</dd>
+<dt id="adcp.signing.PgReplayStore.remember"><code class="name flex">
+<span>def <span class="ident">remember</span></span>(<span>self, keyid: str, nonce: str, ttl_seconds: float) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remember(self, keyid: str, nonce: str, ttl_seconds: float) -&gt; None:
+    &#34;&#34;&#34;Record ``(keyid, nonce)`` with a TTL.
+
+    ``ON CONFLICT ... DO UPDATE`` refreshes the expiry on a
+    legitimate retry of the same nonce in-window — matches
+    :class:`InMemoryReplayStore` behavior.
+    &#34;&#34;&#34;
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(self._sql_remember, (keyid, nonce, ttl_seconds))</code></pre>
+</details>
+<div class="desc"><p>Record <code>(keyid, nonce)</code> with a TTL.</p>
+<p><code>ON CONFLICT &hellip; DO UPDATE</code> refreshes the expiry on a
+legitimate retry of the same nonce in-window — matches
+:class:<code><a title="adcp.signing.InMemoryReplayStore" href="#adcp.signing.InMemoryReplayStore">InMemoryReplayStore</a></code> behavior.</p></div>
+</dd>
+<dt id="adcp.signing.PgReplayStore.seen"><code class="name flex">
+<span>def <span class="ident">seen</span></span>(<span>self, keyid: str, nonce: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def seen(self, keyid: str, nonce: str) -&gt; bool:
+    &#34;&#34;&#34;Return True iff ``(keyid, nonce)`` has a live entry.&#34;&#34;&#34;
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(self._sql_seen, (keyid, nonce))
+        return cur.fetchone() is not None</code></pre>
+</details>
+<div class="desc"><p>Return True iff <code>(keyid, nonce)</code> has a live entry.</p></div>
+</dd>
+<dt id="adcp.signing.PgReplayStore.sweep_expired"><code class="name flex">
+<span>def <span class="ident">sweep_expired</span></span>(<span>self) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sweep_expired(self) -&gt; int:
+    &#34;&#34;&#34;Delete all rows whose ``expires_at`` is in the past.
+
+    Returns the number of rows removed. Safe to call concurrently
+    with :meth:`seen` / :meth:`remember`.
+
+    Call from a cron or admin endpoint. :meth:`seen` self-filters
+    so expired rows never cause false positives, but they do
+    accumulate and grow the table.
+    &#34;&#34;&#34;
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(self._sql_sweep)
+        return cur.rowcount or 0</code></pre>
+</details>
+<div class="desc"><p>Delete all rows whose <code>expires_at</code> is in the past.</p>
+<p>Returns the number of rows removed. Safe to call concurrently
+with :meth:<code>seen</code> / :meth:<code>remember</code>.</p>
+<p>Call from a cron or admin endpoint. :meth:<code>seen</code> self-filters
+so expired rows never cause false positives, but they do
+accumulate and grow the table.</p></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.signing.ReplayStore"><code class="flex name class">
 <span>class <span class="ident">ReplayStore</span></span>
 <span>(</span><span>*args, **kwargs)</span>
@@ -3341,7 +3898,7 @@ requests — only pick <code>"either"</code> if you've weighed that tradeoff.</p
 </dd>
 <dt id="adcp.signing.VerifyOptions"><code class="flex name class">
 <span>class <span class="ident">VerifyOptions</span></span>
-<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>replay_store: <a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a> | None = None,<br>revocation_checker: <a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a> | None = None,<br>revocation_list: <a title="adcp.signing.RevocationList" href="#adcp.signing.RevocationList">RevocationList</a> | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>agent_url: str | None = None)</span>
+<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>replay_store: <a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a> | None = None,<br>revocation_checker: <a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a> | None = None,<br>revocation_list: <a title="adcp.signing.RevocationList" href="#adcp.signing.RevocationList">RevocationList</a> | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>allowed_algs: frozenset[str] = frozenset({'ed25519', 'ecdsa-p256-sha256'}),<br>agent_url: str | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3364,7 +3921,7 @@ class VerifyOptions:
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None</code></pre>
 </details>
-<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', allowed_algs: 'frozenset[str]' = frozenset({'ecdsa-p256-sha256', 'ed25519'}), agent_url: 'str | None' = None)</p></div>
+<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', allowed_algs: 'frozenset[str]' = frozenset({'ed25519', 'ecdsa-p256-sha256'}), agent_url: 'str | None' = None)</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="adcp.signing.VerifyOptions.agent_url"><code class="name">var <span class="ident">agent_url</span> : str | None</code></dt>
@@ -3426,7 +3983,9 @@ class VerifyOptions:
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul></ul>
+<ul>
+<li><a href="#quickstart">Quickstart</a></li>
+</ul>
 </div>
 <ul id="index">
 <li><h3>Super-module</h3>
@@ -3446,6 +4005,7 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.jws" href="jws.html">adcp.signing.jws</a></code></li>
 <li><code><a title="adcp.signing.keygen" href="keygen.html">adcp.signing.keygen</a></code></li>
 <li><code><a title="adcp.signing.middleware" href="middleware.html">adcp.signing.middleware</a></code></li>
+<li><code><a title="adcp.signing.pg" href="pg/index.html">adcp.signing.pg</a></code></li>
 <li><code><a title="adcp.signing.replay" href="replay.html">adcp.signing.replay</a></code></li>
 <li><code><a title="adcp.signing.revocation" href="revocation.html">adcp.signing.revocation</a></code></li>
 <li><code><a title="adcp.signing.revocation_fetcher" href="revocation_fetcher.html">adcp.signing.revocation_fetcher</a></code></li>
@@ -3472,6 +4032,7 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.default_revocation_list_fetcher" href="#adcp.signing.default_revocation_list_fetcher">default_revocation_list_fetcher</a></code></li>
 <li><code><a title="adcp.signing.extract_signature_bytes" href="#adcp.signing.extract_signature_bytes">extract_signature_bytes</a></code></li>
 <li><code><a title="adcp.signing.format_signature_header" href="#adcp.signing.format_signature_header">format_signature_header</a></code></li>
+<li><code><a title="adcp.signing.load_private_key_pem" href="#adcp.signing.load_private_key_pem">load_private_key_pem</a></code></li>
 <li><code><a title="adcp.signing.operation_needs_signing" href="#adcp.signing.operation_needs_signing">operation_needs_signing</a></code></li>
 <li><code><a title="adcp.signing.parse_signature_input_header" href="#adcp.signing.parse_signature_input_header">parse_signature_input_header</a></code></li>
 <li><code><a title="adcp.signing.private_key_from_jwk" href="#adcp.signing.private_key_from_jwk">private_key_from_jwk</a></code></li>
@@ -3553,6 +4114,17 @@ class VerifyOptions:
 </li>
 <li>
 <h4><code><a title="adcp.signing.JwsUnknownKeyError" href="#adcp.signing.JwsUnknownKeyError">JwsUnknownKeyError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.PgReplayStore" href="#adcp.signing.PgReplayStore">PgReplayStore</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.signing.PgReplayStore.at_capacity" href="#adcp.signing.PgReplayStore.at_capacity">at_capacity</a></code></li>
+<li><code><a title="adcp.signing.PgReplayStore.create_schema" href="#adcp.signing.PgReplayStore.create_schema">create_schema</a></code></li>
+<li><code><a title="adcp.signing.PgReplayStore.live_count" href="#adcp.signing.PgReplayStore.live_count">live_count</a></code></li>
+<li><code><a title="adcp.signing.PgReplayStore.remember" href="#adcp.signing.PgReplayStore.remember">remember</a></code></li>
+<li><code><a title="adcp.signing.PgReplayStore.seen" href="#adcp.signing.PgReplayStore.seen">seen</a></code></li>
+<li><code><a title="adcp.signing.PgReplayStore.sweep_expired" href="#adcp.signing.PgReplayStore.sweep_expired">sweep_expired</a></code></li>
+</ul>
 </li>
 <li>
 <h4><code><a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a></code></h4>

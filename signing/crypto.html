@@ -167,6 +167,83 @@ are accepted here (standard tried first; url as fallback).</p></div>
 </details>
 <div class="desc"><p>Produce a Signature header value for a single-label signature.</p></div>
 </dd>
+<dt id="adcp.signing.crypto.load_private_key_pem"><code class="name flex">
+<span>def <span class="ident">load_private_key_pem</span></span>(<span>pem: bytes, *, password: bytes | None = None) ‑> cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey | cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def load_private_key_pem(pem: bytes, *, password: bytes | None = None) -&gt; PrivateKey:
+    &#34;&#34;&#34;Load an Ed25519 or P-256 private key from PKCS8 PEM bytes.
+
+    Closes the loop between ``adcp-keygen`` (which writes a PEM) and
+    :func:`sign_request` (which takes a ``PrivateKey`` object), so
+    integrators don&#39;t need a direct ``cryptography`` import just to
+    rehydrate the key.
+
+    Parameters
+    ----------
+    pem:
+        PEM-encoded PKCS8 private key as bytes. Read via
+        ``pathlib.Path(...).read_bytes()``.
+    password:
+        Passphrase if the PEM is encrypted (``adcp-keygen --encrypt``).
+        Passed through to the cryptography loader as bytes.
+
+    Returns
+    -------
+    PrivateKey
+        An :class:`Ed25519PrivateKey` or
+        :class:`EllipticCurvePrivateKey` ready to pass into
+        :func:`sign_request`.
+
+    Raises
+    ------
+    ValueError
+        The PEM is not Ed25519 or ES256 (P-256). These are the only
+        algorithms the AdCP request-signing profile allows.
+    &#34;&#34;&#34;
+    key = serialization.load_pem_private_key(pem, password=password)
+    if not isinstance(key, (ed25519.Ed25519PrivateKey, ec.EllipticCurvePrivateKey)):
+        raise ValueError(
+            f&#34;unsupported private key type {type(key).__name__} — &#34;
+            f&#34;AdCP signing accepts Ed25519 or ECDSA-P-256 only&#34;
+        )
+    if isinstance(key, ec.EllipticCurvePrivateKey) and not isinstance(key.curve, ec.SECP256R1):
+        raise ValueError(
+            f&#34;EC key curve {key.curve.name} is not supported — only &#34;
+            f&#34;P-256 (SECP256R1) is allowed&#34;
+        )
+    return key</code></pre>
+</details>
+<div class="desc"><p>Load an Ed25519 or P-256 private key from PKCS8 PEM bytes.</p>
+<p>Closes the loop between <code>adcp-keygen</code> (which writes a PEM) and
+:func:<code>sign_request</code> (which takes a <code>PrivateKey</code> object), so
+integrators don't need a direct <code>cryptography</code> import just to
+rehydrate the key.</p>
+<h2 id="parameters">Parameters</h2>
+<p>pem:
+PEM-encoded PKCS8 private key as bytes. Read via
+<code>pathlib.Path(&hellip;).read_bytes()</code>.
+password:
+Passphrase if the PEM is encrypted (<code>adcp-keygen --encrypt</code>).
+Passed through to the cryptography loader as bytes.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>PrivateKey</code></dt>
+<dd>An :class:<code>Ed25519PrivateKey</code> or
+:class:<code>EllipticCurvePrivateKey</code> ready to pass into
+:func:<code>sign_request</code>.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd>The PEM is not Ed25519 or ES256 (P-256). These are the only
+algorithms the AdCP request-signing profile allows.</dd>
+</dl></div>
+</dd>
 <dt id="adcp.signing.crypto.private_key_from_jwk"><code class="name flex">
 <span>def <span class="ident">private_key_from_jwk</span></span>(<span>jwk: dict[str, Any], *, d_field: str = 'd') ‑> cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey | cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey</span>
 </code></dt>
@@ -339,6 +416,7 @@ that the keys are not production-grade.</p></div>
 <li><code><a title="adcp.signing.crypto.encode_dss_signature" href="#adcp.signing.crypto.encode_dss_signature">encode_dss_signature</a></code></li>
 <li><code><a title="adcp.signing.crypto.extract_signature_bytes" href="#adcp.signing.crypto.extract_signature_bytes">extract_signature_bytes</a></code></li>
 <li><code><a title="adcp.signing.crypto.format_signature_header" href="#adcp.signing.crypto.format_signature_header">format_signature_header</a></code></li>
+<li><code><a title="adcp.signing.crypto.load_private_key_pem" href="#adcp.signing.crypto.load_private_key_pem">load_private_key_pem</a></code></li>
 <li><code><a title="adcp.signing.crypto.private_key_from_jwk" href="#adcp.signing.crypto.private_key_from_jwk">private_key_from_jwk</a></code></li>
 <li><code><a title="adcp.signing.crypto.public_key_from_jwk" href="#adcp.signing.crypto.public_key_from_jwk">public_key_from_jwk</a></code></li>
 <li><code><a title="adcp.signing.crypto.sign_signature_base" href="#adcp.signing.crypto.sign_signature_base">sign_signature_base</a></code></li>

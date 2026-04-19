@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing.pg API documentation</title>
+<meta name="description" content="PostgreSQL-backed implementations for the signing module …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing.pg</code></h1>
+</header>
+<section id="section-intro">
+<p>PostgreSQL-backed implementations for the signing module.</p>
+<p>This sub-package ships backends that require PostgreSQL via psycopg3.
+They live here (and behind the <code>[pg]</code> optional extra) so the base
+<code><a title="adcp.signing" href="../index.html">adcp.signing</a></code> import path stays free of SQL dependencies for users
+who only need the pure-Python primitives.</p>
+<p>Available when <code><a title="adcp" href="../../index.html">adcp</a>[pg]</code> is installed:</p>
+<ul>
+<li>:class:<code><a title="adcp.signing.pg.PgReplayStore" href="#adcp.signing.pg.PgReplayStore">PgReplayStore</a></code> — multi-instance-safe replay store for the
+RFC 9421 verifier pipeline.</li>
+</ul>
+<p>The schema DDL ships alongside the Python code at
+<code>adcp/signing/pg/replay_store.sql</code> so integrators can run it through
+whatever migration tool they use (Alembic, Flyway, psql, &hellip;).</p>
+</section>
+<section>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
+<dl>
+<dt><code class="name"><a title="adcp.signing.pg.replay_store" href="replay_store.html">adcp.signing.pg.replay_store</a></code></dt>
+<dd>
+<div class="desc"><p>PostgreSQL-backed :class:<code>~adcp.signing.ReplayStore</code> implementation …</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.signing.pg.PgReplayStore"><code class="flex name class">
+<span>class <span class="ident">PgReplayStore</span></span>
+<span>(</span><span>*,<br>pool: ConnectionPool,<br>per_keyid_cap: int = 1000000,<br>table_name: str = 'adcp_replay')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PgReplayStore:
+    &#34;&#34;&#34;PostgreSQL-backed replay store implementing :class:`ReplayStore`.
+
+    Parameters
+    ----------
+    pool:
+        A :class:`psycopg_pool.ConnectionPool` owned by the caller. Each
+        operation acquires a short-lived connection, runs a single
+        statement, and returns the connection. No long-lived
+        transactions, no cross-operation state.
+    per_keyid_cap:
+        Maximum number of live (non-expired) nonces per ``keyid``.
+        Mirrors :class:`InMemoryReplayStore`; spec-recommended 1M.
+        When :meth:`at_capacity` reports True, the verifier rejects
+        with ``request_signature_rate_abuse`` rather than silently
+        evicting older entries (which would create a replay window
+        under attack).
+    table_name:
+        Override the default ``adcp_replay`` table if two tenants share
+        a database and need separate replay stores. Must be a
+        byte-equal-clean identifier — we don&#39;t quote it into the SQL
+        dynamically for obvious injection reasons; the constructor
+        validates shape.
+
+    Concurrency
+    -----------
+
+    Safe to share across threads and processes. Postgres provides the
+    cross-instance locking we need via PK conflict resolution on
+    ``INSERT ... ON CONFLICT``.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        pool: ConnectionPool,
+        per_keyid_cap: int = 1_000_000,
+        table_name: str = DEFAULT_TABLE_NAME,
+    ) -&gt; None:
+        if not PG_AVAILABLE:
+            raise ImportError(_INSTALL_HINT)
+        if not _is_safe_identifier(table_name):
+            raise ValueError(
+                f&#34;table_name must match [a-z_][a-z0-9_]* (ASCII only), &#34; f&#34;got {table_name!r}&#34;
+            )
+        self._pool = pool
+        self._per_keyid_cap = per_keyid_cap
+        self._table = table_name
+
+        # Pre-format queries with the validated table name so the hot
+        # path doesn&#39;t f-string per call.
+        self._sql_seen = (
+            f&#34;SELECT 1 FROM {self._table} &#34;  # noqa: S608 — table name is whitelisted
+            f&#34;WHERE keyid = %s AND nonce = %s AND expires_at &gt; now()&#34;
+        )
+        # ``WHERE EXCLUDED.expires_at &gt; {table}.expires_at`` avoids write
+        # amplification on the common case (a row is already present
+        # with a later-or-equal expiry). Without the predicate, every
+        # remember() would re-write the MVCC tuple even when the new
+        # TTL is shorter or equal.
+        self._sql_remember = (
+            f&#34;INSERT INTO {self._table} (keyid, nonce, expires_at) &#34;  # noqa: S608
+            f&#34;VALUES (%s, %s, now() + make_interval(secs =&gt; %s)) &#34;
+            f&#34;ON CONFLICT (keyid, nonce) DO UPDATE &#34;
+            f&#34;SET expires_at = EXCLUDED.expires_at &#34;
+            f&#34;WHERE EXCLUDED.expires_at &gt; {self._table}.expires_at&#34;
+        )
+        self._sql_at_capacity = (
+            f&#34;SELECT COUNT(*) &gt;= %s FROM {self._table} &#34;  # noqa: S608
+            f&#34;WHERE keyid = %s AND expires_at &gt; now()&#34;
+        )
+        self._sql_sweep = f&#34;DELETE FROM {self._table} WHERE expires_at &lt;= now()&#34;  # noqa: S608
+
+    # -- schema bootstrap --------------------------------------------
+
+    def create_schema(self) -&gt; None:
+        &#34;&#34;&#34;Create the replay table + indexes for this store&#39;s ``table_name``.
+
+        Honors the ``table_name`` kwarg the store was constructed with —
+        integrators using per-tenant tables get the right DDL without
+        extra plumbing. Idempotent via ``CREATE ... IF NOT EXISTS``;
+        safe to call on every app boot.
+
+        The equivalent raw DDL ships at
+        :file:`src/adcp/signing/pg/replay_store.sql` for integrators
+        using a migration tool (Alembic, Flyway, psql) — that file
+        uses the canonical ``adcp_replay`` name.
+        &#34;&#34;&#34;
+        table = self._table  # already validated at __init__
+        ddl = (
+            f&#34;CREATE TABLE IF NOT EXISTS {table} (&#34;  # noqa: S608 — validated
+            f&#39;    keyid      TEXT        COLLATE &#34;C&#34; NOT NULL,&#39;
+            f&#39;    nonce      TEXT        COLLATE &#34;C&#34; NOT NULL,&#39;
+            f&#34;    expires_at TIMESTAMPTZ NOT NULL,&#34;
+            f&#34;    PRIMARY KEY (keyid, nonce)&#34;
+            f&#34;);&#34;
+            f&#34;CREATE INDEX IF NOT EXISTS {table}_expires_idx &#34;  # noqa: S608
+            f&#34;    ON {table} (expires_at);&#34;
+        )
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(ddl)
+
+    # -- ReplayStore Protocol -----------------------------------------
+
+    def seen(self, keyid: str, nonce: str) -&gt; bool:
+        &#34;&#34;&#34;Return True iff ``(keyid, nonce)`` has a live entry.&#34;&#34;&#34;
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._sql_seen, (keyid, nonce))
+            return cur.fetchone() is not None
+
+    def remember(self, keyid: str, nonce: str, ttl_seconds: float) -&gt; None:
+        &#34;&#34;&#34;Record ``(keyid, nonce)`` with a TTL.
+
+        ``ON CONFLICT ... DO UPDATE`` refreshes the expiry on a
+        legitimate retry of the same nonce in-window — matches
+        :class:`InMemoryReplayStore` behavior.
+        &#34;&#34;&#34;
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._sql_remember, (keyid, nonce, ttl_seconds))
+
+    def at_capacity(self, keyid: str) -&gt; bool:
+        &#34;&#34;&#34;Return True iff the live row count for ``keyid`` meets the cap.
+
+        Implementation note: ``COUNT(*) &gt;= cap`` uses the PK for the
+        keyid filter and the expires index for the time predicate.
+        For the spec-recommended 1M cap, the expensive case is exactly
+        when a signer is misbehaving, so paying for accuracy is the
+        right trade.
+
+        For deployments that need faster short-circuiting on a hot
+        keyid, an alternative shape is::
+
+            SELECT 1 FROM {table}
+             WHERE keyid = %s AND expires_at &gt; now()
+             OFFSET %s LIMIT 1
+
+        which stops scanning once ``cap+1`` rows are seen. Swap in if
+        profiling identifies ``at_capacity`` as hot.
+        &#34;&#34;&#34;
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._sql_at_capacity, (self._per_keyid_cap, keyid))
+            row = cur.fetchone()
+            return bool(row[0]) if row is not None else False
+
+    # -- admin / cron ------------------------------------------------
+
+    def sweep_expired(self) -&gt; int:
+        &#34;&#34;&#34;Delete all rows whose ``expires_at`` is in the past.
+
+        Returns the number of rows removed. Safe to call concurrently
+        with :meth:`seen` / :meth:`remember`.
+
+        Call from a cron or admin endpoint. :meth:`seen` self-filters
+        so expired rows never cause false positives, but they do
+        accumulate and grow the table.
+        &#34;&#34;&#34;
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(self._sql_sweep)
+            return cur.rowcount or 0
+
+    def live_count(self, keyid: str) -&gt; int:
+        &#34;&#34;&#34;Return the number of live (non-expired) rows for ``keyid``.
+
+        Mostly useful for tests, monitoring, and admin tooling. Not on
+        the :class:`ReplayStore` Protocol — hit-path code should call
+        :meth:`at_capacity` which short-circuits at the cap without
+        materializing the count.
+        &#34;&#34;&#34;
+        sql = (
+            f&#34;SELECT COUNT(*) FROM {self._table} &#34;  # noqa: S608
+            f&#34;WHERE keyid = %s AND expires_at &gt; now()&#34;
+        )
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(sql, (keyid,))
+            row = cur.fetchone()
+            return int(row[0]) if row is not None else 0</code></pre>
+</details>
+<div class="desc"><p>PostgreSQL-backed replay store implementing :class:<code>ReplayStore</code>.</p>
+<h2 id="parameters">Parameters</h2>
+<p>pool:
+A :class:<code>psycopg_pool.ConnectionPool</code> owned by the caller. Each
+operation acquires a short-lived connection, runs a single
+statement, and returns the connection. No long-lived
+transactions, no cross-operation state.
+per_keyid_cap:
+Maximum number of live (non-expired) nonces per <code>keyid</code>.
+Mirrors :class:<code>InMemoryReplayStore</code>; spec-recommended 1M.
+When :meth:<code>at_capacity</code> reports True, the verifier rejects
+with <code>request_signature_rate_abuse</code> rather than silently
+evicting older entries (which would create a replay window
+under attack).
+table_name:
+Override the default <code>adcp_replay</code> table if two tenants share
+a database and need separate replay stores. Must be a
+byte-equal-clean identifier — we don't quote it into the SQL
+dynamically for obvious injection reasons; the constructor
+validates shape.</p>
+<h2 id="concurrency">Concurrency</h2>
+<p>Safe to share across threads and processes. Postgres provides the
+cross-instance locking we need via PK conflict resolution on
+<code>INSERT &hellip; ON CONFLICT</code>.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.pg.PgReplayStore.at_capacity"><code class="name flex">
+<span>def <span class="ident">at_capacity</span></span>(<span>self, keyid: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def at_capacity(self, keyid: str) -&gt; bool:
+    &#34;&#34;&#34;Return True iff the live row count for ``keyid`` meets the cap.
+
+    Implementation note: ``COUNT(*) &gt;= cap`` uses the PK for the
+    keyid filter and the expires index for the time predicate.
+    For the spec-recommended 1M cap, the expensive case is exactly
+    when a signer is misbehaving, so paying for accuracy is the
+    right trade.
+
+    For deployments that need faster short-circuiting on a hot
+    keyid, an alternative shape is::
+
+        SELECT 1 FROM {table}
+         WHERE keyid = %s AND expires_at &gt; now()
+         OFFSET %s LIMIT 1
+
+    which stops scanning once ``cap+1`` rows are seen. Swap in if
+    profiling identifies ``at_capacity`` as hot.
+    &#34;&#34;&#34;
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(self._sql_at_capacity, (self._per_keyid_cap, keyid))
+        row = cur.fetchone()
+        return bool(row[0]) if row is not None else False</code></pre>
+</details>
+<div class="desc"><p>Return True iff the live row count for <code>keyid</code> meets the cap.</p>
+<p>Implementation note: <code>COUNT(*) &gt;= cap</code> uses the PK for the
+keyid filter and the expires index for the time predicate.
+For the spec-recommended 1M cap, the expensive case is exactly
+when a signer is misbehaving, so paying for accuracy is the
+right trade.</p>
+<p>For deployments that need faster short-circuiting on a hot
+keyid, an alternative shape is::</p>
+<pre><code>SELECT 1 FROM {table}
+ WHERE keyid = %s AND expires_at &gt; now()
+ OFFSET %s LIMIT 1
+</code></pre>
+<p>which stops scanning once <code>cap+1</code> rows are seen. Swap in if
+profiling identifies <code>at_capacity</code> as hot.</p></div>
+</dd>
+<dt id="adcp.signing.pg.PgReplayStore.create_schema"><code class="name flex">
+<span>def <span class="ident">create_schema</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_schema(self) -&gt; None:
+    &#34;&#34;&#34;Create the replay table + indexes for this store&#39;s ``table_name``.
+
+    Honors the ``table_name`` kwarg the store was constructed with —
+    integrators using per-tenant tables get the right DDL without
+    extra plumbing. Idempotent via ``CREATE ... IF NOT EXISTS``;
+    safe to call on every app boot.
+
+    The equivalent raw DDL ships at
+    :file:`src/adcp/signing/pg/replay_store.sql` for integrators
+    using a migration tool (Alembic, Flyway, psql) — that file
+    uses the canonical ``adcp_replay`` name.
+    &#34;&#34;&#34;
+    table = self._table  # already validated at __init__
+    ddl = (
+        f&#34;CREATE TABLE IF NOT EXISTS {table} (&#34;  # noqa: S608 — validated
+        f&#39;    keyid      TEXT        COLLATE &#34;C&#34; NOT NULL,&#39;
+        f&#39;    nonce      TEXT        COLLATE &#34;C&#34; NOT NULL,&#39;
+        f&#34;    expires_at TIMESTAMPTZ NOT NULL,&#34;
+        f&#34;    PRIMARY KEY (keyid, nonce)&#34;
+        f&#34;);&#34;
+        f&#34;CREATE INDEX IF NOT EXISTS {table}_expires_idx &#34;  # noqa: S608
+        f&#34;    ON {table} (expires_at);&#34;
+    )
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(ddl)</code></pre>
+</details>
+<div class="desc"><p>Create the replay table + indexes for this store's <code>table_name</code>.</p>
+<p>Honors the <code>table_name</code> kwarg the store was constructed with —
+integrators using per-tenant tables get the right DDL without
+extra plumbing. Idempotent via <code>CREATE &hellip; IF NOT EXISTS</code>;
+safe to call on every app boot.</p>
+<p>The equivalent raw DDL ships at
+:file:<code>src/adcp/signing/pg/replay_store.sql</code> for integrators
+using a migration tool (Alembic, Flyway, psql) — that file
+uses the canonical <code>adcp_replay</code> name.</p></div>
+</dd>
+<dt id="adcp.signing.pg.PgReplayStore.live_count"><code class="name flex">
+<span>def <span class="ident">live_count</span></span>(<span>self, keyid: str) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def live_count(self, keyid: str) -&gt; int:
+    &#34;&#34;&#34;Return the number of live (non-expired) rows for ``keyid``.
+
+    Mostly useful for tests, monitoring, and admin tooling. Not on
+    the :class:`ReplayStore` Protocol — hit-path code should call
+    :meth:`at_capacity` which short-circuits at the cap without
+    materializing the count.
+    &#34;&#34;&#34;
+    sql = (
+        f&#34;SELECT COUNT(*) FROM {self._table} &#34;  # noqa: S608
+        f&#34;WHERE keyid = %s AND expires_at &gt; now()&#34;
+    )
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(sql, (keyid,))
+        row = cur.fetchone()
+        return int(row[0]) if row is not None else 0</code></pre>
+</details>
+<div class="desc"><p>Return the number of live (non-expired) rows for <code>keyid</code>.</p>
+<p>Mostly useful for tests, monitoring, and admin tooling. Not on
+the :class:<code>ReplayStore</code> Protocol — hit-path code should call
+:meth:<code>at_capacity</code> which short-circuits at the cap without
+materializing the count.</p></div>
+</dd>
+<dt id="adcp.signing.pg.PgReplayStore.remember"><code class="name flex">
+<span>def <span class="ident">remember</span></span>(<span>self, keyid: str, nonce: str, ttl_seconds: float) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remember(self, keyid: str, nonce: str, ttl_seconds: float) -&gt; None:
+    &#34;&#34;&#34;Record ``(keyid, nonce)`` with a TTL.
+
+    ``ON CONFLICT ... DO UPDATE`` refreshes the expiry on a
+    legitimate retry of the same nonce in-window — matches
+    :class:`InMemoryReplayStore` behavior.
+    &#34;&#34;&#34;
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(self._sql_remember, (keyid, nonce, ttl_seconds))</code></pre>
+</details>
+<div class="desc"><p>Record <code>(keyid, nonce)</code> with a TTL.</p>
+<p><code>ON CONFLICT &hellip; DO UPDATE</code> refreshes the expiry on a
+legitimate retry of the same nonce in-window — matches
+:class:<code>InMemoryReplayStore</code> behavior.</p></div>
+</dd>
+<dt id="adcp.signing.pg.PgReplayStore.seen"><code class="name flex">
+<span>def <span class="ident">seen</span></span>(<span>self, keyid: str, nonce: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def seen(self, keyid: str, nonce: str) -&gt; bool:
+    &#34;&#34;&#34;Return True iff ``(keyid, nonce)`` has a live entry.&#34;&#34;&#34;
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(self._sql_seen, (keyid, nonce))
+        return cur.fetchone() is not None</code></pre>
+</details>
+<div class="desc"><p>Return True iff <code>(keyid, nonce)</code> has a live entry.</p></div>
+</dd>
+<dt id="adcp.signing.pg.PgReplayStore.sweep_expired"><code class="name flex">
+<span>def <span class="ident">sweep_expired</span></span>(<span>self) ‑> int</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sweep_expired(self) -&gt; int:
+    &#34;&#34;&#34;Delete all rows whose ``expires_at`` is in the past.
+
+    Returns the number of rows removed. Safe to call concurrently
+    with :meth:`seen` / :meth:`remember`.
+
+    Call from a cron or admin endpoint. :meth:`seen` self-filters
+    so expired rows never cause false positives, but they do
+    accumulate and grow the table.
+    &#34;&#34;&#34;
+    with self._pool.connection() as conn, conn.cursor() as cur:
+        cur.execute(self._sql_sweep)
+        return cur.rowcount or 0</code></pre>
+</details>
+<div class="desc"><p>Delete all rows whose <code>expires_at</code> is in the past.</p>
+<p>Returns the number of rows removed. Safe to call concurrently
+with :meth:<code>seen</code> / :meth:<code>remember</code>.</p>
+<p>Call from a cron or admin endpoint. :meth:<code>seen</code> self-filters
+so expired rows never cause false positives, but they do
+accumulate and grow the table.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.signing" href="../index.html">adcp.signing</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
+<ul>
+<li><code><a title="adcp.signing.pg.replay_store" href="replay_store.html">adcp.signing.pg.replay_store</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.signing.pg.PgReplayStore" href="#adcp.signing.pg.PgReplayStore">PgReplayStore</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.signing.pg.PgReplayStore.at_capacity" href="#adcp.signing.pg.PgReplayStore.at_capacity">at_capacity</a></code></li>
+<li><code><a title="adcp.signing.pg.PgReplayStore.create_schema" href="#adcp.signing.pg.PgReplayStore.create_schema">create_schema</a></code></li>
+<li><code><a title="adcp.signing.pg.PgReplayStore.live_count" href="#adcp.signing.pg.PgReplayStore.live_count">live_count</a></code></li>
+<li><code><a title="adcp.signing.pg.PgReplayStore.remember" href="#adcp.signing.pg.PgReplayStore.remember">remember</a></code></li>
+<li><code><a title="adcp.signing.pg.PgReplayStore.seen" href="#adcp.signing.pg.PgReplayStore.seen">seen</a></code></li>
+<li><code><a title="adcp.signing.pg.PgReplayStore.sweep_expired" href="#adcp.signing.pg.PgReplayStore.sweep_expired">sweep_expired</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

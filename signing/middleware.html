@@ -91,10 +91,28 @@ realm) — <code><a title="adcp.signing.middleware.unauthorized_response_headers
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def verify_starlette_request(request: Any, *, options: VerifyOptions) -&gt; VerifiedSigner:
-    &#34;&#34;&#34;Verify a Starlette / FastAPI `Request` object against the AdCP profile.
+    &#34;&#34;&#34;Verify a Starlette / FastAPI ``Request`` object against the AdCP profile.
 
-    Consumes `await request.body()` — if downstream code also needs the body,
-    it must read `request.state` or the returned `VerifiedSigner`-side context.
+    Consumes ``await request.body()`` once — Starlette caches the result
+    internally, so downstream handlers calling ``request.body()`` or
+    ``request.json()`` again will get the same bytes. If your handler
+    needs the parsed body AFTER this verifier succeeds, call
+    ``await request.body()`` yourself downstream; there&#39;s no hidden
+    side channel on the returned :class:`VerifiedSigner`.
+
+    Returns
+    -------
+    VerifiedSigner
+        On success — carries the verified ``key_id`` and metadata.
+
+    Raises
+    ------
+    SignatureVerificationError
+        On any failure of the AdCP verifier checklist. The ``.code``
+        attribute holds the spec&#39;s error code string (e.g.
+        ``request_signature_replayed``) and ``.step`` points at the
+        failed checklist step. Frameworks typically map this to a 401
+        with :func:`unauthorized_response_headers`.
     &#34;&#34;&#34;
     body = await request.body()
     return verify_request_signature(
@@ -106,8 +124,26 @@ realm) — <code><a title="adcp.signing.middleware.unauthorized_response_headers
     )</code></pre>
 </details>
 <div class="desc"><p>Verify a Starlette / FastAPI <code>Request</code> object against the AdCP profile.</p>
-<p>Consumes <code>await request.body()</code> — if downstream code also needs the body,
-it must read <code>request.state</code> or the returned <code>VerifiedSigner</code>-side context.</p></div>
+<p>Consumes <code>await request.body()</code> once — Starlette caches the result
+internally, so downstream handlers calling <code>request.body()</code> or
+<code>request.json()</code> again will get the same bytes. If your handler
+needs the parsed body AFTER this verifier succeeds, call
+<code>await request.body()</code> yourself downstream; there's no hidden
+side channel on the returned :class:<code>VerifiedSigner</code>.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>VerifiedSigner</code></dt>
+<dd>On success — carries the verified <code>key_id</code> and metadata.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>SignatureVerificationError</code></dt>
+<dd>On any failure of the AdCP verifier checklist. The <code>.code</code>
+attribute holds the spec's error code string (e.g.
+<code>request_signature_replayed</code>) and <code>.step</code> points at the
+failed checklist step. Frameworks typically map this to a 401
+with :func:<code><a title="adcp.signing.middleware.unauthorized_response_headers" href="#adcp.signing.middleware.unauthorized_response_headers">unauthorized_response_headers()</a></code>.</dd>
+</dl></div>
 </dd>
 </dl>
 </section>
