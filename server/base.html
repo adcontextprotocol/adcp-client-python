@@ -1875,6 +1875,16 @@ class ToolContext:
 
     Contains metadata about the current request that may be useful
     for logging, authorization, or other cross-cutting concerns.
+
+    :param caller_identity: The authenticated principal making the request.
+        **MUST** be a stable, globally-unique identifier within the seller&#39;s
+        tenant — never an email, display name, or any other mutable handle.
+        The server-side idempotency middleware keys its cache by
+        ``(caller_identity, idempotency_key)`` — reuse of the same string for
+        two distinct principals (e.g. email reuse after account deletion)
+        causes cross-principal replay (confidentiality leak). Populated by
+        the transport layer (A2A: ``ServerCallContext.user.user_name``; MCP:
+        seller&#39;s FastMCP auth middleware).
     &#34;&#34;&#34;
 
     request_id: str | None = None
@@ -1883,7 +1893,16 @@ class ToolContext:
 </details>
 <div class="desc"><p>Context passed to tool handlers.</p>
 <p>Contains metadata about the current request that may be useful
-for logging, authorization, or other cross-cutting concerns.</p></div>
+for logging, authorization, or other cross-cutting concerns.</p>
+<p>:param caller_identity: The authenticated principal making the request.
+<strong>MUST</strong> be a stable, globally-unique identifier within the seller's
+tenant — never an email, display name, or any other mutable handle.
+The server-side idempotency middleware keys its cache by
+<code>(caller_identity, idempotency_key)</code> — reuse of the same string for
+two distinct principals (e.g. email reuse after account deletion)
+causes cross-principal replay (confidentiality leak). Populated by
+the transport layer (A2A: <code>ServerCallContext.user.user_name</code>; MCP:
+seller's FastMCP auth middleware).</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="adcp.server.base.ToolContext.caller_identity"><code class="name">var <span class="ident">caller_identity</span> : str | None</code></dt>

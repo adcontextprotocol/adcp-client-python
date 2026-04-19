@@ -178,7 +178,9 @@ serve(MyHandler(), name="my-agent", transport="a2a")
     def _register_test_controller(self, store: TestControllerStore) -&gt; None:
         &#34;&#34;&#34;Register comply_test_controller as a callable skill.&#34;&#34;&#34;
 
-        async def _call_test_controller(params: dict[str, Any]) -&gt; Any:
+        async def _call_test_controller(
+            params: dict[str, Any], context: ToolContext | None = None
+        ) -&gt; Any:
             return await _handle_test_controller(store, params)
 
         self._tool_callers[&#34;comply_test_controller&#34;] = _call_test_controller
@@ -201,8 +203,9 @@ serve(MyHandler(), name="my-agent", transport="a2a")
             )
             return
 
+        tool_context = _tool_context_from_request(context)
         try:
-            result = await self._tool_callers[skill_name](params)
+            result = await self._tool_callers[skill_name](params, tool_context)
             await self._send_result(event_queue, context, skill_name, result)
         except ADCPError as exc:
             # Application-layer AdCP error (IdempotencyConflictError etc.).
@@ -436,8 +439,9 @@ def supported_skills(self) -&gt; list[str]:
         )
         return
 
+    tool_context = _tool_context_from_request(context)
     try:
-        result = await self._tool_callers[skill_name](params)
+        result = await self._tool_callers[skill_name](params, tool_context)
         await self._send_result(event_queue, context, skill_name, result)
     except ADCPError as exc:
         # Application-layer AdCP error (IdempotencyConflictError etc.).

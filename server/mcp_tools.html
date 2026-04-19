@@ -117,7 +117,7 @@ async def call_tool(name: str, arguments: dict):
 <p>MCPToolSet with tool definitions and handlers</p></div>
 </dd>
 <dt id="adcp.server.mcp_tools.create_tool_caller"><code class="name flex">
-<span>def <span class="ident">create_tool_caller</span></span>(<span>handler: ADCPHandler, method_name: str) ‑> Callable[[dict[str, typing.Any]], typing.Any]</span>
+<span>def <span class="ident">create_tool_caller</span></span>(<span>handler: ADCPHandler, method_name: str) ‑> Callable[..., typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -127,7 +127,7 @@ async def call_tool(name: str, arguments: dict):
 <pre><code class="python">def create_tool_caller(
     handler: ADCPHandler,
     method_name: str,
-) -&gt; Callable[[dict[str, Any]], Any]:
+) -&gt; Callable[..., Any]:
     &#34;&#34;&#34;Create a tool caller function for an ADCP handler method.
 
     Automatically injects context passthrough: if the request contains a
@@ -139,15 +139,23 @@ async def call_tool(name: str, arguments: dict):
         method_name: Name of the method to call
 
     Returns:
-        Async callable that invokes the handler method
+        Async callable ``call_tool(params, context=None)``. The ``context``
+        parameter is optional — transports that can extract caller identity
+        from their auth layer (A2A&#39;s ``ServerCallContext.user``, custom
+        FastMCP auth middleware, etc.) should pass a populated
+        :class:`ToolContext` so the server middleware layer (idempotency
+        per-principal scoping, audit logging) gets the real principal. When
+        no context is supplied, a bare :class:`ToolContext` is used.
     &#34;&#34;&#34;
     from adcp.server.helpers import inject_context
 
     method = getattr(handler, method_name)
 
-    async def call_tool(params: dict[str, Any]) -&gt; Any:
-        context = ToolContext()
-        result = await method(params, context)
+    async def call_tool(
+        params: dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        ctx = context if context is not None else ToolContext()
+        result = await method(params, ctx)
         # Convert Pydantic models to JSON-safe dicts for MCP serialization
         if hasattr(result, &#34;model_dump&#34;):
             result = result.model_dump(mode=&#34;json&#34;, exclude_none=True)
@@ -170,7 +178,13 @@ Handlers no longer need to call <code>inject_context()</code> manually.</p>
 <dd>Name of the method to call</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>Async callable that invokes the handler method</p></div>
+<p>Async callable <code>call_tool(params, context=None)</code>. The <code>context</code>
+parameter is optional — transports that can extract caller identity
+from their auth layer (A2A's <code>ServerCallContext.user</code>, custom
+FastMCP auth middleware, etc.) should pass a populated
+:class:<code>ToolContext</code> so the server middleware layer (idempotency
+per-principal scoping, audit logging) gets the real principal. When
+no context is supplied, a bare :class:<code>ToolContext</code> is used.</p></div>
 </dd>
 <dt id="adcp.server.mcp_tools.get_tools_for_handler"><code class="name flex">
 <span>def <span class="ident">get_tools_for_handler</span></span>(<span>handler: ADCPHandler | type[ADCPHandler]) ‑> list[dict[str, typing.Any]]</span>
@@ -243,7 +257,7 @@ ADCPHandler gets all tools. Unknown handlers get only protocol discovery
         &#34;&#34;&#34;
         self.handler = handler
         self._filtered_definitions = get_tools_for_handler(handler)
-        self._tools: dict[str, Callable[[dict[str, Any]], Any]] = {}
+        self._tools: dict[str, Callable[..., Any]] = {}
 
         # Create tool callers only for filtered tools
         for tool_def in self._filtered_definitions:

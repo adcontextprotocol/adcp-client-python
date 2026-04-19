@@ -519,8 +519,34 @@ the write itself.</p></div>
             # per-principal scope; anything else is a cross-principal replay
             # attack surface. Fall through to the handler (which will process
             # the request normally — no dedup, but no security regression).
+            self._warn_missing_principal_once()
             return None, None, params_dict
-        return principal_id, idempotency_key, params_dict</code></pre>
+        return principal_id, idempotency_key, params_dict
+
+    _missing_principal_warned: bool = False
+
+    def _warn_missing_principal_once(self) -&gt; None:
+        &#34;&#34;&#34;Emit a one-time warning when the middleware sees a key but no principal.
+
+        Silent fall-through is the worst DX: the seller drops in
+        ``@idempotency.wrap``, ships, and doesn&#39;t discover until incident
+        review that no dedup ever happened. Fire once per store instance so
+        operators see the signal without filling logs on every request.
+        &#34;&#34;&#34;
+        if self._missing_principal_warned:
+            return
+        self._missing_principal_warned = True
+        warnings.warn(
+            &#34;IdempotencyStore received a request with idempotency_key but no &#34;
+            &#34;caller_identity on ToolContext — dedup is SKIPPED. This usually &#34;
+            &#34;means your transport isn&#39;t populating the authenticated principal. &#34;
+            &#34;A2A: wire an a2a-sdk auth middleware that sets ServerCallContext.user; &#34;
+            &#34;MCP: populate ToolContext.caller_identity from your FastMCP auth &#34;
+            &#34;middleware (see adcp.server.idempotency README). &#34;
+            &#34;This warning fires once per IdempotencyStore instance.&#34;,
+            UserWarning,
+            stacklevel=3,
+        )</code></pre>
 </details>
 <div class="desc"><p>Coordinator that binds canonical hashing to a storage backend.</p>
 <p>:param backend: A concrete :class:<code><a title="adcp.server.idempotency.IdempotencyBackend" href="#adcp.server.idempotency.IdempotencyBackend">IdempotencyBackend</a></code>.

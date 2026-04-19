@@ -1749,7 +1749,9 @@ whose corresponding handler methods are not overridden from the base class.</p>
     def _register_test_controller(self, store: TestControllerStore) -&gt; None:
         &#34;&#34;&#34;Register comply_test_controller as a callable skill.&#34;&#34;&#34;
 
-        async def _call_test_controller(params: dict[str, Any]) -&gt; Any:
+        async def _call_test_controller(
+            params: dict[str, Any], context: ToolContext | None = None
+        ) -&gt; Any:
             return await _handle_test_controller(store, params)
 
         self._tool_callers[&#34;comply_test_controller&#34;] = _call_test_controller
@@ -1772,8 +1774,9 @@ whose corresponding handler methods are not overridden from the base class.</p>
             )
             return
 
+        tool_context = _tool_context_from_request(context)
         try:
-            result = await self._tool_callers[skill_name](params)
+            result = await self._tool_callers[skill_name](params, tool_context)
             await self._send_result(event_queue, context, skill_name, result)
         except ADCPError as exc:
             # Application-layer AdCP error (IdempotencyConflictError etc.).
@@ -2007,8 +2010,9 @@ def supported_skills(self) -&gt; list[str]:
         )
         return
 
+    tool_context = _tool_context_from_request(context)
     try:
-        result = await self._tool_callers[skill_name](params)
+        result = await self._tool_callers[skill_name](params, tool_context)
         await self._send_result(event_queue, context, skill_name, result)
     except ADCPError as exc:
         # Application-layer AdCP error (IdempotencyConflictError etc.).
@@ -5863,8 +5867,34 @@ async def handle_update_property_list(
             # per-principal scope; anything else is a cross-principal replay
             # attack surface. Fall through to the handler (which will process
             # the request normally — no dedup, but no security regression).
+            self._warn_missing_principal_once()
             return None, None, params_dict
-        return principal_id, idempotency_key, params_dict</code></pre>
+        return principal_id, idempotency_key, params_dict
+
+    _missing_principal_warned: bool = False
+
+    def _warn_missing_principal_once(self) -&gt; None:
+        &#34;&#34;&#34;Emit a one-time warning when the middleware sees a key but no principal.
+
+        Silent fall-through is the worst DX: the seller drops in
+        ``@idempotency.wrap``, ships, and doesn&#39;t discover until incident
+        review that no dedup ever happened. Fire once per store instance so
+        operators see the signal without filling logs on every request.
+        &#34;&#34;&#34;
+        if self._missing_principal_warned:
+            return
+        self._missing_principal_warned = True
+        warnings.warn(
+            &#34;IdempotencyStore received a request with idempotency_key but no &#34;
+            &#34;caller_identity on ToolContext — dedup is SKIPPED. This usually &#34;
+            &#34;means your transport isn&#39;t populating the authenticated principal. &#34;
+            &#34;A2A: wire an a2a-sdk auth middleware that sets ServerCallContext.user; &#34;
+            &#34;MCP: populate ToolContext.caller_identity from your FastMCP auth &#34;
+            &#34;middleware (see adcp.server.idempotency README). &#34;
+            &#34;This warning fires once per IdempotencyStore instance.&#34;,
+            UserWarning,
+            stacklevel=3,
+        )</code></pre>
 </details>
 <div class="desc"><p>Coordinator that binds canonical hashing to a storage backend.</p>
 <p>:param backend: A concrete :class:<code>IdempotencyBackend</code>.
@@ -6040,7 +6070,7 @@ that return raw dicts get dicts back.</p></div>
         &#34;&#34;&#34;
         self.handler = handler
         self._filtered_definitions = get_tools_for_handler(handler)
-        self._tools: dict[str, Callable[[dict[str, Any]], Any]] = {}
+        self._tools: dict[str, Callable[..., Any]] = {}
 
         # Create tool callers only for filtered tools
         for tool_def in self._filtered_definitions:
@@ -7851,6 +7881,16 @@ class ToolContext:
 
     Contains metadata about the current request that may be useful
     for logging, authorization, or other cross-cutting concerns.
+
+    :param caller_identity: The authenticated principal making the request.
+        **MUST** be a stable, globally-unique identifier within the seller&#39;s
+        tenant — never an email, display name, or any other mutable handle.
+        The server-side idempotency middleware keys its cache by
+        ``(caller_identity, idempotency_key)`` — reuse of the same string for
+        two distinct principals (e.g. email reuse after account deletion)
+        causes cross-principal replay (confidentiality leak). Populated by
+        the transport layer (A2A: ``ServerCallContext.user.user_name``; MCP:
+        seller&#39;s FastMCP auth middleware).
     &#34;&#34;&#34;
 
     request_id: str | None = None
@@ -7859,7 +7899,16 @@ class ToolContext:
 </details>
 <div class="desc"><p>Context passed to tool handlers.</p>
 <p>Contains metadata about the current request that may be useful
-for logging, authorization, or other cross-cutting concerns.</p></div>
+for logging, authorization, or other cross-cutting concerns.</p>
+<p>:param caller_identity: The authenticated principal making the request.
+<strong>MUST</strong> be a stable, globally-unique identifier within the seller's
+tenant — never an email, display name, or any other mutable handle.
+The server-side idempotency middleware keys its cache by
+<code>(caller_identity, idempotency_key)</code> — reuse of the same string for
+two distinct principals (e.g. email reuse after account deletion)
+causes cross-principal replay (confidentiality leak). Populated by
+the transport layer (A2A: <code>ServerCallContext.user.user_name</code>; MCP:
+seller's FastMCP auth middleware).</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="adcp.server.ToolContext.caller_identity"><code class="name">var <span class="ident">caller_identity</span> : str | None</code></dt>
