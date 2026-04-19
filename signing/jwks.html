@@ -236,6 +236,37 @@ failures surface as <code>request_signature_jwks_unavailable</code>.</p></div>
 <li>typing.Generic</li>
 </ul>
 </dd>
+<dt id="adcp.signing.jwks.JwksResolver"><code class="flex name class">
+<span>class <span class="ident">JwksResolver</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JwksResolver(Protocol):
+    &#34;&#34;&#34;Resolves a keyid to a JWK, or returns None if unknown.
+
+    The canonical Protocol used by both the RFC 9421 verifier and the JWS
+    document verifier. Implementations include
+    :class:`StaticJwksResolver` (in-memory, for tests) and
+    :class:`CachingJwksResolver` (fetches + caches from a URI).
+    &#34;&#34;&#34;
+
+    def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
+</details>
+<div class="desc"><p>Resolves a keyid to a JWK, or returns None if unknown.</p>
+<p>The canonical Protocol used by both the RFC 9421 verifier and the JWS
+document verifier. Implementations include
+:class:<code><a title="adcp.signing.jwks.StaticJwksResolver" href="#adcp.signing.jwks.StaticJwksResolver">StaticJwksResolver</a></code> (in-memory, for tests) and
+:class:<code><a title="adcp.signing.jwks.CachingJwksResolver" href="#adcp.signing.jwks.CachingJwksResolver">CachingJwksResolver</a></code> (fetches + caches from a URI).</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
 <dt id="adcp.signing.jwks.SSRFValidationError"><code class="flex name class">
 <span>class <span class="ident">SSRFValidationError</span></span>
 <span>(</span><span>*args, **kwargs)</span>
@@ -301,6 +332,9 @@ failures surface as <code>request_signature_jwks_unavailable</code>.</p></div>
 </li>
 <li>
 <h4><code><a title="adcp.signing.jwks.JwksFetcher" href="#adcp.signing.jwks.JwksFetcher">JwksFetcher</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.jwks.JwksResolver" href="#adcp.signing.jwks.JwksResolver">JwksResolver</a></code></h4>
 </li>
 <li>
 <h4><code><a title="adcp.signing.jwks.SSRFValidationError" href="#adcp.signing.jwks.SSRFValidationError">SSRFValidationError</a></code></h4>

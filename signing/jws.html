@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing.jws API documentation</title>
+<meta name="description" content="Minimal JWS parse + verify for AdCP revocation lists …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing.jws</code></h1>
+</header>
+<section id="section-intro">
+<p>Minimal JWS parse + verify for AdCP revocation lists.</p>
+<p>The AdCP governance profile uses JSON Web Signature (RFC 7515) to sign
+revocation-list documents published at
+<code>{origin}/.well-known/governance-revocations.json</code>. The list MAY be
+serialized in compact form (<code>header.payload.signature</code>) or JWS general
+JSON serialization (an object with <code>payload</code> and <code>signatures[]</code>).
+Both carry the same three fields after decoding.</p>
+<p>This module intentionally does not pull in <code>pyjwt</code> / <code>authlib</code>. AdCP
+has a narrow allowed-alg set (<code>EdDSA</code>, <code>ES256</code>) and we already own
+the underlying crypto primitives for RFC 9421, so a ~120-line parser
+over the existing <code>verify_signature</code> is both leaner and auditable.</p>
+<p>The signature base for compact JWS is::</p>
+<pre><code>ASCII(BASE64URL(protected_header)) || "." || ASCII(BASE64URL(payload))
+</code></pre>
+<p>— exactly what <code>verify_signature</code> expects, given the JWS-to-RFC-9421
+algorithm mapping below.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.signing.jws.parse_compact_jws"><code class="name flex">
+<span>def <span class="ident">parse_compact_jws</span></span>(<span>token: str) ‑> tuple[str, str, bytes]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_compact_jws(token: str) -&gt; tuple[str, str, bytes]:
+    &#34;&#34;&#34;Split a compact JWS into ``(b64_header, b64_payload, signature bytes)``.
+
+    Returns the header and payload as the ORIGINAL base64url substrings —
+    not decoded and re-encoded — so the verifier uses the exact bytes that
+    the signer hashed. This matters because ``urlsafe_b64decode`` is
+    lenient (accepts ``+``/``/`` and padding); round-tripping through it
+    can produce different bytes than the wire form.
+    &#34;&#34;&#34;
+    if not isinstance(token, str):
+        raise JwsMalformedError(&#34;compact JWS must be a string&#34;)
+    parts = token.split(&#34;.&#34;)
+    if len(parts) != 3:
+        raise JwsMalformedError(
+            f&#34;compact JWS must have exactly 3 dot-separated segments, got {len(parts)}&#34;
+        )
+    b64_header, b64_payload, b64_signature = parts
+    if not b64_header or not b64_payload or not b64_signature:
+        raise JwsMalformedError(&#34;compact JWS has an empty segment&#34;)
+    try:
+        signature = b64url_decode(b64_signature)
+    except (ValueError, binascii.Error) as exc:
+        raise JwsMalformedError(f&#34;compact JWS signature is not valid base64url: {exc}&#34;) from exc
+    return b64_header, b64_payload, signature</code></pre>
+</details>
+<div class="desc"><p>Split a compact JWS into <code>(b64_header, b64_payload, signature bytes)</code>.</p>
+<p>Returns the header and payload as the ORIGINAL base64url substrings —
+not decoded and re-encoded — so the verifier uses the exact bytes that
+the signer hashed. This matters because <code>urlsafe_b64decode</code> is
+lenient (accepts <code>+</code>/<code>/</code> and padding); round-tripping through it
+can produce different bytes than the wire form.</p></div>
+</dd>
+<dt id="adcp.signing.jws.parse_general_json_jws"><code class="name flex">
+<span>def <span class="ident">parse_general_json_jws</span></span>(<span>doc: dict[str, Any]) ‑> tuple[str, str, bytes]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_general_json_jws(doc: dict[str, Any]) -&gt; tuple[str, str, bytes]:
+    &#34;&#34;&#34;Extract the first signature from a JWS general JSON serialization.
+
+    Returns ``(b64_header, b64_payload, signature_bytes)``. AdCP revocation
+    lists are signed by a single operator key, so we only honor the first
+    entry in ``signatures[]``. A list with multiple signatures is malformed
+    for this profile.
+    &#34;&#34;&#34;
+    if not isinstance(doc, dict):
+        raise JwsMalformedError(&#34;JWS general JSON document must be an object&#34;)
+    if &#34;payload&#34; not in doc or &#34;signatures&#34; not in doc:
+        raise JwsMalformedError(&#34;JWS general JSON document must have &#39;payload&#39; and &#39;signatures&#39;&#34;)
+    signatures = doc[&#34;signatures&#34;]
+    if not isinstance(signatures, list) or len(signatures) == 0:
+        raise JwsMalformedError(&#34;JWS general JSON &#39;signatures&#39; must be a non-empty array&#34;)
+    if len(signatures) &gt; 1:
+        raise JwsMalformedError(
+            &#34;JWS general JSON &#39;signatures&#39; with multiple entries is not supported for &#34;
+            &#34;this profile&#34;
+        )
+    entry = signatures[0]
+    if not isinstance(entry, dict):
+        raise JwsMalformedError(&#34;JWS signature entry must be an object&#34;)
+    b64_header = entry.get(&#34;protected&#34;)
+    b64_signature = entry.get(&#34;signature&#34;)
+    b64_payload = doc[&#34;payload&#34;]
+    if not isinstance(b64_header, str) or not isinstance(b64_signature, str):
+        raise JwsMalformedError(&#34;JWS signature entry missing &#39;protected&#39; or &#39;signature&#39;&#34;)
+    if not isinstance(b64_payload, str):
+        raise JwsMalformedError(&#34;JWS &#39;payload&#39; must be a base64url string&#34;)
+    try:
+        signature = b64url_decode(b64_signature)
+    except (ValueError, binascii.Error) as exc:
+        raise JwsMalformedError(f&#34;JWS signature is not valid base64url: {exc}&#34;) from exc
+    return b64_header, b64_payload, signature</code></pre>
+</details>
+<div class="desc"><p>Extract the first signature from a JWS general JSON serialization.</p>
+<p>Returns <code>(b64_header, b64_payload, signature_bytes)</code>. AdCP revocation
+lists are signed by a single operator key, so we only honor the first
+entry in <code>signatures[]</code>. A list with multiple signatures is malformed
+for this profile.</p></div>
+</dd>
+<dt id="adcp.signing.jws.verify_detached_jws"><code class="name flex">
+<span>def <span class="ident">verify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_detached_jws(
+    *,
+    b64_protected: str,
+    b64_payload: str,
+    signature: bytes,
+    jwks_resolver: JwksResolver,
+    expected_typ: str,
+    allowed_algs: frozenset[str] = ALLOWED_JWS_ALGS,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Verify a parsed JWS and return the decoded payload JSON.
+
+    Performs, in order:
+    1. Decode + parse the protected header.
+    2. Reject if ``alg`` is absent, is ``none``, or not in ``allowed_algs``.
+    3. Reject if ``typ`` is not exactly ``expected_typ`` (byte equality, no
+       normalization — matches the AdCP spec).
+    4. Resolve ``kid`` via ``jwks_resolver``; reject unknown.
+    5. Reconstruct the signature base
+       (``b64_protected + &#34;.&#34; + b64_payload``) using the ORIGINAL
+       base64url strings and verify the signature bytes with the existing
+       HTTP-signature crypto. Using the original strings (not decode +
+       re-encode) defends against lenient-decode mismatches.
+    6. Decode the payload as JSON and return it.
+
+    Any failure raises a :class:`JwsError` subclass. The caller maps these
+    to transport-error codes (e.g. ``request_signature_revocation_stale``).
+    &#34;&#34;&#34;
+    header = _decode_protected_header(b64_protected)
+
+    alg = header.get(&#34;alg&#34;)
+    if not isinstance(alg, str) or alg == &#34;none&#34; or alg not in allowed_algs:
+        raise JwsMalformedError(
+            f&#34;JWS alg {alg!r} not allowed; permitted values: {sorted(allowed_algs)}&#34;
+        )
+    internal_alg = JWS_ALG_TO_INTERNAL[alg]
+
+    typ = header.get(&#34;typ&#34;)
+    if typ != expected_typ:
+        raise JwsMalformedError(
+            f&#34;JWS typ {typ!r} does not match expected {expected_typ!r}&#34;
+        )
+
+    # crit handling: the AdCP profile defines no extensions, so any
+    # unrecognized crit entry means the caller can&#39;t safely process it.
+    # Only allow crit if it&#39;s empty / absent.
+    crit = header.get(&#34;crit&#34;)
+    if crit is not None and (not isinstance(crit, list) or len(crit) &gt; 0):
+        raise JwsMalformedError(
+            &#34;JWS &#39;crit&#39; header is not supported for this profile&#34;
+        )
+
+    kid = header.get(&#34;kid&#34;)
+    if not isinstance(kid, str) or not kid:
+        raise JwsMalformedError(&#34;JWS protected header must include a non-empty &#39;kid&#39;&#34;)
+
+    jwk = jwks_resolver(kid)
+    if jwk is None:
+        raise JwsUnknownKeyError(f&#34;no JWK for kid {kid!r}&#34;)
+
+    # Reconstruct the detached signature base per RFC 7515 §5.1 step 5:
+    # ASCII(BASE64URL(protected header)) || &#34;.&#34; || ASCII(BASE64URL(payload)).
+    # Use the ORIGINAL base64url strings — don&#39;t decode-then-re-encode, since
+    # ``urlsafe_b64decode`` is lenient (accepts padding, tolerates some
+    # alphabet variants) and a round-trip can produce different bytes than
+    # the wire form. Verifying against the re-encoded bytes would let a
+    # crafted token verify against bytes the signer never signed.
+    signing_input = (b64_protected + &#34;.&#34; + b64_payload).encode(&#34;ascii&#34;)
+
+    public_key = public_key_from_jwk(jwk)
+    if not verify_signature(
+        alg=internal_alg,
+        public_key=public_key,
+        signature_base=signing_input,
+        signature=signature,
+    ):
+        raise JwsSignatureInvalidError(f&#34;signature did not verify for kid {kid!r}&#34;)
+
+    # Now that the signature is verified, decode the payload bytes from the
+    # trusted b64 string and parse as JSON.
+    try:
+        payload_bytes = b64url_decode(b64_payload)
+    except (ValueError, binascii.Error) as exc:
+        raise JwsMalformedError(f&#34;JWS payload is not valid base64url: {exc}&#34;) from exc
+    try:
+        decoded_payload = json.loads(payload_bytes.decode(&#34;utf-8&#34;))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise JwsMalformedError(f&#34;JWS payload is not valid JSON: {exc}&#34;) from exc
+    if not isinstance(decoded_payload, dict):
+        raise JwsMalformedError(&#34;JWS payload is not a JSON object&#34;)
+    return decoded_payload</code></pre>
+</details>
+<div class="desc"><p>Verify a parsed JWS and return the decoded payload JSON.</p>
+<p>Performs, in order:
+1. Decode + parse the protected header.
+2. Reject if <code>alg</code> is absent, is <code>none</code>, or not in <code>allowed_algs</code>.
+3. Reject if <code>typ</code> is not exactly <code>expected_typ</code> (byte equality, no
+normalization — matches the AdCP spec).
+4. Resolve <code>kid</code> via <code>jwks_resolver</code>; reject unknown.
+5. Reconstruct the signature base
+(<code>b64_protected + "." + b64_payload</code>) using the ORIGINAL
+base64url strings and verify the signature bytes with the existing
+HTTP-signature crypto. Using the original strings (not decode +
+re-encode) defends against lenient-decode mismatches.
+6. Decode the payload as JSON and return it.</p>
+<p>Any failure raises a :class:<code><a title="adcp.signing.jws.JwsError" href="#adcp.signing.jws.JwsError">JwsError</a></code> subclass. The caller maps these
+to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).</p></div>
+</dd>
+<dt id="adcp.signing.jws.verify_jws_document"><code class="name flex">
+<span>def <span class="ident">verify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_jws_document(
+    doc: str | dict[str, Any],
+    *,
+    jwks_resolver: JwksResolver,
+    expected_typ: str,
+    allowed_algs: frozenset[str] = ALLOWED_JWS_ALGS,
+) -&gt; dict[str, Any]:
+    &#34;&#34;&#34;Parse a JWS (compact string or general-JSON dict) and verify in one call.
+
+    Dispatches to the right parser based on the input shape, then calls
+    :func:`verify_detached_jws`. Returns the verified payload dict.
+    &#34;&#34;&#34;
+    if isinstance(doc, str):
+        b64_header, b64_payload, signature = parse_compact_jws(doc)
+    elif isinstance(doc, dict):
+        b64_header, b64_payload, signature = parse_general_json_jws(doc)
+    else:
+        raise JwsMalformedError(
+            &#34;JWS document must be a compact string or JSON general-serialization object&#34;
+        )
+    return verify_detached_jws(
+        b64_protected=b64_header,
+        b64_payload=b64_payload,
+        signature=signature,
+        jwks_resolver=jwks_resolver,
+        expected_typ=expected_typ,
+        allowed_algs=allowed_algs,
+    )</code></pre>
+</details>
+<div class="desc"><p>Parse a JWS (compact string or general-JSON dict) and verify in one call.</p>
+<p>Dispatches to the right parser based on the input shape, then calls
+:func:<code><a title="adcp.signing.jws.verify_detached_jws" href="#adcp.signing.jws.verify_detached_jws">verify_detached_jws()</a></code>. Returns the verified payload dict.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.signing.jws.JwksResolver"><code class="flex name class">
+<span>class <span class="ident">JwksResolver</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JwksResolver(Protocol):
+    &#34;&#34;&#34;Resolves a keyid to a JWK, or returns None if unknown.
+
+    The canonical Protocol used by both the RFC 9421 verifier and the JWS
+    document verifier. Implementations include
+    :class:`StaticJwksResolver` (in-memory, for tests) and
+    :class:`CachingJwksResolver` (fetches + caches from a URI).
+    &#34;&#34;&#34;
+
+    def __call__(self, keyid: str) -&gt; dict[str, Any] | None: ...</code></pre>
+</details>
+<div class="desc"><p>Resolves a keyid to a JWK, or returns None if unknown.</p>
+<p>The canonical Protocol used by both the RFC 9421 verifier and the JWS
+document verifier. Implementations include
+:class:<code>StaticJwksResolver</code> (in-memory, for tests) and
+:class:<code>CachingJwksResolver</code> (fetches + caches from a URI).</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="adcp.signing.jws.JwsError"><code class="flex name class">
+<span>class <span class="ident">JwsError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JwsError(Exception):
+    &#34;&#34;&#34;Base class for JWS parse/verify failures.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>Base class for JWS parse/verify failures.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.signing.jws.JwsMalformedError" href="#adcp.signing.jws.JwsMalformedError">JwsMalformedError</a></li>
+<li><a title="adcp.signing.jws.JwsSignatureInvalidError" href="#adcp.signing.jws.JwsSignatureInvalidError">JwsSignatureInvalidError</a></li>
+<li><a title="adcp.signing.jws.JwsUnknownKeyError" href="#adcp.signing.jws.JwsUnknownKeyError">JwsUnknownKeyError</a></li>
+</ul>
+</dd>
+<dt id="adcp.signing.jws.JwsMalformedError"><code class="flex name class">
+<span>class <span class="ident">JwsMalformedError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JwsMalformedError(JwsError):
+    &#34;&#34;&#34;JWS document is syntactically invalid or uses a disallowed shape.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>JWS document is syntactically invalid or uses a disallowed shape.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.signing.jws.JwsError" href="#adcp.signing.jws.JwsError">JwsError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.signing.jws.JwsSignatureInvalidError"><code class="flex name class">
+<span>class <span class="ident">JwsSignatureInvalidError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JwsSignatureInvalidError(JwsError):
+    &#34;&#34;&#34;The JWS signature did not verify against the resolved key.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>The JWS signature did not verify against the resolved key.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.signing.jws.JwsError" href="#adcp.signing.jws.JwsError">JwsError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.signing.jws.JwsUnknownKeyError"><code class="flex name class">
+<span>class <span class="ident">JwsUnknownKeyError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JwsUnknownKeyError(JwsError):
+    &#34;&#34;&#34;The JWS header ``kid`` is not present in the configured JWKS.&#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>The JWS header <code>kid</code> is not present in the configured JWKS.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.signing.jws.JwsError" href="#adcp.signing.jws.JwsError">JwsError</a></li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.signing" href="index.html">adcp.signing</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.signing.jws.parse_compact_jws" href="#adcp.signing.jws.parse_compact_jws">parse_compact_jws</a></code></li>
+<li><code><a title="adcp.signing.jws.parse_general_json_jws" href="#adcp.signing.jws.parse_general_json_jws">parse_general_json_jws</a></code></li>
+<li><code><a title="adcp.signing.jws.verify_detached_jws" href="#adcp.signing.jws.verify_detached_jws">verify_detached_jws</a></code></li>
+<li><code><a title="adcp.signing.jws.verify_jws_document" href="#adcp.signing.jws.verify_jws_document">verify_jws_document</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.jws.JwsError" href="#adcp.signing.jws.JwsError">JwsError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.jws.JwsMalformedError" href="#adcp.signing.jws.JwsMalformedError">JwsMalformedError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.jws.JwsSignatureInvalidError" href="#adcp.signing.jws.JwsSignatureInvalidError">JwsSignatureInvalidError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.jws.JwsUnknownKeyError" href="#adcp.signing.jws.JwsUnknownKeyError">JwsUnknownKeyError</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

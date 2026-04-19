@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing.revocation_fetcher API documentation</title>
+<meta name="description" content="Live revocation-list fetcher + caching checker …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing.revocation_fetcher</code></h1>
+</header>
+<section id="section-intro">
+<p>Live revocation-list fetcher + caching checker.</p>
+<p>The AdCP governance profile publishes a signed revocation list at
+<code>{issuer-origin}/.well-known/governance-revocations.json</code>. Verifiers
+poll the list, verify its JWS, and reject tokens signed under a revoked
+<code>kid</code> (or with a revoked <code>jti</code>). This module ships:</p>
+<ul>
+<li>:class:<code><a title="adcp.signing.revocation_fetcher.RevocationListFetcher" href="#adcp.signing.revocation_fetcher.RevocationListFetcher">RevocationListFetcher</a></code> — Protocol callers can implement for
+alternate transports (Redis-backed mirror, local fixture, etc).</li>
+<li>:func:<code><a title="adcp.signing.revocation_fetcher.default_revocation_list_fetcher" href="#adcp.signing.revocation_fetcher.default_revocation_list_fetcher">default_revocation_list_fetcher()</a></code> — SSRF-validated HTTPS fetch
+with <code>If-None-Match</code> support.</li>
+<li>:class:<code><a title="adcp.signing.revocation_fetcher.CachingRevocationChecker" href="#adcp.signing.revocation_fetcher.CachingRevocationChecker">CachingRevocationChecker</a></code> — implements the existing
+:class:<code><a title="adcp.signing.revocation.RevocationChecker" href="revocation.html#adcp.signing.revocation.RevocationChecker">RevocationChecker</a></code> Protocol. Handles
+first fetch, refetch near <code>next_update</code>, 304s, and the spec's
+fail-closed rule past <code>next_update + grace</code>.</li>
+</ul>
+<p>The verifier plugs it into :class:<code>VerifyOptions.revocation_checker</code>.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.signing.revocation_fetcher.default_revocation_list_fetcher"><code class="name flex">
+<span>def <span class="ident">default_revocation_list_fetcher</span></span>(<span>uri: str,<br>*,<br>if_none_match: str | None = None,<br>if_modified_since: str | None = None,<br>allow_private: bool = False,<br>timeout: float = 10.0) ‑> <a title="adcp.signing.revocation_fetcher.FetchResult" href="#adcp.signing.revocation_fetcher.FetchResult">FetchResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def default_revocation_list_fetcher(
+    uri: str,
+    *,
+    if_none_match: str | None = None,
+    if_modified_since: str | None = None,
+    allow_private: bool = False,
+    timeout: float = DEFAULT_JWKS_TIMEOUT_SECONDS,
+) -&gt; FetchResult:
+    &#34;&#34;&#34;HTTPS GET the revocation list, honoring SSRF rules and conditional requests.
+
+    Reuses ``validate_jwks_uri`` — the SSRF controls are identical (same
+    reserved-range rejection, same cloud-metadata block). ``httpx``
+    re-resolves the hostname on connect, which is the TOCTOU window
+    tracked separately in #190. Sends ``If-None-Match`` when an ETag is
+    supplied and ``If-Modified-Since`` when a ``Last-Modified`` is
+    supplied; the spec accepts either (sellers SHOULD use both when
+    available).
+    &#34;&#34;&#34;
+    validate_jwks_uri(uri, allow_private=allow_private)
+    headers = {&#34;Accept&#34;: &#34;application/jose+json, application/json, application/jose&#34;}
+    if if_none_match is not None:
+        headers[&#34;If-None-Match&#34;] = if_none_match
+    if if_modified_since is not None:
+        headers[&#34;If-Modified-Since&#34;] = if_modified_since
+
+    try:
+        with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+            response = client.get(uri, headers=headers)
+    except httpx.HTTPError as exc:
+        raise RevocationListFetchError(f&#34;revocation list GET {uri!r} failed: {exc}&#34;) from exc
+
+    if response.status_code == 304:
+        return FetchResult(
+            body=&#34;&#34;,
+            etag=if_none_match,
+            last_modified=if_modified_since,
+            not_modified=True,
+        )
+    if response.status_code != 200:
+        raise RevocationListFetchError(
+            f&#34;revocation list {uri!r} returned HTTP {response.status_code}&#34;
+        )
+
+    etag = response.headers.get(&#34;ETag&#34;)
+    last_modified = _sanitize_last_modified(response.headers.get(&#34;Last-Modified&#34;))
+    raw_body = response.text.strip()
+
+    # General JSON serialization starts with `{`; compact form is three
+    # base64url segments separated by dots. Dispatch by first-byte shape
+    # rather than trusting Content-Type, which is unreliable in practice.
+    if not raw_body:
+        raise RevocationListFetchError(f&#34;revocation list {uri!r} returned empty body&#34;)
+
+    body: str | dict[str, Any]
+    if raw_body.startswith(&#34;{&#34;):
+        try:
+            body = json.loads(raw_body)
+        except ValueError as exc:
+            raise RevocationListFetchError(
+                f&#34;revocation list {uri!r} body is neither compact JWS nor valid JSON: {exc}&#34;
+            ) from exc
+    else:
+        body = raw_body
+
+    return FetchResult(
+        body=body,
+        etag=etag,
+        last_modified=last_modified,
+        not_modified=False,
+    )</code></pre>
+</details>
+<div class="desc"><p>HTTPS GET the revocation list, honoring SSRF rules and conditional requests.</p>
+<p>Reuses <code>validate_jwks_uri</code> — the SSRF controls are identical (same
+reserved-range rejection, same cloud-metadata block). <code>httpx</code>
+re-resolves the hostname on connect, which is the TOCTOU window
+tracked separately in #190. Sends <code>If-None-Match</code> when an ETag is
+supplied and <code>If-Modified-Since</code> when a <code>Last-Modified</code> is
+supplied; the spec accepts either (sellers SHOULD use both when
+available).</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.signing.revocation_fetcher.CachingRevocationChecker"><code class="flex name class">
+<span>class <span class="ident">CachingRevocationChecker</span></span>
+<span>(</span><span>*,<br>revocation_uri: str,<br>issuer: str,<br>jwks_resolver: JwksResolver,<br>fetcher: <a title="adcp.signing.revocation_fetcher.RevocationListFetcher" href="#adcp.signing.revocation_fetcher.RevocationListFetcher">RevocationListFetcher</a> | None = None,<br>grace_multiplier: float = 2.0,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;,<br>wall_clock: Callable[[], datetime] = &lt;function CachingRevocationChecker.&lt;lambda&gt;&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CachingRevocationChecker:
+    &#34;&#34;&#34;Live revocation checker with caching, refetch, grace, and fail-closed.
+
+    Implements the ``RevocationChecker`` Protocol — callable as
+    ``checker(keyid) -&gt; bool``. Fetches and verifies the list on first
+    call, refetches when ``now &gt;= next_update``, and raises
+    :class:`RevocationListFreshnessError` (which the verifier maps to
+    ``request_signature_revocation_stale``) once the cached list is past
+    ``next_update + grace * last_interval``.
+
+    The checker does not fetch at construction time — the first call is
+    the trigger. This keeps ``__init__`` side-effect-free and defers
+    network I/O to the first verification. Call :meth:`prime` at startup
+    to fail-fast on misconfiguration.
+
+    Thread safety
+    -------------
+    This class is NOT thread-safe. Concurrent ``__call__`` s that each
+    trigger a refresh can race the ``self._current_list`` assignment —
+    the later writer wins, which for our replay-rejection check means
+    only the most recent fetch&#39;s list ends up cached (still consistent,
+    but two HTTP round-trips happen instead of one). Wrap instances in
+    an external lock if you run the verifier from a thread pool. An
+    ``asyncio``-driven verifier (single-threaded event loop) is fine
+    unmodified.
+
+    Parameters
+    ----------
+    revocation_uri:
+        Full URL, e.g. ``https://gov.example.com/.well-known/governance-revocations.json``.
+    issuer:
+        Expected ``iss`` origin (``https://gov.example.com``). Set this
+        explicitly; do not infer from ``revocation_uri`` because the
+        .well-known location could theoretically be on a sibling host.
+    jwks_resolver:
+        Resolves the ``kid`` on the revocation-list JWS header to a JWK.
+        Same Protocol as the request-signing JWKS resolver. Typically a
+        :class:`adcp.signing.CachingJwksResolver` pointed at the
+        governance agent&#39;s JWKS.
+    fetcher:
+        Override for the HTTP fetcher (primarily for tests and alternate
+        transports). Defaults to :func:`default_revocation_list_fetcher`.
+        Transport-level config (private-network allowance, TLS settings,
+        alternate timeout) lives on the fetcher — pass a pre-configured
+        one via ``functools.partial`` if you need to customize.
+    grace_multiplier:
+        Grace window beyond ``next_update``, measured in multiples of
+        the list&#39;s declared polling interval
+        (``next_update - updated``). Defaults to 2× per spec recommendation.
+    clock:
+        Monotonic-time source; overridable for tests. Returns seconds.
+    wall_clock:
+        Wall-clock source returning a ``datetime`` in UTC. Used to
+        evaluate ``next_update`` and ``updated`` against the current
+        moment. Separate from ``clock`` because polling is measured as
+        a duration but freshness is measured against absolute times.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        revocation_uri: str,
+        issuer: str,
+        jwks_resolver: JwksResolver,
+        fetcher: RevocationListFetcher | None = None,
+        grace_multiplier: float = DEFAULT_GRACE_MULTIPLIER,
+        clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    ) -&gt; None:
+        # Reject the common footgun of passing time.time (wall-clock
+        # seconds) as the `clock` kwarg — `_ensure_fresh` assumes
+        # monotonicity for cooldown math. Requiring `time.monotonic`
+        # (or a dedicated monotonic test fake) keeps cooldowns correct
+        # across wall-clock jumps.
+        if clock is time.time:
+            raise ValueError(
+                &#34;clock must be a monotonic time source (use time.monotonic, &#34;
+                &#34;not time.time); wall-clock jumps would break cooldown math&#34;
+            )
+        # Cast via Any so mypy doesn&#39;t complain about the differing
+        # declared return types (float vs datetime) — we&#39;re asking
+        # whether the caller bound the SAME callable to both slots.
+        if clock is wall_clock:  # type: ignore[comparison-overlap]
+            raise ValueError(
+                &#34;clock and wall_clock must be different sources — clock is &#34;
+                &#34;monotonic seconds (cooldown timing), wall_clock is a UTC &#34;
+                &#34;datetime source (freshness evaluation)&#34;
+            )
+
+        self._revocation_uri = revocation_uri
+        self._issuer = _normalize_issuer(issuer)
+        self._jwks_resolver = jwks_resolver
+        self._fetcher = fetcher or default_revocation_list_fetcher
+        self._grace_multiplier = grace_multiplier
+        self._clock = clock
+        self._wall_clock = wall_clock
+
+        self._current_list: RevocationList | None = None
+        self._current_etag: str | None = None
+        self._current_last_modified: str | None = None
+        self._last_successful_refresh: float | None = None
+        self._last_polling_interval_seconds: float | None = None
+        # Cooldown state: when a refresh attempt fails, we don&#39;t retry
+        # until at least MIN_POLLING_INTERVAL_SECONDS of monotonic time
+        # have elapsed. Stops a high-traffic verifier from hammering a
+        # dead revocation endpoint.
+        self._last_refresh_attempt: float | None = None
+
+    @classmethod
+    def from_issuer_origin(
+        cls,
+        origin: str,
+        *,
+        jwks_resolver: JwksResolver,
+        fetcher: RevocationListFetcher | None = None,
+        grace_multiplier: float = DEFAULT_GRACE_MULTIPLIER,
+        clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+    ) -&gt; CachingRevocationChecker:
+        &#34;&#34;&#34;Build a checker from the issuer origin alone.
+
+        The AdCP spec pins the revocation list at
+        ``{origin}/.well-known/governance-revocations.json``. This
+        classmethod fills that path in so callers supply one origin
+        instead of three coordinated strings.
+
+        &gt;&gt;&gt; checker = CachingRevocationChecker.from_issuer_origin(
+        ...     &#34;https://gov.example.com&#34;,
+        ...     jwks_resolver=my_jwks,
+        ... )
+        &#34;&#34;&#34;
+        normalized = _normalize_issuer(origin)
+        revocation_uri = f&#34;{normalized}/.well-known/governance-revocations.json&#34;
+        return cls(
+            revocation_uri=revocation_uri,
+            issuer=normalized,
+            jwks_resolver=jwks_resolver,
+            fetcher=fetcher,
+            grace_multiplier=grace_multiplier,
+            clock=clock,
+            wall_clock=wall_clock,
+        )
+
+    def prime(self) -&gt; None:
+        &#34;&#34;&#34;Fetch and verify the revocation list synchronously.
+
+        Call this at application startup to fail-fast on configuration
+        problems (wrong issuer, JWKS unreachable, operator down) rather
+        than surfacing them at the first user verification. If priming
+        fails, the exception propagates unchanged — let the startup
+        handler decide whether to abort the process or retry with
+        backoff.
+
+        This is optional: the checker works perfectly without priming,
+        lazily fetching on the first :meth:`__call__`.
+        &#34;&#34;&#34;
+        self._ensure_fresh()
+
+    def is_jti_revoked(self, jti: str) -&gt; bool:
+        &#34;&#34;&#34;Return True iff ``jti`` is in the cached list&#39;s ``revoked_jtis``.
+
+        Governance-token verifiers (AdCP security.mdx §Seller
+        verification checklist step 14) check both ``kid`` and ``jti``.
+        The plain :meth:`__call__` covers ``kid`` because that&#39;s the
+        request-signing path; governance callers use this method for
+        per-token revocation.
+
+        Triggers a refresh if the cached list is past ``next_update``
+        (same lifecycle as :meth:`__call__`).
+        &#34;&#34;&#34;
+        self._ensure_fresh()
+        if self._current_list is None:
+            raise RevocationListFreshnessError(&#34;revocation list not available&#34;)
+        return jti in self._current_list.revoked_jtis
+
+    def __call__(self, keyid: str) -&gt; bool:
+        &#34;&#34;&#34;Return True iff ``keyid`` is in the cached list&#39;s ``revoked_kids``.
+
+        This is the RFC 9421 request-signing path (verifier checklist
+        step 9). For governance-token verification (seller-verification
+        checklist step 14) check both the signing ``kid`` here AND the
+        token&#39;s ``jti`` via :meth:`is_jti_revoked`.
+        &#34;&#34;&#34;
+        self._ensure_fresh()
+        if self._current_list is None:
+            # Unreachable in practice — _ensure_fresh raises on unsuccessful
+            # first load. Guarded for mypy.
+            raise RevocationListFreshnessError(&#34;revocation list not available&#34;)
+        return self._current_list.is_revoked(keyid)
+
+    def _ensure_fresh(self) -&gt; None:
+        now_wall = self._wall_clock()
+        now_mono = self._clock()
+
+        if self._current_list is None:
+            self._refresh(conditional=False, now_wall=now_wall, now_mono=now_mono)
+            return
+
+        next_update = _parse_iso8601(self._current_list.next_update)
+        if now_wall &lt; next_update:
+            # Cached list is still within its declared freshness window.
+            return
+
+        # Past next_update: try a refresh, but only if we haven&#39;t recently
+        # attempted one. Without this cooldown a high-QPS verifier would
+        # hammer a dead endpoint on every verification.
+        since_last_attempt = (
+            now_mono - self._last_refresh_attempt
+            if self._last_refresh_attempt is not None
+            else float(&#34;inf&#34;)
+        )
+        if since_last_attempt &gt;= MIN_POLLING_INTERVAL_SECONDS:
+            try:
+                self._refresh(conditional=True, now_wall=now_wall, now_mono=now_mono)
+                return
+            except (RevocationListFetchError, RevocationListParseError) as exc:
+                # Fall through to the grace-window check below.
+                last_exc: Exception = exc
+        else:
+            last_exc = RevocationListFetchError(
+                f&#34;refresh cooldown not elapsed ({since_last_attempt:.0f}s &lt; &#34;
+                f&#34;{MIN_POLLING_INTERVAL_SECONDS}s)&#34;
+            )
+
+        grace_seconds = self._grace_seconds()
+        if now_wall.timestamp() &gt;= next_update.timestamp() + grace_seconds:
+            raise RevocationListFreshnessError(
+                f&#34;revocation list {self._revocation_uri!r} past next_update &#34;
+                f&#34;({self._current_list.next_update}) + grace ({grace_seconds:.0f}s); &#34;
+                f&#34;last refresh error: {last_exc}&#34;
+            ) from last_exc
+        # Still within grace — serve the cached list.
+
+    def _refresh(self, *, conditional: bool, now_wall: datetime, now_mono: float) -&gt; None:
+        self._last_refresh_attempt = now_mono
+        if_none_match = self._current_etag if conditional else None
+        if_modified_since = self._current_last_modified if conditional else None
+        result = self._fetcher(
+            self._revocation_uri,
+            if_none_match=if_none_match,
+            if_modified_since=if_modified_since,
+        )
+        if result.not_modified:
+            # 304: server confirms the cached list is still current. Advance
+            # the cached list&#39;s `next_update` by the declared polling
+            # interval so subsequent calls don&#39;t re-enter the past-
+            # next_update branch on every request — without this, the 60s
+            # cooldown gate would fire once per verification request once
+            # we cross the original next_update.
+            self._last_successful_refresh = now_mono
+            if self._current_list is not None and self._last_polling_interval_seconds:
+                prior = _parse_iso8601(self._current_list.next_update)
+                new_next_update = prior + timedelta(
+                    seconds=self._last_polling_interval_seconds
+                )
+                self._current_list = RevocationList(
+                    issuer=self._current_list.issuer,
+                    updated=self._current_list.updated,
+                    next_update=new_next_update.isoformat().replace(&#34;+00:00&#34;, &#34;Z&#34;),
+                    revoked_kids=self._current_list.revoked_kids,
+                    revoked_jtis=self._current_list.revoked_jtis,
+                )
+            return
+
+        try:
+            payload = verify_jws_document(
+                result.body,
+                jwks_resolver=self._jwks_resolver,
+                expected_typ=REVOCATION_LIST_TYP,
+            )
+        except JwsError as exc:
+            raise RevocationListSignatureError(
+                f&#34;revocation list JWS verification failed: {exc}&#34;
+            ) from exc
+
+        revocation_list = _build_list_from_payload(payload, expected_issuer=self._issuer)
+
+        updated = _parse_iso8601(revocation_list.updated)
+        next_update = _parse_iso8601(revocation_list.next_update)
+
+        # Verify `updated` is not in the future beyond clock skew. An issuer
+        # whose clock is far ahead would otherwise force an immediate stale
+        # rejection.
+        if updated &gt; now_wall.replace(microsecond=0):
+            delta = (updated - now_wall).total_seconds()
+            if delta &gt; 60:  # 60s clock skew tolerance, mirrors JWS exp/iat rules
+                raise RevocationListParseError(
+                    f&#34;revocation list updated={revocation_list.updated!r} is &#34;
+                    f&#34;{delta:.0f}s in the future&#34;
+                )
+        if next_update &lt;= updated:
+            raise RevocationListParseError(
+                f&#34;revocation list next_update {revocation_list.next_update!r} is not &#34;
+                f&#34;after updated {revocation_list.updated!r}&#34;
+            )
+
+        # Reject a freshly-fetched list whose `updated` is older than the
+        # one we already have cached. Defense-in-depth against:
+        # - CDN replaying a stale list after a kid has been revoked,
+        # - operator-key compromise where an attacker serves an older list
+        #   with revocations removed.
+        # The spec doesn&#39;t permit un-revocation, so `updated` MUST be
+        # monotonically non-decreasing across refreshes.
+        if self._current_list is not None:
+            current_updated = _parse_iso8601(self._current_list.updated)
+            if updated &lt; current_updated:
+                raise RevocationListParseError(
+                    f&#34;revocation list updated={revocation_list.updated!r} is older &#34;
+                    f&#34;than cached list updated={self._current_list.updated!r} — &#34;
+                    f&#34;refusing to roll back&#34;
+                )
+
+        self._current_list = revocation_list
+        self._current_etag = result.etag
+        # Sanitize again at write-side: custom fetcher impls may not have
+        # validated the value before constructing FetchResult.
+        self._current_last_modified = _sanitize_last_modified(result.last_modified)
+        self._last_successful_refresh = now_mono
+        # Declared cadence is already validated &gt;= 60s and bounded above
+        # at parse time; clamp to the spec ceiling as defense against an
+        # issuer declaring an out-of-bounds ceiling value.
+        self._last_polling_interval_seconds = min(
+            MAX_POLLING_INTERVAL_SECONDS,
+            (next_update - updated).total_seconds(),
+        )
+
+    def _grace_seconds(self) -&gt; float:
+        interval = self._last_polling_interval_seconds or MAX_POLLING_INTERVAL_SECONDS
+        return interval * self._grace_multiplier</code></pre>
+</details>
+<div class="desc"><p>Live revocation checker with caching, refetch, grace, and fail-closed.</p>
+<p>Implements the <code>RevocationChecker</code> Protocol — callable as
+<code>checker(keyid) -&gt; bool</code>. Fetches and verifies the list on first
+call, refetches when <code>now &gt;= next_update</code>, and raises
+:class:<code><a title="adcp.signing.revocation_fetcher.RevocationListFreshnessError" href="#adcp.signing.revocation_fetcher.RevocationListFreshnessError">RevocationListFreshnessError</a></code> (which the verifier maps to
+<code>request_signature_revocation_stale</code>) once the cached list is past
+<code>next_update + grace * last_interval</code>.</p>
+<p>The checker does not fetch at construction time — the first call is
+the trigger. This keeps <code>__init__</code> side-effect-free and defers
+network I/O to the first verification. Call :meth:<code>prime</code> at startup
+to fail-fast on misconfiguration.</p>
+<h2 id="thread-safety">Thread Safety</h2>
+<p>This class is NOT thread-safe. Concurrent <code>__call__</code> s that each
+trigger a refresh can race the <code>self._current_list</code> assignment —
+the later writer wins, which for our replay-rejection check means
+only the most recent fetch's list ends up cached (still consistent,
+but two HTTP round-trips happen instead of one). Wrap instances in
+an external lock if you run the verifier from a thread pool. An
+<code>asyncio</code>-driven verifier (single-threaded event loop) is fine
+unmodified.</p>
+<h2 id="parameters">Parameters</h2>
+<p>revocation_uri:
+Full URL, e.g. <code>https://gov.example.com/.well-known/governance-revocations.json</code>.
+issuer:
+Expected <code>iss</code> origin (<code>https://gov.example.com</code>). Set this
+explicitly; do not infer from <code>revocation_uri</code> because the
+.well-known location could theoretically be on a sibling host.
+jwks_resolver:
+Resolves the <code>kid</code> on the revocation-list JWS header to a JWK.
+Same Protocol as the request-signing JWKS resolver. Typically a
+:class:<code><a title="adcp.signing.CachingJwksResolver" href="index.html#adcp.signing.CachingJwksResolver">CachingJwksResolver</a></code> pointed at the
+governance agent's JWKS.
+fetcher:
+Override for the HTTP fetcher (primarily for tests and alternate
+transports). Defaults to :func:<code><a title="adcp.signing.revocation_fetcher.default_revocation_list_fetcher" href="#adcp.signing.revocation_fetcher.default_revocation_list_fetcher">default_revocation_list_fetcher()</a></code>.
+Transport-level config (private-network allowance, TLS settings,
+alternate timeout) lives on the fetcher — pass a pre-configured
+one via <code>functools.partial</code> if you need to customize.
+grace_multiplier:
+Grace window beyond <code>next_update</code>, measured in multiples of
+the list's declared polling interval
+(<code>next_update - updated</code>). Defaults to 2× per spec recommendation.
+clock:
+Monotonic-time source; overridable for tests. Returns seconds.
+wall_clock:
+Wall-clock source returning a <code>datetime</code> in UTC. Used to
+evaluate <code>next_update</code> and <code>updated</code> against the current
+moment. Separate from <code>clock</code> because polling is measured as
+a duration but freshness is measured against absolute times.</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.signing.revocation_fetcher.CachingRevocationChecker.from_issuer_origin"><code class="name flex">
+<span>def <span class="ident">from_issuer_origin</span></span>(<span>origin: str,<br>*,<br>jwks_resolver: JwksResolver,<br>fetcher: <a title="adcp.signing.revocation_fetcher.RevocationListFetcher" href="#adcp.signing.revocation_fetcher.RevocationListFetcher">RevocationListFetcher</a> | None = None,<br>grace_multiplier: float = 2.0,<br>clock: Callable[[], float] = &lt;built-in function monotonic&gt;,<br>wall_clock: Callable[[], datetime] = &lt;function CachingRevocationChecker.&lt;lambda&gt;&gt;) ‑> <a title="adcp.signing.revocation_fetcher.CachingRevocationChecker" href="#adcp.signing.revocation_fetcher.CachingRevocationChecker">CachingRevocationChecker</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Build a checker from the issuer origin alone.</p>
+<p>The AdCP spec pins the revocation list at
+<code>{origin}/.well-known/governance-revocations.json</code>. This
+classmethod fills that path in so callers supply one origin
+instead of three coordinated strings.</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; checker = CachingRevocationChecker.from_issuer_origin(
+...     &quot;https://gov.example.com&quot;,
+...     jwks_resolver=my_jwks,
+... )
+</code></pre></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.revocation_fetcher.CachingRevocationChecker.is_jti_revoked"><code class="name flex">
+<span>def <span class="ident">is_jti_revoked</span></span>(<span>self, jti: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_jti_revoked(self, jti: str) -&gt; bool:
+    &#34;&#34;&#34;Return True iff ``jti`` is in the cached list&#39;s ``revoked_jtis``.
+
+    Governance-token verifiers (AdCP security.mdx §Seller
+    verification checklist step 14) check both ``kid`` and ``jti``.
+    The plain :meth:`__call__` covers ``kid`` because that&#39;s the
+    request-signing path; governance callers use this method for
+    per-token revocation.
+
+    Triggers a refresh if the cached list is past ``next_update``
+    (same lifecycle as :meth:`__call__`).
+    &#34;&#34;&#34;
+    self._ensure_fresh()
+    if self._current_list is None:
+        raise RevocationListFreshnessError(&#34;revocation list not available&#34;)
+    return jti in self._current_list.revoked_jtis</code></pre>
+</details>
+<div class="desc"><p>Return True iff <code>jti</code> is in the cached list's <code>revoked_jtis</code>.</p>
+<p>Governance-token verifiers (AdCP security.mdx §Seller
+verification checklist step 14) check both <code>kid</code> and <code>jti</code>.
+The plain :meth:<code>__call__</code> covers <code>kid</code> because that's the
+request-signing path; governance callers use this method for
+per-token revocation.</p>
+<p>Triggers a refresh if the cached list is past <code>next_update</code>
+(same lifecycle as :meth:<code>__call__</code>).</p></div>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.CachingRevocationChecker.prime"><code class="name flex">
+<span>def <span class="ident">prime</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def prime(self) -&gt; None:
+    &#34;&#34;&#34;Fetch and verify the revocation list synchronously.
+
+    Call this at application startup to fail-fast on configuration
+    problems (wrong issuer, JWKS unreachable, operator down) rather
+    than surfacing them at the first user verification. If priming
+    fails, the exception propagates unchanged — let the startup
+    handler decide whether to abort the process or retry with
+    backoff.
+
+    This is optional: the checker works perfectly without priming,
+    lazily fetching on the first :meth:`__call__`.
+    &#34;&#34;&#34;
+    self._ensure_fresh()</code></pre>
+</details>
+<div class="desc"><p>Fetch and verify the revocation list synchronously.</p>
+<p>Call this at application startup to fail-fast on configuration
+problems (wrong issuer, JWKS unreachable, operator down) rather
+than surfacing them at the first user verification. If priming
+fails, the exception propagates unchanged — let the startup
+handler decide whether to abort the process or retry with
+backoff.</p>
+<p>This is optional: the checker works perfectly without priming,
+lazily fetching on the first :meth:<code>__call__</code>.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.FetchResult"><code class="flex name class">
+<span>class <span class="ident">FetchResult</span></span>
+<span>(</span><span>body: str | dict[str, Any],<br>etag: str | None,<br>last_modified: str | None = None,<br>not_modified: bool = False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class FetchResult:
+    &#34;&#34;&#34;Output of a successful revocation-list fetch.
+
+    ``body`` is the raw JWS document — compact string or general-JSON
+    dict. ``etag`` / ``last_modified`` capture server-side freshness
+    hints for the next conditional request. ``not_modified=True``
+    indicates a 304 response; in that case ``body`` is unused and the
+    caller continues serving the cached list.
+    &#34;&#34;&#34;
+
+    body: str | dict[str, Any]
+    etag: str | None
+    last_modified: str | None = None
+    not_modified: bool = False</code></pre>
+</details>
+<div class="desc"><p>Output of a successful revocation-list fetch.</p>
+<p><code>body</code> is the raw JWS document — compact string or general-JSON
+dict. <code>etag</code> / <code>last_modified</code> capture server-side freshness
+hints for the next conditional request. <code>not_modified=True</code>
+indicates a 304 response; in that case <code>body</code> is unused and the
+caller continues serving the cached list.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.revocation_fetcher.FetchResult.body"><code class="name">var <span class="ident">body</span> : str | dict[str, typing.Any]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.FetchResult.etag"><code class="name">var <span class="ident">etag</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.FetchResult.last_modified"><code class="name">var <span class="ident">last_modified</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.FetchResult.not_modified"><code class="name">var <span class="ident">not_modified</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.RevocationListFetchError"><code class="flex name class">
+<span>class <span class="ident">RevocationListFetchError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RevocationListFetchError(Exception):
+    &#34;&#34;&#34;The fetcher cannot retrieve the list (network / HTTP / SSRF).
+
+    Mapped to ``request_signature_revocation_stale`` at the verifier
+    edge when it occurs past the grace window; within the grace window
+    the cached list is served and the error is logged at debug level.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>The fetcher cannot retrieve the list (network / HTTP / SSRF).</p>
+<p>Mapped to <code>request_signature_revocation_stale</code> at the verifier
+edge when it occurs past the grace window; within the grace window
+the cached list is served and the error is logged at debug level.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.RevocationListFetcher"><code class="flex name class">
+<span>class <span class="ident">RevocationListFetcher</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RevocationListFetcher(Protocol):
+    &#34;&#34;&#34;Fetch a revocation-list JWS document.
+
+    Implementations return a ``FetchResult`` on success. On 304
+    (conditional request), ``not_modified=True`` and the caller
+    continues serving the cached list. Transport-level concerns
+    (private-network support, TLS settings, etc.) are the fetcher&#39;s
+    construction-time config — not arguments the checker threads through
+    on every call.
+    &#34;&#34;&#34;
+
+    def __call__(
+        self,
+        uri: str,
+        *,
+        if_none_match: str | None = None,
+        if_modified_since: str | None = None,
+    ) -&gt; FetchResult: ...</code></pre>
+</details>
+<div class="desc"><p>Fetch a revocation-list JWS document.</p>
+<p>Implementations return a <code><a title="adcp.signing.revocation_fetcher.FetchResult" href="#adcp.signing.revocation_fetcher.FetchResult">FetchResult</a></code> on success. On 304
+(conditional request), <code>not_modified=True</code> and the caller
+continues serving the cached list. Transport-level concerns
+(private-network support, TLS settings, etc.) are the fetcher's
+construction-time config — not arguments the checker threads through
+on every call.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.RevocationListFreshnessError"><code class="flex name class">
+<span>class <span class="ident">RevocationListFreshnessError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RevocationListFreshnessError(Exception):
+    &#34;&#34;&#34;The cached list is past ``next_update + grace`` and refetch failed.
+
+    Mapped to ``request_signature_revocation_stale`` at the verifier
+    edge. The spec requires fail-closed behavior here — serving a stale
+    list lets an attacker DoS the revocation endpoint to extend a
+    compromised key&#39;s fraud window indefinitely.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>The cached list is past <code>next_update + grace</code> and refetch failed.</p>
+<p>Mapped to <code>request_signature_revocation_stale</code> at the verifier
+edge. The spec requires fail-closed behavior here — serving a stale
+list lets an attacker DoS the revocation endpoint to extend a
+compromised key's fraud window indefinitely.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.signing.revocation_fetcher.RevocationListParseError"><code class="flex name class">
+<span>class <span class="ident">RevocationListParseError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class RevocationListParseError(Exception):
+    &#34;&#34;&#34;The fetched document is malformed, fails schema validation, or
+    violates the spec&#39;s polling-cadence floor.
+
+    Mapped to ``request_signature_revocation_stale`` at the verifier
+    edge. Parse errors within the grace window fall back to the cached
+    list; past the grace window they surface as
+    :class:`RevocationListFreshnessError`.
+
+    :class:`RevocationListSignatureError` is a subclass of this class —
+    callers that catch this exception catch signature failures too.
+    &#34;&#34;&#34;</code></pre>
+</details>
+<div class="desc"><p>The fetched document is malformed, fails schema validation, or
+violates the spec's polling-cadence floor.</p>
+<p>Mapped to <code>request_signature_revocation_stale</code> at the verifier
+edge. Parse errors within the grace window fall back to the cached
+list; past the grace window they surface as
+:class:<code><a title="adcp.signing.revocation_fetcher.RevocationListFreshnessError" href="#adcp.signing.revocation_fetcher.RevocationListFreshnessError">RevocationListFreshnessError</a></code>.</p>
+<p>:class:<code>RevocationListSignatureError</code> is a subclass of this class —
+callers that catch this exception catch signature failures too.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li>adcp.signing.revocation_fetcher.RevocationListSignatureError</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.signing" href="index.html">adcp.signing</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.signing.revocation_fetcher.default_revocation_list_fetcher" href="#adcp.signing.revocation_fetcher.default_revocation_list_fetcher">default_revocation_list_fetcher</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.signing.revocation_fetcher.CachingRevocationChecker" href="#adcp.signing.revocation_fetcher.CachingRevocationChecker">CachingRevocationChecker</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.revocation_fetcher.CachingRevocationChecker.from_issuer_origin" href="#adcp.signing.revocation_fetcher.CachingRevocationChecker.from_issuer_origin">from_issuer_origin</a></code></li>
+<li><code><a title="adcp.signing.revocation_fetcher.CachingRevocationChecker.is_jti_revoked" href="#adcp.signing.revocation_fetcher.CachingRevocationChecker.is_jti_revoked">is_jti_revoked</a></code></li>
+<li><code><a title="adcp.signing.revocation_fetcher.CachingRevocationChecker.prime" href="#adcp.signing.revocation_fetcher.CachingRevocationChecker.prime">prime</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.revocation_fetcher.FetchResult" href="#adcp.signing.revocation_fetcher.FetchResult">FetchResult</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.revocation_fetcher.FetchResult.body" href="#adcp.signing.revocation_fetcher.FetchResult.body">body</a></code></li>
+<li><code><a title="adcp.signing.revocation_fetcher.FetchResult.etag" href="#adcp.signing.revocation_fetcher.FetchResult.etag">etag</a></code></li>
+<li><code><a title="adcp.signing.revocation_fetcher.FetchResult.last_modified" href="#adcp.signing.revocation_fetcher.FetchResult.last_modified">last_modified</a></code></li>
+<li><code><a title="adcp.signing.revocation_fetcher.FetchResult.not_modified" href="#adcp.signing.revocation_fetcher.FetchResult.not_modified">not_modified</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.revocation_fetcher.RevocationListFetchError" href="#adcp.signing.revocation_fetcher.RevocationListFetchError">RevocationListFetchError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.revocation_fetcher.RevocationListFetcher" href="#adcp.signing.revocation_fetcher.RevocationListFetcher">RevocationListFetcher</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.revocation_fetcher.RevocationListFreshnessError" href="#adcp.signing.revocation_fetcher.RevocationListFreshnessError">RevocationListFreshnessError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.revocation_fetcher.RevocationListParseError" href="#adcp.signing.revocation_fetcher.RevocationListParseError">RevocationListParseError</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
