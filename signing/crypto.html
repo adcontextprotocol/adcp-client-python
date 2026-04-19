@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing.crypto API documentation</title>
+<meta name="description" content="Crypto primitives for the AdCP request-signing profile …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing.crypto</code></h1>
+</header>
+<section id="section-intro">
+<p>Crypto primitives for the AdCP request-signing profile.</p>
+<p>Supported algorithms per RFC 9421 profile:
+- <code>ed25519</code> (EdDSA over Curve25519)
+- <code>ecdsa-p256-sha256</code> (ES256)</p>
+<p>ES256 signatures use IEEE P1363 (r||s, 64 bytes) per RFC 9421 §3.3.2. The
+<code>cryptography</code> library emits/accepts DER by default, so sign() and verify()
+convert at the boundary.</p>
+<p>Encrypted PEM support (passphrase-protected private keys) is tracked in #191.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.signing.crypto.alg_for_jwk"><code class="name flex">
+<span>def <span class="ident">alg_for_jwk</span></span>(<span>jwk: dict[str, Any]) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def alg_for_jwk(jwk: dict[str, Any]) -&gt; str:
+    &#34;&#34;&#34;Map a JWK to its RFC 9421 alg name for the AdCP profile.&#34;&#34;&#34;
+    kty = jwk.get(&#34;kty&#34;)
+    crv = jwk.get(&#34;crv&#34;)
+    if kty == &#34;OKP&#34; and crv == &#34;Ed25519&#34;:
+        return ALG_ED25519
+    if kty == &#34;EC&#34; and crv == &#34;P-256&#34;:
+        return ALG_ES256
+    raise ValueError(f&#34;unsupported JWK kty/crv: {kty}/{crv}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Map a JWK to its RFC 9421 alg name for the AdCP profile.</p></div>
+</dd>
+<dt id="adcp.signing.crypto.b64url_decode"><code class="name flex">
+<span>def <span class="ident">b64url_decode</span></span>(<span>s: str) ‑> bytes</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def b64url_decode(s: str) -&gt; bytes:
+    &#34;&#34;&#34;Decode base64url, tolerating missing padding.&#34;&#34;&#34;
+    pad = &#34;=&#34; * (-len(s) % 4)
+    return base64.urlsafe_b64decode(s + pad)</code></pre>
+</details>
+<div class="desc"><p>Decode base64url, tolerating missing padding.</p></div>
+</dd>
+<dt id="adcp.signing.crypto.b64url_encode"><code class="name flex">
+<span>def <span class="ident">b64url_encode</span></span>(<span>b: bytes) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def b64url_encode(b: bytes) -&gt; str:
+    &#34;&#34;&#34;Encode bytes as base64url without padding.&#34;&#34;&#34;
+    return base64.urlsafe_b64encode(b).rstrip(b&#34;=&#34;).decode(&#34;ascii&#34;)</code></pre>
+</details>
+<div class="desc"><p>Encode bytes as base64url without padding.</p></div>
+</dd>
+<dt id="adcp.signing.crypto.decode_dss_signature"><code class="name flex">
+<span>def <span class="ident">decode_dss_signature</span></span>(<span>data)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.crypto.encode_dss_signature"><code class="name flex">
+<span>def <span class="ident">encode_dss_signature</span></span>(<span>r, s)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.crypto.extract_signature_bytes"><code class="name flex">
+<span>def <span class="ident">extract_signature_bytes</span></span>(<span>signature_header: str, label: str = 'sig1') ‑> bytes</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extract_signature_bytes(signature_header: str, label: str = &#34;sig1&#34;) -&gt; bytes:
+    &#34;&#34;&#34;Parse a Signature header value and return the raw signature bytes for `label`.
+
+    The value is an sf-dictionary: `sig1=:&lt;base64&gt;:[, sig2=:&lt;base64&gt;:]`.
+    RFC 8941 specifies standard base64; the AdCP vectors use base64url. Both
+    are accepted here (standard tried first; url as fallback).
+    &#34;&#34;&#34;
+    for entry in split_structured_field(signature_header, &#34;,&#34;):
+        entry = entry.strip()
+        if not entry:
+            continue
+        eq = entry.find(&#34;=&#34;)
+        if eq &lt; 0:
+            continue
+        name = entry[:eq].strip()
+        value = entry[eq + 1 :].strip()
+        if name != label:
+            continue
+        if not (value.startswith(&#34;:&#34;) and value.endswith(&#34;:&#34;)):
+            raise ValueError(f&#34;Signature value for {label!r} is not an sf-binary: {value!r}&#34;)
+        inner = value[1:-1]
+        try:
+            return base64.b64decode(inner, validate=True)
+        except (ValueError, binascii.Error):
+            return b64url_decode(inner)
+    raise KeyError(f&#34;label not found in Signature header: {label}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Parse a Signature header value and return the raw signature bytes for <code>label</code>.</p>
+<p>The value is an sf-dictionary: <code>sig1=:&lt;base64&gt;:[, sig2=:&lt;base64&gt;:]</code>.
+RFC 8941 specifies standard base64; the AdCP vectors use base64url. Both
+are accepted here (standard tried first; url as fallback).</p></div>
+</dd>
+<dt id="adcp.signing.crypto.format_signature_header"><code class="name flex">
+<span>def <span class="ident">format_signature_header</span></span>(<span>signature: bytes, label: str = 'sig1') ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def format_signature_header(signature: bytes, label: str = &#34;sig1&#34;) -&gt; str:
+    &#34;&#34;&#34;Produce a Signature header value for a single-label signature.&#34;&#34;&#34;
+    return f&#34;{label}=:{b64url_encode(signature)}:&#34;</code></pre>
+</details>
+<div class="desc"><p>Produce a Signature header value for a single-label signature.</p></div>
+</dd>
+<dt id="adcp.signing.crypto.private_key_from_jwk"><code class="name flex">
+<span>def <span class="ident">private_key_from_jwk</span></span>(<span>jwk: dict[str, Any], *, d_field: str = 'd') ‑> cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey | cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePrivateKey</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def private_key_from_jwk(jwk: dict[str, Any], *, d_field: str = &#34;d&#34;) -&gt; PrivateKey:
+    &#34;&#34;&#34;Reconstruct a private key from its JWK.
+
+    `d_field` lets callers read from a non-standard scalar field — the AdCP test
+    vectors store the private half under `_private_d_for_test_only` to signal
+    that the keys are not production-grade.
+    &#34;&#34;&#34;
+    kty = jwk.get(&#34;kty&#34;)
+    crv = jwk.get(&#34;crv&#34;)
+    if kty == &#34;OKP&#34; and crv == &#34;Ed25519&#34;:
+        d_raw = b64url_decode(jwk[d_field])
+        if len(d_raw) != _RAW_KEY_BYTES:
+            raise ValueError(f&#34;Ed25519 JWK d has length {len(d_raw)}, expected {_RAW_KEY_BYTES}&#34;)
+        return ed25519.Ed25519PrivateKey.from_private_bytes(d_raw)
+    if kty == &#34;EC&#34; and crv == &#34;P-256&#34;:
+        d_raw = b64url_decode(jwk[d_field])
+        x_raw = b64url_decode(jwk[&#34;x&#34;])
+        y_raw = b64url_decode(jwk[&#34;y&#34;])
+        if (
+            len(d_raw) != _RAW_KEY_BYTES
+            or len(x_raw) != _RAW_KEY_BYTES
+            or len(y_raw) != _RAW_KEY_BYTES
+        ):
+            raise ValueError(
+                f&#34;P-256 JWK d/x/y must be {_RAW_KEY_BYTES} bytes each, &#34;
+                f&#34;got d={len(d_raw)} x={len(x_raw)} y={len(y_raw)}&#34;
+            )
+        d = int.from_bytes(d_raw, &#34;big&#34;)
+        x = int.from_bytes(x_raw, &#34;big&#34;)
+        y = int.from_bytes(y_raw, &#34;big&#34;)
+        pub = ec.EllipticCurvePublicNumbers(x, y, ec.SECP256R1())
+        return ec.EllipticCurvePrivateNumbers(d, pub).private_key()
+    raise ValueError(f&#34;unsupported JWK kty/crv: {kty}/{crv}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Reconstruct a private key from its JWK.</p>
+<p><code>d_field</code> lets callers read from a non-standard scalar field — the AdCP test
+vectors store the private half under <code>_private_d_for_test_only</code> to signal
+that the keys are not production-grade.</p></div>
+</dd>
+<dt id="adcp.signing.crypto.public_key_from_jwk"><code class="name flex">
+<span>def <span class="ident">public_key_from_jwk</span></span>(<span>jwk: dict[str, Any]) ‑> cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PublicKey | cryptography.hazmat.primitives.asymmetric.ec.EllipticCurvePublicKey</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def public_key_from_jwk(jwk: dict[str, Any]) -&gt; PublicKey:
+    &#34;&#34;&#34;Reconstruct a public key from its JWK.&#34;&#34;&#34;
+    kty = jwk.get(&#34;kty&#34;)
+    crv = jwk.get(&#34;crv&#34;)
+    if kty == &#34;OKP&#34; and crv == &#34;Ed25519&#34;:
+        x_raw = b64url_decode(jwk[&#34;x&#34;])
+        if len(x_raw) != _RAW_KEY_BYTES:
+            raise ValueError(f&#34;Ed25519 JWK x has length {len(x_raw)}, expected {_RAW_KEY_BYTES}&#34;)
+        return ed25519.Ed25519PublicKey.from_public_bytes(x_raw)
+    if kty == &#34;EC&#34; and crv == &#34;P-256&#34;:
+        x_raw = b64url_decode(jwk[&#34;x&#34;])
+        y_raw = b64url_decode(jwk[&#34;y&#34;])
+        if len(x_raw) != _RAW_KEY_BYTES or len(y_raw) != _RAW_KEY_BYTES:
+            raise ValueError(
+                f&#34;P-256 JWK x/y must be {_RAW_KEY_BYTES} bytes each, &#34;
+                f&#34;got x={len(x_raw)} y={len(y_raw)}&#34;
+            )
+        x = int.from_bytes(x_raw, &#34;big&#34;)
+        y = int.from_bytes(y_raw, &#34;big&#34;)
+        return ec.EllipticCurvePublicNumbers(x, y, ec.SECP256R1()).public_key()
+    raise ValueError(f&#34;unsupported JWK kty/crv: {kty}/{crv}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Reconstruct a public key from its JWK.</p></div>
+</dd>
+<dt id="adcp.signing.crypto.sign_signature_base"><code class="name flex">
+<span>def <span class="ident">sign_signature_base</span></span>(<span>*, alg: str, private_key: PrivateKey, signature_base: bytes) ‑> bytes</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sign_signature_base(
+    *,
+    alg: str,
+    private_key: PrivateKey,
+    signature_base: bytes,
+) -&gt; bytes:
+    &#34;&#34;&#34;Produce a signature over the base. ES256 returns r||s (64 bytes).&#34;&#34;&#34;
+    if alg == ALG_ED25519:
+        if not isinstance(private_key, ed25519.Ed25519PrivateKey):
+            raise ValueError(&#34;alg/private_key mismatch: expected Ed25519 key&#34;)
+        return private_key.sign(signature_base)
+    if alg == ALG_ES256:
+        if not isinstance(private_key, ec.EllipticCurvePrivateKey):
+            raise ValueError(&#34;alg/private_key mismatch: expected EC P-256 key&#34;)
+        der = private_key.sign(signature_base, ec.ECDSA(hashes.SHA256()))
+        r, s = decode_dss_signature(der)
+        return r.to_bytes(32, &#34;big&#34;) + s.to_bytes(32, &#34;big&#34;)
+    raise ValueError(f&#34;unsupported alg: {alg}&#34;)</code></pre>
+</details>
+<div class="desc"><p>Produce a signature over the base. ES256 returns r||s (64 bytes).</p></div>
+</dd>
+<dt id="adcp.signing.crypto.verify_signature"><code class="name flex">
+<span>def <span class="ident">verify_signature</span></span>(<span>*, alg: str, public_key: PublicKey, signature_base: bytes, signature: bytes) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_signature(
+    *,
+    alg: str,
+    public_key: PublicKey,
+    signature_base: bytes,
+    signature: bytes,
+) -&gt; bool:
+    &#34;&#34;&#34;Return True iff `signature` is valid over `signature_base` for `alg`.&#34;&#34;&#34;
+    if alg not in ALLOWED_ALGS:
+        raise ValueError(f&#34;unsupported alg: {alg}&#34;)
+    try:
+        if alg == ALG_ED25519:
+            if not isinstance(public_key, ed25519.Ed25519PublicKey):
+                return False
+            public_key.verify(signature, signature_base)
+            return True
+        if alg == ALG_ES256:
+            if not isinstance(public_key, ec.EllipticCurvePublicKey):
+                return False
+            if len(signature) != 64:
+                return False
+            r = int.from_bytes(signature[:32], &#34;big&#34;)
+            s = int.from_bytes(signature[32:], &#34;big&#34;)
+            der = encode_dss_signature(r, s)
+            public_key.verify(der, signature_base, ec.ECDSA(hashes.SHA256()))
+            return True
+    except InvalidSignature:
+        return False
+    return False</code></pre>
+</details>
+<div class="desc"><p>Return True iff <code>signature</code> is valid over <code>signature_base</code> for <code>alg</code>.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.signing" href="index.html">adcp.signing</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.signing.crypto.alg_for_jwk" href="#adcp.signing.crypto.alg_for_jwk">alg_for_jwk</a></code></li>
+<li><code><a title="adcp.signing.crypto.b64url_decode" href="#adcp.signing.crypto.b64url_decode">b64url_decode</a></code></li>
+<li><code><a title="adcp.signing.crypto.b64url_encode" href="#adcp.signing.crypto.b64url_encode">b64url_encode</a></code></li>
+<li><code><a title="adcp.signing.crypto.decode_dss_signature" href="#adcp.signing.crypto.decode_dss_signature">decode_dss_signature</a></code></li>
+<li><code><a title="adcp.signing.crypto.encode_dss_signature" href="#adcp.signing.crypto.encode_dss_signature">encode_dss_signature</a></code></li>
+<li><code><a title="adcp.signing.crypto.extract_signature_bytes" href="#adcp.signing.crypto.extract_signature_bytes">extract_signature_bytes</a></code></li>
+<li><code><a title="adcp.signing.crypto.format_signature_header" href="#adcp.signing.crypto.format_signature_header">format_signature_header</a></code></li>
+<li><code><a title="adcp.signing.crypto.private_key_from_jwk" href="#adcp.signing.crypto.private_key_from_jwk">private_key_from_jwk</a></code></li>
+<li><code><a title="adcp.signing.crypto.public_key_from_jwk" href="#adcp.signing.crypto.public_key_from_jwk">public_key_from_jwk</a></code></li>
+<li><code><a title="adcp.signing.crypto.sign_signature_base" href="#adcp.signing.crypto.sign_signature_base">sign_signature_base</a></code></li>
+<li><code><a title="adcp.signing.crypto.verify_signature" href="#adcp.signing.crypto.verify_signature">verify_signature</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

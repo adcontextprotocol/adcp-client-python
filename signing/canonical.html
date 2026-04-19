@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing.canonical API documentation</title>
+<meta name="description" content="RFC 9421 canonicalization for the AdCP request-signing profile …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing.canonical</code></h1>
+</header>
+<section id="section-intro">
+<p>RFC 9421 canonicalization for the AdCP request-signing profile.</p>
+<p>Implements the canonical signature base per RFC 9421 §2.5 with the covered
+components mandated by the AdCP profile (@method, @target-uri, @authority,
+content-type, content-digest). URI canonicalization follows RFC 3986 §6.2
+scheme-based normalization plus AdCP-specific rules: query preserved
+byte-for-byte, percent-encoding hex uppercased, unreserved chars decoded,
+default ports stripped, dot-segments collapsed.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.signing.canonical.build_signature_base"><code class="name flex">
+<span>def <span class="ident">build_signature_base</span></span>(<span>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>parsed: <a title="adcp.signing.canonical.SignatureInputLabel" href="#adcp.signing.canonical.SignatureInputLabel">SignatureInputLabel</a>) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_signature_base(
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    parsed: SignatureInputLabel,
+) -&gt; str:
+    &#34;&#34;&#34;Build the RFC 9421 signature base string for the AdCP profile.
+
+    Lines are joined with a single `\\n` (LF, not CRLF). No trailing newline.
+    Components appear in the exact order listed in `Signature-Input`, followed
+    by `@signature-params` as the last line.
+    &#34;&#34;&#34;
+    lines: list[str] = []
+    for comp in parsed.components:
+        value = _resolve_component(comp, method, url, headers)
+        lines.append(f&#39;&#34;{comp}&#34;: {value}&#39;)
+    lines.append(f&#39;&#34;@signature-params&#34;: {parsed.raw_value}&#39;)
+    return &#34;\n&#34;.join(lines)</code></pre>
+</details>
+<div class="desc"><p>Build the RFC 9421 signature base string for the AdCP profile.</p>
+<p>Lines are joined with a single <code>\n</code> (LF, not CRLF). No trailing newline.
+Components appear in the exact order listed in <code>Signature-Input</code>, followed
+by <code>@signature-params</code> as the last line.</p></div>
+</dd>
+<dt id="adcp.signing.canonical.canonicalize_authority"><code class="name flex">
+<span>def <span class="ident">canonicalize_authority</span></span>(<span>url: str) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def canonicalize_authority(url: str) -&gt; str:
+    &#34;&#34;&#34;Produce the `@authority` derived-component value per AdCP profile.&#34;&#34;&#34;
+    parts = urlsplit(url)
+    return _canon_authority(parts.netloc, parts.scheme.lower())</code></pre>
+</details>
+<div class="desc"><p>Produce the <code>@authority</code> derived-component value per AdCP profile.</p></div>
+</dd>
+<dt id="adcp.signing.canonical.canonicalize_target_uri"><code class="name flex">
+<span>def <span class="ident">canonicalize_target_uri</span></span>(<span>url: str) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def canonicalize_target_uri(url: str) -&gt; str:
+    &#34;&#34;&#34;Produce the `@target-uri` derived-component value per AdCP profile.&#34;&#34;&#34;
+    parts = urlsplit(url)
+    scheme = parts.scheme.lower()
+    netloc = _canon_authority(parts.netloc, scheme)
+    path = _normalize_path(parts.path)
+    if not path and parts.query:
+        path = &#34;/&#34;
+    # RFC 9421 §2.2.2 + RFC 7230 §5.5: effective request URI excludes the
+    # fragment (client-local, never sent on wire).
+    return urlunsplit((scheme, netloc, path, parts.query, &#34;&#34;))</code></pre>
+</details>
+<div class="desc"><p>Produce the <code>@target-uri</code> derived-component value per AdCP profile.</p></div>
+</dd>
+<dt id="adcp.signing.canonical.parse_signature_input_header"><code class="name flex">
+<span>def <span class="ident">parse_signature_input_header</span></span>(<span>header_value: str) ‑> dict[str, <a title="adcp.signing.canonical.SignatureInputLabel" href="#adcp.signing.canonical.SignatureInputLabel">SignatureInputLabel</a>]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def parse_signature_input_header(header_value: str) -&gt; dict[str, SignatureInputLabel]:
+    &#34;&#34;&#34;Parse a Signature-Input header value into a dict keyed by label.
+
+    A Signature-Input header may contain multiple labels separated by commas:
+    `sig1=(...);..., sig2=(...);...`. The AdCP profile mandates that verifiers
+    process exactly one label (conventionally `sig1`) and ignore others.
+    &#34;&#34;&#34;
+    labels: dict[str, SignatureInputLabel] = {}
+    for entry in split_structured_field(header_value, &#34;,&#34;):
+        entry = entry.strip()
+        if not entry:
+            continue
+        eq_paren = entry.find(&#34;=(&#34;)
+        if eq_paren &lt; 0:
+            raise ValueError(f&#34;malformed Signature-Input entry: {entry!r}&#34;)
+        label = entry[:eq_paren].strip()
+        remainder = entry[eq_paren + 1 :]
+        close = remainder.find(&#34;)&#34;)
+        if close &lt; 0:
+            raise ValueError(f&#34;unterminated component list in label {label!r}&#34;)
+        components_str = remainder[1:close]
+        params_str = remainder[close + 1 :]
+        components = tuple(_unquote_component(tok) for tok in components_str.split())
+        params = _parse_params(params_str)
+        labels[label] = SignatureInputLabel(
+            label=label,
+            components=components,
+            params=params,
+            raw_value=remainder,
+        )
+    return labels</code></pre>
+</details>
+<div class="desc"><p>Parse a Signature-Input header value into a dict keyed by label.</p>
+<p>A Signature-Input header may contain multiple labels separated by commas:
+<code>sig1=(...);..., sig2=(...);...</code>. The AdCP profile mandates that verifiers
+process exactly one label (conventionally <code>sig1</code>) and ignore others.</p></div>
+</dd>
+<dt id="adcp.signing.canonical.split_structured_field"><code class="name flex">
+<span>def <span class="ident">split_structured_field</span></span>(<span>s: str, sep: str) ‑> list[str]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def split_structured_field(s: str, sep: str) -&gt; list[str]:
+    &#34;&#34;&#34;Split on `sep` occurrences that are outside RFC 8941 sf-string quotes and parens.
+
+    sf-string escapes per RFC 8941 §3.3.3 are `\\\\` and `\\&#34;` only; the state
+    machine tracks an `esc` flag so that `\\\\&#34;` closes the quoted span (the
+    backslash escapes itself, the following quote is unescaped).
+    &#34;&#34;&#34;
+    out: list[str] = []
+    depth = 0
+    in_q = False
+    esc = False
+    start = 0
+    for i, c in enumerate(s):
+        if in_q:
+            if esc:
+                esc = False
+            elif c == &#34;\\&#34;:
+                esc = True
+            elif c == &#39;&#34;&#39;:
+                in_q = False
+        elif c == &#39;&#34;&#39;:
+            in_q = True
+        elif c == &#34;(&#34;:
+            depth += 1
+        elif c == &#34;)&#34;:
+            depth -= 1
+        elif c == sep and depth == 0:
+            out.append(s[start:i])
+            start = i + 1
+    out.append(s[start:])
+    return out</code></pre>
+</details>
+<div class="desc"><p>Split on <code>sep</code> occurrences that are outside RFC 8941 sf-string quotes and parens.</p>
+<p>sf-string escapes per RFC 8941 §3.3.3 are <code>\\</code> and <code>\"</code> only; the state
+machine tracks an <code>esc</code> flag so that <code>\\"</code> closes the quoted span (the
+backslash escapes itself, the following quote is unescaped).</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.signing.canonical.SignatureInputLabel"><code class="flex name class">
+<span>class <span class="ident">SignatureInputLabel</span></span>
+<span>(</span><span>label: str,<br>components: tuple[str, ...],<br>params: dict[str, str | int],<br>raw_value: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class SignatureInputLabel:
+    &#34;&#34;&#34;A single label in a Signature-Input header (e.g. the `sig1=...` entry).&#34;&#34;&#34;
+
+    label: str
+    components: tuple[str, ...]
+    params: dict[str, str | int]
+    raw_value: str</code></pre>
+</details>
+<div class="desc"><p>A single label in a Signature-Input header (e.g. the <code>sig1=...</code> entry).</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.canonical.SignatureInputLabel.components"><code class="name">var <span class="ident">components</span> : tuple[str, ...]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.canonical.SignatureInputLabel.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.canonical.SignatureInputLabel.params"><code class="name">var <span class="ident">params</span> : dict[str, str | int]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.canonical.SignatureInputLabel.raw_value"><code class="name">var <span class="ident">raw_value</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.signing" href="index.html">adcp.signing</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.signing.canonical.build_signature_base" href="#adcp.signing.canonical.build_signature_base">build_signature_base</a></code></li>
+<li><code><a title="adcp.signing.canonical.canonicalize_authority" href="#adcp.signing.canonical.canonicalize_authority">canonicalize_authority</a></code></li>
+<li><code><a title="adcp.signing.canonical.canonicalize_target_uri" href="#adcp.signing.canonical.canonicalize_target_uri">canonicalize_target_uri</a></code></li>
+<li><code><a title="adcp.signing.canonical.parse_signature_input_header" href="#adcp.signing.canonical.parse_signature_input_header">parse_signature_input_header</a></code></li>
+<li><code><a title="adcp.signing.canonical.split_structured_field" href="#adcp.signing.canonical.split_structured_field">split_structured_field</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.signing.canonical.SignatureInputLabel" href="#adcp.signing.canonical.SignatureInputLabel">SignatureInputLabel</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.canonical.SignatureInputLabel.components" href="#adcp.signing.canonical.SignatureInputLabel.components">components</a></code></li>
+<li><code><a title="adcp.signing.canonical.SignatureInputLabel.label" href="#adcp.signing.canonical.SignatureInputLabel.label">label</a></code></li>
+<li><code><a title="adcp.signing.canonical.SignatureInputLabel.params" href="#adcp.signing.canonical.SignatureInputLabel.params">params</a></code></li>
+<li><code><a title="adcp.signing.canonical.SignatureInputLabel.raw_value" href="#adcp.signing.canonical.SignatureInputLabel.raw_value">raw_value</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

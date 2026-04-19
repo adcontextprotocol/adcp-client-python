@@ -43,9 +43,53 @@ See: <a href="https://adcontextprotocol.org/docs/building/implementation/securit
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
+<dt><code class="name"><a title="adcp.signing.canonical" href="canonical.html">adcp.signing.canonical</a></code></dt>
+<dd>
+<div class="desc"><p>RFC 9421 canonicalization for the AdCP request-signing profile …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.constants" href="constants.html">adcp.signing.constants</a></code></dt>
+<dd>
+<div class="desc"><p>Shared constants for the AdCP request-signing profile.</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.crypto" href="crypto.html">adcp.signing.crypto</a></code></dt>
+<dd>
+<div class="desc"><p>Crypto primitives for the AdCP request-signing profile …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.digest" href="digest.html">adcp.signing.digest</a></code></dt>
+<dd>
+<div class="desc"><p>Content-Digest (RFC 9530) support for the AdCP request-signing profile …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.errors" href="errors.html">adcp.signing.errors</a></code></dt>
+<dd>
+<div class="desc"><p>Error taxonomy for the AdCP request-signing profile …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.jwks" href="jwks.html">adcp.signing.jwks</a></code></dt>
+<dd>
+<div class="desc"><p>JWKS fetching and caching for the AdCP request-signing profile …</p></div>
+</dd>
 <dt><code class="name"><a title="adcp.signing.keygen" href="keygen.html">adcp.signing.keygen</a></code></dt>
 <dd>
 <div class="desc"><p>Key generation helpers for AdCP request signing …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.middleware" href="middleware.html">adcp.signing.middleware</a></code></dt>
+<dd>
+<div class="desc"><p>Framework helpers for running the AdCP request-signing verifier …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.replay" href="replay.html">adcp.signing.replay</a></code></dt>
+<dd>
+<div class="desc"><p>Replay dedup store for the AdCP request-signing profile …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.revocation" href="revocation.html">adcp.signing.revocation</a></code></dt>
+<dd>
+<div class="desc"><p>Revocation list for the AdCP request-signing profile …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.signer" href="signer.html">adcp.signing.signer</a></code></dt>
+<dd>
+<div class="desc"><p>Signer for the AdCP request-signing profile …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.verifier" href="verifier.html">adcp.signing.verifier</a></code></dt>
+<dd>
+<div class="desc"><p>Verifier checklist for the AdCP request-signing profile …</p></div>
 </dd>
 </dl>
 </section>
@@ -297,7 +341,7 @@ are accepted here (standard tried first; url as fallback).</p></div>
 <div class="desc"><p>Produce a Signature header value for a single-label signature.</p></div>
 </dd>
 <dt id="adcp.signing.parse_signature_input_header"><code class="name flex">
-<span>def <span class="ident">parse_signature_input_header</span></span>(<span>header_value: str) ‑> dict[str, adcp.signing._canonical.SignatureInputLabel]</span>
+<span>def <span class="ident">parse_signature_input_header</span></span>(<span>header_value: str) ‑> dict[str, <a title="adcp.signing.canonical.SignatureInputLabel" href="canonical.html#adcp.signing.canonical.SignatureInputLabel">SignatureInputLabel</a>]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -421,7 +465,7 @@ that the keys are not production-grade.</p></div>
 <div class="desc"><p>Reconstruct a public key from its JWK.</p></div>
 </dd>
 <dt id="adcp.signing.sign_request"><code class="name flex">
-<span>def <span class="ident">sign_request</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>cover_content_digest: bool = False,<br>created: int | None = None,<br>expires_in_seconds: int = 300,<br>nonce: str | None = None,<br>tag: str = 'adcp/request-signing/v1',<br>label: str = 'sig1') ‑> adcp.signing._signer.SignedHeaders</span>
+<span>def <span class="ident">sign_request</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>cover_content_digest: bool = False,<br>created: int | None = None,<br>expires_in_seconds: int = 300,<br>nonce: str | None = None,<br>tag: str = 'adcp/request-signing/v1',<br>label: str = 'sig1') ‑> <a title="adcp.signing.signer.SignedHeaders" href="signer.html#adcp.signing.signer.SignedHeaders">SignedHeaders</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -602,7 +646,7 @@ outgoing HTTP request before sending.</p></div>
 <div class="desc"><p>Raise SSRFValidationError if <code>uri</code> resolves to a blocked IP or has a bad scheme.</p></div>
 </dd>
 <dt id="adcp.signing.verify_flask_request"><code class="name flex">
-<span>def <span class="ident">verify_flask_request</span></span>(<span>request: Any,<br>*,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> adcp.signing._verifier.VerifiedSigner</span>
+<span>def <span class="ident">verify_flask_request</span></span>(<span>request: Any,<br>*,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> <a title="adcp.signing.verifier.VerifiedSigner" href="verifier.html#adcp.signing.verifier.VerifiedSigner">VerifiedSigner</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -622,7 +666,7 @@ outgoing HTTP request before sending.</p></div>
 <div class="desc"><p>Verify a Flask <code>request</code> object against the AdCP profile.</p></div>
 </dd>
 <dt id="adcp.signing.verify_request_signature"><code class="name flex">
-<span>def <span class="ident">verify_request_signature</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> adcp.signing._verifier.VerifiedSigner</span>
+<span>def <span class="ident">verify_request_signature</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> <a title="adcp.signing.verifier.VerifiedSigner" href="verifier.html#adcp.signing.verifier.VerifiedSigner">VerifiedSigner</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -855,7 +899,7 @@ outgoing HTTP request before sending.</p></div>
 <div class="desc"><p>Return True iff <code>signature</code> is valid over <code>signature_base</code> for <code>alg</code>.</p></div>
 </dd>
 <dt id="adcp.signing.verify_starlette_request"><code class="name flex">
-<span>async def <span class="ident">verify_starlette_request</span></span>(<span>request: Any,<br>*,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> adcp.signing._verifier.VerifiedSigner</span>
+<span>async def <span class="ident">verify_starlette_request</span></span>(<span>request: Any,<br>*,<br>options: <a title="adcp.signing.VerifyOptions" href="#adcp.signing.VerifyOptions">VerifyOptions</a>) ‑> <a title="adcp.signing.verifier.VerifiedSigner" href="verifier.html#adcp.signing.verifier.VerifiedSigner">VerifiedSigner</a></span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1269,7 +1313,7 @@ class RevocationList:
 <h3>Static methods</h3>
 <dl>
 <dt id="adcp.signing.RevocationList.from_dict"><code class="name flex">
-<span>def <span class="ident">from_dict</span></span>(<span>data: dict[str, Any]) ‑> adcp.signing._revocation.RevocationList</span>
+<span>def <span class="ident">from_dict</span></span>(<span>data: dict[str, Any]) ‑> <a title="adcp.signing.revocation.RevocationList" href="revocation.html#adcp.signing.revocation.RevocationList">RevocationList</a></span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1611,7 +1655,7 @@ requests — only pick <code>"either"</code> if you've weighed that tradeoff.</p
 </dd>
 <dt id="adcp.signing.VerifyOptions"><code class="flex name class">
 <span>class <span class="ident">VerifyOptions</span></span>
-<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>replay_store: <a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a> | None = None,<br>revocation_checker: <a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a> | None = None,<br>revocation_list: <a title="adcp.signing.RevocationList" href="#adcp.signing.RevocationList">RevocationList</a> | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>allowed_algs: frozenset[str] = frozenset({'ed25519', 'ecdsa-p256-sha256'}),<br>agent_url: str | None = None)</span>
+<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.VerifierCapability" href="#adcp.signing.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>replay_store: <a title="adcp.signing.ReplayStore" href="#adcp.signing.ReplayStore">ReplayStore</a> | None = None,<br>revocation_checker: <a title="adcp.signing.RevocationChecker" href="#adcp.signing.RevocationChecker">RevocationChecker</a> | None = None,<br>revocation_list: <a title="adcp.signing.RevocationList" href="#adcp.signing.RevocationList">RevocationList</a> | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>agent_url: str | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1634,7 +1678,7 @@ class VerifyOptions:
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None</code></pre>
 </details>
-<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', allowed_algs: 'frozenset[str]' = frozenset({'ed25519', 'ecdsa-p256-sha256'}), agent_url: 'str | None' = None)</p></div>
+<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', allowed_algs: 'frozenset[str]' = frozenset({'ecdsa-p256-sha256', 'ed25519'}), agent_url: 'str | None' = None)</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="adcp.signing.VerifyOptions.agent_url"><code class="name">var <span class="ident">agent_url</span> : str | None</code></dt>
@@ -1645,7 +1689,7 @@ class VerifyOptions:
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.signing.VerifyOptions.capability"><code class="name">var <span class="ident">capability</span> : adcp.signing._verifier.VerifierCapability</code></dt>
+<dt id="adcp.signing.VerifyOptions.capability"><code class="name">var <span class="ident">capability</span> : <a title="adcp.signing.verifier.VerifierCapability" href="verifier.html#adcp.signing.verifier.VerifierCapability">VerifierCapability</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1653,7 +1697,7 @@ class VerifyOptions:
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.signing.VerifyOptions.jwks_resolver"><code class="name">var <span class="ident">jwks_resolver</span> : adcp.signing._verifier.JwksResolver</code></dt>
+<dt id="adcp.signing.VerifyOptions.jwks_resolver"><code class="name">var <span class="ident">jwks_resolver</span> : <a title="adcp.signing.verifier.JwksResolver" href="verifier.html#adcp.signing.verifier.JwksResolver">JwksResolver</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1677,15 +1721,15 @@ class VerifyOptions:
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.signing.VerifyOptions.replay_store"><code class="name">var <span class="ident">replay_store</span> : adcp.signing._replay.ReplayStore | None</code></dt>
+<dt id="adcp.signing.VerifyOptions.replay_store"><code class="name">var <span class="ident">replay_store</span> : <a title="adcp.signing.replay.ReplayStore" href="replay.html#adcp.signing.replay.ReplayStore">ReplayStore</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.signing.VerifyOptions.revocation_checker"><code class="name">var <span class="ident">revocation_checker</span> : adcp.signing._revocation.RevocationChecker | None</code></dt>
+<dt id="adcp.signing.VerifyOptions.revocation_checker"><code class="name">var <span class="ident">revocation_checker</span> : <a title="adcp.signing.revocation.RevocationChecker" href="revocation.html#adcp.signing.revocation.RevocationChecker">RevocationChecker</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.signing.VerifyOptions.revocation_list"><code class="name">var <span class="ident">revocation_list</span> : adcp.signing._revocation.RevocationList | None</code></dt>
+<dt id="adcp.signing.VerifyOptions.revocation_list"><code class="name">var <span class="ident">revocation_list</span> : <a title="adcp.signing.revocation.RevocationList" href="revocation.html#adcp.signing.revocation.RevocationList">RevocationList</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1706,7 +1750,18 @@ class VerifyOptions:
 </li>
 <li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
+<li><code><a title="adcp.signing.canonical" href="canonical.html">adcp.signing.canonical</a></code></li>
+<li><code><a title="adcp.signing.constants" href="constants.html">adcp.signing.constants</a></code></li>
+<li><code><a title="adcp.signing.crypto" href="crypto.html">adcp.signing.crypto</a></code></li>
+<li><code><a title="adcp.signing.digest" href="digest.html">adcp.signing.digest</a></code></li>
+<li><code><a title="adcp.signing.errors" href="errors.html">adcp.signing.errors</a></code></li>
+<li><code><a title="adcp.signing.jwks" href="jwks.html">adcp.signing.jwks</a></code></li>
 <li><code><a title="adcp.signing.keygen" href="keygen.html">adcp.signing.keygen</a></code></li>
+<li><code><a title="adcp.signing.middleware" href="middleware.html">adcp.signing.middleware</a></code></li>
+<li><code><a title="adcp.signing.replay" href="replay.html">adcp.signing.replay</a></code></li>
+<li><code><a title="adcp.signing.revocation" href="revocation.html">adcp.signing.revocation</a></code></li>
+<li><code><a title="adcp.signing.signer" href="signer.html">adcp.signing.signer</a></code></li>
+<li><code><a title="adcp.signing.verifier" href="verifier.html">adcp.signing.verifier</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
