@@ -67,6 +67,12 @@ el.replaceWith(d);
             le=99,
         ),
     ] = None
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#34;Account that will own the list. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. When omitted, the seller assigns the list to the agent&#39;s default account if exactly one is accessible; otherwise returns an error.&#34;
+        ),
+    ] = None
     name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]
     description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
         None
@@ -117,6 +123,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -187,6 +197,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest" href="#adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest">CreateCollectionListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.account" href="#adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.adcp_major_version" href="#adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.base_collections" href="#adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.base_collections">base_collections</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.brand" href="#adcp.types.generated_poc.collection.create_collection_list_request.CreateCollectionListRequest.brand">brand</a></code></li>

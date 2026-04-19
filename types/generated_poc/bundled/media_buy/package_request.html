@@ -3701,6 +3701,230 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    url: AnyUrl
+    email: EmailStr | None = None
+    languages: list[str] | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80">DataSubjectContestation80</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.email"><code class="name">var <span class="ident">email</span> : pydantic.networks.EmailStr | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.languages"><code class="name">var <span class="ident">languages</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation79</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation79(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    url: AnyUrl | None = None
+    email: EmailStr
+    languages: list[str] | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81">DataSubjectContestation81</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.email"><code class="name">var <span class="ident">email</span> : pydantic.networks.EmailStr</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.languages"><code class="name">var <span class="ident">languages</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation80</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation80(DataSubjectContestation):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation">DataSubjectContestation</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation">DataSubjectContestation</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation81</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation81(DataSubjectContestation79):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79">DataSubjectContestation79</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79">DataSubjectContestation79</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Day"><code class="flex name class">
 <span>class <span class="ident">Day</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -11056,7 +11280,7 @@ validated to form a valid model.</p>
         ),
     ] = None
     vendor: Annotated[
-        Vendor,
+        Vendor8,
         Field(
             description=&#34;Vendor measuring this metric (e.g., { domain: &#39;doubleverify.com&#39; }). The vendor&#39;s brand.json agents array (type: &#39;measurement&#39;) is the discovery point for their measurement agent. When specified on a confirmed package, creatives MUST include tracker_script or tracker_pixel assets from this vendor.&#34;,
             examples=[
@@ -11101,7 +11325,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.PerformanceStandard.vendor"><code class="name">var <span class="ident">vendor</span> : <a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor">Vendor</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.PerformanceStandard.vendor"><code class="name">var <span class="ident">vendor</span> : <a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8">Vendor8</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18205,6 +18429,18 @@ attributes &ndash; see the documentation for details.</p></div>
             pattern=&#39;^[a-z0-9_]+$&#39;,
             title=&#39;Brand ID&#39;,
         ),
+    ] = None
+    industries: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s industries. Useful when the caller cannot modify the brand&#39;s canonical brand.json but needs to declare industries for governance (e.g., Annex III vertical detection). brand.json remains the canonical source; when omitted here, governance agents SHOULD resolve from brand.json.&#34;
+        ),
+    ] = None
+    data_subject_contestation: Annotated[
+        DataSubjectContestation | DataSubjectContestation79 | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.&#34;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -18228,11 +18464,110 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation">DataSubjectContestation</a> | <a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79">DataSubjectContestation79</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.domain"><code class="name">var <span class="ident">domain</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.industries"><code class="name">var <span class="ident">industries</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8"><code class="flex name class">
+<span>class <span class="ident">Vendor8</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Vendor8(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    domain: Annotated[
+        str,
+        Field(
+            description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    brand_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
+            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
+            pattern=&#39;^[a-z0-9_]+$&#39;,
+            title=&#39;Brand ID&#39;,
+        ),
+    ] = None
+    industries: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s industries. Useful when the caller cannot modify the brand&#39;s canonical brand.json but needs to declare industries for governance (e.g., Annex III vertical detection). brand.json remains the canonical source; when omitted here, governance agents SHOULD resolve from brand.json.&#34;
+        ),
+    ] = None
+    data_subject_contestation: Annotated[
+        DataSubjectContestation80 | DataSubjectContestation81 | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.brand_id"><code class="name">var <span class="ident">brand_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80">DataSubjectContestation80</a> | <a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81">DataSubjectContestation81</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.domain"><code class="name">var <span class="ident">domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.industries"><code class="name">var <span class="ident">industries</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -19720,6 +20055,36 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DaastVersion.field_1_0" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DaastVersion.field_1_0">field_1_0</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DaastVersion.field_1_1" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DaastVersion.field_1_1">field_1_1</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation">DataSubjectContestation</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.email" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.email">email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.languages" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.languages">languages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.model_config" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.url" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79">DataSubjectContestation79</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.email" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.email">email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.languages" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.languages">languages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.model_config" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.url" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation79.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80">DataSubjectContestation80</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80.model_config" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation80.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81">DataSubjectContestation81</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81.model_config" href="#adcp.types.generated_poc.bundled.media_buy.package_request.DataSubjectContestation81.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -21499,8 +21864,20 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor">Vendor</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.brand_id" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.data_subject_contestation" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.data_subject_contestation">data_subject_contestation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.domain" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.domain">domain</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.industries" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.industries">industries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.model_config" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8">Vendor8</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.brand_id" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.data_subject_contestation" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.data_subject_contestation">data_subject_contestation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.domain" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.domain">domain</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.industries" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.industries">industries</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.model_config" href="#adcp.types.generated_poc.bundled.media_buy.package_request.Vendor8.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

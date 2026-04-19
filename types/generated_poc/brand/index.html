@@ -1025,6 +1025,7 @@ validated to form a valid model.</p>
     privacy_policy_url: Annotated[
         AnyUrl | None, Field(description=&#34;URL to the brand&#39;s privacy policy&#34;)
     ] = None
+    data_subject_contestation: DataSubjectContestation | None = None
     disclaimers: Annotated[
         list[Disclaimer] | None, Field(description=&#39;Legal disclaimers for creatives&#39;)
     ] = None
@@ -1103,6 +1104,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.brand.Brand.contact"><code class="name">var <span class="ident">contact</span> : <a title="adcp.types.generated_poc.brand.Contact1" href="#adcp.types.generated_poc.brand.Contact1">Contact1</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.Brand.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.brand.DataSubjectContestation" href="#adcp.types.generated_poc.brand.DataSubjectContestation">DataSubjectContestation</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2118,6 +2123,7 @@ validated to form a valid model.</p>
     agents: Agents
     brand_agent: Annotated[BrandAgent | None, Field(deprecated=True)] = None
     contact: Contact | None = None
+    data_subject_contestation: DataSubjectContestation | None = None
     last_updated: AwareDatetime | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2142,6 +2148,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.brand.BrandDiscovery3.contact"><code class="name">var <span class="ident">contact</span> : <a title="adcp.types.generated_poc.brand.Contact" href="#adcp.types.generated_poc.brand.Contact">Contact</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.BrandDiscovery3.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.brand.DataSubjectContestation" href="#adcp.types.generated_poc.brand.DataSubjectContestation">DataSubjectContestation</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2223,6 +2233,7 @@ validated to form a valid model.</p>
     agents: Agents | None = None
     brand_agent: Annotated[BrandAgent, Field(deprecated=True)]
     contact: Contact | None = None
+    data_subject_contestation: DataSubjectContestation | None = None
     last_updated: AwareDatetime | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2247,6 +2258,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.brand.BrandDiscovery4.contact"><code class="name">var <span class="ident">contact</span> : <a title="adcp.types.generated_poc.brand.Contact" href="#adcp.types.generated_poc.brand.Contact">Contact</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.BrandDiscovery4.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.brand.DataSubjectContestation" href="#adcp.types.generated_poc.brand.DataSubjectContestation">DataSubjectContestation</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -3517,6 +3532,218 @@ validated to form a valid model.</p>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation(RootModel[DataSubjectContestation2 | DataSubjectContestation3]):
+    root: Annotated[
+        DataSubjectContestation2 | DataSubjectContestation3,
+        Field(
+            description=&#39;Contact point where a data subject can request human intervention, express their view, or contest an automated decision — satisfying GDPR Article 22(3) and EU AI Act Article 26(11) transparency obligations. This is a contact reference (URL, email, or both), not a machine-callable API. AdCP surfaces the pointer; the deployer runs the contestation workflow.&#39;
+        ),
+    ]
+
+    def __getattr__(self, name: str) -&gt; Any:
+        &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
+        if name.startswith(&#39;_&#39;):
+            raise AttributeError(name)
+        return getattr(self.root, name)</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[Union[DataSubjectContestation2, DataSubjectContestation3]]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.brand.DataSubjectContestation2" href="#adcp.types.generated_poc.brand.DataSubjectContestation2">DataSubjectContestation2</a> | <a title="adcp.types.generated_poc.brand.DataSubjectContestation3" href="#adcp.types.generated_poc.brand.DataSubjectContestation3">DataSubjectContestation3</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation2"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation2</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation2(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    url: Annotated[
+        AnyUrl,
+        Field(description=&#39;HTTPS URL to a human-accessible contestation form or information page.&#39;),
+    ]
+    email: Annotated[
+        EmailStr | None,
+        Field(
+            description=&#39;Email address for contestation requests. Deployer MUST monitor and respond within the timelines set by applicable law (e.g., 1 month under GDPR Art. 12(3)).&#39;
+        ),
+    ] = None
+    languages: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;BCP 47 language tags the contestation channel supports (e.g., [&#39;en&#39;, &#39;de&#39;, &#39;fr&#39;]). At minimum SHOULD include a language spoken in every jurisdiction where the brand runs regulated-vertical campaigns.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation2.email"><code class="name">var <span class="ident">email</span> : pydantic.networks.EmailStr | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation2.languages"><code class="name">var <span class="ident">languages</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation2.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation2.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation3"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation3</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation3(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    url: Annotated[
+        AnyUrl | None,
+        Field(description=&#39;HTTPS URL to a human-accessible contestation form or information page.&#39;),
+    ] = None
+    email: Annotated[
+        EmailStr,
+        Field(
+            description=&#39;Email address for contestation requests. Deployer MUST monitor and respond within the timelines set by applicable law (e.g., 1 month under GDPR Art. 12(3)).&#39;
+        ),
+    ]
+    languages: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;BCP 47 language tags the contestation channel supports (e.g., [&#39;en&#39;, &#39;de&#39;, &#39;fr&#39;]). At minimum SHOULD include a language spoken in every jurisdiction where the brand runs regulated-vertical campaigns.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation3.email"><code class="name">var <span class="ident">email</span> : pydantic.networks.EmailStr</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation3.languages"><code class="name">var <span class="ident">languages</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation3.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.DataSubjectContestation3.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.brand.DepthOfField"><code class="flex name class">
 <span>class <span class="ident">DepthOfField</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -4576,6 +4803,12 @@ validated to form a valid model.</p>
         Field(
             description=&#39;House-level agents that apply to all brands unless overridden at the brand level&#39;
         ),
+    ] = None
+    data_subject_contestation: Annotated[
+        DataSubjectContestation | None,
+        Field(
+            description=&#39;House-level fallback contestation contact. Governance agents resolve in order: brand.data_subject_contestation → house.data_subject_contestation → missing (critical finding when human review required).&#39;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -4600,6 +4833,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.brand.House.architecture"><code class="name">var <span class="ident">architecture</span> : <a title="adcp.types.generated_poc.brand.Architecture" href="#adcp.types.generated_poc.brand.Architecture">Architecture</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.brand.House.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.brand.DataSubjectContestation" href="#adcp.types.generated_poc.brand.DataSubjectContestation">DataSubjectContestation</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -8769,7 +9006,7 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.Brand" href="#adcp.types.generated_poc.brand.Brand">Brand</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.Brand.agents" href="#adcp.types.generated_poc.brand.Brand.agents">agents</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.Brand.assets" href="#adcp.types.generated_poc.brand.Brand.assets">assets</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.Brand.avatar" href="#adcp.types.generated_poc.brand.Brand.avatar">avatar</a></code></li>
@@ -8777,6 +9014,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.brand.Brand.collections" href="#adcp.types.generated_poc.brand.Brand.collections">collections</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.Brand.colors" href="#adcp.types.generated_poc.brand.Brand.colors">colors</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.Brand.contact" href="#adcp.types.generated_poc.brand.Brand.contact">contact</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.Brand.data_subject_contestation" href="#adcp.types.generated_poc.brand.Brand.data_subject_contestation">data_subject_contestation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.Brand.description" href="#adcp.types.generated_poc.brand.Brand.description">description</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.Brand.disclaimers" href="#adcp.types.generated_poc.brand.Brand.disclaimers">disclaimers</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.Brand.fonts" href="#adcp.types.generated_poc.brand.Brand.fonts">fonts</a></code></li>
@@ -8858,10 +9096,11 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.BrandDiscovery3" href="#adcp.types.generated_poc.brand.BrandDiscovery3">BrandDiscovery3</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery3.agents" href="#adcp.types.generated_poc.brand.BrandDiscovery3.agents">agents</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery3.brand_agent" href="#adcp.types.generated_poc.brand.BrandDiscovery3.brand_agent">brand_agent</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery3.contact" href="#adcp.types.generated_poc.brand.BrandDiscovery3.contact">contact</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery3.data_subject_contestation" href="#adcp.types.generated_poc.brand.BrandDiscovery3.data_subject_contestation">data_subject_contestation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery3.field_schema" href="#adcp.types.generated_poc.brand.BrandDiscovery3.field_schema">field_schema</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery3.last_updated" href="#adcp.types.generated_poc.brand.BrandDiscovery3.last_updated">last_updated</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery3.model_config" href="#adcp.types.generated_poc.brand.BrandDiscovery3.model_config">model_config</a></code></li>
@@ -8870,10 +9109,11 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.BrandDiscovery4" href="#adcp.types.generated_poc.brand.BrandDiscovery4">BrandDiscovery4</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery4.agents" href="#adcp.types.generated_poc.brand.BrandDiscovery4.agents">agents</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery4.brand_agent" href="#adcp.types.generated_poc.brand.BrandDiscovery4.brand_agent">brand_agent</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery4.contact" href="#adcp.types.generated_poc.brand.BrandDiscovery4.contact">contact</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery4.data_subject_contestation" href="#adcp.types.generated_poc.brand.BrandDiscovery4.data_subject_contestation">data_subject_contestation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery4.field_schema" href="#adcp.types.generated_poc.brand.BrandDiscovery4.field_schema">field_schema</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery4.last_updated" href="#adcp.types.generated_poc.brand.BrandDiscovery4.last_updated">last_updated</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.BrandDiscovery4.model_config" href="#adcp.types.generated_poc.brand.BrandDiscovery4.model_config">model_config</a></code></li>
@@ -9045,6 +9285,31 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation" href="#adcp.types.generated_poc.brand.DataSubjectContestation">DataSubjectContestation</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation.model_config" href="#adcp.types.generated_poc.brand.DataSubjectContestation.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation.root" href="#adcp.types.generated_poc.brand.DataSubjectContestation.root">root</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation2" href="#adcp.types.generated_poc.brand.DataSubjectContestation2">DataSubjectContestation2</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation2.email" href="#adcp.types.generated_poc.brand.DataSubjectContestation2.email">email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation2.languages" href="#adcp.types.generated_poc.brand.DataSubjectContestation2.languages">languages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation2.model_config" href="#adcp.types.generated_poc.brand.DataSubjectContestation2.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation2.url" href="#adcp.types.generated_poc.brand.DataSubjectContestation2.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation3" href="#adcp.types.generated_poc.brand.DataSubjectContestation3">DataSubjectContestation3</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation3.email" href="#adcp.types.generated_poc.brand.DataSubjectContestation3.email">email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation3.languages" href="#adcp.types.generated_poc.brand.DataSubjectContestation3.languages">languages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation3.model_config" href="#adcp.types.generated_poc.brand.DataSubjectContestation3.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.DataSubjectContestation3.url" href="#adcp.types.generated_poc.brand.DataSubjectContestation3.url">url</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.brand.DepthOfField" href="#adcp.types.generated_poc.brand.DepthOfField">DepthOfField</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.DepthOfField.deep" href="#adcp.types.generated_poc.brand.DepthOfField.deep">deep</a></code></li>
@@ -9179,9 +9444,10 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.brand.House" href="#adcp.types.generated_poc.brand.House">House</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="adcp.types.generated_poc.brand.House.agents" href="#adcp.types.generated_poc.brand.House.agents">agents</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.House.architecture" href="#adcp.types.generated_poc.brand.House.architecture">architecture</a></code></li>
+<li><code><a title="adcp.types.generated_poc.brand.House.data_subject_contestation" href="#adcp.types.generated_poc.brand.House.data_subject_contestation">data_subject_contestation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.House.domain" href="#adcp.types.generated_poc.brand.House.domain">domain</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.House.model_config" href="#adcp.types.generated_poc.brand.House.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.brand.House.name" href="#adcp.types.generated_poc.brand.House.name">name</a></code></li>

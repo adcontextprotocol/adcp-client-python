@@ -5207,6 +5207,63 @@ for ANY property on this domain</li>
 
         return self.adapter._parse_response(raw_result, AcquireRightsResponse)
 
+    async def update_rights(
+        self,
+        request: UpdateRightsRequest,
+    ) -&gt; TaskResult[UpdateRightsResponse]:
+        &#34;&#34;&#34;Update terms of an existing rights acquisition.
+
+        Modifies a previously acquired rights record — typically to extend
+        the ``end_date``, raise the ``impression_cap``, pause/unpause via
+        ``paused``, or swap to a compatible ``pricing_option_id``. Partial
+        update: pass only the fields you want to change.
+
+        Failure modes (surface as ``TaskResult`` with ``success=False``):
+
+        * Acquisition is expired or revoked — the seller rejects the update
+          outright; mint a fresh ``acquire_rights`` instead.
+        * ``pricing_option_id`` swap to an incompatible option — rejected;
+          the new option&#39;s terms must be a strict superset / compatible
+          with the original acquisition.
+        * No partial-state mutations on rejection: the acquisition remains
+          at its prior state when any field fails validation.
+
+        Args:
+            request: Request with ``rights_id`` and at least one mutable
+                field (``end_date``, ``impression_cap``, ``paused``, or
+                ``pricing_option_id``).
+
+        Returns:
+            TaskResult containing UpdateRightsResponse (updated or error).
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_rights&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_rights(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_rights&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdateRightsResponse)
+
     # ========================================================================
     # V3 Protocol Methods - Compliance
     # ========================================================================
@@ -5447,6 +5504,7 @@ for ANY property on this domain</li>
             &#34;get_brand_identity&#34;: GetBrandIdentityResponse,
             &#34;get_rights&#34;: GetRightsResponse,
             &#34;acquire_rights&#34;: AcquireRightsResponse,
+            &#34;update_rights&#34;: UpdateRightsResponse,
             # Compliance
             &#34;comply_test_controller&#34;: ComplyTestControllerResponse,
         }
@@ -9757,6 +9815,96 @@ of an existing property list.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing UpdatePropertyListResponse</p></div>
 </dd>
+<dt id="adcp.ADCPClient.update_rights"><code class="name flex">
+<span>async def <span class="ident">update_rights</span></span>(<span>self, request: UpdateRightsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[UpdateRightsResponse1, UpdateRightsResponse2]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_rights(
+    self,
+    request: UpdateRightsRequest,
+) -&gt; TaskResult[UpdateRightsResponse]:
+    &#34;&#34;&#34;Update terms of an existing rights acquisition.
+
+    Modifies a previously acquired rights record — typically to extend
+    the ``end_date``, raise the ``impression_cap``, pause/unpause via
+    ``paused``, or swap to a compatible ``pricing_option_id``. Partial
+    update: pass only the fields you want to change.
+
+    Failure modes (surface as ``TaskResult`` with ``success=False``):
+
+    * Acquisition is expired or revoked — the seller rejects the update
+      outright; mint a fresh ``acquire_rights`` instead.
+    * ``pricing_option_id`` swap to an incompatible option — rejected;
+      the new option&#39;s terms must be a strict superset / compatible
+      with the original acquisition.
+    * No partial-state mutations on rejection: the acquisition remains
+      at its prior state when any field fails validation.
+
+    Args:
+        request: Request with ``rights_id`` and at least one mutable
+            field (``end_date``, ``impression_cap``, ``paused``, or
+            ``pricing_option_id``).
+
+    Returns:
+        TaskResult containing UpdateRightsResponse (updated or error).
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_rights&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.update_rights(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_rights&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, UpdateRightsResponse)</code></pre>
+</details>
+<div class="desc"><p>Update terms of an existing rights acquisition.</p>
+<p>Modifies a previously acquired rights record — typically to extend
+the <code>end_date</code>, raise the <code>impression_cap</code>, pause/unpause via
+<code>paused</code>, or swap to a compatible <code>pricing_option_id</code>. Partial
+update: pass only the fields you want to change.</p>
+<p>Failure modes (surface as <code><a title="adcp.TaskResult" href="#adcp.TaskResult">TaskResult</a></code> with <code>success=False</code>):</p>
+<ul>
+<li>Acquisition is expired or revoked — the seller rejects the update
+outright; mint a fresh <code>acquire_rights</code> instead.</li>
+<li><code>pricing_option_id</code> swap to an incompatible option — rejected;
+the new option's terms must be a strict superset / compatible
+with the original acquisition.</li>
+<li>No partial-state mutations on rejection: the acquisition remains
+at its prior state when any field fails validation.</li>
+</ul>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request with <code>rights_id</code> and at least one mutable
+field (<code>end_date</code>, <code>impression_cap</code>, <code>paused</code>, or
+<code>pricing_option_id</code>).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing UpdateRightsResponse (updated or error).</p></div>
+</dd>
 <dt id="adcp.ADCPClient.use_idempotency_key"><code class="name flex">
 <span>def <span class="ident">use_idempotency_key</span></span>(<span>self, key: str) ‑> Iterator[str]</span>
 </code></dt>
@@ -13777,6 +13925,18 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;
         ),
+    ] = None
+    industries: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s industries. Useful when the caller cannot modify the brand&#39;s canonical brand.json but needs to declare industries for governance (e.g., Annex III vertical detection). brand.json remains the canonical source; when omitted here, governance agents SHOULD resolve from brand.json.&#34;
+        ),
+    ] = None
+    data_subject_contestation: Annotated[
+        DataSubjectContestation | DataSubjectContestation5 | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.&#34;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -13800,7 +13960,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.BrandReference.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.core.brand_ref.DataSubjectContestation" href="types/generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.DataSubjectContestation">DataSubjectContestation</a> | <a title="adcp.types.generated_poc.core.brand_ref.DataSubjectContestation5" href="types/generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.DataSubjectContestation5">DataSubjectContestation5</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.BrandReference.domain"><code class="name">var <span class="ident">domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.BrandReference.industries"><code class="name">var <span class="ident">industries</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -40151,6 +40319,7 @@ validated to form a valid model.</p>
 <li>adcp.types.core.TaskResult[Union[SyncGovernanceResponse1, SyncGovernanceResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[UpdateContentStandardsResponse1, UpdateContentStandardsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[UpdateMediaBuyResponse1, UpdateMediaBuyResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[UpdateRightsResponse1, UpdateRightsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[ValidateContentDeliveryResponse1, ValidateContentDeliveryResponse2]]</li>
 <li>adcp.types.core.TaskResult[UpdateCollectionListResponse]</li>
 <li>adcp.types.core.TaskResult[UpdatePropertyListResponse]</li>
@@ -42754,6 +42923,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.ADCPClient.update_content_standards" href="#adcp.ADCPClient.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.ADCPClient.update_media_buy" href="#adcp.ADCPClient.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.ADCPClient.update_property_list" href="#adcp.ADCPClient.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.ADCPClient.update_rights" href="#adcp.ADCPClient.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.ADCPClient.use_idempotency_key" href="#adcp.ADCPClient.use_idempotency_key">use_idempotency_key</a></code></li>
 <li><code><a title="adcp.ADCPClient.validate_content_delivery" href="#adcp.ADCPClient.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
@@ -43210,7 +43380,9 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.BrandReference" href="#adcp.BrandReference">BrandReference</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.BrandReference.brand_id" href="#adcp.BrandReference.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.BrandReference.data_subject_contestation" href="#adcp.BrandReference.data_subject_contestation">data_subject_contestation</a></code></li>
 <li><code><a title="adcp.BrandReference.domain" href="#adcp.BrandReference.domain">domain</a></code></li>
+<li><code><a title="adcp.BrandReference.industries" href="#adcp.BrandReference.industries">industries</a></code></li>
 <li><code><a title="adcp.BrandReference.model_config" href="#adcp.BrandReference.model_config">model_config</a></code></li>
 </ul>
 </li>

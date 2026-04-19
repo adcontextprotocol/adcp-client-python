@@ -2606,6 +2606,26 @@ def supported_skills(self) -&gt; list[str]:
         &#34;&#34;&#34;
         return self._not_supported(&#34;acquire_rights&#34;)
 
+    async def update_rights(
+        self, params: UpdateRightsRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
+        &#34;&#34;&#34;Update terms of an existing rights acquisition.
+
+        Override this in BrandHandler subclasses. Partial update: the
+        request carries ``rights_id`` plus any subset of the mutable fields
+        (``end_date``, ``impression_cap``, ``pricing_option_id``, ``paused``).
+
+        Seller responsibilities you own when implementing this:
+
+        * Reject updates on expired or revoked acquisitions with an
+          appropriate error code — do not partial-commit.
+        * Reject ``pricing_option_id`` swaps to incompatible options — the
+          new option&#39;s terms must be a strict superset of the original.
+        * Apply all accepted fields atomically — callers should never
+          observe a half-applied update on failure.
+        &#34;&#34;&#34;
+        return self._not_supported(&#34;update_rights&#34;)
+
     # ========================================================================
     # V3 Compliance Operations
     # ========================================================================
@@ -3736,6 +3756,48 @@ only the operations your agent supports.</p>
 <div class="desc"><p>Update a property list.</p>
 <p>Override this in GovernanceHandler subclasses.</p></div>
 </dd>
+<dt id="adcp.server.ADCPHandler.update_rights"><code class="name flex">
+<span>async def <span class="ident">update_rights</span></span>(<span>self,<br>params: UpdateRightsRequest | dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_rights(
+    self, params: UpdateRightsRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
+    &#34;&#34;&#34;Update terms of an existing rights acquisition.
+
+    Override this in BrandHandler subclasses. Partial update: the
+    request carries ``rights_id`` plus any subset of the mutable fields
+    (``end_date``, ``impression_cap``, ``pricing_option_id``, ``paused``).
+
+    Seller responsibilities you own when implementing this:
+
+    * Reject updates on expired or revoked acquisitions with an
+      appropriate error code — do not partial-commit.
+    * Reject ``pricing_option_id`` swaps to incompatible options — the
+      new option&#39;s terms must be a strict superset of the original.
+    * Apply all accepted fields atomically — callers should never
+      observe a half-applied update on failure.
+    &#34;&#34;&#34;
+    return self._not_supported(&#34;update_rights&#34;)</code></pre>
+</details>
+<div class="desc"><p>Update terms of an existing rights acquisition.</p>
+<p>Override this in BrandHandler subclasses. Partial update: the
+request carries <code>rights_id</code> plus any subset of the mutable fields
+(<code>end_date</code>, <code>impression_cap</code>, <code>pricing_option_id</code>, <code>paused</code>).</p>
+<p>Seller responsibilities you own when implementing this:</p>
+<ul>
+<li>Reject updates on expired or revoked acquisitions with an
+appropriate error code — do not partial-commit.</li>
+<li>Reject <code>pricing_option_id</code> swaps to incompatible options — the
+new option's terms must be a strict superset of the original.</li>
+<li>Apply all accepted fields atomically — callers should never
+observe a half-applied update on failure.</li>
+</ul></div>
+</dd>
 <dt id="adcp.server.ADCPHandler.validate_content_delivery"><code class="name flex">
 <span>async def <span class="ident">validate_content_delivery</span></span>(<span>self,<br>params: ValidateContentDeliveryRequest | dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
@@ -4077,6 +4139,7 @@ pass</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="base.html#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_rights" href="base.html#adcp.server.base.ADCPHandler.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.validate_content_delivery" href="base.html#adcp.server.base.ADCPHandler.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
@@ -4177,6 +4240,7 @@ pass</p></div>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="base.html#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_rights" href="base.html#adcp.server.base.ADCPHandler.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.validate_content_delivery" href="base.html#adcp.server.base.ADCPHandler.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
@@ -4838,6 +4902,7 @@ async def handle_validate_content_delivery(
 <li><code><a title="adcp.server.base.ADCPHandler.update_collection_list" href="base.html#adcp.server.base.ADCPHandler.update_collection_list">update_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="base.html#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_rights" href="base.html#adcp.server.base.ADCPHandler.update_rights">update_rights</a></code></li>
 </ul>
 </li>
 </ul>
@@ -5697,6 +5762,7 @@ async def handle_update_property_list(
 <li><code><a title="adcp.server.base.ADCPHandler.update_collection_list" href="base.html#adcp.server.base.ADCPHandler.update_collection_list">update_collection_list</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_rights" href="base.html#adcp.server.base.ADCPHandler.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.validate_content_delivery" href="base.html#adcp.server.base.ADCPHandler.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
@@ -7463,6 +7529,7 @@ async def handle_si_terminate_session(
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="base.html#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_rights" href="base.html#adcp.server.base.ADCPHandler.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.validate_content_delivery" href="base.html#adcp.server.base.ADCPHandler.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
@@ -7861,6 +7928,7 @@ pass</p>
 <li><code><a title="adcp.server.base.ADCPHandler.update_content_standards" href="base.html#adcp.server.base.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_media_buy" href="base.html#adcp.server.base.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.update_property_list" href="base.html#adcp.server.base.ADCPHandler.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.server.base.ADCPHandler.update_rights" href="base.html#adcp.server.base.ADCPHandler.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.server.base.ADCPHandler.validate_content_delivery" href="base.html#adcp.server.base.ADCPHandler.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
@@ -8064,6 +8132,7 @@ seller's FastMCP auth middleware).</p></div>
 <li><code><a title="adcp.server.ADCPHandler.update_content_standards" href="#adcp.server.ADCPHandler.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.update_media_buy" href="#adcp.server.ADCPHandler.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.update_property_list" href="#adcp.server.ADCPHandler.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.server.ADCPHandler.update_rights" href="#adcp.server.ADCPHandler.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.server.ADCPHandler.validate_content_delivery" href="#adcp.server.ADCPHandler.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>

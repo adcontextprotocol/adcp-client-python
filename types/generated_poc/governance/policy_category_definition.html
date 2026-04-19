@@ -87,6 +87,12 @@ el.replaceWith(d);
             description=&#34;Restricted attribute categories that regulations in this category prohibit for targeting. Governance agents enforce these when the category is active on a plan — if a plan declares policy_categories: [&#39;fair_housing&#39;], the governance agent restricts targeting on these attributes.&#34;
         ),
     ] = None
+    requires_human_review: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, any plan declaring this category MUST set plan.human_review_required = true. Use for regulatory regimes that mandate human oversight under GDPR Art 22 or EU AI Act Annex III — fair_housing, fair_lending, fair_employment, pharmaceutical_advertising, and similar high-risk categories. Category-level setting applies to all policies and plans referencing it; policies can override on policy-entry.requires_human_review. Effective immediately regardless of individual policy `effective_date` fields.&#39;
+        ),
+    ] = False
     industries: Annotated[
         list[str] | None,
         Field(
@@ -152,6 +158,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.related_categories"><code class="name">var <span class="ident">related_categories</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.requires_human_review"><code class="name">var <span class="ident">requires_human_review</span> : bool | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -273,6 +283,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.name" href="#adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.regulatory_frameworks" href="#adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.regulatory_frameworks">regulatory_frameworks</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.related_categories" href="#adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.related_categories">related_categories</a></code></li>
+<li><code><a title="adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.requires_human_review" href="#adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.requires_human_review">requires_human_review</a></code></li>
 <li><code><a title="adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.restricted_attributes" href="#adcp.types.generated_poc.governance.policy_category_definition.PolicyCategoryDefinition.restricted_attributes">restricted_attributes</a></code></li>
 </ul>
 </li>

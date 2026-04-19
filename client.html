@@ -2773,6 +2773,63 @@ el.replaceWith(d);
 
         return self.adapter._parse_response(raw_result, AcquireRightsResponse)
 
+    async def update_rights(
+        self,
+        request: UpdateRightsRequest,
+    ) -&gt; TaskResult[UpdateRightsResponse]:
+        &#34;&#34;&#34;Update terms of an existing rights acquisition.
+
+        Modifies a previously acquired rights record — typically to extend
+        the ``end_date``, raise the ``impression_cap``, pause/unpause via
+        ``paused``, or swap to a compatible ``pricing_option_id``. Partial
+        update: pass only the fields you want to change.
+
+        Failure modes (surface as ``TaskResult`` with ``success=False``):
+
+        * Acquisition is expired or revoked — the seller rejects the update
+          outright; mint a fresh ``acquire_rights`` instead.
+        * ``pricing_option_id`` swap to an incompatible option — rejected;
+          the new option&#39;s terms must be a strict superset / compatible
+          with the original acquisition.
+        * No partial-state mutations on rejection: the acquisition remains
+          at its prior state when any field fails validation.
+
+        Args:
+            request: Request with ``rights_id`` and at least one mutable
+                field (``end_date``, ``impression_cap``, ``paused``, or
+                ``pricing_option_id``).
+
+        Returns:
+            TaskResult containing UpdateRightsResponse (updated or error).
+        &#34;&#34;&#34;
+        operation_id = create_operation_id()
+        params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_REQUEST,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_rights&#34;,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        raw_result = await self.adapter.update_rights(params)
+
+        self._emit_activity(
+            Activity(
+                type=ActivityType.PROTOCOL_RESPONSE,
+                operation_id=operation_id,
+                agent_id=self.agent_config.id,
+                task_type=&#34;update_rights&#34;,
+                status=raw_result.status,
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+
+        return self.adapter._parse_response(raw_result, UpdateRightsResponse)
+
     # ========================================================================
     # V3 Protocol Methods - Compliance
     # ========================================================================
@@ -3013,6 +3070,7 @@ el.replaceWith(d);
             &#34;get_brand_identity&#34;: GetBrandIdentityResponse,
             &#34;get_rights&#34;: GetRightsResponse,
             &#34;acquire_rights&#34;: AcquireRightsResponse,
+            &#34;update_rights&#34;: UpdateRightsResponse,
             # Compliance
             &#34;comply_test_controller&#34;: ComplyTestControllerResponse,
         }
@@ -7323,6 +7381,96 @@ of an existing property list.</p>
 <h2 id="returns">Returns</h2>
 <p>TaskResult containing UpdatePropertyListResponse</p></div>
 </dd>
+<dt id="adcp.client.ADCPClient.update_rights"><code class="name flex">
+<span>async def <span class="ident">update_rights</span></span>(<span>self, request: UpdateRightsRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[UpdateRightsResponse1, UpdateRightsResponse2]]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def update_rights(
+    self,
+    request: UpdateRightsRequest,
+) -&gt; TaskResult[UpdateRightsResponse]:
+    &#34;&#34;&#34;Update terms of an existing rights acquisition.
+
+    Modifies a previously acquired rights record — typically to extend
+    the ``end_date``, raise the ``impression_cap``, pause/unpause via
+    ``paused``, or swap to a compatible ``pricing_option_id``. Partial
+    update: pass only the fields you want to change.
+
+    Failure modes (surface as ``TaskResult`` with ``success=False``):
+
+    * Acquisition is expired or revoked — the seller rejects the update
+      outright; mint a fresh ``acquire_rights`` instead.
+    * ``pricing_option_id`` swap to an incompatible option — rejected;
+      the new option&#39;s terms must be a strict superset / compatible
+      with the original acquisition.
+    * No partial-state mutations on rejection: the acquisition remains
+      at its prior state when any field fails validation.
+
+    Args:
+        request: Request with ``rights_id`` and at least one mutable
+            field (``end_date``, ``impression_cap``, ``paused``, or
+            ``pricing_option_id``).
+
+    Returns:
+        TaskResult containing UpdateRightsResponse (updated or error).
+    &#34;&#34;&#34;
+    operation_id = create_operation_id()
+    params = request.model_dump(mode=&#34;json&#34;, exclude_none=True)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_REQUEST,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_rights&#34;,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    raw_result = await self.adapter.update_rights(params)
+
+    self._emit_activity(
+        Activity(
+            type=ActivityType.PROTOCOL_RESPONSE,
+            operation_id=operation_id,
+            agent_id=self.agent_config.id,
+            task_type=&#34;update_rights&#34;,
+            status=raw_result.status,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+
+    return self.adapter._parse_response(raw_result, UpdateRightsResponse)</code></pre>
+</details>
+<div class="desc"><p>Update terms of an existing rights acquisition.</p>
+<p>Modifies a previously acquired rights record — typically to extend
+the <code>end_date</code>, raise the <code>impression_cap</code>, pause/unpause via
+<code>paused</code>, or swap to a compatible <code>pricing_option_id</code>. Partial
+update: pass only the fields you want to change.</p>
+<p>Failure modes (surface as <code>TaskResult</code> with <code>success=False</code>):</p>
+<ul>
+<li>Acquisition is expired or revoked — the seller rejects the update
+outright; mint a fresh <code>acquire_rights</code> instead.</li>
+<li><code>pricing_option_id</code> swap to an incompatible option — rejected;
+the new option's terms must be a strict superset / compatible
+with the original acquisition.</li>
+<li>No partial-state mutations on rejection: the acquisition remains
+at its prior state when any field fails validation.</li>
+</ul>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>request</code></strong></dt>
+<dd>Request with <code>rights_id</code> and at least one mutable
+field (<code>end_date</code>, <code>impression_cap</code>, <code>paused</code>, or
+<code>pricing_option_id</code>).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>TaskResult containing UpdateRightsResponse (updated or error).</p></div>
+</dd>
 <dt id="adcp.client.ADCPClient.use_idempotency_key"><code class="name flex">
 <span>def <span class="ident">use_idempotency_key</span></span>(<span>self, key: str) ‑> Iterator[str]</span>
 </code></dt>
@@ -7762,6 +7910,7 @@ def agent_ids(self) -&gt; list[str]:
 <li><code><a title="adcp.client.ADCPClient.update_content_standards" href="#adcp.client.ADCPClient.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_media_buy" href="#adcp.client.ADCPClient.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.update_property_list" href="#adcp.client.ADCPClient.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.client.ADCPClient.update_rights" href="#adcp.client.ADCPClient.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.use_idempotency_key" href="#adcp.client.ADCPClient.use_idempotency_key">use_idempotency_key</a></code></li>
 <li><code><a title="adcp.client.ADCPClient.validate_content_delivery" href="#adcp.client.ADCPClient.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>

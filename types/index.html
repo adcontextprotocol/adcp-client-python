@@ -4692,6 +4692,18 @@ validated to form a valid model.</p>
         Field(
             description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;
         ),
+    ] = None
+    industries: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s industries. Useful when the caller cannot modify the brand&#39;s canonical brand.json but needs to declare industries for governance (e.g., Annex III vertical detection). brand.json remains the canonical source; when omitted here, governance agents SHOULD resolve from brand.json.&#34;
+        ),
+    ] = None
+    data_subject_contestation: Annotated[
+        DataSubjectContestation | DataSubjectContestation5 | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.&#34;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -4715,7 +4727,15 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.BrandReference.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.core.brand_ref.DataSubjectContestation" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.DataSubjectContestation">DataSubjectContestation</a> | <a title="adcp.types.generated_poc.core.brand_ref.DataSubjectContestation5" href="generated_poc/core/brand_ref.html#adcp.types.generated_poc.core.brand_ref.DataSubjectContestation5">DataSubjectContestation5</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.BrandReference.domain"><code class="name">var <span class="ident">domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.BrandReference.industries"><code class="name">var <span class="ident">industries</span> : list[str] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -7606,8 +7626,11 @@ attributes &ndash; see the documentation for details.</p></div>
     description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
         None
     )
-    principal: Annotated[
-        str | None, Field(description=&#39;Principal identity that owns this list&#39;)
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns this list. Returned as account_id form (seller-assigned identifier).&#39;
+        ),
     ] = None
     base_collections: Annotated[
         list[base_collection_source.BaseCollectionSource] | None,
@@ -7666,6 +7689,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.CollectionList.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.CollectionList.base_collections"><code class="name">var <span class="ident">base_collections</span> : list[<a title="adcp.types.generated_poc.collection.base_collection_source.BaseCollectionSource" href="generated_poc/collection/base_collection_source.html#adcp.types.generated_poc.collection.base_collection_source.BaseCollectionSource">BaseCollectionSource</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -7703,10 +7730,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.CollectionList.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.CollectionList.principal"><code class="name">var <span class="ident">principal</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -10371,6 +10394,12 @@ validated to form a valid model.</p>
             le=99,
         ),
     ] = None
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#34;Account that will own the list. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. When omitted, the seller assigns the list to the agent&#39;s default account if exactly one is accessible; otherwise returns an error.&#34;
+        ),
+    ] = None
     name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]
     description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
         None
@@ -10421,6 +10450,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.CreateCollectionListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.CreateCollectionListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -11268,6 +11301,12 @@ validated to form a valid model.</p>
             le=99,
         ),
     ] = None
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#34;Account that will own the list. Pass a natural key (brand, operator, optional sandbox) or a seller-assigned account_id from list_accounts. When omitted, the seller assigns the list to the agent&#39;s default account if exactly one is accessible; otherwise returns an error.&#34;
+        ),
+    ] = None
     name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]
     description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
         None
@@ -11318,6 +11357,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.CreatePropertyListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.CreatePropertyListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -13900,6 +13943,12 @@ validated to form a valid model.</p>
         ),
     ] = None
     list_id: Annotated[str, Field(description=&#39;ID of the collection list to delete&#39;)]
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns the list. Required when the authenticated agent has access to multiple accounts; optional otherwise.&#39;
+        ),
+    ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     idempotency_key: Annotated[
@@ -13929,6 +13978,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.DeleteCollectionListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.DeleteCollectionListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -14054,6 +14107,12 @@ validated to form a valid model.</p>
         ),
     ] = None
     list_id: Annotated[str, Field(description=&#39;ID of the property list to delete&#39;)]
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns the list. Required when the authenticated agent has access to multiple accounts; optional otherwise.&#39;
+        ),
+    ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None
     idempotency_key: Annotated[
@@ -14083,6 +14142,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.DeletePropertyListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.DeletePropertyListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -19748,6 +19811,12 @@ validated to form a valid model.</p>
         ),
     ] = None
     list_id: Annotated[str, Field(description=&#39;ID of the collection list to retrieve&#39;)]
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns the list. Required when the authenticated agent has access to multiple accounts and the list_id is not globally unique within that scope; optional otherwise.&#39;
+        ),
+    ] = None
     resolve: Annotated[
         bool | None,
         Field(
@@ -19780,6 +19849,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.GetCollectionListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.GetCollectionListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -22914,6 +22987,12 @@ validated to form a valid model.</p>
         ),
     ] = None
     list_id: Annotated[str, Field(description=&#39;ID of the property list to retrieve&#39;)]
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns the list. Required when the authenticated agent has access to multiple accounts and the list_id is not globally unique within that scope; optional otherwise.&#39;
+        ),
+    ] = None
     resolve: Annotated[
         bool | None,
         Field(
@@ -22946,6 +23025,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.GetPropertyListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.GetPropertyListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -25104,8 +25187,11 @@ validated to form a valid model.</p>
             le=99,
         ),
     ] = None
-    principal: Annotated[
-        str | None, Field(description=&#39;Filter to lists owned by this principal&#39;)
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Filter to lists owned by this account. When omitted, returns lists across all accounts accessible to the authenticated agent.&#39;
+        ),
     ] = None
     name_contains: Annotated[
         str | None, Field(description=&#39;Filter to lists whose name contains this string&#39;)
@@ -25131,6 +25217,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.ListCollectionListsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.ListCollectionListsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -25152,10 +25242,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ListCollectionListsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ListCollectionListsRequest.principal"><code class="name">var <span class="ident">principal</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -26048,8 +26134,11 @@ validated to form a valid model.</p>
             le=99,
         ),
     ] = None
-    principal: Annotated[
-        str | None, Field(description=&#39;Filter to lists owned by this principal&#39;)
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Filter to lists owned by this account. When omitted, returns lists across all accounts accessible to the authenticated agent.&#39;
+        ),
     ] = None
     name_contains: Annotated[
         str | None, Field(description=&#39;Filter to lists whose name contains this string&#39;)
@@ -26075,6 +26164,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.ListPropertyListsRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.ListPropertyListsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -26096,10 +26189,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ListPropertyListsRequest.pagination"><code class="name">var <span class="ident">pagination</span> : <a title="adcp.types.generated_poc.core.pagination_request.PaginationRequest" href="generated_poc/core/pagination_request.html#adcp.types.generated_poc.core.pagination_request.PaginationRequest">PaginationRequest</a> | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.ListPropertyListsRequest.principal"><code class="name">var <span class="ident">principal</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -33113,8 +33202,11 @@ attributes &ndash; see the documentation for details.</p></div>
     description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
         None
     )
-    principal: Annotated[
-        str | None, Field(description=&#39;Principal identity that owns this list&#39;)
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns this list. Returned as account_id form (seller-assigned identifier).&#39;
+        ),
     ] = None
     base_properties: Annotated[
         list[base_property_source.BasePropertySource] | None,
@@ -33178,6 +33270,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.PropertyList.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.PropertyList.base_properties"><code class="name">var <span class="ident">base_properties</span> : list[<a title="adcp.types.generated_poc.property.base_property_source.BasePropertySource" href="generated_poc/property/base_property_source.html#adcp.types.generated_poc.property.base_property_source.BasePropertySource">BasePropertySource</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -33215,10 +33311,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.PropertyList.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption" href="generated_poc/core/vendor_pricing_option.html#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption">VendorPricingOption</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.PropertyList.principal"><code class="name">var <span class="ident">principal</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -41583,6 +41675,7 @@ validated to form a valid model.</p>
 <li>adcp.types.core.TaskResult[Union[SyncGovernanceResponse1, SyncGovernanceResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[UpdateContentStandardsResponse1, UpdateContentStandardsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[UpdateMediaBuyResponse1, UpdateMediaBuyResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[UpdateRightsResponse1, UpdateRightsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[ValidateContentDeliveryResponse1, ValidateContentDeliveryResponse2]]</li>
 <li>adcp.types.core.TaskResult[UpdateCollectionListResponse]</li>
 <li>adcp.types.core.TaskResult[UpdatePropertyListResponse]</li>
@@ -42425,6 +42518,12 @@ attributes &ndash; see the documentation for details.</p></div>
         ),
     ] = None
     list_id: Annotated[str, Field(description=&#39;ID of the collection list to update&#39;)]
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns the list. Required when the authenticated agent has access to multiple accounts; optional otherwise.&#39;
+        ),
+    ] = None
     name: Annotated[str | None, Field(description=&#39;New name for the list&#39;)] = None
     description: Annotated[str | None, Field(description=&#39;New description&#39;)] = None
     base_collections: Annotated[
@@ -42478,6 +42577,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.UpdateCollectionListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.UpdateCollectionListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -43738,6 +43841,12 @@ validated to form a valid model.</p>
         ),
     ] = None
     list_id: Annotated[str, Field(description=&#39;ID of the property list to update&#39;)]
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns the list. Required when the authenticated agent has access to multiple accounts; optional otherwise.&#39;
+        ),
+    ] = None
     name: Annotated[str | None, Field(description=&#39;New name for the list&#39;)] = None
     description: Annotated[str | None, Field(description=&#39;New description&#39;)] = None
     base_properties: Annotated[
@@ -43791,6 +43900,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.UpdatePropertyListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="generated_poc/core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.UpdatePropertyListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -43898,6 +44011,144 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.UpdatePropertyListResponse.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest"><code class="flex name class">
+<span>class <span class="ident">UpdateRightsRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UpdateRightsRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    rights_id: Annotated[
+        str, Field(description=&#39;Rights grant identifier from acquire_rights response&#39;)
+    ]
+    end_date: Annotated[
+        date_aliased | None,
+        Field(
+            description=&#39;New end date for the rights grant (must be &gt;= current end_date). Extending the grant may re-issue generation credentials with updated expiration.&#39;
+        ),
+    ] = None
+    impression_cap: Annotated[
+        int | None,
+        Field(
+            description=&#39;New impression cap for the grant. Must be &gt;= impressions already delivered.&#39;,
+            ge=1,
+        ),
+    ] = None
+    pricing_option_id: Annotated[
+        str | None,
+        Field(
+            description=&#34;Switch to a different pricing option from the original get_rights offering. The new option must be compatible with the existing grant&#39;s uses and countries.&#34;
+        ),
+    ] = None
+    paused: Annotated[
+        bool | None,
+        Field(
+            description=&#39;Pause or resume the rights grant. When paused, generation credentials are suspended and creative delivery should stop. When resumed, credentials are re-activated.&#39;
+        ),
+    ] = None
+    push_notification_config: Annotated[
+        push_notification_config_1.PushNotificationConfig | None,
+        Field(description=&#39;Webhook for async update notifications if the update requires approval&#39;),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated idempotency key for safe retries. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.UpdateRightsRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.end_date"><code class="name">var <span class="ident">end_date</span> : datetime.date | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.impression_cap"><code class="name">var <span class="ident">impression_cap</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.paused"><code class="name">var <span class="ident">paused</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.push_notification_config"><code class="name">var <span class="ident">push_notification_config</span> : <a title="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig">PushNotificationConfig</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.UpdateRightsRequest.rights_id"><code class="name">var <span class="ident">rights_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -46949,7 +47200,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.BrandReference" href="#adcp.types.BrandReference">BrandReference</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.BrandReference.brand_id" href="#adcp.types.BrandReference.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.types.BrandReference.data_subject_contestation" href="#adcp.types.BrandReference.data_subject_contestation">data_subject_contestation</a></code></li>
 <li><code><a title="adcp.types.BrandReference.domain" href="#adcp.types.BrandReference.domain">domain</a></code></li>
+<li><code><a title="adcp.types.BrandReference.industries" href="#adcp.types.BrandReference.industries">industries</a></code></li>
 <li><code><a title="adcp.types.BrandReference.model_config" href="#adcp.types.BrandReference.model_config">model_config</a></code></li>
 </ul>
 </li>
@@ -47291,6 +47544,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.CollectionList" href="#adcp.types.CollectionList">CollectionList</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.CollectionList.account" href="#adcp.types.CollectionList.account">account</a></code></li>
 <li><code><a title="adcp.types.CollectionList.base_collections" href="#adcp.types.CollectionList.base_collections">base_collections</a></code></li>
 <li><code><a title="adcp.types.CollectionList.brand" href="#adcp.types.CollectionList.brand">brand</a></code></li>
 <li><code><a title="adcp.types.CollectionList.cache_duration_hours" href="#adcp.types.CollectionList.cache_duration_hours">cache_duration_hours</a></code></li>
@@ -47301,7 +47555,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.CollectionList.list_id" href="#adcp.types.CollectionList.list_id">list_id</a></code></li>
 <li><code><a title="adcp.types.CollectionList.model_config" href="#adcp.types.CollectionList.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.CollectionList.name" href="#adcp.types.CollectionList.name">name</a></code></li>
-<li><code><a title="adcp.types.CollectionList.principal" href="#adcp.types.CollectionList.principal">principal</a></code></li>
 <li><code><a title="adcp.types.CollectionList.updated_at" href="#adcp.types.CollectionList.updated_at">updated_at</a></code></li>
 <li><code><a title="adcp.types.CollectionList.webhook_url" href="#adcp.types.CollectionList.webhook_url">webhook_url</a></code></li>
 </ul>
@@ -47630,6 +47883,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.CreateCollectionListRequest" href="#adcp.types.CreateCollectionListRequest">CreateCollectionListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.CreateCollectionListRequest.account" href="#adcp.types.CreateCollectionListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.CreateCollectionListRequest.adcp_major_version" href="#adcp.types.CreateCollectionListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.CreateCollectionListRequest.base_collections" href="#adcp.types.CreateCollectionListRequest.base_collections">base_collections</a></code></li>
 <li><code><a title="adcp.types.CreateCollectionListRequest.brand" href="#adcp.types.CreateCollectionListRequest.brand">brand</a></code></li>
@@ -47742,6 +47996,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.CreatePropertyListRequest" href="#adcp.types.CreatePropertyListRequest">CreatePropertyListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.CreatePropertyListRequest.account" href="#adcp.types.CreatePropertyListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.CreatePropertyListRequest.adcp_major_version" href="#adcp.types.CreatePropertyListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.CreatePropertyListRequest.base_properties" href="#adcp.types.CreatePropertyListRequest.base_properties">base_properties</a></code></li>
 <li><code><a title="adcp.types.CreatePropertyListRequest.brand" href="#adcp.types.CreatePropertyListRequest.brand">brand</a></code></li>
@@ -48075,6 +48330,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.DeleteCollectionListRequest" href="#adcp.types.DeleteCollectionListRequest">DeleteCollectionListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.DeleteCollectionListRequest.account" href="#adcp.types.DeleteCollectionListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.DeleteCollectionListRequest.adcp_major_version" href="#adcp.types.DeleteCollectionListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.DeleteCollectionListRequest.context" href="#adcp.types.DeleteCollectionListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.DeleteCollectionListRequest.ext" href="#adcp.types.DeleteCollectionListRequest.ext">ext</a></code></li>
@@ -48096,6 +48352,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.DeletePropertyListRequest" href="#adcp.types.DeletePropertyListRequest">DeletePropertyListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.DeletePropertyListRequest.account" href="#adcp.types.DeletePropertyListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.DeletePropertyListRequest.adcp_major_version" href="#adcp.types.DeletePropertyListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.DeletePropertyListRequest.context" href="#adcp.types.DeletePropertyListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.DeletePropertyListRequest.ext" href="#adcp.types.DeletePropertyListRequest.ext">ext</a></code></li>
@@ -48844,6 +49101,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.GetCollectionListRequest" href="#adcp.types.GetCollectionListRequest">GetCollectionListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.GetCollectionListRequest.account" href="#adcp.types.GetCollectionListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.GetCollectionListRequest.adcp_major_version" href="#adcp.types.GetCollectionListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.GetCollectionListRequest.context" href="#adcp.types.GetCollectionListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.GetCollectionListRequest.ext" href="#adcp.types.GetCollectionListRequest.ext">ext</a></code></li>
@@ -49239,6 +49497,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.GetPropertyListRequest" href="#adcp.types.GetPropertyListRequest">GetPropertyListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.GetPropertyListRequest.account" href="#adcp.types.GetPropertyListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.GetPropertyListRequest.adcp_major_version" href="#adcp.types.GetPropertyListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.GetPropertyListRequest.context" href="#adcp.types.GetPropertyListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.GetPropertyListRequest.ext" href="#adcp.types.GetPropertyListRequest.ext">ext</a></code></li>
@@ -49515,13 +49774,13 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.ListCollectionListsRequest" href="#adcp.types.ListCollectionListsRequest">ListCollectionListsRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.ListCollectionListsRequest.account" href="#adcp.types.ListCollectionListsRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.ListCollectionListsRequest.adcp_major_version" href="#adcp.types.ListCollectionListsRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.ListCollectionListsRequest.context" href="#adcp.types.ListCollectionListsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.ListCollectionListsRequest.ext" href="#adcp.types.ListCollectionListsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.ListCollectionListsRequest.model_config" href="#adcp.types.ListCollectionListsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ListCollectionListsRequest.name_contains" href="#adcp.types.ListCollectionListsRequest.name_contains">name_contains</a></code></li>
 <li><code><a title="adcp.types.ListCollectionListsRequest.pagination" href="#adcp.types.ListCollectionListsRequest.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.ListCollectionListsRequest.principal" href="#adcp.types.ListCollectionListsRequest.principal">principal</a></code></li>
 </ul>
 </li>
 <li>
@@ -49639,13 +49898,13 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.ListPropertyListsRequest" href="#adcp.types.ListPropertyListsRequest">ListPropertyListsRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.ListPropertyListsRequest.account" href="#adcp.types.ListPropertyListsRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.ListPropertyListsRequest.adcp_major_version" href="#adcp.types.ListPropertyListsRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.ListPropertyListsRequest.context" href="#adcp.types.ListPropertyListsRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.ListPropertyListsRequest.ext" href="#adcp.types.ListPropertyListsRequest.ext">ext</a></code></li>
 <li><code><a title="adcp.types.ListPropertyListsRequest.model_config" href="#adcp.types.ListPropertyListsRequest.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ListPropertyListsRequest.name_contains" href="#adcp.types.ListPropertyListsRequest.name_contains">name_contains</a></code></li>
 <li><code><a title="adcp.types.ListPropertyListsRequest.pagination" href="#adcp.types.ListPropertyListsRequest.pagination">pagination</a></code></li>
-<li><code><a title="adcp.types.ListPropertyListsRequest.principal" href="#adcp.types.ListPropertyListsRequest.principal">principal</a></code></li>
 </ul>
 </li>
 <li>
@@ -50558,6 +50817,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.PropertyList" href="#adcp.types.PropertyList">PropertyList</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.PropertyList.account" href="#adcp.types.PropertyList.account">account</a></code></li>
 <li><code><a title="adcp.types.PropertyList.base_properties" href="#adcp.types.PropertyList.base_properties">base_properties</a></code></li>
 <li><code><a title="adcp.types.PropertyList.brand" href="#adcp.types.PropertyList.brand">brand</a></code></li>
 <li><code><a title="adcp.types.PropertyList.cache_duration_hours" href="#adcp.types.PropertyList.cache_duration_hours">cache_duration_hours</a></code></li>
@@ -50568,7 +50828,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.PropertyList.model_config" href="#adcp.types.PropertyList.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.PropertyList.name" href="#adcp.types.PropertyList.name">name</a></code></li>
 <li><code><a title="adcp.types.PropertyList.pricing_options" href="#adcp.types.PropertyList.pricing_options">pricing_options</a></code></li>
-<li><code><a title="adcp.types.PropertyList.principal" href="#adcp.types.PropertyList.principal">principal</a></code></li>
 <li><code><a title="adcp.types.PropertyList.property_count" href="#adcp.types.PropertyList.property_count">property_count</a></code></li>
 <li><code><a title="adcp.types.PropertyList.updated_at" href="#adcp.types.PropertyList.updated_at">updated_at</a></code></li>
 <li><code><a title="adcp.types.PropertyList.webhook_url" href="#adcp.types.PropertyList.webhook_url">webhook_url</a></code></li>
@@ -51753,6 +52012,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.UpdateCollectionListRequest" href="#adcp.types.UpdateCollectionListRequest">UpdateCollectionListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.UpdateCollectionListRequest.account" href="#adcp.types.UpdateCollectionListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.UpdateCollectionListRequest.adcp_major_version" href="#adcp.types.UpdateCollectionListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.UpdateCollectionListRequest.base_collections" href="#adcp.types.UpdateCollectionListRequest.base_collections">base_collections</a></code></li>
 <li><code><a title="adcp.types.UpdateCollectionListRequest.brand" href="#adcp.types.UpdateCollectionListRequest.brand">brand</a></code></li>
@@ -51918,6 +52178,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.UpdatePropertyListRequest" href="#adcp.types.UpdatePropertyListRequest">UpdatePropertyListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.UpdatePropertyListRequest.account" href="#adcp.types.UpdatePropertyListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.UpdatePropertyListRequest.adcp_major_version" href="#adcp.types.UpdatePropertyListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.UpdatePropertyListRequest.base_properties" href="#adcp.types.UpdatePropertyListRequest.base_properties">base_properties</a></code></li>
 <li><code><a title="adcp.types.UpdatePropertyListRequest.brand" href="#adcp.types.UpdatePropertyListRequest.brand">brand</a></code></li>
@@ -51939,6 +52200,22 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.UpdatePropertyListResponse.ext" href="#adcp.types.UpdatePropertyListResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.UpdatePropertyListResponse.list" href="#adcp.types.UpdatePropertyListResponse.list">list</a></code></li>
 <li><code><a title="adcp.types.UpdatePropertyListResponse.model_config" href="#adcp.types.UpdatePropertyListResponse.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.UpdateRightsRequest" href="#adcp.types.UpdateRightsRequest">UpdateRightsRequest</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.UpdateRightsRequest.adcp_major_version" href="#adcp.types.UpdateRightsRequest.adcp_major_version">adcp_major_version</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.context" href="#adcp.types.UpdateRightsRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.end_date" href="#adcp.types.UpdateRightsRequest.end_date">end_date</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.ext" href="#adcp.types.UpdateRightsRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.idempotency_key" href="#adcp.types.UpdateRightsRequest.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.impression_cap" href="#adcp.types.UpdateRightsRequest.impression_cap">impression_cap</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.model_config" href="#adcp.types.UpdateRightsRequest.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.paused" href="#adcp.types.UpdateRightsRequest.paused">paused</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.pricing_option_id" href="#adcp.types.UpdateRightsRequest.pricing_option_id">pricing_option_id</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.push_notification_config" href="#adcp.types.UpdateRightsRequest.push_notification_config">push_notification_config</a></code></li>
+<li><code><a title="adcp.types.UpdateRightsRequest.rights_id" href="#adcp.types.UpdateRightsRequest.rights_id">rights_id</a></code></li>
 </ul>
 </li>
 <li>

@@ -46,6 +46,147 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Account"><code class="flex name class">
+<span>class <span class="ident">Account</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Account(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    account_id: Annotated[
+        str,
+        Field(
+            description=&#39;Seller-assigned account identifier (from sync_accounts or list_accounts)&#39;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Account.account_id"><code class="name">var <span class="ident">account_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Account.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32"><code class="flex name class">
+<span>class <span class="ident">Account32</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Account32(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    brand: Annotated[
+        Brand,
+        Field(
+            description=&#39;Brand reference identifying the advertiser&#39;,
+            examples=[
+                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
+                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
+                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+            ],
+            title=&#39;Brand Reference&#39;,
+        ),
+    ]
+    operator: Annotated[
+        str,
+        Field(
+            description=&#34;Domain of the entity operating on the brand&#39;s behalf. When the brand operates directly, this is the brand&#39;s domain.&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    sandbox: Annotated[
+        bool | None,
+        Field(
+            description=&#39;When true, references the sandbox account for this brand/operator pair. Defaults to false (production account).&#39;
+        ),
+    ] = False</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand">Brand</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.operator"><code class="name">var <span class="ident">operator</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.sandbox"><code class="name">var <span class="ident">sandbox</span> : bool | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.BaseProperties"><code class="flex name class">
 <span>class <span class="ident">BaseProperties</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -354,6 +495,18 @@ validated to form a valid model.</p>
             pattern=&#39;^[a-z0-9_]+$&#39;,
             title=&#39;Brand ID&#39;,
         ),
+    ] = None
+    industries: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s industries. Useful when the caller cannot modify the brand&#39;s canonical brand.json but needs to declare industries for governance (e.g., Annex III vertical detection). brand.json remains the canonical source; when omitted here, governance agents SHOULD resolve from brand.json.&#34;
+        ),
+    ] = None
+    data_subject_contestation: Annotated[
+        DataSubjectContestation | DataSubjectContestation59 | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.&#34;
+        ),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -377,11 +530,110 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation">DataSubjectContestation</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59">DataSubjectContestation59</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.domain"><code class="name">var <span class="ident">domain</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.industries"><code class="name">var <span class="ident">industries</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24"><code class="flex name class">
+<span>class <span class="ident">Brand24</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Brand24(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    domain: Annotated[
+        str,
+        Field(
+            description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
+            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+        ),
+    ]
+    brand_id: Annotated[
+        str | None,
+        Field(
+            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
+            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
+            pattern=&#39;^[a-z0-9_]+$&#39;,
+            title=&#39;Brand ID&#39;,
+        ),
+    ] = None
+    industries: Annotated[
+        list[str] | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s industries. Useful when the caller cannot modify the brand&#39;s canonical brand.json but needs to declare industries for governance (e.g., Annex III vertical detection). brand.json remains the canonical source; when omitted here, governance agents SHOULD resolve from brand.json.&#34;
+        ),
+    ] = None
+    data_subject_contestation: Annotated[
+        DataSubjectContestation60 | DataSubjectContestation61 | None,
+        Field(
+            description=&#34;Inline override for the brand&#39;s contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.&#34;
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.brand_id"><code class="name">var <span class="ident">brand_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.data_subject_contestation"><code class="name">var <span class="ident">data_subject_contestation</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60">DataSubjectContestation60</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61">DataSubjectContestation61</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.domain"><code class="name">var <span class="ident">domain</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.industries"><code class="name">var <span class="ident">industries</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -644,6 +896,230 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Identifier.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Identifier.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Identifier.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    url: AnyUrl
+    email: EmailStr | None = None
+    languages: list[str] | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60">DataSubjectContestation60</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.email"><code class="name">var <span class="ident">email</span> : pydantic.networks.EmailStr | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.languages"><code class="name">var <span class="ident">languages</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation59</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation59(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;forbid&#39;,
+    )
+    url: AnyUrl | None = None
+    email: EmailStr
+    languages: list[str] | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61">DataSubjectContestation61</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.email"><code class="name">var <span class="ident">email</span> : pydantic.networks.EmailStr</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.languages"><code class="name">var <span class="ident">languages</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.url"><code class="name">var <span class="ident">url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation60</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation60(DataSubjectContestation):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation">DataSubjectContestation</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation">DataSubjectContestation</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61"><code class="flex name class">
+<span>class <span class="ident">DataSubjectContestation61</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DataSubjectContestation61(DataSubjectContestation59):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59">DataSubjectContestation59</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59">DataSubjectContestation59</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1224,8 +1700,25 @@ attributes &ndash; see the documentation for details.</p></div>
     description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
         None
     )
-    principal: Annotated[
-        str | None, Field(description=&#39;Principal identity that owns this list&#39;)
+    account: Annotated[
+        Account | Account32 | None,
+        Field(
+            description=&#39;Account that owns this list. Returned as account_id form (seller-assigned identifier).&#39;,
+            examples=[
+                {&#39;account_id&#39;: &#39;acc_acme_001&#39;},
+                {&#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;}, &#39;operator&#39;: &#39;acme-corp.com&#39;},
+                {
+                    &#39;brand&#39;: {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
+                    &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
+                },
+                {
+                    &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                    &#39;operator&#39;: &#39;acme-corp.com&#39;,
+                    &#39;sandbox&#39;: True,
+                },
+            ],
+            title=&#39;Account Reference&#39;,
+        ),
     ] = None
     base_properties: Annotated[
         list[BaseProperties8] | None,
@@ -1241,7 +1734,7 @@ attributes &ndash; see the documentation for details.</p></div>
         ),
     ] = None
     brand: Annotated[
-        Brand | None,
+        Brand24 | None,
         Field(
             description=&#39;Brand reference used to automatically apply appropriate rules. Resolved to full brand identity at execution time.&#39;,
             examples=[
@@ -1298,11 +1791,15 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.List.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account">Account</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account32">Account32</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.List.base_properties"><code class="name">var <span class="ident">base_properties</span> : list[<a title="adcp.types.generated_poc.bundled.property.get_property_list_response.BaseProperties8" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.BaseProperties8">BaseProperties8</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.List.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand">Brand</a> | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.List.brand"><code class="name">var <span class="ident">brand</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24">Brand24</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1335,10 +1832,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.List.pricing_options"><code class="name">var <span class="ident">pricing_options</span> : list[<a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption">PricingOption</a>] | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.List.principal"><code class="name">var <span class="ident">principal</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2565,6 +3058,22 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account">Account</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account.account_id" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account.account_id">account_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account32">Account32</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.brand" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.brand">brand</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.operator" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.operator">operator</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.sandbox" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Account32.sandbox">sandbox</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.BaseProperties" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.BaseProperties">BaseProperties</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.BaseProperties.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.BaseProperties.model_config">model_config</a></code></li>
@@ -2601,8 +3110,20 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand">Brand</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.brand_id" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.data_subject_contestation" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.data_subject_contestation">data_subject_contestation</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.domain" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.domain">domain</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.industries" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.industries">industries</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24">Brand24</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.brand_id" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.brand_id">brand_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.data_subject_contestation" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.data_subject_contestation">data_subject_contestation</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.domain" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.domain">domain</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.industries" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.industries">industries</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Brand24.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -2641,6 +3162,36 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.CoverageGap" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.CoverageGap">CoverageGap</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.CoverageGap.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.CoverageGap.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation">DataSubjectContestation</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.email" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.email">email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.languages" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.languages">languages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.url" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59">DataSubjectContestation59</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.email" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.email">email</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.languages" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.languages">languages</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.url" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation59.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60">DataSubjectContestation60</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation60.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61">DataSubjectContestation61</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.DataSubjectContestation61.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -2710,6 +3261,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li>
 <h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List">List</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.account" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.base_properties" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.base_properties">base_properties</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.brand" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.cache_duration_hours" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.cache_duration_hours">cache_duration_hours</a></code></li>
@@ -2720,7 +3272,6 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.name" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.name">name</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.pricing_options" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.pricing_options">pricing_options</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.principal" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.principal">principal</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.property_count" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.property_count">property_count</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.updated_at" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.updated_at">updated_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.List.webhook_url" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.List.webhook_url">webhook_url</a></code></li>

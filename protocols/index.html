@@ -853,6 +853,10 @@ el.replaceWith(d);
         &#34;&#34;&#34;Acquire rights for brand content usage.&#34;&#34;&#34;
         return await self._call_a2a_tool(&#34;acquire_rights&#34;, params)
 
+    async def update_rights(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update terms of an existing rights acquisition.&#34;&#34;&#34;
+        return await self._call_a2a_tool(&#34;update_rights&#34;, params)
+
     # ========================================================================
     # V3 Protocol Methods - Compliance
     # ========================================================================
@@ -1113,6 +1117,7 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.update_rights" href="base.html#adcp.protocols.base.ProtocolAdapter.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.validate_content_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
@@ -1848,6 +1853,10 @@ el.replaceWith(d);
         &#34;&#34;&#34;Acquire rights for brand content usage.&#34;&#34;&#34;
         return await self._call_mcp_tool(&#34;acquire_rights&#34;, params)
 
+    async def update_rights(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update terms of an existing rights acquisition.&#34;&#34;&#34;
+        return await self._call_mcp_tool(&#34;update_rights&#34;, params)
+
     # ========================================================================
     # V3 Protocol Methods - Compliance
     # ========================================================================
@@ -2028,6 +2037,7 @@ el.replaceWith(d);
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_content_standards" href="base.html#adcp.protocols.base.ProtocolAdapter.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_media_buy" href="base.html#adcp.protocols.base.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.update_property_list" href="base.html#adcp.protocols.base.ProtocolAdapter.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.protocols.base.ProtocolAdapter.update_rights" href="base.html#adcp.protocols.base.ProtocolAdapter.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.protocols.base.ProtocolAdapter.validate_content_delivery" href="base.html#adcp.protocols.base.ProtocolAdapter.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>
@@ -2483,6 +2493,11 @@ el.replaceWith(d);
     @abstractmethod
     async def acquire_rights(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
         &#34;&#34;&#34;Acquire rights for brand content usage.&#34;&#34;&#34;
+        pass
+
+    @abstractmethod
+    async def update_rights(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+        &#34;&#34;&#34;Update terms of an existing rights acquisition.&#34;&#34;&#34;
         pass
 
     # ========================================================================
@@ -3410,6 +3425,21 @@ async def update_property_list(self, params: dict[str, Any]) -&gt; TaskResult[An
 </details>
 <div class="desc"><p>Update a property list.</p></div>
 </dd>
+<dt id="adcp.protocols.ProtocolAdapter.update_rights"><code class="name flex">
+<span>async def <span class="ident">update_rights</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@abstractmethod
+async def update_rights(self, params: dict[str, Any]) -&gt; TaskResult[Any]:
+    &#34;&#34;&#34;Update terms of an existing rights acquisition.&#34;&#34;&#34;
+    pass</code></pre>
+</details>
+<div class="desc"><p>Update terms of an existing rights acquisition.</p></div>
+</dd>
 <dt id="adcp.protocols.ProtocolAdapter.validate_content_delivery"><code class="name flex">
 <span>async def <span class="ident">validate_content_delivery</span></span>(<span>self, params: dict[str, Any]) ‑> <a title="adcp.types.core.TaskResult" href="../types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Any]</span>
 </code></dt>
@@ -3528,6 +3558,7 @@ async def validate_content_delivery(self, params: dict[str, Any]) -&gt; TaskResu
 <li><code><a title="adcp.protocols.ProtocolAdapter.update_content_standards" href="#adcp.protocols.ProtocolAdapter.update_content_standards">update_content_standards</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.update_media_buy" href="#adcp.protocols.ProtocolAdapter.update_media_buy">update_media_buy</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.update_property_list" href="#adcp.protocols.ProtocolAdapter.update_property_list">update_property_list</a></code></li>
+<li><code><a title="adcp.protocols.ProtocolAdapter.update_rights" href="#adcp.protocols.ProtocolAdapter.update_rights">update_rights</a></code></li>
 <li><code><a title="adcp.protocols.ProtocolAdapter.validate_content_delivery" href="#adcp.protocols.ProtocolAdapter.validate_content_delivery">validate_content_delivery</a></code></li>
 </ul>
 </li>

@@ -64,8 +64,11 @@ el.replaceWith(d);
     description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
         None
     )
-    principal: Annotated[
-        str | None, Field(description=&#39;Principal identity that owns this list&#39;)
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns this list. Returned as account_id form (seller-assigned identifier).&#39;
+        ),
     ] = None
     base_collections: Annotated[
         list[base_collection_source.BaseCollectionSource] | None,
@@ -124,6 +127,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.collection.collection_list.CollectionList.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.collection.collection_list.CollectionList.base_collections"><code class="name">var <span class="ident">base_collections</span> : list[<a title="adcp.types.generated_poc.collection.base_collection_source.BaseCollectionSource" href="base_collection_source.html#adcp.types.generated_poc.collection.base_collection_source.BaseCollectionSource">BaseCollectionSource</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -161,10 +168,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.collection.collection_list.CollectionList.name"><code class="name">var <span class="ident">name</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.collection.collection_list.CollectionList.principal"><code class="name">var <span class="ident">principal</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -206,6 +209,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList" href="#adcp.types.generated_poc.collection.collection_list.CollectionList">CollectionList</a></code></h4>
 <ul class="">
+<li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.account" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.base_collections" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.base_collections">base_collections</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.brand" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.brand">brand</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.cache_duration_hours" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.cache_duration_hours">cache_duration_hours</a></code></li>
@@ -216,7 +220,6 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.list_id" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.list_id">list_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.model_config" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.name" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.name">name</a></code></li>
-<li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.principal" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.principal">principal</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.updated_at" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.updated_at">updated_at</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.collection_list.CollectionList.webhook_url" href="#adcp.types.generated_poc.collection.collection_list.CollectionList.webhook_url">webhook_url</a></code></li>
 </ul>

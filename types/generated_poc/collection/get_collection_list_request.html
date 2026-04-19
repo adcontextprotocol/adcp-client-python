@@ -68,6 +68,12 @@ el.replaceWith(d);
         ),
     ] = None
     list_id: Annotated[str, Field(description=&#39;ID of the collection list to retrieve&#39;)]
+    account: Annotated[
+        account_ref.AccountReference | None,
+        Field(
+            description=&#39;Account that owns the list. Required when the authenticated agent has access to multiple accounts and the list_id is not globally unique within that scope; optional otherwise.&#39;
+        ),
+    ] = None
     resolve: Annotated[
         bool | None,
         Field(
@@ -100,6 +106,10 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.account"><code class="name">var <span class="ident">account</span> : <a title="adcp.types.generated_poc.core.account_ref.AccountReference" href="../core/account_ref.html#adcp.types.generated_poc.core.account_ref.AccountReference">AccountReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
 <dd>
 <div class="desc"></div>
@@ -221,6 +231,7 @@ validated to form a valid model.</p>
 <li>
 <h4><code><a title="adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest" href="#adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest">GetCollectionListRequest</a></code></h4>
 <ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.account" href="#adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.account">account</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.adcp_major_version" href="#adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.adcp_major_version">adcp_major_version</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.context" href="#adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.ext" href="#adcp.types.generated_poc.collection.get_collection_list_request.GetCollectionListRequest.ext">ext</a></code></li>
