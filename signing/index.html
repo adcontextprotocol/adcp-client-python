@@ -74,6 +74,19 @@ revocation list from <code>{issuer}/.well-known/governance-revocations.json</cod
 <li>Async variants: :class:<code><a title="adcp.signing.AsyncCachingJwksResolver" href="#adcp.signing.AsyncCachingJwksResolver">AsyncCachingJwksResolver</a></code>,
 :class:<code><a title="adcp.signing.AsyncCachingRevocationChecker" href="#adcp.signing.AsyncCachingRevocationChecker">AsyncCachingRevocationChecker</a></code></li>
 </ul>
+<p><strong>Custom fetchers</strong> (rolling your own JWKS / revocation transport):</p>
+<ul>
+<li>:func:<code><a title="adcp.signing.build_ip_pinned_transport" href="#adcp.signing.build_ip_pinned_transport">build_ip_pinned_transport()</a></code> /
+:func:<code><a title="adcp.signing.build_async_ip_pinned_transport" href="#adcp.signing.build_async_ip_pinned_transport">build_async_ip_pinned_transport()</a></code> — returns an
+:class:<code>httpx.HTTPTransport</code> wired to resolve the URI's host once
+(with SSRF validation) and pin subsequent connects to that IP.
+Closes the DNS-rebinding TOCTOU for anything built on
+:class:<code>httpx.Client</code>.</li>
+<li>:func:<code><a title="adcp.signing.resolve_and_validate_host" href="#adcp.signing.resolve_and_validate_host">resolve_and_validate_host()</a></code> — returns <code>(host, ip, port)</code>;
+same SSRF rules as :func:<code><a title="adcp.signing.validate_jwks_uri" href="#adcp.signing.validate_jwks_uri">validate_jwks_uri()</a></code>. Use this if you're
+wiring your own transport and only need the resolved + validated
+IP.</li>
+</ul>
 </section>
 <section>
 <h2 class="section-title" id="header-submodules">Sub-modules</h2>
@@ -101,6 +114,10 @@ revocation list from <code>{issuer}/.well-known/governance-revocations.json</cod
 <dt><code class="name"><a title="adcp.signing.errors" href="errors.html">adcp.signing.errors</a></code></dt>
 <dd>
 <div class="desc"><p>Error taxonomy for the AdCP request-signing profile …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.signing.ip_pinned_transport" href="ip_pinned_transport.html">adcp.signing.ip_pinned_transport</a></code></dt>
+<dd>
+<div class="desc"><p>IP-pinned httpx transports that close the DNS-rebinding TOCTOU …</p></div>
 </dd>
 <dt><code class="name"><a title="adcp.signing.jwks" href="jwks.html">adcp.signing.jwks</a></code></dt>
 <dd>
@@ -149,6 +166,42 @@ revocation list from <code>{issuer}/.well-known/governance-revocations.json</cod
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="adcp.signing.abuild_ip_pinned_transport"><code class="name flex">
+<span>def <span class="ident">abuild_ip_pinned_transport</span></span>(<span>uri: str, *, allow_private: bool = False, verify: bool = True) ‑> <a title="adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport" href="ip_pinned_transport.html#adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def abuild_ip_pinned_transport(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    verify: bool = True,
+) -&gt; AsyncIpPinnedTransport:
+    &#34;&#34;&#34;Deprecated alias for :func:`build_async_ip_pinned_transport`.
+
+    The ``a``-prefix convention in this package means &#34;awaitable
+    coroutine&#34; (``averify_detached_jws`` etc.) — but this factory is
+    synchronous. Renamed during PR #206 review; kept for one release
+    so downstream callers have time to migrate.
+    &#34;&#34;&#34;
+    warnings.warn(
+        &#34;abuild_ip_pinned_transport is deprecated; use &#34;
+        &#34;build_async_ip_pinned_transport (factory is sync, returns &#34;
+        &#34;an AsyncIpPinnedTransport).&#34;,
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return build_async_ip_pinned_transport(uri, allow_private=allow_private, verify=verify)</code></pre>
+</details>
+<div class="desc"><p>Deprecated alias for :func:<code><a title="adcp.signing.build_async_ip_pinned_transport" href="#adcp.signing.build_async_ip_pinned_transport">build_async_ip_pinned_transport()</a></code>.</p>
+<p>The <code>a</code>-prefix convention in this package means "awaitable
+coroutine" (<code><a title="adcp.signing.averify_detached_jws" href="#adcp.signing.averify_detached_jws">averify_detached_jws()</a></code> etc.) — but this factory is
+synchronous. Renamed during PR #206 review; kept for one release
+so downstream callers have time to migrate.</p></div>
+</dd>
 <dt id="adcp.signing.alg_for_jwk"><code class="name flex">
 <span>def <span class="ident">alg_for_jwk</span></span>(<span>jwk: dict[str, Any]) ‑> str</span>
 </code></dt>
@@ -205,18 +258,23 @@ work (just a dict lookup); the wrapper is a shape adapter.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def async_default_jwks_fetcher(
-    uri: str, *, allow_private: bool = False
-) -&gt; dict[str, Any]:
+<pre><code class="python">async def async_default_jwks_fetcher(uri: str, *, allow_private: bool = False) -&gt; dict[str, Any]:
     &#34;&#34;&#34;Async counterpart to :func:`default_jwks_fetcher`.
 
-    Uses :class:`httpx.AsyncClient` so callers on an asyncio event loop
-    don&#39;t block the loop on JWKS fetches. Same SSRF + follow-redirects
-    rules as the sync version.
+    Uses :class:`httpx.AsyncClient` with an IP-pinned transport so
+    callers on an asyncio event loop don&#39;t block the loop on JWKS
+    fetches AND the DNS-rebinding TOCTOU stays closed. Same SSRF +
+    follow-redirects rules as the sync version.
     &#34;&#34;&#34;
-    validate_jwks_uri(uri, allow_private=allow_private)
+    from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
+    transport = build_async_ip_pinned_transport(uri, allow_private=allow_private)
+    # See default_jwks_fetcher for why trust_env=False matters.
     async with httpx.AsyncClient(
-        timeout=DEFAULT_JWKS_TIMEOUT_SECONDS, follow_redirects=False
+        transport=transport,
+        timeout=DEFAULT_JWKS_TIMEOUT_SECONDS,
+        follow_redirects=False,
+        trust_env=False,
     ) as client:
         response = await client.get(uri, headers={&#34;Accept&#34;: &#34;application/json&#34;})
         response.raise_for_status()
@@ -226,9 +284,10 @@ work (just a dict lookup); the wrapper is a shape adapter.</p></div>
     return body</code></pre>
 </details>
 <div class="desc"><p>Async counterpart to :func:<code><a title="adcp.signing.default_jwks_fetcher" href="#adcp.signing.default_jwks_fetcher">default_jwks_fetcher()</a></code>.</p>
-<p>Uses :class:<code>httpx.AsyncClient</code> so callers on an asyncio event loop
-don't block the loop on JWKS fetches. Same SSRF + follow-redirects
-rules as the sync version.</p></div>
+<p>Uses :class:<code>httpx.AsyncClient</code> with an IP-pinned transport so
+callers on an asyncio event loop don't block the loop on JWKS
+fetches AND the DNS-rebinding TOCTOU stays closed. Same SSRF +
+follow-redirects rules as the sync version.</p></div>
 </dd>
 <dt id="adcp.signing.async_default_revocation_list_fetcher"><code class="name flex">
 <span>async def <span class="ident">async_default_revocation_list_fetcher</span></span>(<span>uri: str,<br>*,<br>if_none_match: str | None = None,<br>if_modified_since: str | None = None,<br>allow_private: bool = False,<br>timeout: float = 10.0) ‑> <a title="adcp.signing.revocation_fetcher.FetchResult" href="revocation_fetcher.html#adcp.signing.revocation_fetcher.FetchResult">FetchResult</a></span>
@@ -248,16 +307,21 @@ rules as the sync version.</p></div>
 ) -&gt; FetchResult:
     &#34;&#34;&#34;Async counterpart to :func:`default_revocation_list_fetcher`.
 
-    Same SSRF + conditional-request behavior, but uses
+    Same SSRF + IP-pinned + conditional-request behavior, but uses
     :class:`httpx.AsyncClient` so the event loop isn&#39;t blocked during
     the round-trip.
     &#34;&#34;&#34;
-    validate_jwks_uri(uri, allow_private=allow_private)
-    headers = _build_fetch_headers(
-        if_none_match=if_none_match, if_modified_since=if_modified_since
-    )
+    from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
+    transport = build_async_ip_pinned_transport(uri, allow_private=allow_private)
+    headers = _build_fetch_headers(if_none_match=if_none_match, if_modified_since=if_modified_since)
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=timeout,
+            follow_redirects=False,
+            trust_env=False,
+        ) as client:
             response = await client.get(uri, headers=headers)
     except httpx.HTTPError as exc:
         raise RevocationListFetchError(f&#34;revocation list GET {uri!r} failed: {exc}&#34;) from exc
@@ -272,12 +336,12 @@ rules as the sync version.</p></div>
     )</code></pre>
 </details>
 <div class="desc"><p>Async counterpart to :func:<code><a title="adcp.signing.default_revocation_list_fetcher" href="#adcp.signing.default_revocation_list_fetcher">default_revocation_list_fetcher()</a></code>.</p>
-<p>Same SSRF + conditional-request behavior, but uses
+<p>Same SSRF + IP-pinned + conditional-request behavior, but uses
 :class:<code>httpx.AsyncClient</code> so the event loop isn't blocked during
 the round-trip.</p></div>
 </dd>
 <dt id="adcp.signing.averify_detached_jws"><code class="name flex">
-<span>async def <span class="ident">averify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>async def <span class="ident">averify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -318,7 +382,7 @@ the round-trip.</p></div>
 other work is pure CPU and runs inline.</p></div>
 </dd>
 <dt id="adcp.signing.averify_jws_document"><code class="name flex">
-<span>async def <span class="ident">averify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>async def <span class="ident">averify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -386,6 +450,73 @@ are pure CPU and run inline.</p></div>
     return base64.urlsafe_b64encode(b).rstrip(b&#34;=&#34;).decode(&#34;ascii&#34;)</code></pre>
 </details>
 <div class="desc"><p>Encode bytes as base64url without padding.</p></div>
+</dd>
+<dt id="adcp.signing.build_async_ip_pinned_transport"><code class="name flex">
+<span>def <span class="ident">build_async_ip_pinned_transport</span></span>(<span>uri: str, *, allow_private: bool = False, verify: bool = True) ‑> <a title="adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport" href="ip_pinned_transport.html#adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_async_ip_pinned_transport(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    verify: bool = True,
+) -&gt; AsyncIpPinnedTransport:
+    &#34;&#34;&#34;Build an :class:`AsyncIpPinnedTransport` for ``uri``.
+
+    Resolve + validate run synchronously (``socket.getaddrinfo``); this
+    function itself is not awaitable. The returned transport plugs
+    into :class:`httpx.AsyncClient`.
+    &#34;&#34;&#34;
+    hostname, resolved_ip, _port = resolve_and_validate_host(uri, allow_private=allow_private)
+    return AsyncIpPinnedTransport(hostname=hostname, resolved_ip=resolved_ip, verify=verify)</code></pre>
+</details>
+<div class="desc"><p>Build an :class:<code><a title="adcp.signing.AsyncIpPinnedTransport" href="#adcp.signing.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></code> for <code>uri</code>.</p>
+<p>Resolve + validate run synchronously (<code>socket.getaddrinfo</code>); this
+function itself is not awaitable. The returned transport plugs
+into :class:<code>httpx.AsyncClient</code>.</p></div>
+</dd>
+<dt id="adcp.signing.build_ip_pinned_transport"><code class="name flex">
+<span>def <span class="ident">build_ip_pinned_transport</span></span>(<span>uri: str, *, allow_private: bool = False, verify: bool = True) ‑> <a title="adcp.signing.ip_pinned_transport.IpPinnedTransport" href="ip_pinned_transport.html#adcp.signing.ip_pinned_transport.IpPinnedTransport">IpPinnedTransport</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_ip_pinned_transport(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    verify: bool = True,
+) -&gt; IpPinnedTransport:
+    &#34;&#34;&#34;Resolve ``uri`` once and return a transport pinned to the validated IP.
+
+    Raises :class:`SSRFValidationError` if the URI&#39;s scheme isn&#39;t
+    ``http``/``https``, the host doesn&#39;t resolve, or every resolved
+    IP is in a blocked range.
+
+    Typical use inside a fetcher::
+
+        transport = build_ip_pinned_transport(uri)
+        with httpx.Client(transport=transport, timeout=10.0) as client:
+            response = client.get(uri)
+    &#34;&#34;&#34;
+    hostname, resolved_ip, _port = resolve_and_validate_host(uri, allow_private=allow_private)
+    return IpPinnedTransport(hostname=hostname, resolved_ip=resolved_ip, verify=verify)</code></pre>
+</details>
+<div class="desc"><p>Resolve <code>uri</code> once and return a transport pinned to the validated IP.</p>
+<p>Raises :class:<code><a title="adcp.signing.SSRFValidationError" href="#adcp.signing.SSRFValidationError">SSRFValidationError</a></code> if the URI's scheme isn't
+<code>http</code>/<code>https</code>, the host doesn't resolve, or every resolved
+IP is in a blocked range.</p>
+<p>Typical use inside a fetcher::</p>
+<pre><code>transport = build_ip_pinned_transport(uri)
+with httpx.Client(transport=transport, timeout=10.0) as client:
+    response = client.get(uri)
+</code></pre></div>
 </dd>
 <dt id="adcp.signing.build_signature_base"><code class="name flex">
 <span>def <span class="ident">build_signature_base</span></span>(<span>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>parsed: <a title="adcp.signing.SignatureInputLabel" href="#adcp.signing.SignatureInputLabel">SignatureInputLabel</a>) ‑> str</span>
@@ -511,12 +642,30 @@ by <code>@signature-params</code> as the last line.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def default_jwks_fetcher(uri: str, *, allow_private: bool = False) -&gt; dict[str, Any]:
-    &#34;&#34;&#34;Validate the URI against SSRF rules, then GET the JWKS document.&#34;&#34;&#34;
-    validate_jwks_uri(uri, allow_private=allow_private)
-    # follow_redirects=False is explicit: httpx already defaults to no-follow,
-    # but an attacker controlling the JWKS origin could 302 us to an IP that
-    # `validate_jwks_uri` already cleared.
-    with httpx.Client(timeout=DEFAULT_JWKS_TIMEOUT_SECONDS, follow_redirects=False) as client:
+    &#34;&#34;&#34;Validate + resolve the URI once, then GET the JWKS over an IP-pinned
+    transport.
+
+    Pinning closes the DNS-rebinding TOCTOU that would otherwise let a
+    ``TTL=0`` attacker pass SSRF validation with one IP and connect to
+    a different one. See :mod:`adcp.signing.ip_pinned_transport`.
+    &#34;&#34;&#34;
+    # Import lazily to avoid a module-load cycle with the transport module
+    # (which imports from this file).
+    from adcp.signing.ip_pinned_transport import build_ip_pinned_transport
+
+    transport = build_ip_pinned_transport(uri, allow_private=allow_private)
+    # follow_redirects=False: a 302 to a different hostname would
+    # bypass the pin. trust_env=False: httpx&#39;s default True picks up
+    # HTTPS_PROXY / HTTP_PROXY from the environment and routes the
+    # request through an HTTPProxy pool that ignores our pinned
+    # backend entirely — a process with HTTPS_PROXY set to an
+    # attacker-controlled endpoint would bypass the TOCTOU fix.
+    with httpx.Client(
+        transport=transport,
+        timeout=DEFAULT_JWKS_TIMEOUT_SECONDS,
+        follow_redirects=False,
+        trust_env=False,
+    ) as client:
         response = client.get(uri, headers={&#34;Accept&#34;: &#34;application/json&#34;})
         response.raise_for_status()
         body = response.json()
@@ -524,7 +673,11 @@ by <code>@signature-params</code> as the last line.</p></div>
         raise ValueError(f&#34;JWKS document at {uri!r} has no &#39;keys&#39; array&#34;)
     return body</code></pre>
 </details>
-<div class="desc"><p>Validate the URI against SSRF rules, then GET the JWKS document.</p></div>
+<div class="desc"><p>Validate + resolve the URI once, then GET the JWKS over an IP-pinned
+transport.</p>
+<p>Pinning closes the DNS-rebinding TOCTOU that would otherwise let a
+<code>TTL=0</code> attacker pass SSRF validation with one IP and connect to
+a different one. See :mod:<code><a title="adcp.signing.ip_pinned_transport" href="ip_pinned_transport.html">adcp.signing.ip_pinned_transport</a></code>.</p></div>
 </dd>
 <dt id="adcp.signing.default_revocation_list_fetcher"><code class="name flex">
 <span>def <span class="ident">default_revocation_list_fetcher</span></span>(<span>uri: str,<br>*,<br>if_none_match: str | None = None,<br>if_modified_since: str | None = None,<br>allow_private: bool = False,<br>timeout: float = 10.0) ‑> <a title="adcp.signing.revocation_fetcher.FetchResult" href="revocation_fetcher.html#adcp.signing.revocation_fetcher.FetchResult">FetchResult</a></span>
@@ -544,20 +697,28 @@ by <code>@signature-params</code> as the last line.</p></div>
 ) -&gt; FetchResult:
     &#34;&#34;&#34;HTTPS GET the revocation list, honoring SSRF rules and conditional requests.
 
-    Reuses ``validate_jwks_uri`` — the SSRF controls are identical (same
-    reserved-range rejection, same cloud-metadata block). ``httpx``
-    re-resolves the hostname on connect, which is the TOCTOU window
-    tracked separately in #190. Sends ``If-None-Match`` when an ETag is
+    Reuses the JWKS SSRF controls (same reserved-range rejection, same
+    cloud-metadata block) via an IP-pinned transport so the hostname
+    is resolved once and connections target that validated IP — no
+    DNS-rebinding TOCTOU. Sends ``If-None-Match`` when an ETag is
     supplied and ``If-Modified-Since`` when a ``Last-Modified`` is
     supplied; the spec accepts either (sellers SHOULD use both when
     available).
     &#34;&#34;&#34;
-    validate_jwks_uri(uri, allow_private=allow_private)
-    headers = _build_fetch_headers(
-        if_none_match=if_none_match, if_modified_since=if_modified_since
-    )
+    from adcp.signing.ip_pinned_transport import build_ip_pinned_transport
+
+    transport = build_ip_pinned_transport(uri, allow_private=allow_private)
+    headers = _build_fetch_headers(if_none_match=if_none_match, if_modified_since=if_modified_since)
     try:
-        with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+        # trust_env=False keeps HTTPS_PROXY env vars from routing through
+        # an attacker-controlled proxy that would bypass the IP-pinned
+        # transport. See default_jwks_fetcher docstring.
+        with httpx.Client(
+            transport=transport,
+            timeout=timeout,
+            follow_redirects=False,
+            trust_env=False,
+        ) as client:
             response = client.get(uri, headers=headers)
     except httpx.HTTPError as exc:
         raise RevocationListFetchError(f&#34;revocation list GET {uri!r} failed: {exc}&#34;) from exc
@@ -572,10 +733,10 @@ by <code>@signature-params</code> as the last line.</p></div>
     )</code></pre>
 </details>
 <div class="desc"><p>HTTPS GET the revocation list, honoring SSRF rules and conditional requests.</p>
-<p>Reuses <code><a title="adcp.signing.validate_jwks_uri" href="#adcp.signing.validate_jwks_uri">validate_jwks_uri()</a></code> — the SSRF controls are identical (same
-reserved-range rejection, same cloud-metadata block). <code>httpx</code>
-re-resolves the hostname on connect, which is the TOCTOU window
-tracked separately in #190. Sends <code>If-None-Match</code> when an ETag is
+<p>Reuses the JWKS SSRF controls (same reserved-range rejection, same
+cloud-metadata block) via an IP-pinned transport so the hostname
+is resolved once and connections target that validated IP — no
+DNS-rebinding TOCTOU. Sends <code>If-None-Match</code> when an ETag is
 supplied and <code>If-Modified-Since</code> when a <code>Last-Modified</code> is
 supplied; the spec accepts either (sellers SHOULD use both when
 available).</p></div>
@@ -893,6 +1054,154 @@ that the keys are not production-grade.</p></div>
 </details>
 <div class="desc"><p>Reconstruct a public key from its JWK.</p></div>
 </dd>
+<dt id="adcp.signing.resolve_and_validate_host"><code class="name flex">
+<span>def <span class="ident">resolve_and_validate_host</span></span>(<span>uri: str, *, allow_private: bool = False) ‑> tuple[str, str, int]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def resolve_and_validate_host(
+    uri: str,
+    *,
+    allow_private: bool = False,
+) -&gt; tuple[str, str, int]:
+    &#34;&#34;&#34;Resolve the URI&#39;s hostname once and return ``(hostname, ip, port)``.
+
+    Runs the full SSRF validation — reserved-range rejection + cloud-
+    metadata blocklist — and returns the first IP that passes. Callers
+    that connect by IP (see :class:`adcp.signing.IpPinnedTransport`)
+    use the returned IP to close the DNS-rebinding TOCTOU: they resolve
+    ONCE through this helper, then pin subsequent connects to that IP.
+
+    The returned IP is always ASCII (no IPv6 scope id, no IPv4-mapped
+    IPv6 wrapping) so it can be handed verbatim to
+    :func:`socket.create_connection`.
+
+    Parameters
+    ----------
+    uri:
+        A full URL. Only ``http`` and ``https`` schemes are accepted.
+    allow_private:
+        Skip the reserved-range check. For tests only; cloud-metadata
+        IPs remain blocked unconditionally.
+
+    Returns
+    -------
+    tuple[str, str, int]
+        ``(hostname, ip, port)`` — hostname and port are parsed from
+        the URI; IP is the validated resolution.
+
+    Raises
+    ------
+    SSRFValidationError
+        Scheme is not ``http``/``https``, the hostname doesn&#39;t resolve,
+        or every resolved IP is in a blocked range.
+    &#34;&#34;&#34;
+    parts = urlsplit(uri)
+    if parts.scheme not in (&#34;http&#34;, &#34;https&#34;):
+        raise SSRFValidationError(
+            f&#34;unsupported URI scheme for SSRF-validated fetch: &#34;
+            f&#34;{parts.scheme!r} (only http/https allowed)&#34;
+        )
+    host = parts.hostname
+    if host is None or host == &#34;&#34;:
+        raise SSRFValidationError(f&#34;URI has no host: {uri!r}&#34;)
+    # Strip a single trailing dot (FQDN form) so the pin matches what
+    # httpx / httpcore pass on subsequent requests. Without this, a
+    # caller who constructs with ``https://host./`` and then requests
+    # ``https://host/`` (or vice versa) sees the backend&#39;s
+    # hostname-match fail and falls through to unpinned resolution.
+    if host.endswith(&#34;.&#34;):
+        host = host[:-1]
+    # IDNA-encode so Unicode hostnames match the ASCII form httpx
+    # produces before calling into httpcore. urlsplit preserves the
+    # raw Unicode; httpx encodes it. A mismatch here breaks the
+    # hostname-match in the backend override and silently reopens
+    # the TOCTOU for IDN hosts.
+    try:
+        host = host.encode(&#34;idna&#34;).decode(&#34;ascii&#34;).lower()
+    except (UnicodeError, UnicodeEncodeError) as exc:
+        raise SSRFValidationError(f&#34;URI host {host!r} is not IDNA-valid: {exc}&#34;) from exc
+    port = parts.port if parts.port is not None else (443 if parts.scheme == &#34;https&#34; else 80)
+
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError as exc:
+        raise SSRFValidationError(f&#34;cannot resolve host {host!r}: {exc}&#34;) from exc
+
+    accepted_ip: str | None = None
+    last_rejection: str | None = None
+    for _family, _, _, _, sockaddr in infos[:_MAX_RESOLVED_ADDRESSES]:
+        ip_raw = sockaddr[0]
+        ip_str = str(ip_raw)
+        # Strip IPv6 scope id if present
+        if &#34;%&#34; in ip_str:
+            ip_str = ip_str.split(&#34;%&#34;, 1)[0]
+        ip: ipaddress.IPv4Address | ipaddress.IPv6Address = ipaddress.ip_address(ip_str)
+        # Unwrap IPv4-mapped IPv6 (::ffff:a.b.c.d). On Python 3.10 the direct
+        # flag checks (is_loopback, is_private, etc.) on the mapped form return
+        # False — the fix landed in 3.11.4 via bpo-44269. The SDK targets 3.10+
+        # per pyproject.toml so we unwrap explicitly.
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        if str(ip) in BLOCKED_METADATA_IPS:
+            raise SSRFValidationError(f&#34;cloud metadata IP {ip} blocked&#34;)
+        if not allow_private and (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            last_rejection = f&#34;resolved IP {ip} is in a reserved range&#34;
+            # Historical behavior of validate_jwks_uri was to raise on
+            # ANY reserved IP in the result list, not to skip-and-try-
+            # the-next-one. Preserve that: reject immediately so a host
+            # with mixed public + private results doesn&#39;t silently pin
+            # the public one.
+            raise SSRFValidationError(last_rejection)
+        if accepted_ip is None:
+            accepted_ip = str(ip)
+
+    if accepted_ip is None:
+        # Shouldn&#39;t happen — getaddrinfo with results + no raise means
+        # at least one entry passed. Belt-and-braces.
+        raise SSRFValidationError(
+            f&#34;host {host!r} resolved but no usable IP ({last_rejection or &#39;unknown&#39;})&#34;
+        )
+    return host, accepted_ip, port</code></pre>
+</details>
+<div class="desc"><p>Resolve the URI's hostname once and return <code>(hostname, ip, port)</code>.</p>
+<p>Runs the full SSRF validation — reserved-range rejection + cloud-
+metadata blocklist — and returns the first IP that passes. Callers
+that connect by IP (see :class:<code><a title="adcp.signing.IpPinnedTransport" href="#adcp.signing.IpPinnedTransport">IpPinnedTransport</a></code>)
+use the returned IP to close the DNS-rebinding TOCTOU: they resolve
+ONCE through this helper, then pin subsequent connects to that IP.</p>
+<p>The returned IP is always ASCII (no IPv6 scope id, no IPv4-mapped
+IPv6 wrapping) so it can be handed verbatim to
+:func:<code>socket.create_connection</code>.</p>
+<h2 id="parameters">Parameters</h2>
+<p>uri:
+A full URL. Only <code>http</code> and <code>https</code> schemes are accepted.
+allow_private:
+Skip the reserved-range check. For tests only; cloud-metadata
+IPs remain blocked unconditionally.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>tuple[str, str, int]</code></dt>
+<dd><code>(hostname, ip, port)</code> — hostname and port are parsed from
+the URI; IP is the validated resolution.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code><a title="adcp.signing.SSRFValidationError" href="#adcp.signing.SSRFValidationError">SSRFValidationError</a></code></dt>
+<dd>Scheme is not <code>http</code>/<code>https</code>, the hostname doesn't resolve,
+or every resolved IP is in a blocked range.</dd>
+</dl></div>
+</dd>
 <dt id="adcp.signing.sign_request"><code class="name flex">
 <span>def <span class="ident">sign_request</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>cover_content_digest: bool = False,<br>created: int | None = None,<br>expires_in_seconds: int = 300,<br>nonce: str | None = None,<br>tag: str = 'adcp/request-signing/v1',<br>label: str = 'sig1') ‑> <a title="adcp.signing.signer.SignedHeaders" href="signer.html#adcp.signing.signer.SignedHeaders">SignedHeaders</a></span>
 </code></dt>
@@ -1032,50 +1341,21 @@ outgoing HTTP request before sending.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def validate_jwks_uri(uri: str, *, allow_private: bool = False) -&gt; None:
-    &#34;&#34;&#34;Raise SSRFValidationError if `uri` resolves to a blocked IP or has a bad scheme.&#34;&#34;&#34;
-    parts = urlsplit(uri)
-    if parts.scheme not in (&#34;http&#34;, &#34;https&#34;):
-        raise SSRFValidationError(f&#34;unsupported scheme for JWKS URI: {parts.scheme!r}&#34;)
-    host = parts.hostname
-    if host is None or host == &#34;&#34;:
-        raise SSRFValidationError(&#34;JWKS URI has no host&#34;)
+    &#34;&#34;&#34;Raise SSRFValidationError if `uri` resolves to a blocked IP or has a bad scheme.
 
-    try:
-        infos = socket.getaddrinfo(host, None)
-    except OSError as exc:
-        raise SSRFValidationError(f&#34;cannot resolve host {host!r}: {exc}&#34;) from exc
-
-    for _family, _, _, _, sockaddr in infos[:_MAX_RESOLVED_ADDRESSES]:
-        ip_raw = sockaddr[0]
-        ip_str = str(ip_raw)
-        # Strip IPv6 scope id if present
-        if &#34;%&#34; in ip_str:
-            ip_str = ip_str.split(&#34;%&#34;, 1)[0]
-        ip: ipaddress.IPv4Address | ipaddress.IPv6Address = ipaddress.ip_address(ip_str)
-        # Unwrap IPv4-mapped IPv6 (::ffff:a.b.c.d). On Python 3.10 the direct
-        # flag checks (is_loopback, is_private, etc.) on the mapped form return
-        # False — the fix landed in 3.11.4 via bpo-44269. The SDK targets 3.10+
-        # per pyproject.toml so we unwrap explicitly.
-        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-            ip = ip.ipv4_mapped
-        if str(ip) in BLOCKED_METADATA_IPS:
-            raise SSRFValidationError(f&#34;cloud metadata IP {ip} blocked&#34;)
-        if allow_private:
-            continue
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
-        ):
-            raise SSRFValidationError(f&#34;resolved IP {ip} is in a reserved range&#34;)</code></pre>
+    This is kept as a standalone no-return helper for callers that only
+    want validation — :func:`resolve_and_validate_host` returns the
+    accepted IP when the caller needs it for IP-pinned connects.
+    &#34;&#34;&#34;
+    resolve_and_validate_host(uri, allow_private=allow_private)</code></pre>
 </details>
-<div class="desc"><p>Raise SSRFValidationError if <code>uri</code> resolves to a blocked IP or has a bad scheme.</p></div>
+<div class="desc"><p>Raise SSRFValidationError if <code>uri</code> resolves to a blocked IP or has a bad scheme.</p>
+<p>This is kept as a standalone no-return helper for callers that only
+want validation — :func:<code><a title="adcp.signing.resolve_and_validate_host" href="#adcp.signing.resolve_and_validate_host">resolve_and_validate_host()</a></code> returns the
+accepted IP when the caller needs it for IP-pinned connects.</p></div>
 </dd>
 <dt id="adcp.signing.verify_detached_jws"><code class="name flex">
-<span>def <span class="ident">verify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">verify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1153,7 +1433,7 @@ to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).
 <div class="desc"><p>Verify a Flask <code>request</code> object against the AdCP profile.</p></div>
 </dd>
 <dt id="adcp.signing.verify_jws_document"><code class="name flex">
-<span>def <span class="ident">verify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">verify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1556,8 +1836,7 @@ with :func:<code><a title="adcp.signing.unauthorized_response_headers" href="#ad
                     return self._cache[keyid]
                 now = self._clock()
                 if not self._primed or (
-                    self._last_attempt is not None
-                    and now - self._last_attempt &gt;= self._cooldown
+                    self._last_attempt is not None and now - self._last_attempt &gt;= self._cooldown
                 ):
                     await self._refresh(now)
         return self._cache.get(keyid)
@@ -1648,9 +1927,7 @@ fetches.</p></div>
         self._revocation_uri = revocation_uri
         self._issuer = _normalize_issuer(issuer)
         self._jwks_resolver = jwks_resolver
-        self._fetcher: AsyncRevocationListFetcher = (
-            fetcher or async_default_revocation_list_fetcher
-        )
+        self._fetcher: AsyncRevocationListFetcher = fetcher or async_default_revocation_list_fetcher
         self._grace_multiplier = grace_multiplier
         self._clock = clock
         self._wall_clock = wall_clock
@@ -1720,9 +1997,7 @@ fetches.</p></div>
                     # pre-lock clocks could be stale.
                     now_wall = self._wall_clock()
                     now_mono = self._clock()
-                    await self._refresh(
-                        conditional=False, now_wall=now_wall, now_mono=now_mono
-                    )
+                    await self._refresh(conditional=False, now_wall=now_wall, now_mono=now_mono)
             return
 
         next_update = _parse_iso8601(self._current_list.next_update)
@@ -1742,8 +2017,7 @@ fetches.</p></div>
                     # Re-check under the lock with fresh clock reads.
                     now_mono_inside = self._clock()
                     if self._last_refresh_attempt is None or (
-                        now_mono_inside - self._last_refresh_attempt
-                        &gt;= MIN_POLLING_INTERVAL_SECONDS
+                        now_mono_inside - self._last_refresh_attempt &gt;= MIN_POLLING_INTERVAL_SECONDS
                     ):
                         now_wall_inside = self._wall_clock()
                         await self._refresh(
@@ -1768,9 +2042,7 @@ fetches.</p></div>
                 f&#34;last refresh error: {last_exc}&#34;
             ) from last_exc
 
-    async def _refresh(
-        self, *, conditional: bool, now_wall: datetime, now_mono: float
-    ) -&gt; None:
+    async def _refresh(self, *, conditional: bool, now_wall: datetime, now_mono: float) -&gt; None:
         # Stamp the attempt BEFORE the awaitable. On CancelledError the
         # finally block rolls it back so a cancelled task doesn&#39;t burn
         # the 60s cooldown for the next caller — non-cancellation
@@ -1886,6 +2158,59 @@ and will not await this class.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.signing.AsyncIpPinnedTransport"><code class="flex name class">
+<span>class <span class="ident">AsyncIpPinnedTransport</span></span>
+<span>(</span><span>*,<br>hostname: str,<br>resolved_ip: str,<br>verify: bool = True,<br>retries: int = 0,<br>max_connections: int | None = 100,<br>max_keepalive_connections: int | None = 20)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncIpPinnedTransport(httpx.AsyncHTTPTransport):
+    &#34;&#34;&#34;Async counterpart to :class:`IpPinnedTransport`.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        hostname: str,
+        resolved_ip: str,
+        verify: bool = True,
+        retries: int = 0,
+        max_connections: int | None = 100,
+        max_keepalive_connections: int | None = 20,
+    ) -&gt; None:
+        if verify:
+            ssl_context = _build_ssl_context()
+        else:
+            warnings.warn(
+                &#34;AsyncIpPinnedTransport constructed with verify=False — TLS &#34;
+                &#34;cert validation is disabled. Use only for tests against &#34;
+                &#34;local origins; NEVER in production.&#34;,
+                stacklevel=2,
+            )
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+        backend = _IpPinnedAsyncBackend(hostname=hostname, resolved_ip=resolved_ip)
+        self._pool = httpcore.AsyncConnectionPool(
+            ssl_context=ssl_context,
+            network_backend=backend,
+            http1=True,
+            http2=False,
+            retries=retries,
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+        )</code></pre>
+</details>
+<div class="desc"><p>Async counterpart to :class:<code><a title="adcp.signing.IpPinnedTransport" href="#adcp.signing.IpPinnedTransport">IpPinnedTransport</a></code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>httpx.AsyncHTTPTransport</li>
+<li>httpx.AsyncBaseTransport</li>
+</ul>
+</dd>
 <dt id="adcp.signing.AsyncJwksFetcher"><code class="flex name class">
 <span>class <span class="ident">AsyncJwksFetcher</span></span>
 <span>(</span><span>*args, **kwargs)</span>
@@ -1898,9 +2223,7 @@ and will not await this class.</p></div>
 <pre><code class="python">class AsyncJwksFetcher(Protocol):
     &#34;&#34;&#34;Async variant of :class:`JwksFetcher`.&#34;&#34;&#34;
 
-    async def __call__(
-        self, uri: str, *, allow_private: bool = False
-    ) -&gt; dict[str, Any]: ...</code></pre>
+    async def __call__(self, uri: str, *, allow_private: bool = False) -&gt; dict[str, Any]: ...</code></pre>
 </details>
 <div class="desc"><p>Async variant of :class:<code>JwksFetcher</code>.</p></div>
 <h3>Ancestors</h3>
@@ -2661,6 +2984,80 @@ wall-clock jumps (NTP adjustments, VM suspend/resume) don't race eviction.</p></
 <div class="desc"></div>
 </dd>
 </dl>
+</dd>
+<dt id="adcp.signing.IpPinnedTransport"><code class="flex name class">
+<span>class <span class="ident">IpPinnedTransport</span></span>
+<span>(</span><span>*,<br>hostname: str,<br>resolved_ip: str,<br>verify: bool = True,<br>retries: int = 0,<br>max_connections: int | None = 100,<br>max_keepalive_connections: int | None = 20)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IpPinnedTransport(httpx.HTTPTransport):
+    &#34;&#34;&#34;``httpx.HTTPTransport`` that connects by pre-resolved IP.
+
+    Preserves normal httpx ergonomics — pass this to
+    ``httpx.Client(transport=...)`` and everything else works
+    unchanged. The TLS handshake uses the original hostname for
+    SNI + cert validation; only the TCP destination is rewritten.
+
+    Construct via :func:`build_ip_pinned_transport` unless you&#39;ve
+    already resolved the hostname yourself.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        hostname: str,
+        resolved_ip: str,
+        verify: bool = True,
+        retries: int = 0,
+        max_connections: int | None = 100,
+        max_keepalive_connections: int | None = 20,
+    ) -&gt; None:
+        if verify:
+            ssl_context = _build_ssl_context()
+        else:
+            warnings.warn(
+                &#34;IpPinnedTransport constructed with verify=False — TLS cert &#34;
+                &#34;validation is disabled. Use only for tests against local &#34;
+                &#34;origins; NEVER in production.&#34;,
+                stacklevel=2,
+            )
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+        backend = _IpPinnedSyncBackend(hostname=hostname, resolved_ip=resolved_ip)
+        # Build the ConnectionPool ourselves (rather than super().__init__
+        # and then reassign ._pool) so the TLS + backend config is set
+        # up atomically and we don&#39;t briefly own a vanilla pool. Match
+        # httpx&#39;s default connection limits explicitly — httpcore&#39;s
+        # ConnectionPool default is 10/_ which would be a surprise
+        # downgrade for callers who expect httpx-shaped pool sizing.
+        self._pool = httpcore.ConnectionPool(
+            ssl_context=ssl_context,
+            network_backend=backend,
+            http1=True,
+            http2=False,
+            retries=retries,
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+        )</code></pre>
+</details>
+<div class="desc"><p><code>httpx.HTTPTransport</code> that connects by pre-resolved IP.</p>
+<p>Preserves normal httpx ergonomics — pass this to
+<code>httpx.Client(transport=...)</code> and everything else works
+unchanged. The TLS handshake uses the original hostname for
+SNI + cert validation; only the TCP destination is rewritten.</p>
+<p>Construct via :func:<code><a title="adcp.signing.build_ip_pinned_transport" href="#adcp.signing.build_ip_pinned_transport">build_ip_pinned_transport()</a></code> unless you've
+already resolved the hostname yourself.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>httpx.HTTPTransport</li>
+<li>httpx.BaseTransport</li>
+</ul>
 </dd>
 <dt id="adcp.signing.JwksResolver"><code class="flex name class">
 <span>class <span class="ident">JwksResolver</span></span>
@@ -4001,6 +4398,7 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.crypto" href="crypto.html">adcp.signing.crypto</a></code></li>
 <li><code><a title="adcp.signing.digest" href="digest.html">adcp.signing.digest</a></code></li>
 <li><code><a title="adcp.signing.errors" href="errors.html">adcp.signing.errors</a></code></li>
+<li><code><a title="adcp.signing.ip_pinned_transport" href="ip_pinned_transport.html">adcp.signing.ip_pinned_transport</a></code></li>
 <li><code><a title="adcp.signing.jwks" href="jwks.html">adcp.signing.jwks</a></code></li>
 <li><code><a title="adcp.signing.jws" href="jws.html">adcp.signing.jws</a></code></li>
 <li><code><a title="adcp.signing.keygen" href="keygen.html">adcp.signing.keygen</a></code></li>
@@ -4015,6 +4413,7 @@ class VerifyOptions:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="adcp.signing.abuild_ip_pinned_transport" href="#adcp.signing.abuild_ip_pinned_transport">abuild_ip_pinned_transport</a></code></li>
 <li><code><a title="adcp.signing.alg_for_jwk" href="#adcp.signing.alg_for_jwk">alg_for_jwk</a></code></li>
 <li><code><a title="adcp.signing.as_async_resolver" href="#adcp.signing.as_async_resolver">as_async_resolver</a></code></li>
 <li><code><a title="adcp.signing.async_default_jwks_fetcher" href="#adcp.signing.async_default_jwks_fetcher">async_default_jwks_fetcher</a></code></li>
@@ -4023,6 +4422,8 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.averify_jws_document" href="#adcp.signing.averify_jws_document">averify_jws_document</a></code></li>
 <li><code><a title="adcp.signing.b64url_decode" href="#adcp.signing.b64url_decode">b64url_decode</a></code></li>
 <li><code><a title="adcp.signing.b64url_encode" href="#adcp.signing.b64url_encode">b64url_encode</a></code></li>
+<li><code><a title="adcp.signing.build_async_ip_pinned_transport" href="#adcp.signing.build_async_ip_pinned_transport">build_async_ip_pinned_transport</a></code></li>
+<li><code><a title="adcp.signing.build_ip_pinned_transport" href="#adcp.signing.build_ip_pinned_transport">build_ip_pinned_transport</a></code></li>
 <li><code><a title="adcp.signing.build_signature_base" href="#adcp.signing.build_signature_base">build_signature_base</a></code></li>
 <li><code><a title="adcp.signing.canonicalize_authority" href="#adcp.signing.canonicalize_authority">canonicalize_authority</a></code></li>
 <li><code><a title="adcp.signing.canonicalize_target_uri" href="#adcp.signing.canonicalize_target_uri">canonicalize_target_uri</a></code></li>
@@ -4037,6 +4438,7 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.parse_signature_input_header" href="#adcp.signing.parse_signature_input_header">parse_signature_input_header</a></code></li>
 <li><code><a title="adcp.signing.private_key_from_jwk" href="#adcp.signing.private_key_from_jwk">private_key_from_jwk</a></code></li>
 <li><code><a title="adcp.signing.public_key_from_jwk" href="#adcp.signing.public_key_from_jwk">public_key_from_jwk</a></code></li>
+<li><code><a title="adcp.signing.resolve_and_validate_host" href="#adcp.signing.resolve_and_validate_host">resolve_and_validate_host</a></code></li>
 <li><code><a title="adcp.signing.sign_request" href="#adcp.signing.sign_request">sign_request</a></code></li>
 <li><code><a title="adcp.signing.sign_signature_base" href="#adcp.signing.sign_signature_base">sign_signature_base</a></code></li>
 <li><code><a title="adcp.signing.unauthorized_response_headers" href="#adcp.signing.unauthorized_response_headers">unauthorized_response_headers</a></code></li>
@@ -4061,6 +4463,9 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.AsyncCachingRevocationChecker.from_issuer_origin" href="#adcp.signing.AsyncCachingRevocationChecker.from_issuer_origin">from_issuer_origin</a></code></li>
 <li><code><a title="adcp.signing.AsyncCachingRevocationChecker.is_jti_revoked" href="#adcp.signing.AsyncCachingRevocationChecker.is_jti_revoked">is_jti_revoked</a></code></li>
 </ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.AsyncIpPinnedTransport" href="#adcp.signing.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></code></h4>
 </li>
 <li>
 <h4><code><a title="adcp.signing.AsyncJwksFetcher" href="#adcp.signing.AsyncJwksFetcher">AsyncJwksFetcher</a></code></h4>
@@ -4099,6 +4504,9 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.InMemoryReplayStore.remember" href="#adcp.signing.InMemoryReplayStore.remember">remember</a></code></li>
 <li><code><a title="adcp.signing.InMemoryReplayStore.seen" href="#adcp.signing.InMemoryReplayStore.seen">seen</a></code></li>
 </ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.IpPinnedTransport" href="#adcp.signing.IpPinnedTransport">IpPinnedTransport</a></code></h4>
 </li>
 <li>
 <h4><code><a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a></code></h4>

@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing.ip_pinned_transport API documentation</title>
+<meta name="description" content="IP-pinned httpx transports that close the DNS-rebinding TOCTOU …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing.ip_pinned_transport</code></h1>
+</header>
+<section id="section-intro">
+<p>IP-pinned httpx transports that close the DNS-rebinding TOCTOU.</p>
+<p>The default signing fetchers (JWKS + revocation-list, sync + async)
+resolve the target hostname via :func:<code>resolve_and_validate_host</code>,
+then hand the URL back to httpx — which resolves the hostname a
+second time at connect. A malicious origin with <code>TTL=0</code> can return
+a safe IP on the first lookup (passing SSRF validation) and a
+private IP or cloud-metadata address on the second.</p>
+<p>This module closes that gap. :func:<code><a title="adcp.signing.ip_pinned_transport.build_ip_pinned_transport" href="#adcp.signing.ip_pinned_transport.build_ip_pinned_transport">build_ip_pinned_transport()</a></code>
+resolves once, picks the first IP that passes the SSRF validator,
+and returns an :class:<code>httpx.HTTPTransport</code> wired to a custom
+:mod:<code>httpcore</code> network backend that translates the pinned
+hostname → IP at connect time. TLS certificate validation still
+runs against the original hostname (httpcore passes it separately
+as <code>server_hostname</code> during the TLS handshake), so cert CN/SAN
+matching is unaffected.</p>
+<p>The transport is single-host-scoped. Reusing it for a DIFFERENT
+hostname would bypass the pin and either connect to the wrong IP
+or fail SSRF re-resolution. Build one transport per hostname you
+need to reach; the existing fetchers do this per-call.</p>
+<h2 id="naming-conventions">Naming Conventions</h2>
+<ul>
+<li>Classes use the <code>Async</code> CapWords prefix
+(:class:<code><a title="adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport" href="#adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></code>).</li>
+<li>Factory functions that BUILD an async transport use
+<code>build_async_*</code> (:func:<code><a title="adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport" href="#adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport">build_async_ip_pinned_transport()</a></code>). The
+factory itself is synchronous — it returns an async transport.</li>
+<li>The legacy <code>abuild_*</code> alias remains for backward-compatibility
+but is deprecated.</li>
+</ul>
+<h2 id="dependency-on-httpcore-internals">Dependency On Httpcore Internals</h2>
+<p>We reach into httpcore at two points:</p>
+<ol>
+<li><code>httpcore.ConnectionPool(network_backend=...)</code> — public API.</li>
+<li><code>httpcore._backends.sync.SyncBackend</code> /
+<code>httpcore._backends.anyio.AnyIOBackend</code> — underscore-prefixed
+path, nominally private. The backend classes are the documented
+default-backend implementations, and the <code>network_backend</code> kwarg
+is the sanctioned extension point, but the stability of the
+backend class names themselves isn't guaranteed.</li>
+</ol>
+<p>Mitigations:</p>
+<ul>
+<li><code>pyproject.toml</code> pins <code>httpcore&gt;=1.0,&lt;2.0</code>.</li>
+<li>:class:<code><a title="adcp.signing.ip_pinned_transport" href="#adcp.signing.ip_pinned_transport">adcp.signing.ip_pinned_transport</a></code> exports the backend
+signatures from a contract test that fails on import if upstream
+changes them — see
+<code>tests/conformance/signing/test_ip_pinned_transport.py</code>.</li>
+</ul>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.signing.ip_pinned_transport.abuild_ip_pinned_transport"><code class="name flex">
+<span>def <span class="ident">abuild_ip_pinned_transport</span></span>(<span>uri: str, *, allow_private: bool = False, verify: bool = True) ‑> <a title="adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport" href="#adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def abuild_ip_pinned_transport(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    verify: bool = True,
+) -&gt; AsyncIpPinnedTransport:
+    &#34;&#34;&#34;Deprecated alias for :func:`build_async_ip_pinned_transport`.
+
+    The ``a``-prefix convention in this package means &#34;awaitable
+    coroutine&#34; (``averify_detached_jws`` etc.) — but this factory is
+    synchronous. Renamed during PR #206 review; kept for one release
+    so downstream callers have time to migrate.
+    &#34;&#34;&#34;
+    warnings.warn(
+        &#34;abuild_ip_pinned_transport is deprecated; use &#34;
+        &#34;build_async_ip_pinned_transport (factory is sync, returns &#34;
+        &#34;an AsyncIpPinnedTransport).&#34;,
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return build_async_ip_pinned_transport(uri, allow_private=allow_private, verify=verify)</code></pre>
+</details>
+<div class="desc"><p>Deprecated alias for :func:<code><a title="adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport" href="#adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport">build_async_ip_pinned_transport()</a></code>.</p>
+<p>The <code>a</code>-prefix convention in this package means "awaitable
+coroutine" (<code>averify_detached_jws</code> etc.) — but this factory is
+synchronous. Renamed during PR #206 review; kept for one release
+so downstream callers have time to migrate.</p></div>
+</dd>
+<dt id="adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport"><code class="name flex">
+<span>def <span class="ident">build_async_ip_pinned_transport</span></span>(<span>uri: str, *, allow_private: bool = False, verify: bool = True) ‑> <a title="adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport" href="#adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_async_ip_pinned_transport(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    verify: bool = True,
+) -&gt; AsyncIpPinnedTransport:
+    &#34;&#34;&#34;Build an :class:`AsyncIpPinnedTransport` for ``uri``.
+
+    Resolve + validate run synchronously (``socket.getaddrinfo``); this
+    function itself is not awaitable. The returned transport plugs
+    into :class:`httpx.AsyncClient`.
+    &#34;&#34;&#34;
+    hostname, resolved_ip, _port = resolve_and_validate_host(uri, allow_private=allow_private)
+    return AsyncIpPinnedTransport(hostname=hostname, resolved_ip=resolved_ip, verify=verify)</code></pre>
+</details>
+<div class="desc"><p>Build an :class:<code><a title="adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport" href="#adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></code> for <code>uri</code>.</p>
+<p>Resolve + validate run synchronously (<code>socket.getaddrinfo</code>); this
+function itself is not awaitable. The returned transport plugs
+into :class:<code>httpx.AsyncClient</code>.</p></div>
+</dd>
+<dt id="adcp.signing.ip_pinned_transport.build_ip_pinned_transport"><code class="name flex">
+<span>def <span class="ident">build_ip_pinned_transport</span></span>(<span>uri: str, *, allow_private: bool = False, verify: bool = True) ‑> <a title="adcp.signing.ip_pinned_transport.IpPinnedTransport" href="#adcp.signing.ip_pinned_transport.IpPinnedTransport">IpPinnedTransport</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_ip_pinned_transport(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    verify: bool = True,
+) -&gt; IpPinnedTransport:
+    &#34;&#34;&#34;Resolve ``uri`` once and return a transport pinned to the validated IP.
+
+    Raises :class:`SSRFValidationError` if the URI&#39;s scheme isn&#39;t
+    ``http``/``https``, the host doesn&#39;t resolve, or every resolved
+    IP is in a blocked range.
+
+    Typical use inside a fetcher::
+
+        transport = build_ip_pinned_transport(uri)
+        with httpx.Client(transport=transport, timeout=10.0) as client:
+            response = client.get(uri)
+    &#34;&#34;&#34;
+    hostname, resolved_ip, _port = resolve_and_validate_host(uri, allow_private=allow_private)
+    return IpPinnedTransport(hostname=hostname, resolved_ip=resolved_ip, verify=verify)</code></pre>
+</details>
+<div class="desc"><p>Resolve <code>uri</code> once and return a transport pinned to the validated IP.</p>
+<p>Raises :class:<code>SSRFValidationError</code> if the URI's scheme isn't
+<code>http</code>/<code>https</code>, the host doesn't resolve, or every resolved
+IP is in a blocked range.</p>
+<p>Typical use inside a fetcher::</p>
+<pre><code>transport = build_ip_pinned_transport(uri)
+with httpx.Client(transport=transport, timeout=10.0) as client:
+    response = client.get(uri)
+</code></pre></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport"><code class="flex name class">
+<span>class <span class="ident">AsyncIpPinnedTransport</span></span>
+<span>(</span><span>*,<br>hostname: str,<br>resolved_ip: str,<br>verify: bool = True,<br>retries: int = 0,<br>max_connections: int | None = 100,<br>max_keepalive_connections: int | None = 20)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AsyncIpPinnedTransport(httpx.AsyncHTTPTransport):
+    &#34;&#34;&#34;Async counterpart to :class:`IpPinnedTransport`.&#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        hostname: str,
+        resolved_ip: str,
+        verify: bool = True,
+        retries: int = 0,
+        max_connections: int | None = 100,
+        max_keepalive_connections: int | None = 20,
+    ) -&gt; None:
+        if verify:
+            ssl_context = _build_ssl_context()
+        else:
+            warnings.warn(
+                &#34;AsyncIpPinnedTransport constructed with verify=False — TLS &#34;
+                &#34;cert validation is disabled. Use only for tests against &#34;
+                &#34;local origins; NEVER in production.&#34;,
+                stacklevel=2,
+            )
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+        backend = _IpPinnedAsyncBackend(hostname=hostname, resolved_ip=resolved_ip)
+        self._pool = httpcore.AsyncConnectionPool(
+            ssl_context=ssl_context,
+            network_backend=backend,
+            http1=True,
+            http2=False,
+            retries=retries,
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+        )</code></pre>
+</details>
+<div class="desc"><p>Async counterpart to :class:<code><a title="adcp.signing.ip_pinned_transport.IpPinnedTransport" href="#adcp.signing.ip_pinned_transport.IpPinnedTransport">IpPinnedTransport</a></code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>httpx.AsyncHTTPTransport</li>
+<li>httpx.AsyncBaseTransport</li>
+</ul>
+</dd>
+<dt id="adcp.signing.ip_pinned_transport.IpPinnedTransport"><code class="flex name class">
+<span>class <span class="ident">IpPinnedTransport</span></span>
+<span>(</span><span>*,<br>hostname: str,<br>resolved_ip: str,<br>verify: bool = True,<br>retries: int = 0,<br>max_connections: int | None = 100,<br>max_keepalive_connections: int | None = 20)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class IpPinnedTransport(httpx.HTTPTransport):
+    &#34;&#34;&#34;``httpx.HTTPTransport`` that connects by pre-resolved IP.
+
+    Preserves normal httpx ergonomics — pass this to
+    ``httpx.Client(transport=...)`` and everything else works
+    unchanged. The TLS handshake uses the original hostname for
+    SNI + cert validation; only the TCP destination is rewritten.
+
+    Construct via :func:`build_ip_pinned_transport` unless you&#39;ve
+    already resolved the hostname yourself.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        hostname: str,
+        resolved_ip: str,
+        verify: bool = True,
+        retries: int = 0,
+        max_connections: int | None = 100,
+        max_keepalive_connections: int | None = 20,
+    ) -&gt; None:
+        if verify:
+            ssl_context = _build_ssl_context()
+        else:
+            warnings.warn(
+                &#34;IpPinnedTransport constructed with verify=False — TLS cert &#34;
+                &#34;validation is disabled. Use only for tests against local &#34;
+                &#34;origins; NEVER in production.&#34;,
+                stacklevel=2,
+            )
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+        backend = _IpPinnedSyncBackend(hostname=hostname, resolved_ip=resolved_ip)
+        # Build the ConnectionPool ourselves (rather than super().__init__
+        # and then reassign ._pool) so the TLS + backend config is set
+        # up atomically and we don&#39;t briefly own a vanilla pool. Match
+        # httpx&#39;s default connection limits explicitly — httpcore&#39;s
+        # ConnectionPool default is 10/_ which would be a surprise
+        # downgrade for callers who expect httpx-shaped pool sizing.
+        self._pool = httpcore.ConnectionPool(
+            ssl_context=ssl_context,
+            network_backend=backend,
+            http1=True,
+            http2=False,
+            retries=retries,
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive_connections,
+        )</code></pre>
+</details>
+<div class="desc"><p><code>httpx.HTTPTransport</code> that connects by pre-resolved IP.</p>
+<p>Preserves normal httpx ergonomics — pass this to
+<code>httpx.Client(transport=...)</code> and everything else works
+unchanged. The TLS handshake uses the original hostname for
+SNI + cert validation; only the TCP destination is rewritten.</p>
+<p>Construct via :func:<code><a title="adcp.signing.ip_pinned_transport.build_ip_pinned_transport" href="#adcp.signing.ip_pinned_transport.build_ip_pinned_transport">build_ip_pinned_transport()</a></code> unless you've
+already resolved the hostname yourself.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>httpx.HTTPTransport</li>
+<li>httpx.BaseTransport</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#naming-conventions">Naming conventions</a></li>
+<li><a href="#dependency-on-httpcore-internals">Dependency on httpcore internals</a></li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.signing" href="index.html">adcp.signing</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.signing.ip_pinned_transport.abuild_ip_pinned_transport" href="#adcp.signing.ip_pinned_transport.abuild_ip_pinned_transport">abuild_ip_pinned_transport</a></code></li>
+<li><code><a title="adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport" href="#adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport">build_async_ip_pinned_transport</a></code></li>
+<li><code><a title="adcp.signing.ip_pinned_transport.build_ip_pinned_transport" href="#adcp.signing.ip_pinned_transport.build_ip_pinned_transport">build_ip_pinned_transport</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport" href="#adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport">AsyncIpPinnedTransport</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.ip_pinned_transport.IpPinnedTransport" href="#adcp.signing.ip_pinned_transport.IpPinnedTransport">IpPinnedTransport</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

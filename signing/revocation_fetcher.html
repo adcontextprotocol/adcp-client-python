@@ -90,16 +90,21 @@ for verifiers running on an asyncio event loop.</li>
 ) -&gt; FetchResult:
     &#34;&#34;&#34;Async counterpart to :func:`default_revocation_list_fetcher`.
 
-    Same SSRF + conditional-request behavior, but uses
+    Same SSRF + IP-pinned + conditional-request behavior, but uses
     :class:`httpx.AsyncClient` so the event loop isn&#39;t blocked during
     the round-trip.
     &#34;&#34;&#34;
-    validate_jwks_uri(uri, allow_private=allow_private)
-    headers = _build_fetch_headers(
-        if_none_match=if_none_match, if_modified_since=if_modified_since
-    )
+    from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
+    transport = build_async_ip_pinned_transport(uri, allow_private=allow_private)
+    headers = _build_fetch_headers(if_none_match=if_none_match, if_modified_since=if_modified_since)
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=timeout,
+            follow_redirects=False,
+            trust_env=False,
+        ) as client:
             response = await client.get(uri, headers=headers)
     except httpx.HTTPError as exc:
         raise RevocationListFetchError(f&#34;revocation list GET {uri!r} failed: {exc}&#34;) from exc
@@ -114,7 +119,7 @@ for verifiers running on an asyncio event loop.</li>
     )</code></pre>
 </details>
 <div class="desc"><p>Async counterpart to :func:<code><a title="adcp.signing.revocation_fetcher.default_revocation_list_fetcher" href="#adcp.signing.revocation_fetcher.default_revocation_list_fetcher">default_revocation_list_fetcher()</a></code>.</p>
-<p>Same SSRF + conditional-request behavior, but uses
+<p>Same SSRF + IP-pinned + conditional-request behavior, but uses
 :class:<code>httpx.AsyncClient</code> so the event loop isn't blocked during
 the round-trip.</p></div>
 </dd>
@@ -136,20 +141,28 @@ the round-trip.</p></div>
 ) -&gt; FetchResult:
     &#34;&#34;&#34;HTTPS GET the revocation list, honoring SSRF rules and conditional requests.
 
-    Reuses ``validate_jwks_uri`` — the SSRF controls are identical (same
-    reserved-range rejection, same cloud-metadata block). ``httpx``
-    re-resolves the hostname on connect, which is the TOCTOU window
-    tracked separately in #190. Sends ``If-None-Match`` when an ETag is
+    Reuses the JWKS SSRF controls (same reserved-range rejection, same
+    cloud-metadata block) via an IP-pinned transport so the hostname
+    is resolved once and connections target that validated IP — no
+    DNS-rebinding TOCTOU. Sends ``If-None-Match`` when an ETag is
     supplied and ``If-Modified-Since`` when a ``Last-Modified`` is
     supplied; the spec accepts either (sellers SHOULD use both when
     available).
     &#34;&#34;&#34;
-    validate_jwks_uri(uri, allow_private=allow_private)
-    headers = _build_fetch_headers(
-        if_none_match=if_none_match, if_modified_since=if_modified_since
-    )
+    from adcp.signing.ip_pinned_transport import build_ip_pinned_transport
+
+    transport = build_ip_pinned_transport(uri, allow_private=allow_private)
+    headers = _build_fetch_headers(if_none_match=if_none_match, if_modified_since=if_modified_since)
     try:
-        with httpx.Client(timeout=timeout, follow_redirects=False) as client:
+        # trust_env=False keeps HTTPS_PROXY env vars from routing through
+        # an attacker-controlled proxy that would bypass the IP-pinned
+        # transport. See default_jwks_fetcher docstring.
+        with httpx.Client(
+            transport=transport,
+            timeout=timeout,
+            follow_redirects=False,
+            trust_env=False,
+        ) as client:
             response = client.get(uri, headers=headers)
     except httpx.HTTPError as exc:
         raise RevocationListFetchError(f&#34;revocation list GET {uri!r} failed: {exc}&#34;) from exc
@@ -164,10 +177,10 @@ the round-trip.</p></div>
     )</code></pre>
 </details>
 <div class="desc"><p>HTTPS GET the revocation list, honoring SSRF rules and conditional requests.</p>
-<p>Reuses <code>validate_jwks_uri</code> — the SSRF controls are identical (same
-reserved-range rejection, same cloud-metadata block). <code>httpx</code>
-re-resolves the hostname on connect, which is the TOCTOU window
-tracked separately in #190. Sends <code>If-None-Match</code> when an ETag is
+<p>Reuses the JWKS SSRF controls (same reserved-range rejection, same
+cloud-metadata block) via an IP-pinned transport so the hostname
+is resolved once and connections target that validated IP — no
+DNS-rebinding TOCTOU. Sends <code>If-None-Match</code> when an ETag is
 supplied and <code>If-Modified-Since</code> when a <code>Last-Modified</code> is
 supplied; the spec accepts either (sellers SHOULD use both when
 available).</p></div>
@@ -234,9 +247,7 @@ available).</p></div>
         self._revocation_uri = revocation_uri
         self._issuer = _normalize_issuer(issuer)
         self._jwks_resolver = jwks_resolver
-        self._fetcher: AsyncRevocationListFetcher = (
-            fetcher or async_default_revocation_list_fetcher
-        )
+        self._fetcher: AsyncRevocationListFetcher = fetcher or async_default_revocation_list_fetcher
         self._grace_multiplier = grace_multiplier
         self._clock = clock
         self._wall_clock = wall_clock
@@ -306,9 +317,7 @@ available).</p></div>
                     # pre-lock clocks could be stale.
                     now_wall = self._wall_clock()
                     now_mono = self._clock()
-                    await self._refresh(
-                        conditional=False, now_wall=now_wall, now_mono=now_mono
-                    )
+                    await self._refresh(conditional=False, now_wall=now_wall, now_mono=now_mono)
             return
 
         next_update = _parse_iso8601(self._current_list.next_update)
@@ -328,8 +337,7 @@ available).</p></div>
                     # Re-check under the lock with fresh clock reads.
                     now_mono_inside = self._clock()
                     if self._last_refresh_attempt is None or (
-                        now_mono_inside - self._last_refresh_attempt
-                        &gt;= MIN_POLLING_INTERVAL_SECONDS
+                        now_mono_inside - self._last_refresh_attempt &gt;= MIN_POLLING_INTERVAL_SECONDS
                     ):
                         now_wall_inside = self._wall_clock()
                         await self._refresh(
@@ -354,9 +362,7 @@ available).</p></div>
                 f&#34;last refresh error: {last_exc}&#34;
             ) from last_exc
 
-    async def _refresh(
-        self, *, conditional: bool, now_wall: datetime, now_mono: float
-    ) -&gt; None:
+    async def _refresh(self, *, conditional: bool, now_wall: datetime, now_mono: float) -&gt; None:
         # Stamp the attempt BEFORE the awaitable. On CancelledError the
         # finally block rolls it back so a cancelled task doesn&#39;t burn
         # the 60s cooldown for the next caller — non-cancellation
