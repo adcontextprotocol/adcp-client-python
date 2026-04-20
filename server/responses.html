@@ -128,7 +128,7 @@ Each manifest should include: format_id, name, assets.</p>
 List matches BuildCreativeResponse2 (multi-format).</p></div>
 </dd>
 <dt id="adcp.server.responses.capabilities_response"><code class="name flex">
-<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None,<br>idempotency: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None,<br>idempotency: dict[str, Any] | None = None,<br>compliance_testing: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -142,12 +142,15 @@ List matches BuildCreativeResponse2 (multi-format).</p></div>
     sandbox: bool = True,
     features: dict[str, Any] | None = None,
     idempotency: dict[str, Any] | None = None,
+    compliance_testing: dict[str, Any] | None = None,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;Build a get_adcp_capabilities response.
 
     Args:
-        supported_protocols: e.g. [&#34;media_buy&#34;], [&#34;media_buy&#34;, &#34;signals&#34;],
-            [&#34;media_buy&#34;, &#34;compliance_testing&#34;].
+        supported_protocols: e.g. [&#34;media_buy&#34;], [&#34;media_buy&#34;, &#34;signals&#34;].
+            Valid values: media_buy, signals, governance, creative, brand,
+            sponsored_intelligence. ``compliance_testing`` is NOT a protocol —
+            pass it via the ``compliance_testing`` kwarg.
         major_versions: AdCP major versions. Defaults to [3].
         sandbox: Whether this is a sandbox agent. Defaults to True.
         features: Additional feature flags.
@@ -155,6 +158,9 @@ List matches BuildCreativeResponse2 (multi-format).</p></div>
             ``adcp.idempotency`` per AdCP #2315. Pass the output of
             :meth:`adcp.server.idempotency.IdempotencyStore.capability` here
             to declare the seller&#39;s ``replay_ttl_seconds``.
+        compliance_testing: Optional top-level ``compliance_testing`` block
+            to advertise compliance-testing capabilities. When provided,
+            emitted as a sibling of ``adcp`` in the response.
 
     Example::
 
@@ -177,14 +183,18 @@ List matches BuildCreativeResponse2 (multi-format).</p></div>
     }
     if features:
         resp[&#34;features&#34;] = features
+    if compliance_testing is not None:
+        resp[&#34;compliance_testing&#34;] = compliance_testing
     return resp</code></pre>
 </details>
 <div class="desc"><p>Build a get_adcp_capabilities response.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>supported_protocols</code></strong></dt>
-<dd>e.g. ["media_buy"], ["media_buy", "signals"],
-["media_buy", "compliance_testing"].</dd>
+<dd>e.g. ["media_buy"], ["media_buy", "signals"].
+Valid values: media_buy, signals, governance, creative, brand,
+sponsored_intelligence. <code>compliance_testing</code> is NOT a protocol —
+pass it via the <code>compliance_testing</code> kwarg.</dd>
 <dt><strong><code>major_versions</code></strong></dt>
 <dd>AdCP major versions. Defaults to [3].</dd>
 <dt><strong><code>sandbox</code></strong></dt>
@@ -196,6 +206,10 @@ List matches BuildCreativeResponse2 (multi-format).</p></div>
 <code>adcp.idempotency</code> per AdCP #2315. Pass the output of
 :meth:<code><a title="adcp.server.idempotency.IdempotencyStore.capability" href="idempotency/index.html#adcp.server.idempotency.IdempotencyStore.capability">IdempotencyStore.capability()</a></code> here
 to declare the seller's <code>replay_ttl_seconds</code>.</dd>
+<dt><strong><code>compliance_testing</code></strong></dt>
+<dd>Optional top-level <code>compliance_testing</code> block
+to advertise compliance-testing capabilities. When provided,
+emitted as a sibling of <code><a title="adcp" href="../index.html">adcp</a></code> in the response.</dd>
 </dl>
 <p>Example::</p>
 <pre><code>from adcp.server.responses import capabilities_response
@@ -337,10 +351,38 @@ a valid ADCP error response on its own.</p>
 
     Each creative should include: creative_id, name, format_id, status.
     Matches ListCreativesResponse schema.
+
+    Timestamp defaults: every Creative item in the spec requires
+    ``created_date`` and ``updated_date`` (ISO 8601 UTC). For any dict
+    item that omits either field, this helper fills it with the current
+    UTC timestamp (``datetime.now(timezone.utc).isoformat()``). Both
+    fields default to the same value when neither is provided, which
+    matches the intuitive meaning for a freshly-listed item. Explicit
+    caller-provided values are always preserved. Pydantic model items
+    are passed through ``_serialize`` unchanged — callers using typed
+    Creative models should set timestamps on the model.
     &#34;&#34;&#34;
-    count = len(creatives)
+    now = datetime.now(timezone.utc).isoformat()
+    filled: list[Any] = []
+    for item in creatives:
+        if isinstance(item, dict):
+            has_created = &#34;created_date&#34; in item and item[&#34;created_date&#34;] is not None
+            has_updated = &#34;updated_date&#34; in item and item[&#34;updated_date&#34;] is not None
+            if has_created and has_updated:
+                filled.append(item)
+                continue
+            patched = dict(item)
+            if not has_created:
+                patched[&#34;created_date&#34;] = now
+            if not has_updated:
+                patched[&#34;updated_date&#34;] = now
+            filled.append(patched)
+        else:
+            filled.append(item)
+
+    count = len(filled)
     return {
-        &#34;creatives&#34;: _serialize(creatives),
+        &#34;creatives&#34;: _serialize(filled),
         &#34;pagination&#34;: pagination or {&#34;total&#34;: count, &#34;has_more&#34;: False},
         &#34;query_summary&#34;: {&#34;total_results&#34;: count, &#34;total_matching&#34;: count, &#34;returned&#34;: count},
         &#34;sandbox&#34;: sandbox,
@@ -348,7 +390,16 @@ a valid ADCP error response on its own.</p>
 </details>
 <div class="desc"><p>Build a list_creatives response.</p>
 <p>Each creative should include: creative_id, name, format_id, status.
-Matches ListCreativesResponse schema.</p></div>
+Matches ListCreativesResponse schema.</p>
+<p>Timestamp defaults: every Creative item in the spec requires
+<code>created_date</code> and <code>updated_date</code> (ISO 8601 UTC). For any dict
+item that omits either field, this helper fills it with the current
+UTC timestamp (<code>datetime.now(timezone.utc).isoformat()</code>). Both
+fields default to the same value when neither is provided, which
+matches the intuitive meaning for a freshly-listed item. Explicit
+caller-provided values are always preserved. Pydantic model items
+are passed through <code>_serialize</code> unchanged — callers using typed
+Creative models should set timestamps on the model.</p></div>
 </dd>
 <dt id="adcp.server.responses.log_event_response"><code class="name flex">
 <span>def <span class="ident">log_event_response</span></span>(<span>events_received: int, events_processed: int, *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
@@ -639,14 +690,14 @@ Matches SyncCatalogsResponse1 (success) schema.</p></div>
     &#34;&#34;&#34;Build a sync_creatives success response.
 
     Each creative dict should include: creative_id, action (&#34;created&#34;|&#34;updated&#34;).
-    Optionally: status (&#34;accepted&#34;|&#34;pending_review&#34;|&#34;rejected&#34;).
+    Optionally: status (&#34;processing&#34;|&#34;pending_review&#34;|&#34;approved&#34;|&#34;rejected&#34;|&#34;archived&#34;).
     Matches SyncCreativesResponse1 schema (field: &#34;creatives&#34;).
     &#34;&#34;&#34;
     return {&#34;creatives&#34;: creatives, &#34;sandbox&#34;: sandbox}</code></pre>
 </details>
 <div class="desc"><p>Build a sync_creatives success response.</p>
 <p>Each creative dict should include: creative_id, action ("created"|"updated").
-Optionally: status ("accepted"|"pending_review"|"rejected").
+Optionally: status ("processing"|"pending_review"|"approved"|"rejected"|"archived").
 Matches SyncCreativesResponse1 schema (field: "creatives").</p></div>
 </dd>
 <dt id="adcp.server.responses.sync_governance_response"><code class="name flex">

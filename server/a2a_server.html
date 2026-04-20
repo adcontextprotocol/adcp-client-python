@@ -161,10 +161,15 @@ serve(MyHandler(), name="my-agent", transport="a2a")
         self._handler = handler
         self._tool_callers: dict[str, Any] = {}
 
-        # Build tool callers for all tools this handler supports
+        # Build tool callers for all tools this handler supports.
+        # Skip comply_test_controller unless the seller passed a
+        # TestControllerStore; otherwise we would advertise a skill
+        # backed only by the handler&#39;s not-supported stub.
         tool_defs = get_tools_for_handler(handler)
         for tool_def in tool_defs:
             name = tool_def[&#34;name&#34;]
+            if name == &#34;comply_test_controller&#34; and test_controller is None:
+                continue
             self._tool_callers[name] = create_tool_caller(handler, name)
 
         if test_controller is not None:
@@ -185,22 +190,16 @@ serve(MyHandler(), name="my-agent", transport="a2a")
 
         self._tool_callers[&#34;comply_test_controller&#34;] = _call_test_controller
 
-    async def execute(
-        self, context: RequestContext, event_queue: EventQueue
-    ) -&gt; None:
+    async def execute(self, context: RequestContext, event_queue: EventQueue) -&gt; None:
         &#34;&#34;&#34;Execute an ADCP skill from an incoming A2A message.&#34;&#34;&#34;
         skill_name, params = self._parse_request(context)
 
         if skill_name is None:
-            await self._send_error(
-                event_queue, context, &#34;No skill specified in message&#34;
-            )
+            await self._send_error(event_queue, context, &#34;No skill specified in message&#34;)
             return
 
         if skill_name not in self._tool_callers:
-            await self._send_error(
-                event_queue, context, f&#34;Unknown skill: {skill_name}&#34;
-            )
+            await self._send_error(event_queue, context, f&#34;Unknown skill: {skill_name}&#34;)
             return
 
         tool_context = _tool_context_from_request(context)
@@ -213,19 +212,13 @@ serve(MyHandler(), name="my-agent", transport="a2a")
             # transport-errors.mdx §A2A Binding, plus a human-readable text
             # part. The JSON-RPC channel is reserved for transport-level
             # errors (auth rejected, rate-limited pre-dispatch).
-            logger.info(
-                &#34;AdCP application error for skill %s: %s&#34;, skill_name, exc
-            )
+            logger.info(&#34;AdCP application error for skill %s: %s&#34;, skill_name, exc)
             await self._send_adcp_error(event_queue, context, exc)
         except Exception:
             logger.exception(&#34;Error executing skill %s&#34;, skill_name)
-            await self._send_error(
-                event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;
-            )
+            await self._send_error(event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;)
 
-    async def cancel(
-        self, context: RequestContext, event_queue: EventQueue
-    ) -&gt; None:
+    async def cancel(self, context: RequestContext, event_queue: EventQueue) -&gt; None:
         &#34;&#34;&#34;ADCP operations are synchronous; cancellation sets state to canceled.&#34;&#34;&#34;
         event = _make_task(
             context,
@@ -238,9 +231,7 @@ serve(MyHandler(), name="my-agent", transport="a2a")
     # Message parsing
     # ------------------------------------------------------------------
 
-    def _parse_request(
-        self, context: RequestContext
-    ) -&gt; tuple[str | None, dict[str, Any]]:
+    def _parse_request(self, context: RequestContext) -&gt; tuple[str | None, dict[str, Any]]:
         &#34;&#34;&#34;Extract skill name and parameters from the A2A message.
 
         Supports two formats:
@@ -271,9 +262,7 @@ serve(MyHandler(), name="my-agent", transport="a2a")
 
         return None, {}
 
-    def _parse_text_request(
-        self, text: str
-    ) -&gt; tuple[str | None, dict[str, Any]]:
+    def _parse_text_request(self, text: str) -&gt; tuple[str | None, dict[str, Any]]:
         &#34;&#34;&#34;Best-effort parse of a text request for skill + params.&#34;&#34;&#34;
         try:
             data = json.loads(text)
@@ -400,9 +389,7 @@ def supported_skills(self) -&gt; list[str]:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def cancel(
-    self, context: RequestContext, event_queue: EventQueue
-) -&gt; None:
+<pre><code class="python">async def cancel(self, context: RequestContext, event_queue: EventQueue) -&gt; None:
     &#34;&#34;&#34;ADCP operations are synchronous; cancellation sets state to canceled.&#34;&#34;&#34;
     event = _make_task(
         context,
@@ -421,22 +408,16 @@ def supported_skills(self) -&gt; list[str]:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def execute(
-    self, context: RequestContext, event_queue: EventQueue
-) -&gt; None:
+<pre><code class="python">async def execute(self, context: RequestContext, event_queue: EventQueue) -&gt; None:
     &#34;&#34;&#34;Execute an ADCP skill from an incoming A2A message.&#34;&#34;&#34;
     skill_name, params = self._parse_request(context)
 
     if skill_name is None:
-        await self._send_error(
-            event_queue, context, &#34;No skill specified in message&#34;
-        )
+        await self._send_error(event_queue, context, &#34;No skill specified in message&#34;)
         return
 
     if skill_name not in self._tool_callers:
-        await self._send_error(
-            event_queue, context, f&#34;Unknown skill: {skill_name}&#34;
-        )
+        await self._send_error(event_queue, context, f&#34;Unknown skill: {skill_name}&#34;)
         return
 
     tool_context = _tool_context_from_request(context)
@@ -449,15 +430,11 @@ def supported_skills(self) -&gt; list[str]:
         # transport-errors.mdx §A2A Binding, plus a human-readable text
         # part. The JSON-RPC channel is reserved for transport-level
         # errors (auth rejected, rate-limited pre-dispatch).
-        logger.info(
-            &#34;AdCP application error for skill %s: %s&#34;, skill_name, exc
-        )
+        logger.info(&#34;AdCP application error for skill %s: %s&#34;, skill_name, exc)
         await self._send_adcp_error(event_queue, context, exc)
     except Exception:
         logger.exception(&#34;Error executing skill %s&#34;, skill_name)
-        await self._send_error(
-            event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;
-        )</code></pre>
+        await self._send_error(event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;)</code></pre>
 </details>
 <div class="desc"><p>Execute an ADCP skill from an incoming A2A message.</p></div>
 </dd>

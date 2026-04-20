@@ -84,6 +84,11 @@ for the signer, but callers should enforce it when registering their keyring.</l
     The ``method`` is normally ``&#34;POST&#34;`` for webhook delivery; passed through
     unchanged so callers signing a retried ``PUT`` or variant delivery verb
     are not forced into an extra translation.
+
+    See also:
+        :class:`adcp.webhooks.WebhookSender` — higher-level one-call helper
+        that builds the payload, signs, and POSTs in a single call. Prefer it
+        unless you need to own the HTTP transport yourself.
     &#34;&#34;&#34;
     return sign_request(
         method=method,
@@ -106,7 +111,11 @@ for the signer, but callers should enforce it when registering their keyring.</l
 caller attaches <code>SignedHeaders.as_dict()</code> to the outgoing HTTP request.</p>
 <p>The <code>method</code> is normally <code>"POST"</code> for webhook delivery; passed through
 unchanged so callers signing a retried <code>PUT</code> or variant delivery verb
-are not forced into an extra translation.</p></div>
+are not forced into an extra translation.</p>
+<p>See also:
+:class:<code><a title="adcp.webhooks.WebhookSender" href="../webhooks.html#adcp.webhooks.WebhookSender">WebhookSender</a></code> — higher-level one-call helper
+that builds the payload, signs, and POSTs in a single call. Prefer it
+unless you need to own the HTTP transport yourself.</p></div>
 </dd>
 </dl>
 </section>

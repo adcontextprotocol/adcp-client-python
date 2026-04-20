@@ -61,7 +61,7 @@ algorithm mapping below.</p>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="adcp.signing.jws.averify_detached_jws"><code class="name flex">
-<span>async def <span class="ident">averify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>async def <span class="ident">averify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -102,7 +102,7 @@ algorithm mapping below.</p>
 other work is pure CPU and runs inline.</p></div>
 </dd>
 <dt id="adcp.signing.jws.averify_jws_document"><code class="name flex">
-<span>async def <span class="ident">averify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>async def <span class="ident">averify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.jws.AsyncJwksResolver" href="#adcp.signing.jws.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -233,7 +233,7 @@ entry in <code>signatures[]</code>. A list with multiple signatures is malformed
 for this profile.</p></div>
 </dd>
 <dt id="adcp.signing.jws.verify_detached_jws"><code class="name flex">
-<span>def <span class="ident">verify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">verify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -291,7 +291,7 @@ normalization — matches the AdCP spec).
 to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).</p></div>
 </dd>
 <dt id="adcp.signing.jws.verify_jws_document"><code class="name flex">
-<span>def <span class="ident">verify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">verify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.jws.JwksResolver" href="#adcp.signing.jws.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">

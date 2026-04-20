@@ -242,6 +242,82 @@ a 200 with <code>duplicate=true</code> in the body is still <code>ok</code>.</p>
             timeout_seconds=timeout_seconds,
         )
 
+    @classmethod
+    def from_pem(
+        cls,
+        pem_path: str | Path | bytes,
+        *,
+        key_id: str,
+        alg: str = &#34;ed25519&#34;,
+        passphrase: bytes | None = None,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    ) -&gt; WebhookSender:
+        &#34;&#34;&#34;Load a private key from a PEM file and bind it as a webhook sender.
+
+        Companion to ``adcp-keygen --purpose webhook-signing``, which writes
+        the PEM and prints the public JWK. The JWK is published at your
+        ``jwks_uri``; the PEM holds the private key material. ``from_pem``
+        reads the PEM, constructs the right ``PrivateKey`` type for ``alg``,
+        and returns a sender ready to send.
+
+        Args:
+            pem_path: Path to the PKCS#8 PEM, or the PEM bytes directly.
+            key_id: JWK ``kid`` claim — must match the published JWK.
+            alg: Signature algorithm. ``ed25519`` (default) or ``es256``.
+                Also accepts the RFC 9421 form ``ecdsa-p256-sha256``.
+            passphrase: Required if the PEM is encrypted
+                (``adcp-keygen --encrypt``).
+            client: Optional pre-built :class:`httpx.AsyncClient` to share
+                across the SDK; the sender owns its own client when omitted.
+            timeout_seconds: Per-request timeout for the owned client.
+
+        Raises:
+            ValueError: ``alg`` is not ed25519 / es256, or the PEM contains
+                a key whose type doesn&#39;t match ``alg``.
+        &#34;&#34;&#34;
+        if alg in (&#34;es256&#34;, &#34;ES256&#34;):
+            alg = ALG_ES256
+        elif alg == &#34;EdDSA&#34;:
+            alg = ALG_ED25519
+        if alg not in (ALG_ED25519, ALG_ES256):
+            raise ValueError(
+                f&#34;unsupported alg {alg!r} — use &#39;ed25519&#39; or &#39;es256&#39; &#34;
+                f&#34;(the two AdCP webhook-signing algorithms)&#34;
+            )
+
+        if isinstance(pem_path, bytes):
+            pem_bytes = pem_path
+        else:
+            pem_bytes = Path(pem_path).read_bytes()
+
+        private_key = load_private_key_pem(pem_bytes, password=passphrase)
+
+        # The PEM&#39;s key type must match the requested alg — mixing them
+        # would produce signatures no verifier can validate, and the
+        # resulting error at delivery time would point at the receiver.
+        # Fail here so the misconfiguration surfaces at construction.
+        if alg == ALG_ED25519 and not isinstance(private_key, ed25519.Ed25519PrivateKey):
+            raise ValueError(
+                f&#34;PEM holds a {type(private_key).__name__} but alg=&#39;ed25519&#39; &#34;
+                f&#34;was requested. Re-run adcp-keygen with --alg ed25519, or &#34;
+                f&#34;pass alg=&#39;es256&#39; to match the existing PEM.&#34;
+            )
+        if alg == ALG_ES256 and not isinstance(private_key, ec.EllipticCurvePrivateKey):
+            raise ValueError(
+                f&#34;PEM holds a {type(private_key).__name__} but alg=&#39;es256&#39; &#34;
+                f&#34;was requested. Re-run adcp-keygen with --alg es256, or &#34;
+                f&#34;pass alg=&#39;ed25519&#39; to match the existing PEM.&#34;
+            )
+
+        return cls(
+            private_key=private_key,
+            key_id=key_id,
+            alg=alg,
+            client=client,
+            timeout_seconds=timeout_seconds,
+        )
+
     def __repr__(self) -&gt; str:
         # Explicit repr so no future debug helper or error traceback auto-
         # renders self.__dict__ and pulls the private key into logs.
@@ -525,6 +601,41 @@ tasks. The underlying <code>httpx.AsyncClient</code> manages its own pool.</p></
 doesn't validate this (you're signing with your own key; validation
 happens at the receiver), but a key whose adcp_use is wrong will be
 rejected by every conformant verifier.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender.from_pem"><code class="name flex">
+<span>def <span class="ident">from_pem</span></span>(<span>pem_path: str | Path | bytes,<br>*,<br>key_id: str,<br>alg: str = 'ed25519',<br>passphrase: bytes | None = None,<br>client: httpx.AsyncClient | None = None,<br>timeout_seconds: float = 10.0) ‑> <a title="adcp.webhook_sender.WebhookSender" href="#adcp.webhook_sender.WebhookSender">WebhookSender</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Load a private key from a PEM file and bind it as a webhook sender.</p>
+<p>Companion to <code>adcp-keygen --purpose webhook-signing</code>, which writes
+the PEM and prints the public JWK. The JWK is published at your
+<code>jwks_uri</code>; the PEM holds the private key material. <code>from_pem</code>
+reads the PEM, constructs the right <code>PrivateKey</code> type for <code>alg</code>,
+and returns a sender ready to send.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>pem_path</code></strong></dt>
+<dd>Path to the PKCS#8 PEM, or the PEM bytes directly.</dd>
+<dt><strong><code>key_id</code></strong></dt>
+<dd>JWK <code>kid</code> claim — must match the published JWK.</dd>
+<dt><strong><code>alg</code></strong></dt>
+<dd>Signature algorithm. <code>ed25519</code> (default) or <code>es256</code>.
+Also accepts the RFC 9421 form <code>ecdsa-p256-sha256</code>.</dd>
+<dt><strong><code>passphrase</code></strong></dt>
+<dd>Required if the PEM is encrypted
+(<code>adcp-keygen --encrypt</code>).</dd>
+<dt><strong><code>client</code></strong></dt>
+<dd>Optional pre-built :class:<code>httpx.AsyncClient</code> to share
+across the SDK; the sender owns its own client when omitted.</dd>
+<dt><strong><code>timeout_seconds</code></strong></dt>
+<dd>Per-request timeout for the owned client.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd><code>alg</code> is not ed25519 / es256, or the PEM contains
+a key whose type doesn't match <code>alg</code>.</dd>
+</dl></div>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -867,6 +978,7 @@ cannot disagree.</p></div>
 <ul class="">
 <li><code><a title="adcp.webhook_sender.WebhookSender.aclose" href="#adcp.webhook_sender.WebhookSender.aclose">aclose</a></code></li>
 <li><code><a title="adcp.webhook_sender.WebhookSender.from_jwk" href="#adcp.webhook_sender.WebhookSender.from_jwk">from_jwk</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.from_pem" href="#adcp.webhook_sender.WebhookSender.from_pem">from_pem</a></code></li>
 <li><code><a title="adcp.webhook_sender.WebhookSender.resend" href="#adcp.webhook_sender.WebhookSender.resend">resend</a></code></li>
 <li><code><a title="adcp.webhook_sender.WebhookSender.send_artifact_webhook" href="#adcp.webhook_sender.WebhookSender.send_artifact_webhook">send_artifact_webhook</a></code></li>
 <li><code><a title="adcp.webhook_sender.WebhookSender.send_collection_list_changed" href="#adcp.webhook_sender.WebhookSender.send_collection_list_changed">send_collection_list_changed</a></code></li>

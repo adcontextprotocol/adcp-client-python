@@ -387,6 +387,45 @@ signature verified fine, it's just a retry the caller should 200 away.</p></div>
             idempotency_key=idempotency_key,
         )
 
+    def receive_sync(
+        self,
+        *,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        body: bytes,
+    ) -&gt; WebhookOutcome:
+        &#34;&#34;&#34;Synchronous wrapper around :meth:`receive` for WSGI-style frameworks.
+
+        Use this from Flask, Gunicorn sync workers, ``http.server``, or any
+        other sync-only HTTP entry point where wrapping every call in
+        ``asyncio.run(...)`` is just noise::
+
+            @app.post(&#34;/webhooks/adcp&#34;)
+            def hook():
+                outcome = receiver.receive_sync(
+                    method=request.method,
+                    url=request.url,
+                    headers=dict(request.headers),
+                    body=request.get_data(),
+                )
+                ...
+
+        Raises :class:`RuntimeError` if invoked from a thread that already has
+        a running event loop — the underlying verify / dedup path is async and
+        cannot be driven from inside an active loop without blocking it. From
+        async code, call :meth:`receive` directly.
+        &#34;&#34;&#34;
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop in this thread — safe to spin one up.
+            return asyncio.run(self.receive(method=method, url=url, headers=headers, body=body))
+        raise RuntimeError(
+            &#34;WebhookReceiver.receive_sync() cannot be called from a running &#34;
+            &#34;event loop. Use `await receiver.receive(...)` instead.&#34;
+        )
+
     async def _verify(
         self,
         *,
@@ -547,6 +586,72 @@ without try/except around every call. Operational failures inside
 the dedup backend or verify-options factory MAY still raise; wrap
 the call if you need to 5xx cleanly on internal errors.</p></div>
 </dd>
+<dt id="adcp.webhook_receiver.WebhookReceiver.receive_sync"><code class="name flex">
+<span>def <span class="ident">receive_sync</span></span>(<span>self, *, method: str, url: str, headers: Mapping[str, str], body: bytes) ‑> <a title="adcp.webhook_receiver.WebhookOutcome" href="#adcp.webhook_receiver.WebhookOutcome">WebhookOutcome</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def receive_sync(
+    self,
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+) -&gt; WebhookOutcome:
+    &#34;&#34;&#34;Synchronous wrapper around :meth:`receive` for WSGI-style frameworks.
+
+    Use this from Flask, Gunicorn sync workers, ``http.server``, or any
+    other sync-only HTTP entry point where wrapping every call in
+    ``asyncio.run(...)`` is just noise::
+
+        @app.post(&#34;/webhooks/adcp&#34;)
+        def hook():
+            outcome = receiver.receive_sync(
+                method=request.method,
+                url=request.url,
+                headers=dict(request.headers),
+                body=request.get_data(),
+            )
+            ...
+
+    Raises :class:`RuntimeError` if invoked from a thread that already has
+    a running event loop — the underlying verify / dedup path is async and
+    cannot be driven from inside an active loop without blocking it. From
+    async code, call :meth:`receive` directly.
+    &#34;&#34;&#34;
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop in this thread — safe to spin one up.
+        return asyncio.run(self.receive(method=method, url=url, headers=headers, body=body))
+    raise RuntimeError(
+        &#34;WebhookReceiver.receive_sync() cannot be called from a running &#34;
+        &#34;event loop. Use `await receiver.receive(...)` instead.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Synchronous wrapper around :meth:<code>receive</code> for WSGI-style frameworks.</p>
+<p>Use this from Flask, Gunicorn sync workers, <code>http.server</code>, or any
+other sync-only HTTP entry point where wrapping every call in
+<code>asyncio.run(&hellip;)</code> is just noise::</p>
+<pre><code>@app.post("/webhooks/adcp")
+def hook():
+    outcome = receiver.receive_sync(
+        method=request.method,
+        url=request.url,
+        headers=dict(request.headers),
+        body=request.get_data(),
+    )
+    ...
+</code></pre>
+<p>Raises :class:<code>RuntimeError</code> if invoked from a thread that already has
+a running event loop — the underlying verify / dedup path is async and
+cannot be driven from inside an active loop without blocking it. From
+async code, call :meth:<code>receive</code> directly.</p></div>
+</dd>
 </dl>
 </dd>
 <dt id="adcp.webhook_receiver.WebhookReceiverConfig"><code class="flex name class">
@@ -653,6 +758,7 @@ explicitly for list-change / artifact / revocation receivers.</p></div>
 <h4><code><a title="adcp.webhook_receiver.WebhookReceiver" href="#adcp.webhook_receiver.WebhookReceiver">WebhookReceiver</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.webhook_receiver.WebhookReceiver.receive" href="#adcp.webhook_receiver.WebhookReceiver.receive">receive</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookReceiver.receive_sync" href="#adcp.webhook_receiver.WebhookReceiver.receive_sync">receive_sync</a></code></li>
 </ul>
 </li>
 <li>

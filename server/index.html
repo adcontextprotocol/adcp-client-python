@@ -357,9 +357,7 @@ List matches BuildCreativeResponse2 (multi-format).</p></div>
     most commonly forget.
     &#34;&#34;&#34;
     if canceled_by not in (&#34;buyer&#34;, &#34;seller&#34;):
-        raise ValueError(
-            f&#34;canceled_by must be &#39;buyer&#39; or &#39;seller&#39;, got {canceled_by!r}&#34;
-        )
+        raise ValueError(f&#34;canceled_by must be &#39;buyer&#39; or &#39;seller&#39;, got {canceled_by!r}&#34;)
     resp: dict[str, Any] = {
         &#34;media_buy_id&#34;: media_buy_id,
         &#34;status&#34;: &#34;canceled&#34;,
@@ -382,7 +380,7 @@ Requires canceled_by ("buyer" or "seller") - the field developers
 most commonly forget.</p></div>
 </dd>
 <dt id="adcp.server.capabilities_response"><code class="name flex">
-<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None,<br>idempotency: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">capabilities_response</span></span>(<span>supported_protocols: list[str],<br>*,<br>major_versions: list[int] | None = None,<br>sandbox: bool = True,<br>features: dict[str, Any] | None = None,<br>idempotency: dict[str, Any] | None = None,<br>compliance_testing: dict[str, Any] | None = None) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -396,12 +394,15 @@ most commonly forget.</p></div>
     sandbox: bool = True,
     features: dict[str, Any] | None = None,
     idempotency: dict[str, Any] | None = None,
+    compliance_testing: dict[str, Any] | None = None,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;Build a get_adcp_capabilities response.
 
     Args:
-        supported_protocols: e.g. [&#34;media_buy&#34;], [&#34;media_buy&#34;, &#34;signals&#34;],
-            [&#34;media_buy&#34;, &#34;compliance_testing&#34;].
+        supported_protocols: e.g. [&#34;media_buy&#34;], [&#34;media_buy&#34;, &#34;signals&#34;].
+            Valid values: media_buy, signals, governance, creative, brand,
+            sponsored_intelligence. ``compliance_testing`` is NOT a protocol —
+            pass it via the ``compliance_testing`` kwarg.
         major_versions: AdCP major versions. Defaults to [3].
         sandbox: Whether this is a sandbox agent. Defaults to True.
         features: Additional feature flags.
@@ -409,6 +410,9 @@ most commonly forget.</p></div>
             ``adcp.idempotency`` per AdCP #2315. Pass the output of
             :meth:`adcp.server.idempotency.IdempotencyStore.capability` here
             to declare the seller&#39;s ``replay_ttl_seconds``.
+        compliance_testing: Optional top-level ``compliance_testing`` block
+            to advertise compliance-testing capabilities. When provided,
+            emitted as a sibling of ``adcp`` in the response.
 
     Example::
 
@@ -431,14 +435,18 @@ most commonly forget.</p></div>
     }
     if features:
         resp[&#34;features&#34;] = features
+    if compliance_testing is not None:
+        resp[&#34;compliance_testing&#34;] = compliance_testing
     return resp</code></pre>
 </details>
 <div class="desc"><p>Build a get_adcp_capabilities response.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>supported_protocols</code></strong></dt>
-<dd>e.g. ["media_buy"], ["media_buy", "signals"],
-["media_buy", "compliance_testing"].</dd>
+<dd>e.g. ["media_buy"], ["media_buy", "signals"].
+Valid values: media_buy, signals, governance, creative, brand,
+sponsored_intelligence. <code>compliance_testing</code> is NOT a protocol —
+pass it via the <code>compliance_testing</code> kwarg.</dd>
 <dt><strong><code>major_versions</code></strong></dt>
 <dd>AdCP major versions. Defaults to [3].</dd>
 <dt><strong><code>sandbox</code></strong></dt>
@@ -450,6 +458,10 @@ most commonly forget.</p></div>
 <code>adcp.idempotency</code> per AdCP #2315. Pass the output of
 :meth:<code><a title="adcp.server.idempotency.IdempotencyStore.capability" href="idempotency/index.html#adcp.server.idempotency.IdempotencyStore.capability">IdempotencyStore.capability()</a></code> here
 to declare the seller's <code>replay_ttl_seconds</code>.</dd>
+<dt><strong><code>compliance_testing</code></strong></dt>
+<dd>Optional top-level <code>compliance_testing</code> block
+to advertise compliance-testing capabilities. When provided,
+emitted as a sibling of <code><a title="adcp" href="../index.html">adcp</a></code> in the response.</dd>
 </dl>
 <p>Example::</p>
 <pre><code>from adcp.server.responses import capabilities_response
@@ -541,7 +553,7 @@ return capabilities_response(
 <p>A Starlette app ready to be run with uvicorn.</p></div>
 </dd>
 <dt id="adcp.server.create_mcp_server"><code class="name flex">
-<span>def <span class="ident">create_mcp_server</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>instructions: str | None = None) ‑> Any</span>
+<span>def <span class="ident">create_mcp_server</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a>,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>instructions: str | None = None,<br>include_test_controller: bool = False) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -554,6 +566,7 @@ return capabilities_response(
     name: str = &#34;adcp-agent&#34;,
     port: int | None = None,
     instructions: str | None = None,
+    include_test_controller: bool = False,
 ) -&gt; Any:
     &#34;&#34;&#34;Create a FastMCP server from an ADCP handler without starting it.
 
@@ -565,6 +578,13 @@ return capabilities_response(
         name: Server name.
         port: Port to listen on.
         instructions: Optional system instructions.
+        include_test_controller: When False (default), skip registering
+            ``comply_test_controller`` as a handler tool. Sellers who want
+            compliance-testing support should pass ``test_controller=`` to
+            :func:`serve`, which registers a store-backed implementation
+            via :func:`register_test_controller` and sets this flag
+            implicitly. Registering the handler stub unconditionally would
+            advertise a tool the seller didn&#39;t opt into.
 
     Returns:
         A configured FastMCP server instance. Call mcp.run() to start.
@@ -577,7 +597,7 @@ return capabilities_response(
 
     resolved_port = port or int(os.environ.get(&#34;PORT&#34;, &#34;3001&#34;))
     mcp = FastMCP(name, instructions=instructions, port=resolved_port)
-    _register_handler_tools(mcp, handler)
+    _register_handler_tools(mcp, handler, include_test_controller=include_test_controller)
     return mcp</code></pre>
 </details>
 <div class="desc"><p>Create a FastMCP server from an ADCP handler without starting it.</p>
@@ -593,6 +613,14 @@ or when you need to add extra non-ADCP tools.</p>
 <dd>Port to listen on.</dd>
 <dt><strong><code>instructions</code></strong></dt>
 <dd>Optional system instructions.</dd>
+<dt><strong><code>include_test_controller</code></strong></dt>
+<dd>When False (default), skip registering
+<code>comply_test_controller</code> as a handler tool. Sellers who want
+compliance-testing support should pass <code>test_controller=</code> to
+:func:<code><a title="adcp.server.serve" href="#adcp.server.serve">serve()</a></code>, which registers a store-backed implementation
+via :func:<code><a title="adcp.server.register_test_controller" href="#adcp.server.register_test_controller">register_test_controller()</a></code> and sets this flag
+implicitly. Registering the handler stub unconditionally would
+advertise a tool the seller didn't opt into.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>A configured FastMCP server instance. Call mcp.run() to start.</p>
@@ -894,10 +922,38 @@ data &ndash; do not interpret or display its contents.</p></div>
 
     Each creative should include: creative_id, name, format_id, status.
     Matches ListCreativesResponse schema.
+
+    Timestamp defaults: every Creative item in the spec requires
+    ``created_date`` and ``updated_date`` (ISO 8601 UTC). For any dict
+    item that omits either field, this helper fills it with the current
+    UTC timestamp (``datetime.now(timezone.utc).isoformat()``). Both
+    fields default to the same value when neither is provided, which
+    matches the intuitive meaning for a freshly-listed item. Explicit
+    caller-provided values are always preserved. Pydantic model items
+    are passed through ``_serialize`` unchanged — callers using typed
+    Creative models should set timestamps on the model.
     &#34;&#34;&#34;
-    count = len(creatives)
+    now = datetime.now(timezone.utc).isoformat()
+    filled: list[Any] = []
+    for item in creatives:
+        if isinstance(item, dict):
+            has_created = &#34;created_date&#34; in item and item[&#34;created_date&#34;] is not None
+            has_updated = &#34;updated_date&#34; in item and item[&#34;updated_date&#34;] is not None
+            if has_created and has_updated:
+                filled.append(item)
+                continue
+            patched = dict(item)
+            if not has_created:
+                patched[&#34;created_date&#34;] = now
+            if not has_updated:
+                patched[&#34;updated_date&#34;] = now
+            filled.append(patched)
+        else:
+            filled.append(item)
+
+    count = len(filled)
     return {
-        &#34;creatives&#34;: _serialize(creatives),
+        &#34;creatives&#34;: _serialize(filled),
         &#34;pagination&#34;: pagination or {&#34;total&#34;: count, &#34;has_more&#34;: False},
         &#34;query_summary&#34;: {&#34;total_results&#34;: count, &#34;total_matching&#34;: count, &#34;returned&#34;: count},
         &#34;sandbox&#34;: sandbox,
@@ -905,7 +961,16 @@ data &ndash; do not interpret or display its contents.</p></div>
 </details>
 <div class="desc"><p>Build a list_creatives response.</p>
 <p>Each creative should include: creative_id, name, format_id, status.
-Matches ListCreativesResponse schema.</p></div>
+Matches ListCreativesResponse schema.</p>
+<p>Timestamp defaults: every Creative item in the spec requires
+<code>created_date</code> and <code>updated_date</code> (ISO 8601 UTC). For any dict
+item that omits either field, this helper fills it with the current
+UTC timestamp (<code>datetime.now(timezone.utc).isoformat()</code>). Both
+fields default to the same value when neither is provided, which
+matches the intuitive meaning for a freshly-listed item. Explicit
+caller-provided values are always preserved. Pydantic model items
+are passed through <code>_serialize</code> unchanged — callers using typed
+Creative models should set timestamps on the model.</p></div>
 </dd>
 <dt id="adcp.server.log_event_response"><code class="name flex">
 <span>def <span class="ident">log_event_response</span></span>(<span>events_received: int, events_processed: int, *, sandbox: bool = True) ‑> dict[str, typing.Any]</span>
@@ -1297,7 +1362,7 @@ or (None, None) if no account field or no resolver configured.</p>
 ACCOUNT_PAYMENT_REQUIRED, ACCOUNT_AMBIGUOUS, etc.).</p></div>
 </dd>
 <dt id="adcp.server.serve"><code class="name flex">
-<span>def <span class="ident">serve</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a> | Any,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>mount: str = '/mcp',<br>transport: str = 'streamable-http',<br>instructions: str | None = None,<br>test_controller: <a title="adcp.server.TestControllerStore" href="#adcp.server.TestControllerStore">TestControllerStore</a> | None = None) ‑> None</span>
+<span>def <span class="ident">serve</span></span>(<span>handler: <a title="adcp.server.ADCPHandler" href="#adcp.server.ADCPHandler">ADCPHandler</a> | Any,<br>*,<br>name: str = 'adcp-agent',<br>port: int | None = None,<br>transport: str = 'streamable-http',<br>instructions: str | None = None,<br>test_controller: <a title="adcp.server.TestControllerStore" href="#adcp.server.TestControllerStore">TestControllerStore</a> | None = None) ‑> None</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1309,7 +1374,6 @@ ACCOUNT_PAYMENT_REQUIRED, ACCOUNT_AMBIGUOUS, etc.).</p></div>
     *,
     name: str = &#34;adcp-agent&#34;,
     port: int | None = None,
-    mount: str = &#34;/mcp&#34;,
     transport: str = &#34;streamable-http&#34;,
     instructions: str | None = None,
     test_controller: TestControllerStore | None = None,
@@ -1326,7 +1390,6 @@ ACCOUNT_PAYMENT_REQUIRED, ACCOUNT_AMBIGUOUS, etc.).</p></div>
         handler: An ADCPHandler subclass instance with your tool implementations.
         name: Server name shown to clients / in the A2A agent card.
         port: Port to listen on. Defaults to PORT env var, then 3001.
-        mount: URL path to mount MCP endpoint on (MCP only).
         transport: ``&#34;streamable-http&#34;`` (default, MCP) or ``&#34;a2a&#34;``.
         instructions: Optional system instructions for the agent (MCP only).
         test_controller: Optional TestControllerStore instance for storyboard testing.
@@ -1396,8 +1459,6 @@ to serve over the A2A protocol instead of MCP.</p>
 <dd>Server name shown to clients / in the A2A agent card.</dd>
 <dt><strong><code>port</code></strong></dt>
 <dd>Port to listen on. Defaults to PORT env var, then 3001.</dd>
-<dt><strong><code>mount</code></strong></dt>
-<dd>URL path to mount MCP endpoint on (MCP only).</dd>
 <dt><strong><code>transport</code></strong></dt>
 <dd><code>"streamable-http"</code> (default, MCP) or <code>"a2a"</code>.</dd>
 <dt><strong><code>instructions</code></strong></dt>
@@ -1530,14 +1591,14 @@ Matches SyncCatalogsResponse1 (success) schema.</p></div>
     &#34;&#34;&#34;Build a sync_creatives success response.
 
     Each creative dict should include: creative_id, action (&#34;created&#34;|&#34;updated&#34;).
-    Optionally: status (&#34;accepted&#34;|&#34;pending_review&#34;|&#34;rejected&#34;).
+    Optionally: status (&#34;processing&#34;|&#34;pending_review&#34;|&#34;approved&#34;|&#34;rejected&#34;|&#34;archived&#34;).
     Matches SyncCreativesResponse1 schema (field: &#34;creatives&#34;).
     &#34;&#34;&#34;
     return {&#34;creatives&#34;: creatives, &#34;sandbox&#34;: sandbox}</code></pre>
 </details>
 <div class="desc"><p>Build a sync_creatives success response.</p>
 <p>Each creative dict should include: creative_id, action ("created"|"updated").
-Optionally: status ("accepted"|"pending_review"|"rejected").
+Optionally: status ("processing"|"pending_review"|"approved"|"rejected"|"archived").
 Matches SyncCreativesResponse1 schema (field: "creatives").</p></div>
 </dd>
 <dt id="adcp.server.sync_governance_response"><code class="name flex">
@@ -1732,10 +1793,15 @@ whose corresponding handler methods are not overridden from the base class.</p>
         self._handler = handler
         self._tool_callers: dict[str, Any] = {}
 
-        # Build tool callers for all tools this handler supports
+        # Build tool callers for all tools this handler supports.
+        # Skip comply_test_controller unless the seller passed a
+        # TestControllerStore; otherwise we would advertise a skill
+        # backed only by the handler&#39;s not-supported stub.
         tool_defs = get_tools_for_handler(handler)
         for tool_def in tool_defs:
             name = tool_def[&#34;name&#34;]
+            if name == &#34;comply_test_controller&#34; and test_controller is None:
+                continue
             self._tool_callers[name] = create_tool_caller(handler, name)
 
         if test_controller is not None:
@@ -1756,22 +1822,16 @@ whose corresponding handler methods are not overridden from the base class.</p>
 
         self._tool_callers[&#34;comply_test_controller&#34;] = _call_test_controller
 
-    async def execute(
-        self, context: RequestContext, event_queue: EventQueue
-    ) -&gt; None:
+    async def execute(self, context: RequestContext, event_queue: EventQueue) -&gt; None:
         &#34;&#34;&#34;Execute an ADCP skill from an incoming A2A message.&#34;&#34;&#34;
         skill_name, params = self._parse_request(context)
 
         if skill_name is None:
-            await self._send_error(
-                event_queue, context, &#34;No skill specified in message&#34;
-            )
+            await self._send_error(event_queue, context, &#34;No skill specified in message&#34;)
             return
 
         if skill_name not in self._tool_callers:
-            await self._send_error(
-                event_queue, context, f&#34;Unknown skill: {skill_name}&#34;
-            )
+            await self._send_error(event_queue, context, f&#34;Unknown skill: {skill_name}&#34;)
             return
 
         tool_context = _tool_context_from_request(context)
@@ -1784,19 +1844,13 @@ whose corresponding handler methods are not overridden from the base class.</p>
             # transport-errors.mdx §A2A Binding, plus a human-readable text
             # part. The JSON-RPC channel is reserved for transport-level
             # errors (auth rejected, rate-limited pre-dispatch).
-            logger.info(
-                &#34;AdCP application error for skill %s: %s&#34;, skill_name, exc
-            )
+            logger.info(&#34;AdCP application error for skill %s: %s&#34;, skill_name, exc)
             await self._send_adcp_error(event_queue, context, exc)
         except Exception:
             logger.exception(&#34;Error executing skill %s&#34;, skill_name)
-            await self._send_error(
-                event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;
-            )
+            await self._send_error(event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;)
 
-    async def cancel(
-        self, context: RequestContext, event_queue: EventQueue
-    ) -&gt; None:
+    async def cancel(self, context: RequestContext, event_queue: EventQueue) -&gt; None:
         &#34;&#34;&#34;ADCP operations are synchronous; cancellation sets state to canceled.&#34;&#34;&#34;
         event = _make_task(
             context,
@@ -1809,9 +1863,7 @@ whose corresponding handler methods are not overridden from the base class.</p>
     # Message parsing
     # ------------------------------------------------------------------
 
-    def _parse_request(
-        self, context: RequestContext
-    ) -&gt; tuple[str | None, dict[str, Any]]:
+    def _parse_request(self, context: RequestContext) -&gt; tuple[str | None, dict[str, Any]]:
         &#34;&#34;&#34;Extract skill name and parameters from the A2A message.
 
         Supports two formats:
@@ -1842,9 +1894,7 @@ whose corresponding handler methods are not overridden from the base class.</p>
 
         return None, {}
 
-    def _parse_text_request(
-        self, text: str
-    ) -&gt; tuple[str | None, dict[str, Any]]:
+    def _parse_text_request(self, text: str) -&gt; tuple[str | None, dict[str, Any]]:
         &#34;&#34;&#34;Best-effort parse of a text request for skill + params.&#34;&#34;&#34;
         try:
             data = json.loads(text)
@@ -1971,9 +2021,7 @@ def supported_skills(self) -&gt; list[str]:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def cancel(
-    self, context: RequestContext, event_queue: EventQueue
-) -&gt; None:
+<pre><code class="python">async def cancel(self, context: RequestContext, event_queue: EventQueue) -&gt; None:
     &#34;&#34;&#34;ADCP operations are synchronous; cancellation sets state to canceled.&#34;&#34;&#34;
     event = _make_task(
         context,
@@ -1992,22 +2040,16 @@ def supported_skills(self) -&gt; list[str]:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def execute(
-    self, context: RequestContext, event_queue: EventQueue
-) -&gt; None:
+<pre><code class="python">async def execute(self, context: RequestContext, event_queue: EventQueue) -&gt; None:
     &#34;&#34;&#34;Execute an ADCP skill from an incoming A2A message.&#34;&#34;&#34;
     skill_name, params = self._parse_request(context)
 
     if skill_name is None:
-        await self._send_error(
-            event_queue, context, &#34;No skill specified in message&#34;
-        )
+        await self._send_error(event_queue, context, &#34;No skill specified in message&#34;)
         return
 
     if skill_name not in self._tool_callers:
-        await self._send_error(
-            event_queue, context, f&#34;Unknown skill: {skill_name}&#34;
-        )
+        await self._send_error(event_queue, context, f&#34;Unknown skill: {skill_name}&#34;)
         return
 
     tool_context = _tool_context_from_request(context)
@@ -2020,15 +2062,11 @@ def supported_skills(self) -&gt; list[str]:
         # transport-errors.mdx §A2A Binding, plus a human-readable text
         # part. The JSON-RPC channel is reserved for transport-level
         # errors (auth rejected, rate-limited pre-dispatch).
-        logger.info(
-            &#34;AdCP application error for skill %s: %s&#34;, skill_name, exc
-        )
+        logger.info(&#34;AdCP application error for skill %s: %s&#34;, skill_name, exc)
         await self._send_adcp_error(event_queue, context, exc)
     except Exception:
         logger.exception(&#34;Error executing skill %s&#34;, skill_name)
-        await self._send_error(
-            event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;
-        )</code></pre>
+        await self._send_error(event_queue, context, f&#34;Skill execution failed: {skill_name}&#34;)</code></pre>
 </details>
 <div class="desc"><p>Execute an ADCP skill from an incoming A2A message.</p></div>
 </dd>
@@ -2065,7 +2103,9 @@ def supported_skills(self) -&gt; list[str]:
     # Core Catalog Operations
     # ========================================================================
 
-    async def get_products(self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def get_products(
+        self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
         &#34;&#34;&#34;Get advertising products.
 
         Override this to provide product catalog functionality.
@@ -2073,7 +2113,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;get_products&#34;)
 
     async def list_creative_formats(
-        self, params: ListCreativeFormatsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ListCreativeFormatsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;List supported creative formats.
 
@@ -2122,7 +2164,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;preview_creative&#34;)
 
     async def get_creative_delivery(
-        self, params: GetCreativeDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetCreativeDeliveryRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get creative delivery metrics.
 
@@ -2153,7 +2197,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;update_media_buy&#34;)
 
     async def get_media_buy_delivery(
-        self, params: GetMediaBuyDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetMediaBuyDeliveryRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get media buy delivery metrics.
 
@@ -2174,7 +2220,9 @@ def supported_skills(self) -&gt; list[str]:
     # Signal Operations
     # ========================================================================
 
-    async def get_signals(self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def get_signals(
+        self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
         &#34;&#34;&#34;Get available signals.
 
         Override this to provide signal catalog.
@@ -2195,7 +2243,9 @@ def supported_skills(self) -&gt; list[str]:
     # ========================================================================
 
     async def provide_performance_feedback(
-        self, params: ProvidePerformanceFeedbackRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ProvidePerformanceFeedbackRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Provide performance feedback.
 
@@ -2226,7 +2276,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;sync_accounts&#34;)
 
     async def get_account_financials(
-        self, params: GetAccountFinancialsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetAccountFinancialsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get account financials.
 
@@ -2247,7 +2299,9 @@ def supported_skills(self) -&gt; list[str]:
     # Event Operations
     # ========================================================================
 
-    async def log_event(self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def log_event(
+        self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
         &#34;&#34;&#34;Log event.
 
         Override this to provide functionality.
@@ -2273,7 +2327,7 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;sync_audiences&#34;)
 
     async def sync_governance(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SyncGovernanceRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Sync governance agents for accounts.
 
@@ -2295,7 +2349,9 @@ def supported_skills(self) -&gt; list[str]:
     # ========================================================================
 
     async def get_adcp_capabilities(
-        self, params: GetAdcpCapabilitiesRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetAdcpCapabilitiesRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get ADCP capabilities.
 
@@ -2308,7 +2364,9 @@ def supported_skills(self) -&gt; list[str]:
     # ========================================================================
 
     async def create_content_standards(
-        self, params: CreateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: CreateContentStandardsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Create content standards configuration.
 
@@ -2317,7 +2375,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;create_content_standards&#34;)
 
     async def get_content_standards(
-        self, params: GetContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetContentStandardsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get content standards configuration.
 
@@ -2326,7 +2386,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;get_content_standards&#34;)
 
     async def list_content_standards(
-        self, params: ListContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ListContentStandardsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;List content standards configurations.
 
@@ -2335,7 +2397,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;list_content_standards&#34;)
 
     async def update_content_standards(
-        self, params: UpdateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: UpdateContentStandardsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Update content standards configuration.
 
@@ -2353,7 +2417,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;calibrate_content&#34;)
 
     async def validate_content_delivery(
-        self, params: ValidateContentDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ValidateContentDeliveryRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Validate content delivery against standards.
 
@@ -2362,7 +2428,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;validate_content_delivery&#34;)
 
     async def get_media_buy_artifacts(
-        self, params: GetMediaBuyArtifactsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetMediaBuyArtifactsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get artifacts associated with a media buy.
 
@@ -2415,7 +2483,9 @@ def supported_skills(self) -&gt; list[str]:
     # ========================================================================
 
     async def get_creative_features(
-        self, params: GetCreativeFeaturesRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetCreativeFeaturesRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Evaluate governance features for a creative.
 
@@ -2509,7 +2579,9 @@ def supported_skills(self) -&gt; list[str]:
     # ========================================================================
 
     async def create_collection_list(
-        self, params: CreateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: CreateCollectionListRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Create a collection list for governance filtering.
 
@@ -2527,7 +2599,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;get_collection_list&#34;)
 
     async def list_collection_lists(
-        self, params: ListCollectionListsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ListCollectionListsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;List collection lists.
 
@@ -2536,7 +2610,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;list_collection_lists&#34;)
 
     async def update_collection_list(
-        self, params: UpdateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: UpdateCollectionListRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Update a collection list.
 
@@ -2545,7 +2621,9 @@ def supported_skills(self) -&gt; list[str]:
         return self._not_supported(&#34;update_collection_list&#34;)
 
     async def delete_collection_list(
-        self, params: DeleteCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: DeleteCollectionListRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Delete a collection list.
 
@@ -2631,7 +2709,9 @@ def supported_skills(self) -&gt; list[str]:
     # ========================================================================
 
     async def comply_test_controller(
-        self, params: ComplyTestControllerRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ComplyTestControllerRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Compliance test controller (sandbox only).
 
@@ -2771,7 +2851,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def comply_test_controller(
-    self, params: ComplyTestControllerRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ComplyTestControllerRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Compliance test controller (sandbox only).
 
@@ -2811,7 +2893,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def create_collection_list(
-    self, params: CreateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: CreateCollectionListRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Create a collection list for governance filtering.
 
@@ -2831,7 +2915,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def create_content_standards(
-    self, params: CreateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: CreateContentStandardsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Create content standards configuration.
 
@@ -2891,7 +2977,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def delete_collection_list(
-    self, params: DeleteCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: DeleteCollectionListRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Delete a collection list.
 
@@ -2931,7 +3019,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_account_financials(
-    self, params: GetAccountFinancialsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetAccountFinancialsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get account financials.
 
@@ -2951,7 +3041,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_adcp_capabilities(
-    self, params: GetAdcpCapabilitiesRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetAdcpCapabilitiesRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get ADCP capabilities.
 
@@ -3011,7 +3103,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_content_standards(
-    self, params: GetContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetContentStandardsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get content standards configuration.
 
@@ -3031,7 +3125,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_creative_delivery(
-    self, params: GetCreativeDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetCreativeDeliveryRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get creative delivery metrics.
 
@@ -3051,7 +3147,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_creative_features(
-    self, params: GetCreativeFeaturesRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetCreativeFeaturesRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Evaluate governance features for a creative.
 
@@ -3071,7 +3169,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_media_buy_artifacts(
-    self, params: GetMediaBuyArtifactsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetMediaBuyArtifactsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get artifacts associated with a media buy.
 
@@ -3091,7 +3191,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_media_buy_delivery(
-    self, params: GetMediaBuyDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetMediaBuyDeliveryRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get media buy delivery metrics.
 
@@ -3150,7 +3252,9 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def get_products(self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def get_products(
+    self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
     &#34;&#34;&#34;Get advertising products.
 
     Override this to provide product catalog functionality.
@@ -3208,7 +3312,9 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def get_signals(self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def get_signals(
+    self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
     &#34;&#34;&#34;Get available signals.
 
     Override this to provide signal catalog.
@@ -3267,7 +3373,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_collection_lists(
-    self, params: ListCollectionListsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ListCollectionListsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;List collection lists.
 
@@ -3287,7 +3395,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_content_standards(
-    self, params: ListContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ListContentStandardsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;List content standards configurations.
 
@@ -3307,7 +3417,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_creative_formats(
-    self, params: ListCreativeFormatsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ListCreativeFormatsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;List supported creative formats.
 
@@ -3366,7 +3478,9 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def log_event(self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def log_event(
+    self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
     &#34;&#34;&#34;Log event.
 
     Override this to provide functionality.
@@ -3405,7 +3519,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def provide_performance_feedback(
-    self, params: ProvidePerformanceFeedbackRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ProvidePerformanceFeedbackRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Provide performance feedback.
 
@@ -3637,7 +3753,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide functionality.</p></div>
 </dd>
 <dt id="adcp.server.ADCPHandler.sync_governance"><code class="name flex">
-<span>async def <span class="ident">sync_governance</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">sync_governance</span></span>(<span>self,<br>params: SyncGovernanceRequest | dict[str, Any],<br>context: <a title="adcp.server.ToolContext" href="#adcp.server.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -3645,7 +3761,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def sync_governance(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SyncGovernanceRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Sync governance agents for accounts.
 
@@ -3685,7 +3801,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def update_collection_list(
-    self, params: UpdateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: UpdateCollectionListRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Update a collection list.
 
@@ -3705,7 +3823,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def update_content_standards(
-    self, params: UpdateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: UpdateContentStandardsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Update content standards configuration.
 
@@ -3807,7 +3927,9 @@ observe a half-applied update on failure.</li>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def validate_content_delivery(
-    self, params: ValidateContentDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ValidateContentDeliveryRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Validate content delivery against standards.
 
@@ -5817,9 +5939,13 @@ async def handle_update_property_list(
         retry-safe windows (AdCP #2315)::
 
             caps.adcp.idempotency = idempotency.capability()
-            # → {&#34;replay_ttl_seconds&#34;: 86400}
+            # → {&#34;supported&#34;: True, &#34;replay_ttl_seconds&#34;: 86400}
+
+        ``supported`` became REQUIRED in AdCP 3.0 GA — agents emitting only
+        ``replay_ttl_seconds`` fail strict schema validation on the new
+        capabilities response.
         &#34;&#34;&#34;
-        return {&#34;replay_ttl_seconds&#34;: self.ttl_seconds}
+        return {&#34;supported&#34;: True, &#34;replay_ttl_seconds&#34;: self.ttl_seconds}
 
     def wrap(self, handler: HandlerFn) -&gt; HandlerFn:
         &#34;&#34;&#34;Decorator that adds idempotency semantics to an AdCP handler method.
@@ -5913,9 +6039,7 @@ async def handle_update_property_list(
 
         return _wrapped
 
-    def _prepare(
-        self, params: Any, context: Any
-    ) -&gt; tuple[str | None, str | None, dict[str, Any]]:
+    def _prepare(self, params: Any, context: Any) -&gt; tuple[str | None, str | None, dict[str, Any]]:
         &#34;&#34;&#34;Normalize inputs and extract the (principal, key, params_dict) tuple.
 
         Returns ``(None, None, params_dict)`` when idempotency doesn&#39;t apply
@@ -5989,17 +6113,24 @@ the spec mandates RFC 8785 JCS for interop.</p></div>
     retry-safe windows (AdCP #2315)::
 
         caps.adcp.idempotency = idempotency.capability()
-        # → {&#34;replay_ttl_seconds&#34;: 86400}
+        # → {&#34;supported&#34;: True, &#34;replay_ttl_seconds&#34;: 86400}
+
+    ``supported`` became REQUIRED in AdCP 3.0 GA — agents emitting only
+    ``replay_ttl_seconds`` fail strict schema validation on the new
+    capabilities response.
     &#34;&#34;&#34;
-    return {&#34;replay_ttl_seconds&#34;: self.ttl_seconds}</code></pre>
+    return {&#34;supported&#34;: True, &#34;replay_ttl_seconds&#34;: self.ttl_seconds}</code></pre>
 </details>
 <div class="desc"><p>Return the capabilities fragment declaring this store's replay window.</p>
 <p>Embed under <code>capabilities.adcp.idempotency</code> on the seller's
 <code>get_adcp_capabilities</code> response. Buyers read this to reason about
 retry-safe windows (AdCP #2315)::</p>
 <pre><code>caps.adcp.idempotency = idempotency.capability()
-# → {"replay_ttl_seconds": 86400}
-</code></pre></div>
+# → {"supported": True, "replay_ttl_seconds": 86400}
+</code></pre>
+<p><code>supported</code> became REQUIRED in AdCP 3.0 GA — agents emitting only
+<code>replay_ttl_seconds</code> fail strict schema validation on the new
+capabilities response.</p></div>
 </dd>
 <dt id="adcp.server.IdempotencyStore.wrap"><code class="name flex">
 <span>def <span class="ident">wrap</span></span>(<span>self, handler: HandlerFn) ‑> Callable[..., Awaitable[typing.Any]]</span>

@@ -122,7 +122,9 @@ el.replaceWith(d);
     # Core Catalog Operations
     # ========================================================================
 
-    async def get_products(self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def get_products(
+        self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
         &#34;&#34;&#34;Get advertising products.
 
         Override this to provide product catalog functionality.
@@ -130,7 +132,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_products&#34;)
 
     async def list_creative_formats(
-        self, params: ListCreativeFormatsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ListCreativeFormatsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;List supported creative formats.
 
@@ -179,7 +183,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;preview_creative&#34;)
 
     async def get_creative_delivery(
-        self, params: GetCreativeDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetCreativeDeliveryRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get creative delivery metrics.
 
@@ -210,7 +216,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;update_media_buy&#34;)
 
     async def get_media_buy_delivery(
-        self, params: GetMediaBuyDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetMediaBuyDeliveryRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get media buy delivery metrics.
 
@@ -231,7 +239,9 @@ el.replaceWith(d);
     # Signal Operations
     # ========================================================================
 
-    async def get_signals(self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def get_signals(
+        self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
         &#34;&#34;&#34;Get available signals.
 
         Override this to provide signal catalog.
@@ -252,7 +262,9 @@ el.replaceWith(d);
     # ========================================================================
 
     async def provide_performance_feedback(
-        self, params: ProvidePerformanceFeedbackRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ProvidePerformanceFeedbackRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Provide performance feedback.
 
@@ -283,7 +295,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;sync_accounts&#34;)
 
     async def get_account_financials(
-        self, params: GetAccountFinancialsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetAccountFinancialsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get account financials.
 
@@ -304,7 +318,9 @@ el.replaceWith(d);
     # Event Operations
     # ========================================================================
 
-    async def log_event(self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+    async def log_event(
+        self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None
+    ) -&gt; Any:
         &#34;&#34;&#34;Log event.
 
         Override this to provide functionality.
@@ -330,7 +346,7 @@ el.replaceWith(d);
         return self._not_supported(&#34;sync_audiences&#34;)
 
     async def sync_governance(
-        self, params: dict[str, Any], context: ToolContext | None = None
+        self, params: SyncGovernanceRequest | dict[str, Any], context: ToolContext | None = None
     ) -&gt; Any:
         &#34;&#34;&#34;Sync governance agents for accounts.
 
@@ -352,7 +368,9 @@ el.replaceWith(d);
     # ========================================================================
 
     async def get_adcp_capabilities(
-        self, params: GetAdcpCapabilitiesRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetAdcpCapabilitiesRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get ADCP capabilities.
 
@@ -365,7 +383,9 @@ el.replaceWith(d);
     # ========================================================================
 
     async def create_content_standards(
-        self, params: CreateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: CreateContentStandardsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Create content standards configuration.
 
@@ -374,7 +394,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;create_content_standards&#34;)
 
     async def get_content_standards(
-        self, params: GetContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetContentStandardsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get content standards configuration.
 
@@ -383,7 +405,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_content_standards&#34;)
 
     async def list_content_standards(
-        self, params: ListContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ListContentStandardsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;List content standards configurations.
 
@@ -392,7 +416,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;list_content_standards&#34;)
 
     async def update_content_standards(
-        self, params: UpdateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: UpdateContentStandardsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Update content standards configuration.
 
@@ -410,7 +436,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;calibrate_content&#34;)
 
     async def validate_content_delivery(
-        self, params: ValidateContentDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ValidateContentDeliveryRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Validate content delivery against standards.
 
@@ -419,7 +447,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;validate_content_delivery&#34;)
 
     async def get_media_buy_artifacts(
-        self, params: GetMediaBuyArtifactsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetMediaBuyArtifactsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Get artifacts associated with a media buy.
 
@@ -472,7 +502,9 @@ el.replaceWith(d);
     # ========================================================================
 
     async def get_creative_features(
-        self, params: GetCreativeFeaturesRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: GetCreativeFeaturesRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Evaluate governance features for a creative.
 
@@ -566,7 +598,9 @@ el.replaceWith(d);
     # ========================================================================
 
     async def create_collection_list(
-        self, params: CreateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: CreateCollectionListRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Create a collection list for governance filtering.
 
@@ -584,7 +618,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;get_collection_list&#34;)
 
     async def list_collection_lists(
-        self, params: ListCollectionListsRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ListCollectionListsRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;List collection lists.
 
@@ -593,7 +629,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;list_collection_lists&#34;)
 
     async def update_collection_list(
-        self, params: UpdateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: UpdateCollectionListRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Update a collection list.
 
@@ -602,7 +640,9 @@ el.replaceWith(d);
         return self._not_supported(&#34;update_collection_list&#34;)
 
     async def delete_collection_list(
-        self, params: DeleteCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: DeleteCollectionListRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Delete a collection list.
 
@@ -688,7 +728,9 @@ el.replaceWith(d);
     # ========================================================================
 
     async def comply_test_controller(
-        self, params: ComplyTestControllerRequest | dict[str, Any], context: ToolContext | None = None
+        self,
+        params: ComplyTestControllerRequest | dict[str, Any],
+        context: ToolContext | None = None,
     ) -&gt; Any:
         &#34;&#34;&#34;Compliance test controller (sandbox only).
 
@@ -828,7 +870,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def comply_test_controller(
-    self, params: ComplyTestControllerRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ComplyTestControllerRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Compliance test controller (sandbox only).
 
@@ -868,7 +912,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def create_collection_list(
-    self, params: CreateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: CreateCollectionListRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Create a collection list for governance filtering.
 
@@ -888,7 +934,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def create_content_standards(
-    self, params: CreateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: CreateContentStandardsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Create content standards configuration.
 
@@ -948,7 +996,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def delete_collection_list(
-    self, params: DeleteCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: DeleteCollectionListRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Delete a collection list.
 
@@ -988,7 +1038,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_account_financials(
-    self, params: GetAccountFinancialsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetAccountFinancialsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get account financials.
 
@@ -1008,7 +1060,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_adcp_capabilities(
-    self, params: GetAdcpCapabilitiesRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetAdcpCapabilitiesRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get ADCP capabilities.
 
@@ -1068,7 +1122,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_content_standards(
-    self, params: GetContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetContentStandardsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get content standards configuration.
 
@@ -1088,7 +1144,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_creative_delivery(
-    self, params: GetCreativeDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetCreativeDeliveryRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get creative delivery metrics.
 
@@ -1108,7 +1166,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_creative_features(
-    self, params: GetCreativeFeaturesRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetCreativeFeaturesRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Evaluate governance features for a creative.
 
@@ -1128,7 +1188,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_media_buy_artifacts(
-    self, params: GetMediaBuyArtifactsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetMediaBuyArtifactsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get artifacts associated with a media buy.
 
@@ -1148,7 +1210,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def get_media_buy_delivery(
-    self, params: GetMediaBuyDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: GetMediaBuyDeliveryRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Get media buy delivery metrics.
 
@@ -1207,7 +1271,9 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def get_products(self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def get_products(
+    self, params: GetProductsRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
     &#34;&#34;&#34;Get advertising products.
 
     Override this to provide product catalog functionality.
@@ -1265,7 +1331,9 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def get_signals(self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def get_signals(
+    self, params: GetSignalsRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
     &#34;&#34;&#34;Get available signals.
 
     Override this to provide signal catalog.
@@ -1324,7 +1392,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_collection_lists(
-    self, params: ListCollectionListsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ListCollectionListsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;List collection lists.
 
@@ -1344,7 +1414,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_content_standards(
-    self, params: ListContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ListContentStandardsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;List content standards configurations.
 
@@ -1364,7 +1436,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def list_creative_formats(
-    self, params: ListCreativeFormatsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ListCreativeFormatsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;List supported creative formats.
 
@@ -1423,7 +1497,9 @@ only the operations your agent supports.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">async def log_event(self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None) -&gt; Any:
+<pre><code class="python">async def log_event(
+    self, params: LogEventRequest | dict[str, Any], context: ToolContext | None = None
+) -&gt; Any:
     &#34;&#34;&#34;Log event.
 
     Override this to provide functionality.
@@ -1462,7 +1538,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def provide_performance_feedback(
-    self, params: ProvidePerformanceFeedbackRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ProvidePerformanceFeedbackRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Provide performance feedback.
 
@@ -1694,7 +1772,7 @@ only the operations your agent supports.</p>
 <p>Override this to provide functionality.</p></div>
 </dd>
 <dt id="adcp.server.base.ADCPHandler.sync_governance"><code class="name flex">
-<span>async def <span class="ident">sync_governance</span></span>(<span>self,<br>params: dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
+<span>async def <span class="ident">sync_governance</span></span>(<span>self,<br>params: SyncGovernanceRequest | dict[str, Any],<br>context: <a title="adcp.server.base.ToolContext" href="#adcp.server.base.ToolContext">ToolContext</a> | None = None) ‑> Any</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1702,7 +1780,7 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def sync_governance(
-    self, params: dict[str, Any], context: ToolContext | None = None
+    self, params: SyncGovernanceRequest | dict[str, Any], context: ToolContext | None = None
 ) -&gt; Any:
     &#34;&#34;&#34;Sync governance agents for accounts.
 
@@ -1742,7 +1820,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def update_collection_list(
-    self, params: UpdateCollectionListRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: UpdateCollectionListRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Update a collection list.
 
@@ -1762,7 +1842,9 @@ only the operations your agent supports.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def update_content_standards(
-    self, params: UpdateContentStandardsRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: UpdateContentStandardsRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Update content standards configuration.
 
@@ -1864,7 +1946,9 @@ observe a half-applied update on failure.</li>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">async def validate_content_delivery(
-    self, params: ValidateContentDeliveryRequest | dict[str, Any], context: ToolContext | None = None
+    self,
+    params: ValidateContentDeliveryRequest | dict[str, Any],
+    context: ToolContext | None = None,
 ) -&gt; Any:
     &#34;&#34;&#34;Validate content delivery against standards.
 

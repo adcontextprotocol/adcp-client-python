@@ -567,7 +567,12 @@ attempt; passing None twice mints two keys and defeats dedup.</dd>
         _validate_header_value(&#34;config.token&#34;, token)
         _inject_push_token(body_dict, token, payload, token_field)
 
-    body_bytes = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+    # Compact separators so the signer and the wire see byte-identical
+    # payloads, matching the canonical on-wire form pinned by
+    # adcontextprotocol/adcp#2478. ``_compute_legacy_signature`` returns the
+    # same compact body bytes below — we serialize here for the size check
+    # and Bearer path, which both operate on the final transmitted bytes.
+    body_bytes = json.dumps(body_dict, separators=(&#34;,&#34;, &#34;:&#34;)).encode(&#34;utf-8&#34;)
     if len(body_bytes) &gt; _MAX_BODY_BYTES:
         raise ValueError(
             f&#34;serialized webhook body is {len(body_bytes):,} bytes, over the &#34;
@@ -1033,38 +1038,10 @@ it would mint a fresh UUID and defeat the dedup contract.</p></div>
             &#34;X-AdCP-Timestamp&#34;: &#34;1773185740&#34;
         }
     &#34;&#34;&#34;
-    # Default to current Unix time if not provided
-    if timestamp is None:
-        import time
-
-        timestamp = str(int(time.time()))
-    else:
-        timestamp = str(timestamp)
-
-    # Convert Pydantic model to dict if needed
-    # All AdCP types inherit from AdCPBaseModel (Pydantic BaseModel)
-    if hasattr(payload, &#34;model_dump&#34;):
-        payload_dict = payload.model_dump(mode=&#34;json&#34;)
-    else:
-        payload_dict = payload
-
-    # Serialize payload to JSON with default formatting (matches what json= kwarg sends on the wire)
-    # This aligns with the JS reference implementation&#39;s JSON.stringify() behavior
-    payload_json = json.dumps(payload_dict)
-
-    # Construct signed message: timestamp.payload
-    # Including timestamp prevents replay attacks
-    signed_message = f&#34;{timestamp}.{payload_json}&#34;
-
-    # Generate HMAC-SHA256 signature over timestamp + payload
-    signature_hex = hmac.new(
-        secret.encode(&#34;utf-8&#34;), signed_message.encode(&#34;utf-8&#34;), hashlib.sha256
-    ).hexdigest()
-
-    # Add AdCP-compliant signature headers
-    headers[&#34;X-AdCP-Signature&#34;] = f&#34;sha256={signature_hex}&#34;
-    headers[&#34;X-AdCP-Timestamp&#34;] = timestamp
-
+    signature_headers, _body_bytes = _compute_legacy_signature(
+        secret=secret, timestamp=timestamp, payload=payload
+    )
+    headers.update(signature_headers)
     return headers</code></pre>
 </details>
 <div class="desc"><p>Generate AdCP-compliant signed headers for webhook delivery.</p>
@@ -1128,6 +1105,67 @@ including a timestamp in the signed message.</p>
 }
 </code></pre></div>
 </dd>
+<dt id="adcp.webhooks.sign_legacy_webhook"><code class="name flex">
+<span>def <span class="ident">sign_legacy_webhook</span></span>(<span>secret: str,<br>payload: dict[str, Any] | AdCPBaseModel,<br>*,<br>timestamp: str | int | None = None,<br>headers: dict[str, Any] | None = None) ‑> tuple[dict[str, str], bytes]</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sign_legacy_webhook(
+    secret: str,
+    payload: dict[str, Any] | AdCPBaseModel,
+    *,
+    timestamp: str | int | None = None,
+    headers: dict[str, Any] | None = None,
+) -&gt; tuple[dict[str, str], bytes]:
+    &#34;&#34;&#34;Return ``(signed_headers, body_bytes)`` for a legacy HMAC webhook.
+
+    Byte-equality between signature input and HTTP body is guaranteed —
+    callers POST ``content=body_bytes`` instead of ``json=payload``, so the
+    separator-drift trap that caused silent 401s in every spaced-vs-compact
+    interop is structurally impossible here.
+
+    This is a lower-level companion to :func:`deliver` for callers who need
+    to own the HTTP transport themselves (custom auth, pre-configured
+    ``httpx.AsyncClient``, non-httpx clients). For the one-shot &#34;send a
+    webhook&#34; path, prefer :func:`deliver`.
+
+    The returned ``body_bytes`` use compact separators (``&#34;,&#34;``/``&#34;:&#34;``)
+    matching the canonical on-wire form pinned by adcontextprotocol/adcp#2478.
+
+    Example:
+        &gt;&gt;&gt; signed, body = sign_legacy_webhook(&#34;shared-secret&#34;, payload)
+        &gt;&gt;&gt; headers = {**signed, &#34;Content-Type&#34;: &#34;application/json&#34;}
+        &gt;&gt;&gt; await client.post(url, content=body, headers=headers)
+    &#34;&#34;&#34;
+    signature_headers, body_bytes = _compute_legacy_signature(
+        secret=secret, timestamp=timestamp, payload=payload
+    )
+    if headers is not None:
+        merged = {str(k): str(v) for k, v in headers.items()}
+        merged.update(signature_headers)
+        return merged, body_bytes
+    return signature_headers, body_bytes</code></pre>
+</details>
+<div class="desc"><p>Return <code>(signed_headers, body_bytes)</code> for a legacy HMAC webhook.</p>
+<p>Byte-equality between signature input and HTTP body is guaranteed —
+callers POST <code>content=body_bytes</code> instead of <code>json=payload</code>, so the
+separator-drift trap that caused silent 401s in every spaced-vs-compact
+interop is structurally impossible here.</p>
+<p>This is a lower-level companion to :func:<code><a title="adcp.webhooks.deliver" href="#adcp.webhooks.deliver">deliver()</a></code> for callers who need
+to own the HTTP transport themselves (custom auth, pre-configured
+<code>httpx.AsyncClient</code>, non-httpx clients). For the one-shot "send a
+webhook" path, prefer :func:<code><a title="adcp.webhooks.deliver" href="#adcp.webhooks.deliver">deliver()</a></code>.</p>
+<p>The returned <code>body_bytes</code> use compact separators (<code>","</code>/<code>":"</code>)
+matching the canonical on-wire form pinned by adcontextprotocol/adcp#2478.</p>
+<h2 id="example">Example</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; signed, body = sign_legacy_webhook(&quot;shared-secret&quot;, payload)
+&gt;&gt;&gt; headers = {**signed, &quot;Content-Type&quot;: &quot;application/json&quot;}
+&gt;&gt;&gt; await client.post(url, content=body, headers=headers)
+</code></pre></div>
+</dd>
 <dt id="adcp.webhooks.sign_webhook"><code class="name flex">
 <span>def <span class="ident">sign_webhook</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>created: int | None = None,<br>expires_in_seconds: int = 300,<br>nonce: str | None = None,<br>label: str = 'sig1') ‑> <a title="adcp.signing.signer.SignedHeaders" href="signing/signer.html#adcp.signing.signer.SignedHeaders">SignedHeaders</a></span>
 </code></dt>
@@ -1158,6 +1196,11 @@ including a timestamp in the signed message.</p>
     The ``method`` is normally ``&#34;POST&#34;`` for webhook delivery; passed through
     unchanged so callers signing a retried ``PUT`` or variant delivery verb
     are not forced into an extra translation.
+
+    See also:
+        :class:`adcp.webhooks.WebhookSender` — higher-level one-call helper
+        that builds the payload, signs, and POSTs in a single call. Prefer it
+        unless you need to own the HTTP transport yourself.
     &#34;&#34;&#34;
     return sign_request(
         method=method,
@@ -1180,7 +1223,11 @@ including a timestamp in the signed message.</p>
 caller attaches <code>SignedHeaders.as_dict()</code> to the outgoing HTTP request.</p>
 <p>The <code>method</code> is normally <code>"POST"</code> for webhook delivery; passed through
 unchanged so callers signing a retried <code>PUT</code> or variant delivery verb
-are not forced into an extra translation.</p></div>
+are not forced into an extra translation.</p>
+<p>See also:
+:class:<code><a title="adcp.webhooks.WebhookSender" href="#adcp.webhooks.WebhookSender">WebhookSender</a></code> — higher-level one-call helper
+that builds the payload, signs, and POSTs in a single call. Prefer it
+unless you need to own the HTTP transport yourself.</p></div>
 </dd>
 <dt id="adcp.webhooks.verify_webhook_hmac"><code class="name flex">
 <span>def <span class="ident">verify_webhook_hmac</span></span>(<span>*,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.webhooks.LegacyWebhookHmacOptions" href="#adcp.webhooks.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a>) ‑> <a title="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender" href="signing/webhook_hmac.html#adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender">VerifiedLegacyWebhookSender</a></span>
@@ -1533,6 +1580,135 @@ window, now + window]</code> rejects.</p></div>
 </dd>
 </dl>
 </dd>
+<dt id="adcp.webhooks.MemoryBackend"><code class="flex name class">
+<span>class <span class="ident">MemoryBackend</span></span>
+<span>(</span><span>*, clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MemoryBackend(IdempotencyBackend):
+    &#34;&#34;&#34;In-process dict-backed store.
+
+    Suitable for tests, single-process reference implementations, and local
+    development. **Not suitable for multi-process deployments** — each worker
+    has its own cache, so a retry that lands on a different worker is treated
+    as a fresh request.
+
+    Thread safety: the backend uses an :class:`asyncio.Lock` to serialize
+    mutations of the shared dict. Reads go through the lock too; for a pure
+    in-process backend this is cheap and prevents torn reads across concurrent
+    ``get``/``put`` interleaving.
+
+    :param clock: Callable returning the current epoch seconds. Override for
+        tests that need to advance time deterministically without monkeypatching
+        :mod:`time`. Defaults to :func:`time.time`.
+    &#34;&#34;&#34;
+
+    def __init__(self, *, clock: Callable[[], float] = time.time) -&gt; None:
+        self._store: dict[tuple[str, str], CachedResponse] = {}
+        self._lock = asyncio.Lock()
+        self._clock = clock
+
+    async def get(
+        self, principal_id: str, key: str
+    ) -&gt; CachedResponse | None:
+        async with self._lock:
+            entry = self._store.get((principal_id, key))
+            if entry is None:
+                return None
+            if entry.expires_at_epoch &lt;= self._clock():
+                # Lazy expiry — drop the stale entry so the next request
+                # treats the slot as fresh and races to repopulate.
+                del self._store[(principal_id, key)]
+                return None
+            return entry
+
+    async def put(
+        self,
+        principal_id: str,
+        key: str,
+        entry: CachedResponse,
+    ) -&gt; None:
+        async with self._lock:
+            self._store[(principal_id, key)] = entry
+
+    async def delete_expired(self, now_epoch: float | None = None) -&gt; int:
+        cutoff = now_epoch if now_epoch is not None else self._clock()
+        async with self._lock:
+            stale = [k for k, v in self._store.items() if v.expires_at_epoch &lt;= cutoff]
+            for k in stale:
+                del self._store[k]
+            return len(stale)
+
+    async def clear(self) -&gt; None:
+        &#34;&#34;&#34;Remove all cached entries.
+
+        Test-suite hook — handy for resetting state between fixtures when a
+        single :class:`MemoryBackend` is shared across multiple tests.
+        &#34;&#34;&#34;
+        async with self._lock:
+            self._store.clear()
+
+    async def _size(self) -&gt; int:
+        &#34;&#34;&#34;Test-only: return the current entry count.&#34;&#34;&#34;
+        async with self._lock:
+            return len(self._store)</code></pre>
+</details>
+<div class="desc"><p>In-process dict-backed store.</p>
+<p>Suitable for tests, single-process reference implementations, and local
+development. <strong>Not suitable for multi-process deployments</strong> — each worker
+has its own cache, so a retry that lands on a different worker is treated
+as a fresh request.</p>
+<p>Thread safety: the backend uses an :class:<code>asyncio.Lock</code> to serialize
+mutations of the shared dict. Reads go through the lock too; for a pure
+in-process backend this is cheap and prevents torn reads across concurrent
+<code>get</code>/<code>put</code> interleaving.</p>
+<p>:param clock: Callable returning the current epoch seconds. Override for
+tests that need to advance time deterministically without monkeypatching
+:mod:<code>time</code>. Defaults to :func:<code>time.time</code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.server.idempotency.backends.IdempotencyBackend" href="server/idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend">IdempotencyBackend</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhooks.MemoryBackend.clear"><code class="name flex">
+<span>async def <span class="ident">clear</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def clear(self) -&gt; None:
+    &#34;&#34;&#34;Remove all cached entries.
+
+    Test-suite hook — handy for resetting state between fixtures when a
+    single :class:`MemoryBackend` is shared across multiple tests.
+    &#34;&#34;&#34;
+    async with self._lock:
+        self._store.clear()</code></pre>
+</details>
+<div class="desc"><p>Remove all cached entries.</p>
+<p>Test-suite hook — handy for resetting state between fixtures when a
+single :class:<code><a title="adcp.webhooks.MemoryBackend" href="#adcp.webhooks.MemoryBackend">MemoryBackend</a></code> is shared across multiple tests.</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.server.idempotency.backends.IdempotencyBackend" href="server/idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend">IdempotencyBackend</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.delete_expired" href="server/idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend.delete_expired">delete_expired</a></code></li>
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.get" href="server/idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend.get">get</a></code></li>
+<li><code><a title="adcp.server.idempotency.backends.IdempotencyBackend.put" href="server/idempotency/backends.html#adcp.server.idempotency.backends.IdempotencyBackend.put">put</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.webhooks.VerifiedLegacyWebhookSender"><code class="flex name class">
 <span>class <span class="ident">VerifiedLegacyWebhookSender</span></span>
 <span>(</span><span>sender_identity: str)</span>
@@ -1725,6 +1901,208 @@ payload field for identity is the attack-surface hole the spec's
 cryptographically verified identity; prefer <code>sender_url:key_id</code> when
 a sender URL is present to tolerate JWKS reuse across co-deployed
 senders.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.WebhookDedupStore"><code class="flex name class">
+<span>class <span class="ident">WebhookDedupStore</span></span>
+<span>(</span><span>backend: IdempotencyBackend,<br>ttl_seconds: int = 86400,<br>*,<br>namespace: str = 'webhook',<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WebhookDedupStore:
+    &#34;&#34;&#34;Dedup ``(sender_id, idempotency_key)`` pairs to suppress retried webhooks.
+
+    :param backend: any :class:`IdempotencyBackend`. Same MemoryBackend or
+        PgBackend type used by :class:`IdempotencyStore` is fine — the
+        ``namespace`` parameter prefixes all sender IDs so request-side and
+        webhook-side scopes can&#39;t alias even when sharing one backend instance.
+    :param ttl_seconds: replay window. Must be within ``[86400, 604800]`` per
+        the spec minimum. Defaults to 86400 (24h).
+    :param namespace: prefix applied to every ``sender_id`` before it hits
+        the backend. Defaults to ``&#34;webhook&#34;``, which is safe when the same
+        backend is shared with :class:`IdempotencyStore` (request-side keys
+        are scoped by a principal_id that isn&#39;t wrapped in this namespace,
+        so collisions are impossible). Override only if you run multiple
+        webhook scopes against one backend (e.g., separate dedup spaces for
+        task webhooks vs list-change webhooks).
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        backend: IdempotencyBackend,
+        ttl_seconds: int = _MIN_TTL_SECONDS,
+        *,
+        namespace: str = &#34;webhook&#34;,
+        clock: Callable[[], float] = time.time,
+    ) -&gt; None:
+        if not _MIN_TTL_SECONDS &lt;= ttl_seconds &lt;= _MAX_TTL_SECONDS:
+            raise ValueError(
+                f&#34;ttl_seconds must be in [{_MIN_TTL_SECONDS}, {_MAX_TTL_SECONDS}] &#34;
+                f&#34;per webhook spec minimum, got {ttl_seconds}&#34;
+            )
+        if not namespace:
+            raise ValueError(&#34;namespace must be a non-empty string&#34;)
+        self.backend = backend
+        self.ttl_seconds = ttl_seconds
+        self.namespace = namespace
+        self._clock = clock
+
+    async def check_and_record(self, sender_id: str, idempotency_key: str) -&gt; bool:
+        &#34;&#34;&#34;Atomically check for first-seen and record if new.
+
+        Returns ``True`` when the pair is first-seen (event should be
+        processed), ``False`` on duplicate (caller MUST still return 2xx to
+        the sender — the event was delivered successfully, it&#39;s just a retry).
+
+        Race note: the check-then-put pattern is not atomic across concurrent
+        callers unless the backend provides its own atomicity. MemoryBackend
+        serializes individual ``get`` and ``put`` under an ``asyncio.Lock`` but
+        does NOT bracket them together — two concurrent retries of the same
+        event CAN both observe &#34;first-seen&#34; and both process the event. That&#39;s
+        a tolerable failure mode: the ultimate guarantee is &#34;at most once per
+        replay window in the common case&#34;; a concurrent retry arriving in the
+        same few milliseconds is rare and, if it happens, produces the same
+        &#34;duplicated side effect&#34; outcome the at-least-once contract already
+        warns callers to tolerate. PgBackend implementations SHOULD use
+        ``INSERT ... ON CONFLICT DO NOTHING`` returning ``rowcount`` for
+        lock-free atomicity.
+        &#34;&#34;&#34;
+        if not sender_id:
+            raise ValueError(&#34;sender_id must be a non-empty string&#34;)
+        if not idempotency_key:
+            raise ValueError(&#34;idempotency_key must be a non-empty string&#34;)
+
+        scoped_sender = f&#34;{self.namespace}:{sender_id}&#34;
+        existing = await self.backend.get(scoped_sender, idempotency_key)
+        if existing is not None:
+            logger.debug(
+                &#34;webhook dedup: duplicate sender=%s key_prefix=%s&#34;,
+                sender_id,
+                idempotency_key[:8],
+            )
+            return False
+
+        entry = CachedResponse(
+            payload_hash=_SENTINEL_HASH,
+            response={},
+            expires_at_epoch=self._clock() + self.ttl_seconds,
+        )
+        try:
+            await self.backend.put(scoped_sender, idempotency_key, entry)
+        except Exception:
+            # Same fail-open reasoning as the request-side store: log and
+            # process. Swallowing the put failure means this event MIGHT
+            # reprocess on retry, not that we drop it. Better than raising,
+            # which would look like handler failure to the sender.
+            logger.warning(
+                &#34;webhook dedup put failed for sender=%s key_prefix=%s — &#34;
+                &#34;event processed but next retry will reprocess&#34;,
+                sender_id,
+                idempotency_key[:8],
+                exc_info=True,
+            )
+        return True</code></pre>
+</details>
+<div class="desc"><p>Dedup <code>(sender_id, idempotency_key)</code> pairs to suppress retried webhooks.</p>
+<p>:param backend: any :class:<code>IdempotencyBackend</code>. Same MemoryBackend or
+PgBackend type used by :class:<code>IdempotencyStore</code> is fine — the
+<code>namespace</code> parameter prefixes all sender IDs so request-side and
+webhook-side scopes can't alias even when sharing one backend instance.
+:param ttl_seconds: replay window. Must be within <code>[86400, 604800]</code> per
+the spec minimum. Defaults to 86400 (24h).
+:param namespace: prefix applied to every <code>sender_id</code> before it hits
+the backend. Defaults to <code>"webhook"</code>, which is safe when the same
+backend is shared with :class:<code>IdempotencyStore</code> (request-side keys
+are scoped by a principal_id that isn't wrapped in this namespace,
+so collisions are impossible). Override only if you run multiple
+webhook scopes against one backend (e.g., separate dedup spaces for
+task webhooks vs list-change webhooks).</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookDedupStore.check_and_record"><code class="name flex">
+<span>async def <span class="ident">check_and_record</span></span>(<span>self, sender_id: str, idempotency_key: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def check_and_record(self, sender_id: str, idempotency_key: str) -&gt; bool:
+    &#34;&#34;&#34;Atomically check for first-seen and record if new.
+
+    Returns ``True`` when the pair is first-seen (event should be
+    processed), ``False`` on duplicate (caller MUST still return 2xx to
+    the sender — the event was delivered successfully, it&#39;s just a retry).
+
+    Race note: the check-then-put pattern is not atomic across concurrent
+    callers unless the backend provides its own atomicity. MemoryBackend
+    serializes individual ``get`` and ``put`` under an ``asyncio.Lock`` but
+    does NOT bracket them together — two concurrent retries of the same
+    event CAN both observe &#34;first-seen&#34; and both process the event. That&#39;s
+    a tolerable failure mode: the ultimate guarantee is &#34;at most once per
+    replay window in the common case&#34;; a concurrent retry arriving in the
+    same few milliseconds is rare and, if it happens, produces the same
+    &#34;duplicated side effect&#34; outcome the at-least-once contract already
+    warns callers to tolerate. PgBackend implementations SHOULD use
+    ``INSERT ... ON CONFLICT DO NOTHING`` returning ``rowcount`` for
+    lock-free atomicity.
+    &#34;&#34;&#34;
+    if not sender_id:
+        raise ValueError(&#34;sender_id must be a non-empty string&#34;)
+    if not idempotency_key:
+        raise ValueError(&#34;idempotency_key must be a non-empty string&#34;)
+
+    scoped_sender = f&#34;{self.namespace}:{sender_id}&#34;
+    existing = await self.backend.get(scoped_sender, idempotency_key)
+    if existing is not None:
+        logger.debug(
+            &#34;webhook dedup: duplicate sender=%s key_prefix=%s&#34;,
+            sender_id,
+            idempotency_key[:8],
+        )
+        return False
+
+    entry = CachedResponse(
+        payload_hash=_SENTINEL_HASH,
+        response={},
+        expires_at_epoch=self._clock() + self.ttl_seconds,
+    )
+    try:
+        await self.backend.put(scoped_sender, idempotency_key, entry)
+    except Exception:
+        # Same fail-open reasoning as the request-side store: log and
+        # process. Swallowing the put failure means this event MIGHT
+        # reprocess on retry, not that we drop it. Better than raising,
+        # which would look like handler failure to the sender.
+        logger.warning(
+            &#34;webhook dedup put failed for sender=%s key_prefix=%s — &#34;
+            &#34;event processed but next retry will reprocess&#34;,
+            sender_id,
+            idempotency_key[:8],
+            exc_info=True,
+        )
+    return True</code></pre>
+</details>
+<div class="desc"><p>Atomically check for first-seen and record if new.</p>
+<p>Returns <code>True</code> when the pair is first-seen (event should be
+processed), <code>False</code> on duplicate (caller MUST still return 2xx to
+the sender — the event was delivered successfully, it's just a retry).</p>
+<p>Race note: the check-then-put pattern is not atomic across concurrent
+callers unless the backend provides its own atomicity. MemoryBackend
+serializes individual <code>get</code> and <code>put</code> under an <code>asyncio.Lock</code> but
+does NOT bracket them together — two concurrent retries of the same
+event CAN both observe "first-seen" and both process the event. That's
+a tolerable failure mode: the ultimate guarantee is "at most once per
+replay window in the common case"; a concurrent retry arriving in the
+same few milliseconds is rare and, if it happens, produces the same
+"duplicated side effect" outcome the at-least-once contract already
+warns callers to tolerate. PgBackend implementations SHOULD use
+<code>INSERT &hellip; ON CONFLICT DO NOTHING</code> returning <code>rowcount</code> for
+lock-free atomicity.</p></div>
 </dd>
 </dl>
 </dd>
@@ -1960,6 +2338,45 @@ signature verified fine, it's just a retry the caller should 200 away.</p></div>
             idempotency_key=idempotency_key,
         )
 
+    def receive_sync(
+        self,
+        *,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        body: bytes,
+    ) -&gt; WebhookOutcome:
+        &#34;&#34;&#34;Synchronous wrapper around :meth:`receive` for WSGI-style frameworks.
+
+        Use this from Flask, Gunicorn sync workers, ``http.server``, or any
+        other sync-only HTTP entry point where wrapping every call in
+        ``asyncio.run(...)`` is just noise::
+
+            @app.post(&#34;/webhooks/adcp&#34;)
+            def hook():
+                outcome = receiver.receive_sync(
+                    method=request.method,
+                    url=request.url,
+                    headers=dict(request.headers),
+                    body=request.get_data(),
+                )
+                ...
+
+        Raises :class:`RuntimeError` if invoked from a thread that already has
+        a running event loop — the underlying verify / dedup path is async and
+        cannot be driven from inside an active loop without blocking it. From
+        async code, call :meth:`receive` directly.
+        &#34;&#34;&#34;
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop in this thread — safe to spin one up.
+            return asyncio.run(self.receive(method=method, url=url, headers=headers, body=body))
+        raise RuntimeError(
+            &#34;WebhookReceiver.receive_sync() cannot be called from a running &#34;
+            &#34;event loop. Use `await receiver.receive(...)` instead.&#34;
+        )
+
     async def _verify(
         self,
         *,
@@ -2120,11 +2537,77 @@ without try/except around every call. Operational failures inside
 the dedup backend or verify-options factory MAY still raise; wrap
 the call if you need to 5xx cleanly on internal errors.</p></div>
 </dd>
+<dt id="adcp.webhooks.WebhookReceiver.receive_sync"><code class="name flex">
+<span>def <span class="ident">receive_sync</span></span>(<span>self, *, method: str, url: str, headers: Mapping[str, str], body: bytes) ‑> <a title="adcp.webhook_receiver.WebhookOutcome" href="webhook_receiver.html#adcp.webhook_receiver.WebhookOutcome">WebhookOutcome</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def receive_sync(
+    self,
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+) -&gt; WebhookOutcome:
+    &#34;&#34;&#34;Synchronous wrapper around :meth:`receive` for WSGI-style frameworks.
+
+    Use this from Flask, Gunicorn sync workers, ``http.server``, or any
+    other sync-only HTTP entry point where wrapping every call in
+    ``asyncio.run(...)`` is just noise::
+
+        @app.post(&#34;/webhooks/adcp&#34;)
+        def hook():
+            outcome = receiver.receive_sync(
+                method=request.method,
+                url=request.url,
+                headers=dict(request.headers),
+                body=request.get_data(),
+            )
+            ...
+
+    Raises :class:`RuntimeError` if invoked from a thread that already has
+    a running event loop — the underlying verify / dedup path is async and
+    cannot be driven from inside an active loop without blocking it. From
+    async code, call :meth:`receive` directly.
+    &#34;&#34;&#34;
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop in this thread — safe to spin one up.
+        return asyncio.run(self.receive(method=method, url=url, headers=headers, body=body))
+    raise RuntimeError(
+        &#34;WebhookReceiver.receive_sync() cannot be called from a running &#34;
+        &#34;event loop. Use `await receiver.receive(...)` instead.&#34;
+    )</code></pre>
+</details>
+<div class="desc"><p>Synchronous wrapper around :meth:<code>receive</code> for WSGI-style frameworks.</p>
+<p>Use this from Flask, Gunicorn sync workers, <code>http.server</code>, or any
+other sync-only HTTP entry point where wrapping every call in
+<code>asyncio.run(&hellip;)</code> is just noise::</p>
+<pre><code>@app.post("/webhooks/adcp")
+def hook():
+    outcome = receiver.receive_sync(
+        method=request.method,
+        url=request.url,
+        headers=dict(request.headers),
+        body=request.get_data(),
+    )
+    ...
+</code></pre>
+<p>Raises :class:<code>RuntimeError</code> if invoked from a thread that already has
+a running event loop — the underlying verify / dedup path is async and
+cannot be driven from inside an active loop without blocking it. From
+async code, call :meth:<code>receive</code> directly.</p></div>
+</dd>
 </dl>
 </dd>
 <dt id="adcp.webhooks.WebhookReceiverConfig"><code class="flex name class">
 <span>class <span class="ident">WebhookReceiverConfig</span></span>
-<span>(</span><span>verify_options: <a title="adcp.webhooks.WebhookVerifyOptions" href="#adcp.webhooks.WebhookVerifyOptions">WebhookVerifyOptions</a>,<br>dedup: WebhookDedupStore,<br>legacy_hmac: <a title="adcp.webhooks.LegacyHmacFallback" href="#adcp.webhooks.LegacyHmacFallback">LegacyHmacFallback</a> | None = None,<br>kind: WebhookKind = 'mcp')</span>
+<span>(</span><span>verify_options: <a title="adcp.webhooks.WebhookVerifyOptions" href="#adcp.webhooks.WebhookVerifyOptions">WebhookVerifyOptions</a>,<br>dedup: <a title="adcp.webhooks.WebhookDedupStore" href="#adcp.webhooks.WebhookDedupStore">WebhookDedupStore</a>,<br>legacy_hmac: <a title="adcp.webhooks.LegacyHmacFallback" href="#adcp.webhooks.LegacyHmacFallback">LegacyHmacFallback</a> | None = None,<br>kind: WebhookKind = 'mcp')</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2257,6 +2740,82 @@ explicitly for list-change / artifact / revocation receivers.</p></div>
         return cls(
             private_key=private_key,
             key_id=str(jwk_snapshot[&#34;kid&#34;]),
+            alg=alg,
+            client=client,
+            timeout_seconds=timeout_seconds,
+        )
+
+    @classmethod
+    def from_pem(
+        cls,
+        pem_path: str | Path | bytes,
+        *,
+        key_id: str,
+        alg: str = &#34;ed25519&#34;,
+        passphrase: bytes | None = None,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    ) -&gt; WebhookSender:
+        &#34;&#34;&#34;Load a private key from a PEM file and bind it as a webhook sender.
+
+        Companion to ``adcp-keygen --purpose webhook-signing``, which writes
+        the PEM and prints the public JWK. The JWK is published at your
+        ``jwks_uri``; the PEM holds the private key material. ``from_pem``
+        reads the PEM, constructs the right ``PrivateKey`` type for ``alg``,
+        and returns a sender ready to send.
+
+        Args:
+            pem_path: Path to the PKCS#8 PEM, or the PEM bytes directly.
+            key_id: JWK ``kid`` claim — must match the published JWK.
+            alg: Signature algorithm. ``ed25519`` (default) or ``es256``.
+                Also accepts the RFC 9421 form ``ecdsa-p256-sha256``.
+            passphrase: Required if the PEM is encrypted
+                (``adcp-keygen --encrypt``).
+            client: Optional pre-built :class:`httpx.AsyncClient` to share
+                across the SDK; the sender owns its own client when omitted.
+            timeout_seconds: Per-request timeout for the owned client.
+
+        Raises:
+            ValueError: ``alg`` is not ed25519 / es256, or the PEM contains
+                a key whose type doesn&#39;t match ``alg``.
+        &#34;&#34;&#34;
+        if alg in (&#34;es256&#34;, &#34;ES256&#34;):
+            alg = ALG_ES256
+        elif alg == &#34;EdDSA&#34;:
+            alg = ALG_ED25519
+        if alg not in (ALG_ED25519, ALG_ES256):
+            raise ValueError(
+                f&#34;unsupported alg {alg!r} — use &#39;ed25519&#39; or &#39;es256&#39; &#34;
+                f&#34;(the two AdCP webhook-signing algorithms)&#34;
+            )
+
+        if isinstance(pem_path, bytes):
+            pem_bytes = pem_path
+        else:
+            pem_bytes = Path(pem_path).read_bytes()
+
+        private_key = load_private_key_pem(pem_bytes, password=passphrase)
+
+        # The PEM&#39;s key type must match the requested alg — mixing them
+        # would produce signatures no verifier can validate, and the
+        # resulting error at delivery time would point at the receiver.
+        # Fail here so the misconfiguration surfaces at construction.
+        if alg == ALG_ED25519 and not isinstance(private_key, ed25519.Ed25519PrivateKey):
+            raise ValueError(
+                f&#34;PEM holds a {type(private_key).__name__} but alg=&#39;ed25519&#39; &#34;
+                f&#34;was requested. Re-run adcp-keygen with --alg ed25519, or &#34;
+                f&#34;pass alg=&#39;es256&#39; to match the existing PEM.&#34;
+            )
+        if alg == ALG_ES256 and not isinstance(private_key, ec.EllipticCurvePrivateKey):
+            raise ValueError(
+                f&#34;PEM holds a {type(private_key).__name__} but alg=&#39;es256&#39; &#34;
+                f&#34;was requested. Re-run adcp-keygen with --alg es256, or &#34;
+                f&#34;pass alg=&#39;ed25519&#39; to match the existing PEM.&#34;
+            )
+
+        return cls(
+            private_key=private_key,
+            key_id=key_id,
             alg=alg,
             client=client,
             timeout_seconds=timeout_seconds,
@@ -2545,6 +3104,41 @@ tasks. The underlying <code>httpx.AsyncClient</code> manages its own pool.</p></
 doesn't validate this (you're signing with your own key; validation
 happens at the receiver), but a key whose adcp_use is wrong will be
 rejected by every conformant verifier.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookSender.from_pem"><code class="name flex">
+<span>def <span class="ident">from_pem</span></span>(<span>pem_path: str | Path | bytes,<br>*,<br>key_id: str,<br>alg: str = 'ed25519',<br>passphrase: bytes | None = None,<br>client: httpx.AsyncClient | None = None,<br>timeout_seconds: float = 10.0) ‑> <a title="adcp.webhook_sender.WebhookSender" href="webhook_sender.html#adcp.webhook_sender.WebhookSender">WebhookSender</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Load a private key from a PEM file and bind it as a webhook sender.</p>
+<p>Companion to <code>adcp-keygen --purpose webhook-signing</code>, which writes
+the PEM and prints the public JWK. The JWK is published at your
+<code>jwks_uri</code>; the PEM holds the private key material. <code>from_pem</code>
+reads the PEM, constructs the right <code>PrivateKey</code> type for <code>alg</code>,
+and returns a sender ready to send.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>pem_path</code></strong></dt>
+<dd>Path to the PKCS#8 PEM, or the PEM bytes directly.</dd>
+<dt><strong><code>key_id</code></strong></dt>
+<dd>JWK <code>kid</code> claim — must match the published JWK.</dd>
+<dt><strong><code>alg</code></strong></dt>
+<dd>Signature algorithm. <code>ed25519</code> (default) or <code>es256</code>.
+Also accepts the RFC 9421 form <code>ecdsa-p256-sha256</code>.</dd>
+<dt><strong><code>passphrase</code></strong></dt>
+<dd>Required if the PEM is encrypted
+(<code>adcp-keygen --encrypt</code>).</dd>
+<dt><strong><code>client</code></strong></dt>
+<dd>Optional pre-built :class:<code>httpx.AsyncClient</code> to share
+across the SDK; the sender owns its own client when omitted.</dd>
+<dt><strong><code>timeout_seconds</code></strong></dt>
+<dd>Per-request timeout for the owned client.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd><code>alg</code> is not ed25519 / es256, or the PEM contains
+a key whose type doesn't match <code>alg</code>.</dd>
+</dl></div>
 </dd>
 </dl>
 <h3>Methods</h3>
@@ -2968,6 +3562,7 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <li><code><a title="adcp.webhooks.extract_webhook_result_data" href="#adcp.webhooks.extract_webhook_result_data">extract_webhook_result_data</a></code></li>
 <li><code><a title="adcp.webhooks.generate_webhook_idempotency_key" href="#adcp.webhooks.generate_webhook_idempotency_key">generate_webhook_idempotency_key</a></code></li>
 <li><code><a title="adcp.webhooks.get_adcp_signed_headers_for_webhook" href="#adcp.webhooks.get_adcp_signed_headers_for_webhook">get_adcp_signed_headers_for_webhook</a></code></li>
+<li><code><a title="adcp.webhooks.sign_legacy_webhook" href="#adcp.webhooks.sign_legacy_webhook">sign_legacy_webhook</a></code></li>
 <li><code><a title="adcp.webhooks.sign_webhook" href="#adcp.webhooks.sign_webhook">sign_webhook</a></code></li>
 <li><code><a title="adcp.webhooks.verify_webhook_hmac" href="#adcp.webhooks.verify_webhook_hmac">verify_webhook_hmac</a></code></li>
 <li><code><a title="adcp.webhooks.verify_webhook_signature" href="#adcp.webhooks.verify_webhook_signature">verify_webhook_signature</a></code></li>
@@ -2996,6 +3591,12 @@ Fractions of a second may be present if the system clock provides them.</p></div
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.webhooks.MemoryBackend" href="#adcp.webhooks.MemoryBackend">MemoryBackend</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.MemoryBackend.clear" href="#adcp.webhooks.MemoryBackend.clear">clear</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.webhooks.VerifiedLegacyWebhookSender" href="#adcp.webhooks.VerifiedLegacyWebhookSender">VerifiedLegacyWebhookSender</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.webhooks.VerifiedLegacyWebhookSender.as_sender_identity" href="#adcp.webhooks.VerifiedLegacyWebhookSender.as_sender_identity">as_sender_identity</a></code></li>
@@ -3017,6 +3618,12 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <li><code><a title="adcp.webhooks.VerifiedWebhookSender.label" href="#adcp.webhooks.VerifiedWebhookSender.label">label</a></code></li>
 <li><code><a title="adcp.webhooks.VerifiedWebhookSender.sender_url" href="#adcp.webhooks.VerifiedWebhookSender.sender_url">sender_url</a></code></li>
 <li><code><a title="adcp.webhooks.VerifiedWebhookSender.verified_at" href="#adcp.webhooks.VerifiedWebhookSender.verified_at">verified_at</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.WebhookDedupStore" href="#adcp.webhooks.WebhookDedupStore">WebhookDedupStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.WebhookDedupStore.check_and_record" href="#adcp.webhooks.WebhookDedupStore.check_and_record">check_and_record</a></code></li>
 </ul>
 </li>
 <li>
@@ -3048,6 +3655,7 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <h4><code><a title="adcp.webhooks.WebhookReceiver" href="#adcp.webhooks.WebhookReceiver">WebhookReceiver</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.webhooks.WebhookReceiver.receive" href="#adcp.webhooks.WebhookReceiver.receive">receive</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookReceiver.receive_sync" href="#adcp.webhooks.WebhookReceiver.receive_sync">receive_sync</a></code></li>
 </ul>
 </li>
 <li>
@@ -3064,6 +3672,7 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <ul class="">
 <li><code><a title="adcp.webhooks.WebhookSender.aclose" href="#adcp.webhooks.WebhookSender.aclose">aclose</a></code></li>
 <li><code><a title="adcp.webhooks.WebhookSender.from_jwk" href="#adcp.webhooks.WebhookSender.from_jwk">from_jwk</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.from_pem" href="#adcp.webhooks.WebhookSender.from_pem">from_pem</a></code></li>
 <li><code><a title="adcp.webhooks.WebhookSender.resend" href="#adcp.webhooks.WebhookSender.resend">resend</a></code></li>
 <li><code><a title="adcp.webhooks.WebhookSender.send_artifact_webhook" href="#adcp.webhooks.WebhookSender.send_artifact_webhook">send_artifact_webhook</a></code></li>
 <li><code><a title="adcp.webhooks.WebhookSender.send_collection_list_changed" href="#adcp.webhooks.WebhookSender.send_collection_list_changed">send_collection_list_changed</a></code></li>

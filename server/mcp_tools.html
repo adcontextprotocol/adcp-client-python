@@ -151,9 +151,7 @@ async def call_tool(name: str, arguments: dict):
 
     method = getattr(handler, method_name)
 
-    async def call_tool(
-        params: dict[str, Any], context: ToolContext | None = None
-    ) -&gt; Any:
+    async def call_tool(params: dict[str, Any], context: ToolContext | None = None) -&gt; Any:
         ctx = context if context is not None else ToolContext()
         result = await method(params, ctx)
         # Convert Pydantic models to JSON-safe dicts for MCP serialization

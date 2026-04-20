@@ -154,9 +154,7 @@ caller's LLM context and could enable prompt injection.</dd>
     most commonly forget.
     &#34;&#34;&#34;
     if canceled_by not in (&#34;buyer&#34;, &#34;seller&#34;):
-        raise ValueError(
-            f&#34;canceled_by must be &#39;buyer&#39; or &#39;seller&#39;, got {canceled_by!r}&#34;
-        )
+        raise ValueError(f&#34;canceled_by must be &#39;buyer&#39; or &#39;seller&#39;, got {canceled_by!r}&#34;)
     resp: dict[str, Any] = {
         &#34;media_buy_id&#34;: media_buy_id,
         &#34;status&#34;: &#34;canceled&#34;,

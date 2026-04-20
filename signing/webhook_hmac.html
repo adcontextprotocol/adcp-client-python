@@ -47,10 +47,12 @@ MAY honor it. The <code>authentication</code> field is removed in 4.0.</p>
 f"{timestamp}.{raw_body_bytes.decode()}")</code></li>
 <li><code>X-AdCP-Timestamp</code> — Unix epoch seconds, string</li>
 </ul>
-<p>The sender serializes the payload via <code>json.dumps(payload_dict)</code> with default
-separators, so receivers MUST verify against the raw request body bytes, not
-a re-serialized copy — JSON round-trips through a dict reorder keys and break
-the signature. Always call with <code>request.body()</code> / <code>request.get_data()</code>.</p>
+<p>The sender serializes the payload with compact separators (<code>","</code>/<code>":"</code>)
+to match what httpx / most HTTP clients put on the wire for <code>json=payload</code>
+(pinned in adcontextprotocol/adcp#2478). Receivers MUST verify against the
+raw request body bytes, not a re-serialized copy — JSON round-trips through
+a dict reorder keys and break the signature. Always call with
+<code>request.body()</code> / <code>request.get_data()</code>.</p>
 <p><strong>Security note — no nonce-based replay cache.</strong> The legacy HMAC scheme binds
 only the timestamp into the signed message; unlike the 9421 profile, it has
 no nonce, so a replayed signed body within the skew window re-verifies

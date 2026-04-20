@@ -53,14 +53,16 @@ adcp-keygen &ndash;alg ed25519 &ndash;encrypt &ndash;out private-key.pem</p>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="adcp.signing.keygen.generate_ed25519"><code class="name flex">
-<span>def <span class="ident">generate_ed25519</span></span>(<span>kid: str, passphrase: bytes | None = None) ‑> tuple[bytes, dict[str, typing.Any]]</span>
+<span>def <span class="ident">generate_ed25519</span></span>(<span>kid: str, passphrase: bytes | None = None, adcp_use: str = 'request-signing') ‑> tuple[bytes, dict[str, typing.Any]]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def generate_ed25519(kid: str, passphrase: bytes | None = None) -&gt; tuple[bytes, dict[str, Any]]:
+<pre><code class="python">def generate_ed25519(
+    kid: str, passphrase: bytes | None = None, adcp_use: str = &#34;request-signing&#34;
+) -&gt; tuple[bytes, dict[str, Any]]:
     private = ed25519.Ed25519PrivateKey.generate()
     pem = private.private_bytes(
         encoding=serialization.Encoding.PEM,
@@ -78,7 +80,7 @@ adcp-keygen &ndash;alg ed25519 &ndash;encrypt &ndash;out private-key.pem</p>
         &#34;alg&#34;: &#34;EdDSA&#34;,
         &#34;use&#34;: &#34;sig&#34;,
         &#34;key_ops&#34;: [&#34;verify&#34;],
-        &#34;adcp_use&#34;: &#34;request-signing&#34;,
+        &#34;adcp_use&#34;: adcp_use,
         &#34;kid&#34;: kid,
         &#34;x&#34;: b64url_encode(x),
     }
@@ -87,14 +89,16 @@ adcp-keygen &ndash;alg ed25519 &ndash;encrypt &ndash;out private-key.pem</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.signing.keygen.generate_es256"><code class="name flex">
-<span>def <span class="ident">generate_es256</span></span>(<span>kid: str, passphrase: bytes | None = None) ‑> tuple[bytes, dict[str, typing.Any]]</span>
+<span>def <span class="ident">generate_es256</span></span>(<span>kid: str, passphrase: bytes | None = None, adcp_use: str = 'request-signing') ‑> tuple[bytes, dict[str, typing.Any]]</span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def generate_es256(kid: str, passphrase: bytes | None = None) -&gt; tuple[bytes, dict[str, Any]]:
+<pre><code class="python">def generate_es256(
+    kid: str, passphrase: bytes | None = None, adcp_use: str = &#34;request-signing&#34;
+) -&gt; tuple[bytes, dict[str, Any]]:
     private = ec.generate_private_key(ec.SECP256R1())
     pem = private.private_bytes(
         encoding=serialization.Encoding.PEM,
@@ -108,7 +112,7 @@ adcp-keygen &ndash;alg ed25519 &ndash;encrypt &ndash;out private-key.pem</p>
         &#34;alg&#34;: &#34;ES256&#34;,
         &#34;use&#34;: &#34;sig&#34;,
         &#34;key_ops&#34;: [&#34;verify&#34;],
-        &#34;adcp_use&#34;: &#34;request-signing&#34;,
+        &#34;adcp_use&#34;: adcp_use,
         &#34;kid&#34;: kid,
         &#34;x&#34;: b64url_encode(numbers.x.to_bytes(32, &#34;big&#34;)),
         &#34;y&#34;: b64url_encode(numbers.y.to_bytes(32, &#34;big&#34;)),
@@ -160,6 +164,17 @@ adcp-keygen &ndash;alg ed25519 &ndash;encrypt &ndash;out private-key.pem</p>
             &#34;default unencrypted PKCS8 (protected by mode 0600) is usually what you want.&#34;
         ),
     )
+    parser.add_argument(
+        &#34;--purpose&#34;,
+        choices=list(_ADCP_USE_VALUES),
+        default=&#34;request-signing&#34;,
+        help=(
+            &#34;Which AdCP signing profile this key is for (sets the JWK `adcp_use` &#34;
+            &#34;claim). `request-signing` for outbound tool calls; `webhook-signing` &#34;
+            &#34;for keys a sender uses to sign outbound webhooks to buyers. Verifiers &#34;
+            &#34;enforce the claim, so mixing the two silently fails at first delivery.&#34;
+        ),
+    )
     args = parser.parse_args(argv)
 
     out_path = Path(args.out)
@@ -174,10 +189,10 @@ adcp-keygen &ndash;alg ed25519 &ndash;encrypt &ndash;out private-key.pem</p>
 
     kid = args.kid or f&#34;adcp-{args.alg}-{datetime.now(timezone.utc).strftime(&#39;%Y%m%d&#39;)}&#34;
     if args.alg == &#34;ed25519&#34;:
-        pem, jwk = generate_ed25519(kid, passphrase=passphrase)
+        pem, jwk = generate_ed25519(kid, passphrase=passphrase, adcp_use=args.purpose)
         alg_rfc = ALG_ED25519
     else:
-        pem, jwk = generate_es256(kid, passphrase=passphrase)
+        pem, jwk = generate_es256(kid, passphrase=passphrase, adcp_use=args.purpose)
         alg_rfc = ALG_ES256
 
     # `--force` clobbers in two steps (non-atomic on overwrite), but the

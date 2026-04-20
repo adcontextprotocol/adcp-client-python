@@ -353,7 +353,7 @@ follow-redirects rules as the sync version.</p></div>
 the round-trip.</p></div>
 </dd>
 <dt id="adcp.signing.averify_detached_jws"><code class="name flex">
-<span>async def <span class="ident">averify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>async def <span class="ident">averify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -394,7 +394,7 @@ the round-trip.</p></div>
 other work is pure CPU and runs inline.</p></div>
 </dd>
 <dt id="adcp.signing.averify_jws_document"><code class="name flex">
-<span>async def <span class="ident">averify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>async def <span class="ident">averify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.AsyncJwksResolver" href="#adcp.signing.AsyncJwksResolver">AsyncJwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1367,7 +1367,7 @@ want validation — :func:<code><a title="adcp.signing.resolve_and_validate_host
 accepted IP when the caller needs it for IP-pinned connects.</p></div>
 </dd>
 <dt id="adcp.signing.verify_detached_jws"><code class="name flex">
-<span>def <span class="ident">verify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">verify_detached_jws</span></span>(<span>*,<br>b64_protected: str,<br>b64_payload: str,<br>signature: bytes,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -1445,7 +1445,7 @@ to transport-error codes (e.g. <code>request_signature_revocation_stale</code>).
 <div class="desc"><p>Verify a Flask <code>request</code> object against the AdCP profile.</p></div>
 </dd>
 <dt id="adcp.signing.verify_jws_document"><code class="name flex">
-<span>def <span class="ident">verify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'EdDSA', 'ES256'})) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">verify_jws_document</span></span>(<span>doc: str | dict[str, Any],<br>*,<br>jwks_resolver: <a title="adcp.signing.JwksResolver" href="#adcp.signing.JwksResolver">JwksResolver</a>,<br>expected_typ: str,<br>allowed_algs: frozenset[str] = frozenset({'ES256', 'EdDSA'})) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">

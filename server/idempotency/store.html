@@ -112,9 +112,13 @@ fail-closed rather than collapse every buyer into a shared namespace.</p>
         retry-safe windows (AdCP #2315)::
 
             caps.adcp.idempotency = idempotency.capability()
-            # → {&#34;replay_ttl_seconds&#34;: 86400}
+            # → {&#34;supported&#34;: True, &#34;replay_ttl_seconds&#34;: 86400}
+
+        ``supported`` became REQUIRED in AdCP 3.0 GA — agents emitting only
+        ``replay_ttl_seconds`` fail strict schema validation on the new
+        capabilities response.
         &#34;&#34;&#34;
-        return {&#34;replay_ttl_seconds&#34;: self.ttl_seconds}
+        return {&#34;supported&#34;: True, &#34;replay_ttl_seconds&#34;: self.ttl_seconds}
 
     def wrap(self, handler: HandlerFn) -&gt; HandlerFn:
         &#34;&#34;&#34;Decorator that adds idempotency semantics to an AdCP handler method.
@@ -208,9 +212,7 @@ fail-closed rather than collapse every buyer into a shared namespace.</p>
 
         return _wrapped
 
-    def _prepare(
-        self, params: Any, context: Any
-    ) -&gt; tuple[str | None, str | None, dict[str, Any]]:
+    def _prepare(self, params: Any, context: Any) -&gt; tuple[str | None, str | None, dict[str, Any]]:
         &#34;&#34;&#34;Normalize inputs and extract the (principal, key, params_dict) tuple.
 
         Returns ``(None, None, params_dict)`` when idempotency doesn&#39;t apply
@@ -284,17 +286,24 @@ the spec mandates RFC 8785 JCS for interop.</p></div>
     retry-safe windows (AdCP #2315)::
 
         caps.adcp.idempotency = idempotency.capability()
-        # → {&#34;replay_ttl_seconds&#34;: 86400}
+        # → {&#34;supported&#34;: True, &#34;replay_ttl_seconds&#34;: 86400}
+
+    ``supported`` became REQUIRED in AdCP 3.0 GA — agents emitting only
+    ``replay_ttl_seconds`` fail strict schema validation on the new
+    capabilities response.
     &#34;&#34;&#34;
-    return {&#34;replay_ttl_seconds&#34;: self.ttl_seconds}</code></pre>
+    return {&#34;supported&#34;: True, &#34;replay_ttl_seconds&#34;: self.ttl_seconds}</code></pre>
 </details>
 <div class="desc"><p>Return the capabilities fragment declaring this store's replay window.</p>
 <p>Embed under <code>capabilities.adcp.idempotency</code> on the seller's
 <code>get_adcp_capabilities</code> response. Buyers read this to reason about
 retry-safe windows (AdCP #2315)::</p>
 <pre><code>caps.adcp.idempotency = idempotency.capability()
-# → {"replay_ttl_seconds": 86400}
-</code></pre></div>
+# → {"supported": True, "replay_ttl_seconds": 86400}
+</code></pre>
+<p><code>supported</code> became REQUIRED in AdCP 3.0 GA — agents emitting only
+<code>replay_ttl_seconds</code> fail strict schema validation on the new
+capabilities response.</p></div>
 </dd>
 <dt id="adcp.server.idempotency.store.IdempotencyStore.wrap"><code class="name flex">
 <span>def <span class="ident">wrap</span></span>(<span>self, handler: HandlerFn) ‑> Callable[..., Awaitable[typing.Any]]</span>

@@ -27479,8 +27479,7 @@ attributes &ndash; see the documentation for details.</p></div>
 
     def __init__(self, *args: object, **kwargs: object) -&gt; None:
         raise TypeError(
-            &#34;MediaSubAsset was removed from the ADCP schema. &#34;
-            &#34;There is no direct replacement.&#34;
+            &#34;MediaSubAsset was removed from the ADCP schema. &#34; &#34;There is no direct replacement.&#34;
         )</code></pre>
 </details>
 <div class="desc"><p>Removed from ADCP schema. Previously SubAsset with asset_kind='media'.</p></div>
@@ -41075,6 +41074,100 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.SyncGovernanceRequest"><code class="flex name class">
+<span>class <span class="ident">SyncGovernanceRequest</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SyncGovernanceRequest(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    adcp_major_version: Annotated[
+        int | None,
+        Field(
+            description=&#34;The AdCP major version the buyer&#39;s payloads conform to. Sellers validate against their supported major_versions and return VERSION_UNSUPPORTED if unsupported. When omitted, the seller assumes its highest supported version.&#34;,
+            ge=1,
+            le=99,
+        ),
+    ] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#39;Client-generated unique key for at-most-once execution. `account` gives resource-level dedup, but governance changes emit audit events and can trigger reapproval flows — this key prevents those side effects from firing twice on retry. MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.&#39;,
+            max_length=255,
+            min_length=16,
+            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+        ),
+    ]
+    accounts: Annotated[
+        list[Account],
+        Field(
+            description=&#39;Per-account governance agent configuration. Each entry pairs an account reference with the governance agents for that account.&#39;,
+            max_length=100,
+            min_length=1,
+        ),
+    ]
+    context: context_1.ContextObject | None = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.SyncGovernanceRequest.accounts"><code class="name">var <span class="ident">accounts</span> : list[<a title="adcp.types.generated_poc.account.sync_governance_request.Account" href="generated_poc/account/sync_governance_request.html#adcp.types.generated_poc.account.sync_governance_request.Account">Account</a>]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SyncGovernanceRequest.adcp_major_version"><code class="name">var <span class="ident">adcp_major_version</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SyncGovernanceRequest.context"><code class="name">var <span class="ident">context</span> : <a title="adcp.types.generated_poc.core.context.ContextObject" href="generated_poc/core/context.html#adcp.types.generated_poc.core.context.ContextObject">ContextObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SyncGovernanceRequest.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SyncGovernanceRequest.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.SyncGovernanceRequest.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.SyncPlansRequest"><code class="flex name class">
 <span>class <span class="ident">SyncPlansRequest</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -42155,8 +42248,7 @@ validated to form a valid model.</p>
 
     def __init__(self, *args: object, **kwargs: object) -&gt; None:
         raise TypeError(
-            &#34;TextSubAsset was removed from the ADCP schema. &#34;
-            &#34;There is no direct replacement.&#34;
+            &#34;TextSubAsset was removed from the ADCP schema. &#34; &#34;There is no direct replacement.&#34;
         )</code></pre>
 </details>
 <div class="desc"><p>Removed from ADCP schema. Previously SubAsset with asset_kind='text'.</p></div>
@@ -51922,6 +52014,17 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.SyncEventSourcesResponse2.errors" href="#adcp.types.SyncEventSourcesResponse2.errors">errors</a></code></li>
 <li><code><a title="adcp.types.SyncEventSourcesResponse2.ext" href="#adcp.types.SyncEventSourcesResponse2.ext">ext</a></code></li>
 <li><code><a title="adcp.types.SyncEventSourcesResponse2.model_config" href="#adcp.types.SyncEventSourcesResponse2.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.SyncGovernanceRequest" href="#adcp.types.SyncGovernanceRequest">SyncGovernanceRequest</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.SyncGovernanceRequest.accounts" href="#adcp.types.SyncGovernanceRequest.accounts">accounts</a></code></li>
+<li><code><a title="adcp.types.SyncGovernanceRequest.adcp_major_version" href="#adcp.types.SyncGovernanceRequest.adcp_major_version">adcp_major_version</a></code></li>
+<li><code><a title="adcp.types.SyncGovernanceRequest.context" href="#adcp.types.SyncGovernanceRequest.context">context</a></code></li>
+<li><code><a title="adcp.types.SyncGovernanceRequest.ext" href="#adcp.types.SyncGovernanceRequest.ext">ext</a></code></li>
+<li><code><a title="adcp.types.SyncGovernanceRequest.idempotency_key" href="#adcp.types.SyncGovernanceRequest.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.types.SyncGovernanceRequest.model_config" href="#adcp.types.SyncGovernanceRequest.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
