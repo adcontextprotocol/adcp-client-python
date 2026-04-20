@@ -104,9 +104,17 @@ el.replaceWith(d);
 <dd>
 <div class="desc"><p>Runtime validation for AdCP data structures …</p></div>
 </dd>
+<dt><code class="name"><a title="adcp.webhook_receiver" href="webhook_receiver.html">adcp.webhook_receiver</a></code></dt>
+<dd>
+<div class="desc"><p>One-call webhook receiver: verify signature, dedupe, parse …</p></div>
+</dd>
+<dt><code class="name"><a title="adcp.webhook_sender" href="webhook_sender.html">adcp.webhook_sender</a></code></dt>
+<dd>
+<div class="desc"><p>One-call outbound webhook delivery for AdCP senders …</p></div>
+</dd>
 <dt><code class="name"><a title="adcp.webhooks" href="webhooks.html">adcp.webhooks</a></code></dt>
 <dd>
-<div class="desc"><p>Webhook creation and signing utilities for AdCP agents.</p></div>
+<div class="desc"><p>Webhook creation, signing, and reception for AdCP agents …</p></div>
 </dd>
 </dl>
 </section>
@@ -326,7 +334,7 @@ payloads for sending to clients.</p>
 </code></pre></div>
 </dd>
 <dt id="adcp.create_mcp_webhook_payload"><code class="name flex">
-<span>def <span class="ident">create_mcp_webhook_payload</span></span>(<span>task_id: str,<br>status: <a title="adcp.TaskStatus" href="#adcp.TaskStatus">TaskStatus</a>,<br>result: AdcpAsyncResponseData | dict[str, Any] | None = None,<br>timestamp: datetime | None = None,<br>task_type: str | None = None,<br>operation_id: str | None = None,<br>message: str | None = None,<br>context_id: str | None = None,<br>domain: str | None = None) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">create_mcp_webhook_payload</span></span>(<span>task_id: str,<br>status: <a title="adcp.TaskStatus" href="#adcp.TaskStatus">TaskStatus</a> | str,<br>result: AdcpAsyncResponseData | dict[str, Any] | None = None,<br>timestamp: datetime | None = None,<br>task_type: str | None = None,<br>operation_id: str | None = None,<br>message: str | None = None,<br>context_id: str | None = None,<br>domain: str | None = None,<br>idempotency_key: str | None = None) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -335,7 +343,7 @@ payloads for sending to clients.</p>
 </summary>
 <pre><code class="python">def create_mcp_webhook_payload(
     task_id: str,
-    status: GeneratedTaskStatus,
+    status: GeneratedTaskStatus | str,
     result: AdcpAsyncResponseData | dict[str, Any] | None = None,
     timestamp: datetime | None = None,
     task_type: str | None = None,
@@ -343,6 +351,7 @@ payloads for sending to clients.</p>
     message: str | None = None,
     context_id: str | None = None,
     domain: str | None = None,
+    idempotency_key: str | None = None,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;
     Create MCP webhook payload dictionary.
@@ -361,6 +370,10 @@ payloads for sending to clients.</p>
         message: Human-readable summary of task state
         context_id: Session/conversation identifier
         domain: AdCP domain this task belongs to
+        idempotency_key: Sender-generated key stable across retries of the same
+            event. Defaults to a freshly-generated UUID v4 — callers retrying
+            delivery of the same event MUST pass the key from their first
+            attempt; passing None twice mints two keys and defeats dedup.
 
     Returns:
         Dictionary matching McpWebhookPayload schema, ready to be sent as JSON
@@ -397,12 +410,15 @@ payloads for sending to clients.</p>
     &#34;&#34;&#34;
     if timestamp is None:
         timestamp = datetime.now(timezone.utc)
+    if idempotency_key is None:
+        idempotency_key = generate_webhook_idempotency_key()
 
     # Convert status enum to string value
     status_value = status.value if hasattr(status, &#34;value&#34;) else str(status)
 
     # Build payload matching McpWebhookPayload schema
     payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: idempotency_key,
         &#34;task_id&#34;: task_id,
         &#34;task_type&#34;: task_type,
         &#34;status&#34;: status_value,
@@ -455,6 +471,11 @@ should be in URL routing, but included for backward compatibility)</dd>
 <dd>Session/conversation identifier</dd>
 <dt><strong><code>domain</code></strong></dt>
 <dd>AdCP domain this task belongs to</dd>
+<dt><strong><code>idempotency_key</code></strong></dt>
+<dd>Sender-generated key stable across retries of the same
+event. Defaults to a freshly-generated UUID v4 — callers retrying
+delivery of the same event MUST pass the key from their first
+attempt; passing None twice mints two keys and defeats dedup.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>Dictionary matching McpWebhookPayload schema, ready to be sent as JSON</p>
@@ -6654,7 +6675,7 @@ language policy and optional calibration exemplars.</p>
 <p>TaskResult containing CreateContentStandardsResponse with standards_id</p></div>
 </dd>
 <dt id="adcp.ADCPClient.create_media_buy"><code class="name flex">
-<span>async def <span class="ident">create_media_buy</span></span>(<span>self,<br>request: <a title="adcp.CreateMediaBuyRequest" href="#adcp.CreateMediaBuyRequest">CreateMediaBuyRequest</a>) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[<a title="adcp.CreateMediaBuyResponse1" href="#adcp.CreateMediaBuyResponse1">CreateMediaBuyResponse1</a>, <a title="adcp.CreateMediaBuyResponse2" href="#adcp.CreateMediaBuyResponse2">CreateMediaBuyResponse2</a>]]</span>
+<span>async def <span class="ident">create_media_buy</span></span>(<span>self,<br>request: <a title="adcp.CreateMediaBuyRequest" href="#adcp.CreateMediaBuyRequest">CreateMediaBuyRequest</a>) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[<a title="adcp.CreateMediaBuyResponse1" href="#adcp.CreateMediaBuyResponse1">CreateMediaBuyResponse1</a>, <a title="adcp.CreateMediaBuyResponse2" href="#adcp.CreateMediaBuyResponse2">CreateMediaBuyResponse2</a>, CreateMediaBuyResponse3]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -12593,25 +12614,34 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ArtifactWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#34;Sender-generated key stable across retries of the same webhook event. Sales agents MUST generate a cryptographically random value (UUID v4 recommended) per distinct emission of a batch and reuse the same key on every retry. Recipients MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different sales agents are independent. Distinct from `batch_id`, which identifies the logical batch: `idempotency_key` identifies this specific emission event, so a re-emission of the same `batch_id` (e.g., after a correction) is a different event and MUST carry a fresh `idempotency_key`.&#34;,
+            max_length=255,
+            min_length=16,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
+        ),
+    ]
     media_buy_id: Annotated[
-        str, Field(description=&#39;Media buy identifier these artifacts belong to&#39;)
+        str, Field(description=&#34;Media buy identifier these artifacts belong to&#34;)
     ]
     batch_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#39;
+            description=&#34;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#34;
         ),
     ]
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;When this batch was generated (ISO 8601)&#39;)
+        AwareDatetime, Field(description=&#34;When this batch was generated (ISO 8601)&#34;)
     ]
     artifacts: Annotated[
-        list[Artifact], Field(description=&#39;Content artifacts from delivered impressions&#39;)
+        list[Artifact], Field(description=&#34;Content artifacts from delivered impressions&#34;)
     ]
     pagination: Annotated[
-        Pagination | None, Field(description=&#39;Pagination info when batching large artifact sets&#39;)
+        Pagination | None, Field(description=&#34;Pagination info when batching large artifact sets&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -12641,6 +12671,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.ArtifactWebhookPayload.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="types/generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ArtifactWebhookPayload.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -18512,7 +18546,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     media_buy_id: Annotated[
         str, Field(description=&#34;Seller&#39;s unique identifier for the created media buy&#34;)
@@ -18520,13 +18554,13 @@ validated to form a valid model.</p>
     account: Annotated[
         account_1.Account | None,
         Field(
-            description=&#39;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#39;
+            description=&#34;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#34;
         ),
     ] = None
     invoice_recipient: Annotated[
         business_entity.BusinessEntity | None,
         Field(
-            description=&#39;Per-buy invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#39;
+            description=&#34;Per-buy invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#34;
         ),
     ] = None
     status: Annotated[
@@ -18538,28 +18572,28 @@ validated to form a valid model.</p>
     confirmed_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp when this media buy was confirmed by the seller. A successful create_media_buy response constitutes order confirmation.&#39;
+            description=&#34;ISO 8601 timestamp when this media buy was confirmed by the seller. A successful create_media_buy response constitutes order confirmation.&#34;
         ),
     ] = None
     creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+        AwareDatetime | None, Field(description=&#34;ISO 8601 timestamp for creative upload deadline&#34;)
     ] = None
     revision: Annotated[
         int | None,
         Field(
-            description=&#39;Initial revision number for this media buy. Use in subsequent update_media_buy requests for optimistic concurrency.&#39;,
+            description=&#34;Initial revision number for this media buy. Use in subsequent update_media_buy requests for optimistic concurrency.&#34;,
             ge=1,
         ),
     ] = None
     valid_actions: Annotated[
         list[ValidAction] | None,
         Field(
-            description=&#39;Actions the buyer can perform on this media buy after creation. Saves a round-trip to get_media_buys.&#39;
+            description=&#34;Actions the buyer can perform on this media buy after creation. Saves a round-trip to get_media_buys.&#34;
         ),
     ] = None
     packages: Annotated[
         list[package.Package],
-        Field(description=&#39;Array of created packages with complete state information&#39;),
+        Field(description=&#34;Array of created packages with complete state information&#34;),
     ]
     planned_delivery: Annotated[
         planned_delivery_1.PlannedDelivery | None,
@@ -18569,7 +18603,7 @@ validated to form a valid model.</p>
     ] = None
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -18670,11 +18704,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
         list[error.Error],
-        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
+        Field(description=&#34;Array of errors explaining why the operation failed&#34;, min_length=1),
     ]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -22593,7 +22627,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     adcp_major_version: Annotated[
         int | None,
@@ -22605,12 +22639,12 @@ validated to form a valid model.</p>
     ] = None
     account: Annotated[
         account_ref.AccountReference,
-        Field(description=&#39;Account to query financials for. Must be an operator-billed account.&#39;),
+        Field(description=&#34;Account to query financials for. Must be an operator-billed account.&#34;),
     ]
     period: Annotated[
         date_range.DateRange | None,
         Field(
-            description=&#39;Date range for the spend summary. Defaults to the current billing cycle if omitted.&#39;
+            description=&#34;Date range for the spend summary. Defaults to the current billing cycle if omitted.&#34;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -22680,23 +22714,23 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     account: Annotated[
         account_ref.AccountReference,
-        Field(description=&#39;Account reference, echoed from the request&#39;),
+        Field(description=&#34;Account reference, echoed from the request&#34;),
     ]
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code for all monetary amounts in this response&#39;,
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code for all monetary amounts in this response&#34;,
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     period: Annotated[
         date_range.DateRange,
         Field(
-            description=&#39;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#39;
+            description=&#34;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#34;
         ),
     ]
     timezone: Annotated[
@@ -22705,28 +22739,28 @@ validated to form a valid model.</p>
             description=&#34;IANA timezone of the seller&#39;s billing day boundaries (e.g., &#39;America/New_York&#39;). All dates in this response — period, invoice periods, due dates — are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day.&#34;
         ),
     ]
-    spend: Annotated[Spend | None, Field(description=&#39;Spend summary for the period&#39;)] = None
+    spend: Annotated[Spend | None, Field(description=&#34;Spend summary for the period&#34;)] = None
     credit: Annotated[
         Credit | None,
         Field(
-            description=&#39;Credit status. Present for credit-based accounts (payment_terms like net_30).&#39;
+            description=&#34;Credit status. Present for credit-based accounts (payment_terms like net_30).&#34;
         ),
     ] = None
     balance: Annotated[
-        Balance | None, Field(description=&#39;Prepay balance. Present for prepay accounts.&#39;)
+        Balance | None, Field(description=&#34;Prepay balance. Present for prepay accounts.&#34;)
     ] = None
     payment_status: Annotated[
         PaymentStatus | None,
         Field(
-            description=&#39;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#39;
+            description=&#34;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#34;
         ),
     ] = None
     payment_terms: Annotated[
-        PaymentTerms | None, Field(description=&#39;Payment terms in effect for this account&#39;)
+        PaymentTerms | None, Field(description=&#34;Payment terms in effect for this account&#34;)
     ] = None
     invoices: Annotated[
         list[Invoice] | None,
-        Field(description=&#39;Recent invoices. Sellers may limit the number returned.&#39;),
+        Field(description=&#34;Recent invoices. Sellers may limit the number returned.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -22823,9 +22857,9 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
+    errors: Annotated[list[error.Error], Field(description=&#34;Operation-level errors&#34;, min_length=1)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -28195,57 +28229,66 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class McpWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#34;Sender-generated key stable across retries of the same webhook event. Publishers MUST generate a cryptographically random value (UUID v4 recommended) per distinct event and reuse the same key on every retry of that event. Receivers MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different publishers are independent. This is the canonical dedup field — the (task_id, status, timestamp) tuple is insufficient when a single transition is retried with unchanged timestamp or when two transitions share a timestamp.&#34;,
+            max_length=255,
+            min_length=16,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
+        ),
+    ]
     operation_id: Annotated[
         str | None,
         Field(
-            description=&#39;Client-generated identifier that was embedded in the webhook URL by the buyer. Publishers echo this back in webhook payloads so clients can correlate notifications without parsing URL paths. Typically generated as a unique ID per task invocation.&#39;
+            description=&#34;Client-generated identifier that was embedded in the webhook URL by the buyer. Publishers echo this back in webhook payloads so clients can correlate notifications without parsing URL paths. Typically generated as a unique ID per task invocation.&#34;
         ),
     ] = None
     task_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#39;
+            description=&#34;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#34;
         ),
     ]
     task_type: Annotated[
         task_type_1.TaskType,
         Field(
-            description=&#39;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#39;
+            description=&#34;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#34;
         ),
     ]
     protocol: Annotated[
         adcp_protocol.AdcpProtocol | None,
         Field(
-            description=&#39;AdCP protocol this task belongs to. Helps classify the operation type at a high level.&#39;
+            description=&#34;AdCP protocol this task belongs to. Helps classify the operation type at a high level.&#34;
         ),
     ] = None
     status: Annotated[
         task_status.TaskStatus,
         Field(
-            description=&#39;Current task status. Webhooks are triggered for status changes after initial submission.&#39;
+            description=&#34;Current task status. Webhooks are triggered for status changes after initial submission.&#34;
         ),
     ]
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this webhook was generated.&#39;)
+        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when this webhook was generated.&#34;)
     ]
     message: Annotated[
         str | None,
         Field(
-            description=&#39;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#39;
+            description=&#34;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#34;
         ),
     ] = None
     context_id: Annotated[
         str | None,
         Field(
-            description=&#39;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#39;
+            description=&#34;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#34;
         ),
     ] = None
     result: Annotated[
         async_response_data.AdcpAsyncResponseData | None,
         Field(
-            description=&#39;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#39;
+            description=&#34;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -28267,6 +28310,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.McpWebhookPayload.context_id"><code class="name">var <span class="ident">context_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.McpWebhookPayload.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -33892,18 +33939,20 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]
+    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for task status notifications&#34;)]
     token: Annotated[
         str | None,
         Field(
-            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
             min_length=16,
         ),
     ] = None
     authentication: Annotated[
-        Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
-    ]</code></pre>
+        Authentication | None,
+        Field(
+            description=&#34;Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. When omitted, the seller MUST sign webhooks with the 9421 profile.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -33922,7 +33971,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.core.push_notification_config.Authentication" href="types/generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.Authentication">Authentication</a></code></dt>
+<dt id="adcp.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.core.push_notification_config.Authentication" href="types/generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.Authentication">Authentication</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -37644,7 +37693,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ReportUsageRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     adcp_major_version: Annotated[
         int | None,
@@ -37657,19 +37706,19 @@ validated to form a valid model.</p>
     idempotency_key: Annotated[
         str,
         Field(
-            description=&#39;Client-generated unique key for this request. If a request with the same key has already been accepted, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request. Prevents duplicate billing on retries.&#39;
+            description=&#34;Client-generated unique key for this request. If a request with the same key has already been accepted, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request. Prevents duplicate billing on retries.&#34;
         ),
     ]
     reporting_period: Annotated[
         datetime_range.DatetimeRange,
         Field(
-            description=&#39;The time range covered by this usage report. Applies to all records in the request.&#39;
+            description=&#34;The time range covered by this usage report. Applies to all records in the request.&#34;
         ),
     ]
     usage: Annotated[
         list[UsageItem],
         Field(
-            description=&#39;One or more usage records. Each record is self-contained: it carries its own account, allowing a single request to span multiple accounts.&#39;,
+            description=&#34;One or more usage records. Each record is self-contained: it carries its own account, allowing a single request to span multiple accounts.&#34;,
             min_length=1,
         ),
     ]
@@ -40478,7 +40527,7 @@ validated to form a valid model.</p>
 <li>adcp.types.core.TaskResult[Union[CalibrateContentResponse1, CalibrateContentResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[ComplyTestControllerResponse1, ComplyTestControllerResponse2, ComplyTestControllerResponse3, ComplyTestControllerResponse4]]</li>
 <li>adcp.types.core.TaskResult[Union[CreateContentStandardsResponse1, CreateContentStandardsResponse2]]</li>
-<li>adcp.types.core.TaskResult[Union[CreateMediaBuyResponse1, CreateMediaBuyResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[CreateMediaBuyResponse1, CreateMediaBuyResponse2, CreateMediaBuyResponse3]]</li>
 <li>adcp.types.core.TaskResult[Union[GetAccountFinancialsResponse1, GetAccountFinancialsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[GetBrandIdentityResponse1, GetBrandIdentityResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[GetContentStandardsResponse1, GetContentStandardsResponse2]]</li>
@@ -42991,6 +43040,8 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types" href="types/index.html">adcp.types</a></code></li>
 <li><code><a title="adcp.utils" href="utils/index.html">adcp.utils</a></code></li>
 <li><code><a title="adcp.validation" href="validation.html">adcp.validation</a></code></li>
+<li><code><a title="adcp.webhook_receiver" href="webhook_receiver.html">adcp.webhook_receiver</a></code></li>
+<li><code><a title="adcp.webhook_sender" href="webhook_sender.html">adcp.webhook_sender</a></code></li>
 <li><code><a title="adcp.webhooks" href="webhooks.html">adcp.webhooks</a></code></li>
 </ul>
 </li>
@@ -43390,6 +43441,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.ArtifactWebhookPayload.artifacts" href="#adcp.ArtifactWebhookPayload.artifacts">artifacts</a></code></li>
 <li><code><a title="adcp.ArtifactWebhookPayload.batch_id" href="#adcp.ArtifactWebhookPayload.batch_id">batch_id</a></code></li>
 <li><code><a title="adcp.ArtifactWebhookPayload.ext" href="#adcp.ArtifactWebhookPayload.ext">ext</a></code></li>
+<li><code><a title="adcp.ArtifactWebhookPayload.idempotency_key" href="#adcp.ArtifactWebhookPayload.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.ArtifactWebhookPayload.media_buy_id" href="#adcp.ArtifactWebhookPayload.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.ArtifactWebhookPayload.model_config" href="#adcp.ArtifactWebhookPayload.model_config">model_config</a></code></li>
 <li><code><a title="adcp.ArtifactWebhookPayload.pagination" href="#adcp.ArtifactWebhookPayload.pagination">pagination</a></code></li>
@@ -45303,6 +45355,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.McpWebhookPayload" href="#adcp.McpWebhookPayload">McpWebhookPayload</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.McpWebhookPayload.context_id" href="#adcp.McpWebhookPayload.context_id">context_id</a></code></li>
+<li><code><a title="adcp.McpWebhookPayload.idempotency_key" href="#adcp.McpWebhookPayload.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.McpWebhookPayload.message" href="#adcp.McpWebhookPayload.message">message</a></code></li>
 <li><code><a title="adcp.McpWebhookPayload.model_config" href="#adcp.McpWebhookPayload.model_config">model_config</a></code></li>
 <li><code><a title="adcp.McpWebhookPayload.operation_id" href="#adcp.McpWebhookPayload.operation_id">operation_id</a></code></li>

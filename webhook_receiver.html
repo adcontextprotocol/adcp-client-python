@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.webhook_receiver API documentation</title>
+<meta name="description" content="One-call webhook receiver: verify signature, dedupe, parse …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.webhook_receiver</code></h1>
+</header>
+<section id="section-intro">
+<p>One-call webhook receiver: verify signature, dedupe, parse.</p>
+<p>Packages the three things every AdCP webhook receiver has to do so callers
+don't re-read the five-point normative checklist in <code>webhooks.mdx</code>:</p>
+<ol>
+<li>Verify the RFC 9421 signature (or fall back to HMAC-SHA256 when the buyer
+explicitly opts in for 3.x migration).</li>
+<li>Dedupe on <code>(authenticated_sender_identity, idempotency_key)</code> with a 24h+
+TTL. Duplicates are a no-op, not an error.</li>
+<li>Parse the body into the right typed payload so the caller gets a
+<code>McpWebhookPayload</code> / <code>RevocationNotification</code> / etc. back.</li>
+</ol>
+<p>Usage::</p>
+<pre><code>from adcp.webhooks import (
+    WebhookReceiver,
+    WebhookReceiverConfig,
+    WebhookVerifyOptions,
+)
+from adcp.server.idempotency import MemoryBackend, WebhookDedupStore
+
+receiver = WebhookReceiver(
+    config=WebhookReceiverConfig(
+        verify_options=WebhookVerifyOptions(
+            jwks_resolver=my_jwks_resolver,
+            replay_store=my_replay_store,
+        ),
+        dedup=WebhookDedupStore(MemoryBackend(), ttl_seconds=86400),
+    ),
+)
+
+@app.post("/webhooks/adcp")
+async def hook(request):
+    outcome = await receiver.receive(
+        method=request.method,
+        url=str(request.url),
+        headers=dict(request.headers),
+        body=await request.body(),
+    )
+    if outcome.rejected:
+        return Response(status_code=401, headers=outcome.response_headers)
+    # MUST return 2xx on duplicates — the sender interprets non-2xx as
+    # delivery failure and retries.
+    if outcome.duplicate:
+        return Response(status_code=200)
+    await process(outcome.payload)
+    return Response(status_code=200)
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.webhook_receiver.LegacyHmacFallback"><code class="flex name class">
+<span>class <span class="ident">LegacyHmacFallback</span></span>
+<span>(</span><span>options_for: Callable[[Mapping[str, str]], LegacyWebhookHmacOptions | None],<br>only_when_9421_absent: bool = True)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class LegacyHmacFallback:
+    &#34;&#34;&#34;Opt-in policy for accepting HMAC-SHA256 senders during 3.x migration.
+
+    The default behavior of the receiver is to reject any request that fails
+    9421 verification. Pass an instance of this class to ``WebhookReceiverConfig``
+    to accept HMAC-signed webhooks as a fallback.
+
+    :param options_for: callback that returns a populated
+        :class:`LegacyWebhookHmacOptions` given the incoming request headers.
+        Your implementation resolves the sender (from Bearer, hostname, or
+        legacy shared-secret tag) and returns the secret + sender_identity
+        tuple the verifier needs. Return ``None`` to decline the fallback
+        for this request (rejection follows the 9421-only failure path).
+    :param only_when_9421_absent: when ``True`` (default), HMAC fallback only
+        fires when no 9421 headers are present at all. When a request carries
+        9421 headers that FAIL verification, it still rejects — preventing a
+        downgrade attack where a MITM strips the 9421 signature and replaces
+        it with a forged HMAC one it knows the secret for. When ``False``,
+        HMAC is tried on any 9421 failure; only set this for testing or known
+        homogenous sender cohorts.
+    &#34;&#34;&#34;
+
+    options_for: Callable[[Mapping[str, str]], LegacyWebhookHmacOptions | None]
+    only_when_9421_absent: bool = True
+
+    @classmethod
+    def from_shared_secret(
+        cls,
+        *,
+        secret: bytes,
+        sender_identity: str,
+        only_when_9421_absent: bool = True,
+        window_seconds: int = 300,
+    ) -&gt; LegacyHmacFallback:
+        &#34;&#34;&#34;Convenience constructor for the &#34;one secret, one sender&#34; case.
+
+        Covers the common 3.x migration setup where the receiver has exactly
+        one publisher on the legacy scheme and binds them to a known
+        ``sender_identity`` (typically a buyer-defined string). For multi-
+        sender or header-derived-identity setups, construct with an
+        ``options_for`` callback directly.
+        &#34;&#34;&#34;
+        import time as _time
+
+        def _options_for(_headers: Mapping[str, str]) -&gt; LegacyWebhookHmacOptions:
+            return LegacyWebhookHmacOptions(
+                secret=secret,
+                sender_identity=sender_identity,
+                now=_time.time(),
+                window_seconds=window_seconds,
+            )
+
+        return cls(
+            options_for=_options_for,
+            only_when_9421_absent=only_when_9421_absent,
+        )</code></pre>
+</details>
+<div class="desc"><p>Opt-in policy for accepting HMAC-SHA256 senders during 3.x migration.</p>
+<p>The default behavior of the receiver is to reject any request that fails
+9421 verification. Pass an instance of this class to <code><a title="adcp.webhook_receiver.WebhookReceiverConfig" href="#adcp.webhook_receiver.WebhookReceiverConfig">WebhookReceiverConfig</a></code>
+to accept HMAC-signed webhooks as a fallback.</p>
+<p>:param options_for: callback that returns a populated
+:class:<code>LegacyWebhookHmacOptions</code> given the incoming request headers.
+Your implementation resolves the sender (from Bearer, hostname, or
+legacy shared-secret tag) and returns the secret + sender_identity
+tuple the verifier needs. Return <code>None</code> to decline the fallback
+for this request (rejection follows the 9421-only failure path).
+:param only_when_9421_absent: when <code>True</code> (default), HMAC fallback only
+fires when no 9421 headers are present at all. When a request carries
+9421 headers that FAIL verification, it still rejects — preventing a
+downgrade attack where a MITM strips the 9421 signature and replaces
+it with a forged HMAC one it knows the secret for. When <code>False</code>,
+HMAC is tried on any 9421 failure; only set this for testing or known
+homogenous sender cohorts.</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.webhook_receiver.LegacyHmacFallback.from_shared_secret"><code class="name flex">
+<span>def <span class="ident">from_shared_secret</span></span>(<span>*,<br>secret: bytes,<br>sender_identity: str,<br>only_when_9421_absent: bool = True,<br>window_seconds: int = 300) ‑> <a title="adcp.webhook_receiver.LegacyHmacFallback" href="#adcp.webhook_receiver.LegacyHmacFallback">LegacyHmacFallback</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convenience constructor for the "one secret, one sender" case.</p>
+<p>Covers the common 3.x migration setup where the receiver has exactly
+one publisher on the legacy scheme and binds them to a known
+<code>sender_identity</code> (typically a buyer-defined string). For multi-
+sender or header-derived-identity setups, construct with an
+<code>options_for</code> callback directly.</p></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhook_receiver.LegacyHmacFallback.only_when_9421_absent"><code class="name">var <span class="ident">only_when_9421_absent</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.LegacyHmacFallback.options_for"><code class="name">var <span class="ident">options_for</span> : Callable[[Mapping[str, str]], <a title="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions" href="signing/webhook_hmac.html#adcp.signing.webhook_hmac.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a> | None]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhook_receiver.VerifiedSignerLike"><code class="flex name class">
+<span>class <span class="ident">VerifiedSignerLike</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@runtime_checkable
+class VerifiedSignerLike(Protocol):
+    &#34;&#34;&#34;Anything with ``as_sender_identity() -&gt; str``.
+
+    Both :class:`VerifiedWebhookSender` (9421) and :class:`VerifiedLegacyWebhookSender`
+    (HMAC) implement this shape, so the receiver treats both verification
+    paths identically downstream.
+    &#34;&#34;&#34;
+
+    def as_sender_identity(self) -&gt; str: ...</code></pre>
+</details>
+<div class="desc"><p>Anything with <code>as_sender_identity() -&gt; str</code>.</p>
+<p>Both :class:<code>VerifiedWebhookSender</code> (9421) and :class:<code>VerifiedLegacyWebhookSender</code>
+(HMAC) implement this shape, so the receiver treats both verification
+paths identically downstream.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhook_receiver.VerifiedSignerLike.as_sender_identity"><code class="name flex">
+<span>def <span class="ident">as_sender_identity</span></span>(<span>self) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_sender_identity(self) -&gt; str: ...</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookOutcome"><code class="flex name class">
+<span>class <span class="ident">WebhookOutcome</span></span>
+<span>(</span><span>rejected: bool = False,<br>rejection_reason: RejectionReason | None = None,<br>response_headers: Mapping[str, str] = &lt;factory&gt;,<br>sender_identity: str | None = None,<br>payload: WebhookPayload | None = None,<br>duplicate: bool = False,<br>idempotency_key: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class WebhookOutcome:
+    &#34;&#34;&#34;Result of a single ``receive`` call.
+
+    Exactly one of ``rejected`` or ``payload`` is set. ``duplicate=True`` is
+    compatible with a non-None ``payload`` — the payload parsed fine, the
+    signature verified fine, it&#39;s just a retry the caller should 200 away.
+    &#34;&#34;&#34;
+
+    rejected: bool = False
+    rejection_reason: RejectionReason | None = None
+    response_headers: Mapping[str, str] = field(default_factory=dict)
+    # Populated on successful verify (even when rejected downstream of crypto)
+    sender_identity: str | None = None
+    # Populated on successful verify + parse
+    payload: WebhookPayload | None = None
+    duplicate: bool = False
+    idempotency_key: str | None = None</code></pre>
+</details>
+<div class="desc"><p>Result of a single <code>receive</code> call.</p>
+<p>Exactly one of <code>rejected</code> or <code>payload</code> is set. <code>duplicate=True</code> is
+compatible with a non-None <code>payload</code> — the payload parsed fine, the
+signature verified fine, it's just a retry the caller should 200 away.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhook_receiver.WebhookOutcome.duplicate"><code class="name">var <span class="ident">duplicate</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookOutcome.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookOutcome.payload"><code class="name">var <span class="ident">payload</span> : <a title="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload" href="types/generated_poc/core/mcp_webhook_payload.html#adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload">McpWebhookPayload</a> | <a title="adcp.types.generated_poc.brand.revocation_notification.RevocationNotification" href="types/generated_poc/brand/revocation_notification.html#adcp.types.generated_poc.brand.revocation_notification.RevocationNotification">RevocationNotification</a> | <a title="adcp.types.generated_poc.collection.collection_list_changed_webhook.CollectionListChangedWebhook" href="types/generated_poc/collection/collection_list_changed_webhook.html#adcp.types.generated_poc.collection.collection_list_changed_webhook.CollectionListChangedWebhook">CollectionListChangedWebhook</a> | <a title="adcp.types.generated_poc.property.property_list_changed_webhook.PropertyListChangedWebhook" href="types/generated_poc/property/property_list_changed_webhook.html#adcp.types.generated_poc.property.property_list_changed_webhook.PropertyListChangedWebhook">PropertyListChangedWebhook</a> | <a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload" href="types/generated_poc/content_standards/artifact_webhook_payload.html#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload">ArtifactWebhookPayload</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookOutcome.rejected"><code class="name">var <span class="ident">rejected</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookOutcome.rejection_reason"><code class="name">var <span class="ident">rejection_reason</span> : Literal['signature_missing', 'signature_invalid', 'signature_legacy_failed', 'content_type_invalid', 'body_invalid_json', 'payload_invalid', 'idempotency_key_missing', 'idempotency_key_invalid'] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookOutcome.response_headers"><code class="name">var <span class="ident">response_headers</span> : Mapping[str, str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookOutcome.sender_identity"><code class="name">var <span class="ident">sender_identity</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookReceiver"><code class="flex name class">
+<span>class <span class="ident">WebhookReceiver</span></span>
+<span>(</span><span>config: <a title="adcp.webhook_receiver.WebhookReceiverConfig" href="#adcp.webhook_receiver.WebhookReceiverConfig">WebhookReceiverConfig</a>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WebhookReceiver:
+    &#34;&#34;&#34;Stateless webhook entry point, one instance per receiver configuration.
+
+    Instance state (``config``) is read-only after construction. Per-request
+    state lives in the :class:`WebhookOutcome` returned from :meth:`receive`.
+    &#34;&#34;&#34;
+
+    def __init__(self, config: WebhookReceiverConfig) -&gt; None:
+        self._config = config
+
+    async def receive(
+        self,
+        *,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        body: bytes,
+    ) -&gt; WebhookOutcome:
+        &#34;&#34;&#34;Verify, dedupe, parse. Returns a :class:`WebhookOutcome`.
+
+        Never raises for sender-caused cryptographic or protocol failures —
+        returns an outcome with ``rejected=True`` and populated
+        ``response_headers`` so the caller can convert to an HTTP response
+        without try/except around every call. Operational failures inside
+        the dedup backend or verify-options factory MAY still raise; wrap
+        the call if you need to 5xx cleanly on internal errors.
+        &#34;&#34;&#34;
+        if not _content_type_is_json(headers):
+            return _reject(&#34;content_type_invalid&#34;, sender_identity=None)
+
+        signer, rejection = await self._verify(method=method, url=url, headers=headers, body=body)
+        if rejection is not None:
+            return rejection
+        assert signer is not None  # verification succeeded
+
+        sender_id = signer.as_sender_identity()
+
+        try:
+            payload_dict = json.loads(body)
+        except json.JSONDecodeError:
+            return _reject(&#34;body_invalid_json&#34;, sender_identity=sender_id)
+        if not isinstance(payload_dict, dict):
+            return _reject(&#34;body_invalid_json&#34;, sender_identity=sender_id)
+
+        idempotency_key = payload_dict.get(&#34;idempotency_key&#34;)
+        if not isinstance(idempotency_key, str) or not idempotency_key:
+            # Spec 3.0-rc: idempotency_key is REQUIRED on every webhook payload.
+            return _reject(&#34;idempotency_key_missing&#34;, sender_identity=sender_id)
+        if not _IDEMPOTENCY_KEY_RE.match(idempotency_key):
+            # Non-conformant format — charset or length out of bounds.
+            return _reject(&#34;idempotency_key_invalid&#34;, sender_identity=sender_id)
+
+        parsed = self._parse(payload_dict)
+        if parsed is None:
+            return _reject(&#34;payload_invalid&#34;, sender_identity=sender_id)
+
+        is_first_seen = await self._config.dedup.check_and_record(
+            sender_id=sender_id, idempotency_key=idempotency_key
+        )
+
+        return WebhookOutcome(
+            sender_identity=sender_id,
+            payload=parsed,
+            duplicate=not is_first_seen,
+            idempotency_key=idempotency_key,
+        )
+
+    async def _verify(
+        self,
+        *,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        body: bytes,
+    ) -&gt; tuple[VerifiedSignerLike | None, WebhookOutcome | None]:
+        &#34;&#34;&#34;Returns (signer, None) on success or (None, rejection_outcome).&#34;&#34;&#34;
+        has_9421 = _has_9421_headers(headers)
+
+        if has_9421:
+            try:
+                signer = verify_webhook_signature(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    body=body,
+                    options=self._config.verify_options,
+                )
+                return signer, None
+            except SignatureVerificationError as exc:
+                # Downgrade defense: when 9421 IS present but fails, do NOT
+                # consult HMAC fallback by default. A MITM that stripped a
+                # valid 9421 signature and replaced it with a forged HMAC one
+                # is exactly what the downgrade guard exists for.
+                fallback = self._config.legacy_hmac
+                allow_hmac = fallback is not None and not fallback.only_when_9421_absent
+                if not allow_hmac:
+                    return None, WebhookOutcome(
+                        rejected=True,
+                        rejection_reason=&#34;signature_invalid&#34;,
+                        response_headers=_www_authenticate_header(exc.code),
+                    )
+                logger.warning(
+                    &#34;9421 webhook verify failed (%s); trying HMAC legacy because &#34;
+                    &#34;legacy_hmac.only_when_9421_absent=False is set&#34;,
+                    exc.code,
+                )
+
+        fallback = self._config.legacy_hmac
+        if fallback is None:
+            # No 9421 headers AND no HMAC fallback configured → spec says 9421
+            # is baseline-required in 3.0, so this is non-conformant.
+            return None, WebhookOutcome(
+                rejected=True,
+                rejection_reason=&#34;signature_missing&#34;,
+                response_headers=_www_authenticate_header(&#34;webhook_signature_required&#34;),
+            )
+
+        hmac_options = fallback.options_for(headers)
+        if hmac_options is None:
+            return None, WebhookOutcome(
+                rejected=True,
+                rejection_reason=&#34;signature_missing&#34;,
+                response_headers=_www_authenticate_header(&#34;webhook_signature_required&#34;),
+            )
+        try:
+            legacy_signer = verify_webhook_hmac(headers=headers, body=body, options=hmac_options)
+            return legacy_signer, None
+        except LegacyWebhookHmacError:
+            return None, WebhookOutcome(
+                rejected=True,
+                rejection_reason=&#34;signature_legacy_failed&#34;,
+                response_headers=_www_authenticate_header(&#34;webhook_signature_invalid&#34;),
+            )
+
+    def _parse(self, payload_dict: dict[str, Any]) -&gt; WebhookPayload | None:
+        model = _MODEL_BY_KIND[self._config.kind]
+        try:
+            return cast(WebhookPayload, model.model_validate(payload_dict))
+        except ValidationError as exc:
+            # Operators need the field-level reason to diagnose sender bugs.
+            # The receiver still returns payload_invalid downstream; this is
+            # just observability.
+            logger.warning(
+                &#34;webhook payload failed %s validation: %s&#34;,
+                self._config.kind,
+                exc.errors(include_url=False),
+            )
+            return None</code></pre>
+</details>
+<div class="desc"><p>Stateless webhook entry point, one instance per receiver configuration.</p>
+<p>Instance state (<code>config</code>) is read-only after construction. Per-request
+state lives in the :class:<code><a title="adcp.webhook_receiver.WebhookOutcome" href="#adcp.webhook_receiver.WebhookOutcome">WebhookOutcome</a></code> returned from :meth:<code>receive</code>.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhook_receiver.WebhookReceiver.receive"><code class="name flex">
+<span>async def <span class="ident">receive</span></span>(<span>self, *, method: str, url: str, headers: Mapping[str, str], body: bytes) ‑> <a title="adcp.webhook_receiver.WebhookOutcome" href="#adcp.webhook_receiver.WebhookOutcome">WebhookOutcome</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def receive(
+    self,
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+) -&gt; WebhookOutcome:
+    &#34;&#34;&#34;Verify, dedupe, parse. Returns a :class:`WebhookOutcome`.
+
+    Never raises for sender-caused cryptographic or protocol failures —
+    returns an outcome with ``rejected=True`` and populated
+    ``response_headers`` so the caller can convert to an HTTP response
+    without try/except around every call. Operational failures inside
+    the dedup backend or verify-options factory MAY still raise; wrap
+    the call if you need to 5xx cleanly on internal errors.
+    &#34;&#34;&#34;
+    if not _content_type_is_json(headers):
+        return _reject(&#34;content_type_invalid&#34;, sender_identity=None)
+
+    signer, rejection = await self._verify(method=method, url=url, headers=headers, body=body)
+    if rejection is not None:
+        return rejection
+    assert signer is not None  # verification succeeded
+
+    sender_id = signer.as_sender_identity()
+
+    try:
+        payload_dict = json.loads(body)
+    except json.JSONDecodeError:
+        return _reject(&#34;body_invalid_json&#34;, sender_identity=sender_id)
+    if not isinstance(payload_dict, dict):
+        return _reject(&#34;body_invalid_json&#34;, sender_identity=sender_id)
+
+    idempotency_key = payload_dict.get(&#34;idempotency_key&#34;)
+    if not isinstance(idempotency_key, str) or not idempotency_key:
+        # Spec 3.0-rc: idempotency_key is REQUIRED on every webhook payload.
+        return _reject(&#34;idempotency_key_missing&#34;, sender_identity=sender_id)
+    if not _IDEMPOTENCY_KEY_RE.match(idempotency_key):
+        # Non-conformant format — charset or length out of bounds.
+        return _reject(&#34;idempotency_key_invalid&#34;, sender_identity=sender_id)
+
+    parsed = self._parse(payload_dict)
+    if parsed is None:
+        return _reject(&#34;payload_invalid&#34;, sender_identity=sender_id)
+
+    is_first_seen = await self._config.dedup.check_and_record(
+        sender_id=sender_id, idempotency_key=idempotency_key
+    )
+
+    return WebhookOutcome(
+        sender_identity=sender_id,
+        payload=parsed,
+        duplicate=not is_first_seen,
+        idempotency_key=idempotency_key,
+    )</code></pre>
+</details>
+<div class="desc"><p>Verify, dedupe, parse. Returns a :class:<code><a title="adcp.webhook_receiver.WebhookOutcome" href="#adcp.webhook_receiver.WebhookOutcome">WebhookOutcome</a></code>.</p>
+<p>Never raises for sender-caused cryptographic or protocol failures —
+returns an outcome with <code>rejected=True</code> and populated
+<code>response_headers</code> so the caller can convert to an HTTP response
+without try/except around every call. Operational failures inside
+the dedup backend or verify-options factory MAY still raise; wrap
+the call if you need to 5xx cleanly on internal errors.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookReceiverConfig"><code class="flex name class">
+<span>class <span class="ident">WebhookReceiverConfig</span></span>
+<span>(</span><span>verify_options: WebhookVerifyOptions,<br>dedup: WebhookDedupStore,<br>legacy_hmac: <a title="adcp.webhook_receiver.LegacyHmacFallback" href="#adcp.webhook_receiver.LegacyHmacFallback">LegacyHmacFallback</a> | None = None,<br>kind: WebhookKind = 'mcp')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class WebhookReceiverConfig:
+    &#34;&#34;&#34;Configuration bundle.
+
+    :param verify_options: verifier configuration (JWKS, replay store, etc.).
+        A single instance is reused for every request — the verifier stamps
+        ``now`` itself via ``verify_options.clock()``, so there&#39;s no need to
+        refresh a time field per request.
+    :param dedup: webhook-dedup store.
+    :param legacy_hmac: optional HMAC-SHA256 fallback for 3.x migration.
+    :param kind: which webhook payload type to parse into. Default ``&#34;mcp&#34;``
+        (the task-status webhook that dominates most integrations); pass
+        explicitly for list-change / artifact / revocation receivers.
+    &#34;&#34;&#34;
+
+    verify_options: WebhookVerifyOptions
+    dedup: WebhookDedupStore
+    legacy_hmac: LegacyHmacFallback | None = None
+    kind: WebhookKind = &#34;mcp&#34;</code></pre>
+</details>
+<div class="desc"><p>Configuration bundle.</p>
+<p>:param verify_options: verifier configuration (JWKS, replay store, etc.).
+A single instance is reused for every request — the verifier stamps
+<code>now</code> itself via <code>verify_options.clock()</code>, so there's no need to
+refresh a time field per request.
+:param dedup: webhook-dedup store.
+:param legacy_hmac: optional HMAC-SHA256 fallback for 3.x migration.
+:param kind: which webhook payload type to parse into. Default <code>"mcp"</code>
+(the task-status webhook that dominates most integrations); pass
+explicitly for list-change / artifact / revocation receivers.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhook_receiver.WebhookReceiverConfig.dedup"><code class="name">var <span class="ident">dedup</span> : <a title="adcp.server.idempotency.webhook_dedup.WebhookDedupStore" href="server/idempotency/webhook_dedup.html#adcp.server.idempotency.webhook_dedup.WebhookDedupStore">WebhookDedupStore</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookReceiverConfig.kind"><code class="name">var <span class="ident">kind</span> : Literal['mcp', 'revocation_notification', 'collection_list_changed', 'property_list_changed', 'artifact']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookReceiverConfig.legacy_hmac"><code class="name">var <span class="ident">legacy_hmac</span> : <a title="adcp.webhook_receiver.LegacyHmacFallback" href="#adcp.webhook_receiver.LegacyHmacFallback">LegacyHmacFallback</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_receiver.WebhookReceiverConfig.verify_options"><code class="name">var <span class="ident">verify_options</span> : <a title="adcp.signing.webhook_verifier.WebhookVerifyOptions" href="signing/webhook_verifier.html#adcp.signing.webhook_verifier.WebhookVerifyOptions">WebhookVerifyOptions</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.webhook_receiver.LegacyHmacFallback" href="#adcp.webhook_receiver.LegacyHmacFallback">LegacyHmacFallback</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhook_receiver.LegacyHmacFallback.from_shared_secret" href="#adcp.webhook_receiver.LegacyHmacFallback.from_shared_secret">from_shared_secret</a></code></li>
+<li><code><a title="adcp.webhook_receiver.LegacyHmacFallback.only_when_9421_absent" href="#adcp.webhook_receiver.LegacyHmacFallback.only_when_9421_absent">only_when_9421_absent</a></code></li>
+<li><code><a title="adcp.webhook_receiver.LegacyHmacFallback.options_for" href="#adcp.webhook_receiver.LegacyHmacFallback.options_for">options_for</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhook_receiver.VerifiedSignerLike" href="#adcp.webhook_receiver.VerifiedSignerLike">VerifiedSignerLike</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhook_receiver.VerifiedSignerLike.as_sender_identity" href="#adcp.webhook_receiver.VerifiedSignerLike.as_sender_identity">as_sender_identity</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhook_receiver.WebhookOutcome" href="#adcp.webhook_receiver.WebhookOutcome">WebhookOutcome</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.webhook_receiver.WebhookOutcome.duplicate" href="#adcp.webhook_receiver.WebhookOutcome.duplicate">duplicate</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookOutcome.idempotency_key" href="#adcp.webhook_receiver.WebhookOutcome.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookOutcome.payload" href="#adcp.webhook_receiver.WebhookOutcome.payload">payload</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookOutcome.rejected" href="#adcp.webhook_receiver.WebhookOutcome.rejected">rejected</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookOutcome.rejection_reason" href="#adcp.webhook_receiver.WebhookOutcome.rejection_reason">rejection_reason</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookOutcome.response_headers" href="#adcp.webhook_receiver.WebhookOutcome.response_headers">response_headers</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookOutcome.sender_identity" href="#adcp.webhook_receiver.WebhookOutcome.sender_identity">sender_identity</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhook_receiver.WebhookReceiver" href="#adcp.webhook_receiver.WebhookReceiver">WebhookReceiver</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhook_receiver.WebhookReceiver.receive" href="#adcp.webhook_receiver.WebhookReceiver.receive">receive</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhook_receiver.WebhookReceiverConfig" href="#adcp.webhook_receiver.WebhookReceiverConfig">WebhookReceiverConfig</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhook_receiver.WebhookReceiverConfig.dedup" href="#adcp.webhook_receiver.WebhookReceiverConfig.dedup">dedup</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookReceiverConfig.kind" href="#adcp.webhook_receiver.WebhookReceiverConfig.kind">kind</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookReceiverConfig.legacy_hmac" href="#adcp.webhook_receiver.WebhookReceiverConfig.legacy_hmac">legacy_hmac</a></code></li>
+<li><code><a title="adcp.webhook_receiver.WebhookReceiverConfig.verify_options" href="#adcp.webhook_receiver.WebhookReceiverConfig.verify_options">verify_options</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

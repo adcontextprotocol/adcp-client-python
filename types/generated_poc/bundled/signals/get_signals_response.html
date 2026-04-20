@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ActivationKey(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Literal[&#39;segment_id&#39;], Field(description=&#39;Segment ID based targeting&#39;)]
+    type: Annotated[Literal[&#34;segment_id&#34;], Field(description=&#34;Segment ID based targeting&#34;)]
     segment_id: Annotated[
         str,
-        Field(description=&#39;The platform-specific segment identifier to use in campaign targeting&#39;),
+        Field(description=&#34;The platform-specific segment identifier to use in campaign targeting&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -121,11 +121,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey7(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
-    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
-    value: Annotated[str, Field(description=&#39;The targeting parameter value&#39;)]</code></pre>
+    type: Annotated[Literal[&#34;key_value&#34;], Field(description=&#34;Key-value pair based targeting&#34;)]
+    key: Annotated[str, Field(description=&#34;The targeting parameter key&#34;)]
+    value: Annotated[str, Field(description=&#34;The targeting parameter value&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -279,34 +279,34 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployments(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     type: Annotated[
-        Literal[&#39;platform&#39;],
-        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
+        Literal[&#34;platform&#34;],
+        Field(description=&#34;Discriminator indicating this is a platform-based deployment&#34;),
     ]
-    platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
-    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    platform: Annotated[str, Field(description=&#34;Platform identifier for DSPs&#34;)]
+    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
     ]
     activation_key: Annotated[
         ActivationKey | ActivationKey7 | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;,
+            title=&#34;Activation Key&#34;,
         ),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
             ge=0.0,
         ),
     ] = None
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -381,34 +381,34 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployments3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     type: Annotated[
-        Literal[&#39;agent&#39;],
-        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
+        Literal[&#34;agent&#34;],
+        Field(description=&#34;Discriminator indicating this is an agent URL-based deployment&#34;),
     ]
-    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
-    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    agent_url: Annotated[AnyUrl, Field(description=&#34;URL identifying the deployment agent&#34;)]
+    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
     ]
     activation_key: Annotated[
         ActivationKey8 | ActivationKey9 | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;,
+            title=&#34;Activation Key&#34;,
         ),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
             ge=0.0,
         ),
     ] = None
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -483,37 +483,37 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Error(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     code: Annotated[
         str,
         Field(
-            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;,
+            description=&#34;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#34;,
             max_length=64,
             min_length=1,
         ),
     ]
-    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
-    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
+    suggestion: Annotated[str | None, Field(description=&#34;Suggested fix for the error&#34;)] = None
     retry_after: Annotated[
         float | None,
         Field(
-            description=&#39;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#39;,
+            description=&#34;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#34;,
             ge=1.0,
             le=3600.0,
         ),
     ] = None
     details: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+        dict[str, Any] | None, Field(description=&#34;Additional task-specific error details&#34;)
     ] = None
     recovery: Annotated[
         Recovery | None,
         Field(
-            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+            description=&#34;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -589,38 +589,38 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetSignalsResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    signals: Annotated[list[Signal], Field(description=&#39;Array of matching signals&#39;)]
+    signals: Annotated[list[Signal], Field(description=&#34;Array of matching signals&#34;)]
     errors: Annotated[
         list[Error] | None,
         Field(
-            description=&#39;Task-specific errors and warnings (e.g., signal discovery or pricing issues)&#39;
+            description=&#34;Task-specific errors and warnings (e.g., signal discovery or pricing issues)&#34;
         ),
     ] = None
     pagination: Annotated[
         Pagination | None,
         Field(
-            description=&#39;Standard cursor-based pagination metadata for list responses&#39;,
-            title=&#39;Pagination Response&#39;,
+            description=&#34;Standard cursor-based pagination metadata for list responses&#34;,
+            title=&#34;Pagination Response&#34;,
         ),
     ] = None
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -681,6 +681,64 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata"><code class="flex name class">
+<span>class <span class="ident">Metadata</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metadata(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#34;allow&#34;,
+    )
+    summary_for_operator: Annotated[
+        str | None,
+        Field(
+            description=&#34;One or two sentences describing the pricing construct in plain language, displayed to the buyer&#39;s operator when requesting approval. Should not repeat the top-level `description` verbatim — summarize the charge mechanic instead (e.g., &#39;Base $12 CPM plus $0.50 per qualifying post-view conversion, capped at $45 CPM&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata.summary_for_operator"><code class="name">var <span class="ident">summary_for_operator</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.Pagination"><code class="flex name class">
 <span>class <span class="ident">Pagination</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -692,21 +750,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     has_more: Annotated[
-        bool, Field(description=&#39;Whether more results are available beyond this page&#39;)
+        bool, Field(description=&#34;Whether more results are available beyond this page&#34;)
     ]
     cursor: Annotated[
         str | None,
         Field(
-            description=&#39;Opaque cursor to pass in the next request to fetch the next page. Only present when has_more is true.&#39;
+            description=&#34;Opaque cursor to pass in the next request to fetch the next page. Only present when has_more is true.&#34;
         ),
     ] = None
     total_count: Annotated[
         int | None,
         Field(
-            description=&#39;Total number of items matching the query across all pages. Optional because not all backends can efficiently compute this.&#39;,
+            description=&#34;Total number of items matching the query across all pages. Optional because not all backends can efficiently compute this.&#34;,
             ge=0,
         ),
     ] = None</code></pre>
@@ -766,10 +824,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Period(Enum):
-    monthly = &#39;monthly&#39;
-    quarterly = &#39;quarterly&#39;
-    annual = &#39;annual&#39;
-    campaign = &#39;campaign&#39;</code></pre>
+    monthly = &#34;monthly&#34;
+    quarterly = &#34;quarterly&#34;
+    annual = &#34;annual&#34;
+    campaign = &#34;campaign&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -840,19 +898,29 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PricingOption(
-    RootModel[PricingOption126 | PricingOption127 | PricingOption128 | PricingOption129]
+    RootModel[
+        PricingOption147
+        | PricingOption148
+        | PricingOption149
+        | PricingOption1410
+        | PricingOption1411
+    ]
 ):
     root: Annotated[
-        PricingOption126 | PricingOption127 | PricingOption128 | PricingOption129,
+        PricingOption147
+        | PricingOption148
+        | PricingOption149
+        | PricingOption1410
+        | PricingOption1411,
         Field(
-            description=&#39;A pricing option offered by a vendor agent (signals, creative, governance). Combines pricing_option_id with the pricing model fields. Pass pricing_option_id in report_usage for billing verification. All vendor discovery responses return pricing_options as an array — vendors may offer multiple options (volume tiers, context-specific rates, different models per product line).&#39;,
-            title=&#39;Vendor Pricing Option&#39;,
+            description=&#34;A pricing option offered by a vendor agent (signals, creative, governance). Combines pricing_option_id with the pricing model fields. Pass pricing_option_id in report_usage for billing verification. All vendor discovery responses return pricing_options as an array — vendors may offer multiple options (volume tiers, context-specific rates, different models per product line).&#34;,
+            title=&#34;Vendor Pricing Option&#34;,
         ),
     ]
 
     def __getattr__(self, name: str) -&gt; Any:
         &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
+        if name.startswith(&#34;_&#34;):
             raise AttributeError(name)
         return getattr(self.root, name)</code></pre>
 </details>
@@ -878,7 +946,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[PricingOption126, PricingOption127, PricingOption128, PricingOption129]]</li>
+<li>pydantic.root_model.RootModel[Union[PricingOption147, PricingOption148, PricingOption149, PricingOption1410, PricingOption1411]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
@@ -889,14 +957,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126">PricingOption126</a> | <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127">PricingOption127</a> | <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128">PricingOption128</a> | <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129">PricingOption129</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147">PricingOption147</a> | <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148">PricingOption148</a> | <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149">PricingOption149</a> | <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410">PricingOption1410</a> | <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411">PricingOption1411</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121"><code class="flex name class">
-<span>class <span class="ident">PricingOption121</span></span>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141"><code class="flex name class">
+<span>class <span class="ident">PricingOption141</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -904,18 +972,18 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption121(AdCPBaseModel):
+<pre><code class="python">class PricingOption141(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;cpm&#39;]
-    cpm: Annotated[float, Field(description=&#39;Cost per thousand impressions&#39;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    model: Literal[&#34;cpm&#34;]
+    cpm: Annotated[float, Field(description=&#34;Cost per thousand impressions&#34;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -936,27 +1004,27 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126">PricingOption126</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147">PricingOption147</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.cpm"><code class="name">var <span class="ident">cpm</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.cpm"><code class="name">var <span class="ident">cpm</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model"><code class="name">var <span class="ident">model</span> : Literal['cpm']</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model"><code class="name">var <span class="ident">model</span> : Literal['cpm']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -972,8 +1040,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122"><code class="flex name class">
-<span>class <span class="ident">PricingOption122</span></span>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410"><code class="flex name class">
+<span>class <span class="ident">PricingOption1410</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -981,30 +1049,124 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption122(AdCPBaseModel):
+<pre><code class="python">class PricingOption1410(PricingOption144, PricingOption146):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144">PricingOption144</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146">PricingOption146</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144">PricingOption144</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411"><code class="flex name class">
+<span>class <span class="ident">PricingOption1411</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PricingOption1411(PricingOption145, PricingOption146):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145">PricingOption145</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146">PricingOption146</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145">PricingOption145</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142"><code class="flex name class">
+<span>class <span class="ident">PricingOption142</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PricingOption142(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;percent_of_media&#39;]
+    model: Literal[&#34;percent_of_media&#34;]
     percent: Annotated[
-        float, Field(description=&#39;Percentage of media spend, e.g. 15 = 15%&#39;, ge=0.0, le=100.0)
+        float, Field(description=&#34;Percentage of media spend, e.g. 15 = 15%&#34;, ge=0.0, le=100.0)
     ]
     max_cpm: Annotated[
         float | None,
         Field(
-            description=&#39;Optional CPM cap. When set, the effective charge is min(percent × media_spend_per_mille, max_cpm).&#39;,
+            description=&#34;Optional CPM cap. When set, the effective charge is min(percent × media_spend_per_mille, max_cpm).&#34;,
             ge=0.0,
         ),
     ] = None
     currency: Annotated[
         str,
-        Field(description=&#39;ISO 4217 currency code for the resulting charge&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+        Field(description=&#34;ISO 4217 currency code for the resulting charge&#34;, pattern=&#34;^[A-Z]{3}$&#34;),
     ]
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -1025,31 +1187,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127">PricingOption127</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148">PricingOption148</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.max_cpm"><code class="name">var <span class="ident">max_cpm</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.max_cpm"><code class="name">var <span class="ident">max_cpm</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model"><code class="name">var <span class="ident">model</span> : Literal['percent_of_media']</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model"><code class="name">var <span class="ident">model</span> : Literal['percent_of_media']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.percent"><code class="name">var <span class="ident">percent</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.percent"><code class="name">var <span class="ident">percent</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1065,8 +1227,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123"><code class="flex name class">
-<span>class <span class="ident">PricingOption123</span></span>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143"><code class="flex name class">
+<span>class <span class="ident">PricingOption143</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1074,19 +1236,19 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption123(AdCPBaseModel):
+<pre><code class="python">class PricingOption143(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;flat_fee&#39;]
-    amount: Annotated[float, Field(description=&#39;Fixed charge for the billing period&#39;, ge=0.0)]
-    period: Annotated[Period, Field(description=&#39;Billing period for the flat fee.&#39;)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    model: Literal[&#34;flat_fee&#34;]
+    amount: Annotated[float, Field(description=&#34;Fixed charge for the billing period&#34;, ge=0.0)]
+    period: Annotated[Period, Field(description=&#34;Billing period for the flat fee.&#34;)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -1107,31 +1269,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128">PricingOption128</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149">PricingOption149</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model"><code class="name">var <span class="ident">model</span> : Literal['flat_fee']</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model"><code class="name">var <span class="ident">model</span> : Literal['flat_fee']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.Period" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.Period">Period</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.Period" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.Period">Period</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1147,8 +1309,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124"><code class="flex name class">
-<span>class <span class="ident">PricingOption124</span></span>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144"><code class="flex name class">
+<span>class <span class="ident">PricingOption144</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1156,24 +1318,24 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption124(AdCPBaseModel):
+<pre><code class="python">class PricingOption144(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;per_unit&#39;]
+    model: Literal[&#34;per_unit&#34;]
     unit: Annotated[
         str,
         Field(
             description=&#34;What is counted — e.g. &#39;format&#39;, &#39;image&#39;, &#39;token&#39;, &#39;variant&#39;, &#39;render&#39;, &#39;evaluation&#39;.&#34;
         ),
     ]
-    unit_price: Annotated[float, Field(description=&#39;Cost per one unit&#39;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    unit_price: Annotated[float, Field(description=&#34;Cost per one unit&#34;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -1194,31 +1356,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129">PricingOption129</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410">PricingOption1410</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model"><code class="name">var <span class="ident">model</span> : Literal['per_unit']</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model"><code class="name">var <span class="ident">model</span> : Literal['per_unit']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.unit"><code class="name">var <span class="ident">unit</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.unit"><code class="name">var <span class="ident">unit</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.unit_price"><code class="name">var <span class="ident">unit_price</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.unit_price"><code class="name">var <span class="ident">unit_price</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1234,8 +1396,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125"><code class="flex name class">
-<span>class <span class="ident">PricingOption125</span></span>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145"><code class="flex name class">
+<span>class <span class="ident">PricingOption145</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1243,11 +1405,110 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption125(AdCPBaseModel):
+<pre><code class="python">class PricingOption145(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#34;allow&#34;,
+    )
+    model: Literal[&#34;custom&#34;]
+    description: Annotated[
+        str,
+        Field(
+            description=&#34;Human-readable description of the custom pricing model. Buyers display this to the operator when requesting approval.&#34;,
+            min_length=1,
+        ),
+    ]
+    metadata: Annotated[
+        Metadata,
+        Field(
+            description=&#34;Structured parameters for the custom model. Keys follow lowercase_snake_case. Values may be primitives, arrays, or nested objects. Must be sufficient for a human to understand the pricing basis and for a downstream system to reconstruct the charge. Vendors SHOULD include a `summary_for_operator` string (one or two sentences, suitable for display in a buyer&#39;s operator-review UI) so reviewers across vendors see a consistent prompt. Required operator-review fields (approver role, dollar threshold for automatic approval, escalation contact) MAY be surfaced via additional keys the buyer&#39;s review surface recognizes.&#34;
+        ),
+    ]
+    currency: Annotated[
+        str | None,
+        Field(
+            description=&#34;ISO 4217 currency code. Present when the pricing resolves to a monetary charge in a specific currency.&#34;,
+            pattern=&#34;^[A-Z]{3}$&#34;,
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411">PricingOption1411</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.currency"><code class="name">var <span class="ident">currency</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.metadata"><code class="name">var <span class="ident">metadata</span> : <a title="adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata">Metadata</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model"><code class="name">var <span class="ident">model</span> : Literal['custom']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146"><code class="flex name class">
+<span>class <span class="ident">PricingOption146</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PricingOption146(AdCPBaseModel):
     pricing_option_id: Annotated[
         str,
         Field(
-            description=&#39;Opaque identifier for this pricing option, unique within the vendor agent. Pass this in report_usage to identify which pricing option was applied.&#39;
+            description=&#34;Opaque identifier for this pricing option, unique within the vendor agent. Pass this in report_usage to identify which pricing option was applied.&#34;
         ),
     ]</code></pre>
 </details>
@@ -1268,18 +1529,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126">PricingOption126</a></li>
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127">PricingOption127</a></li>
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128">PricingOption128</a></li>
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129">PricingOption129</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410">PricingOption1410</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411">PricingOption1411</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147">PricingOption147</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148">PricingOption148</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149">PricingOption149</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1295,8 +1557,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126"><code class="flex name class">
-<span>class <span class="ident">PricingOption126</span></span>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147"><code class="flex name class">
+<span>class <span class="ident">PricingOption147</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1304,7 +1566,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption126(PricingOption121, PricingOption125):
+<pre><code class="python">class PricingOption147(PricingOption141, PricingOption146):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1319,31 +1581,31 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121">PricingOption121</a></li>
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125">PricingOption125</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141">PricingOption141</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146">PricingOption146</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121">PricingOption121</a></b></code>:
+<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141">PricingOption141</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127"><code class="flex name class">
-<span>class <span class="ident">PricingOption127</span></span>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148"><code class="flex name class">
+<span>class <span class="ident">PricingOption148</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1351,7 +1613,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption127(PricingOption122, PricingOption125):
+<pre><code class="python">class PricingOption148(PricingOption142, PricingOption146):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1366,31 +1628,31 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122">PricingOption122</a></li>
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125">PricingOption125</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142">PricingOption142</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146">PricingOption146</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122">PricingOption122</a></b></code>:
+<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142">PricingOption142</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128"><code class="flex name class">
-<span>class <span class="ident">PricingOption128</span></span>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149"><code class="flex name class">
+<span>class <span class="ident">PricingOption149</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1398,7 +1660,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption128(PricingOption123, PricingOption125):
+<pre><code class="python">class PricingOption149(PricingOption143, PricingOption146):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1413,72 +1675,25 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123">PricingOption123</a></li>
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125">PricingOption125</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143">PricingOption143</a></li>
+<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146">PricingOption146</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123">PricingOption123</a></b></code>:
+<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143">PricingOption143</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129"><code class="flex name class">
-<span>class <span class="ident">PricingOption129</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class PricingOption129(PricingOption124, PricingOption125):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124">PricingOption124</a></li>
-<li><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125">PricingOption125</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124">PricingOption124</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -1494,10 +1709,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Range(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    min: Annotated[float, Field(description=&#39;Minimum value (inclusive)&#39;)]
-    max: Annotated[float, Field(description=&#39;Maximum value (inclusive)&#39;)]</code></pre>
+    min: Annotated[float, Field(description=&#34;Minimum value (inclusive)&#34;)]
+    max: Annotated[float, Field(description=&#34;Maximum value (inclusive)&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1550,9 +1765,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Recovery(Enum):
-    transient = &#39;transient&#39;
-    correctable = &#39;correctable&#39;
-    terminal = &#39;terminal&#39;</code></pre>
+    transient = &#34;transient&#34;
+    correctable = &#34;correctable&#34;
+    terminal = &#34;terminal&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1620,14 +1835,14 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Signal(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     signal_id: Annotated[
         SignalId | SignalId16,
         Field(
             description=&#34;Universal signal identifier referencing the data provider&#39;s catalog. Use this to verify authorization and look up signal definitions.&#34;,
-            discriminator=&#39;source&#39;,
-            title=&#39;Signal ID&#39;,
+            discriminator=&#34;source&#34;,
+            title=&#34;Signal ID&#34;,
         ),
     ]
     signal_agent_segment_id: Annotated[
@@ -1636,13 +1851,13 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;Opaque identifier used for activation. This is the signals agent&#39;s internal segment ID.&#34;
         ),
     ]
-    name: Annotated[str, Field(description=&#39;Human-readable signal name&#39;)]
-    description: Annotated[str, Field(description=&#39;Detailed signal description&#39;)]
+    name: Annotated[str, Field(description=&#34;Human-readable signal name&#34;)]
+    description: Annotated[str, Field(description=&#34;Detailed signal description&#34;)]
     value_type: Annotated[
         ValueType | None,
         Field(
             description=&#34;The data type of this signal&#39;s values (binary, categorical, numeric)&#34;,
-            title=&#39;Signal Value Type&#39;,
+            title=&#34;Signal Value Type&#34;,
         ),
     ] = None
     categories: Annotated[
@@ -1658,21 +1873,21 @@ attributes &ndash; see the documentation for details.</p></div>
     signal_type: Annotated[
         SignalType,
         Field(
-            description=&#39;Catalog type of signal (marketplace, custom, owned)&#39;,
-            title=&#39;Signal Catalog Type&#39;,
+            description=&#34;Catalog type of signal (marketplace, custom, owned)&#34;,
+            title=&#34;Signal Catalog Type&#34;,
         ),
     ]
-    data_provider: Annotated[str, Field(description=&#39;Human-readable name of the data provider&#39;)]
+    data_provider: Annotated[str, Field(description=&#34;Human-readable name of the data provider&#34;)]
     coverage_percentage: Annotated[
-        float, Field(description=&#39;Percentage of audience coverage&#39;, ge=0.0, le=100.0)
+        float, Field(description=&#34;Percentage of audience coverage&#34;, ge=0.0, le=100.0)
     ]
     deployments: Annotated[
-        list[Deployments | Deployments3], Field(description=&#39;Array of deployment targets&#39;)
+        list[Deployments | Deployments3], Field(description=&#34;Array of deployment targets&#34;)
     ]
     pricing_options: Annotated[
         list[PricingOption],
         Field(
-            description=&#39;Pricing options available for this signal. The buyer selects one and passes its pricing_option_id in report_usage for billing verification.&#39;,
+            description=&#34;Pricing options available for this signal. The buyer selects one and passes its pricing_option_id in report_usage for billing verification.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -1769,10 +1984,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SignalId(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     source: Annotated[
-        Literal[&#39;catalog&#39;],
+        Literal[&#34;catalog&#34;],
         Field(
             description=&#34;Discriminator indicating this signal is from a data provider&#39;s published catalog&#34;
         ),
@@ -1781,14 +1996,14 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Domain of the data provider that owns this signal (e.g., &#39;polk.com&#39;, &#39;experian.com&#39;). The signal definition is published at this domain&#39;s /.well-known/adagents.json&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     id: Annotated[
         str,
         Field(
             description=&#34;Signal identifier within the data provider&#39;s catalog (e.g., &#39;likely_tesla_buyers&#39;, &#39;income_100k_plus&#39;)&#34;,
-            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+            pattern=&#34;^[a-zA-Z0-9_-]+$&#34;,
         ),
     ]</code></pre>
 </details>
@@ -1848,12 +2063,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SignalId16(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     source: Annotated[
-        Literal[&#39;agent&#39;],
+        Literal[&#34;agent&#34;],
         Field(
-            description=&#39;Discriminator indicating this signal is native to the agent (not from a data provider catalog)&#39;
+            description=&#34;Discriminator indicating this signal is native to the agent (not from a data provider catalog)&#34;
         ),
     ]
     agent_url: Annotated[
@@ -1866,7 +2081,7 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Signal identifier within the agent&#39;s signal set (e.g., &#39;custom_auto_intenders&#39;)&#34;,
-            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+            pattern=&#34;^[a-zA-Z0-9_-]+$&#34;,
         ),
     ]</code></pre>
 </details>
@@ -1925,9 +2140,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SignalType(Enum):
-    marketplace = &#39;marketplace&#39;
-    custom = &#39;custom&#39;
-    owned = &#39;owned&#39;</code></pre>
+    marketplace = &#34;marketplace&#34;
+    custom = &#34;custom&#34;
+    owned = &#34;owned&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1994,9 +2209,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ValueType(Enum):
-    binary = &#39;binary&#39;
-    categorical = &#39;categorical&#39;
-    numeric = &#39;numeric&#39;</code></pre>
+    binary = &#34;binary&#34;
+    categorical = &#34;categorical&#34;
+    numeric = &#34;numeric&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2149,6 +2364,13 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata">Metadata</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata.summary_for_operator" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.Metadata.summary_for_operator">summary_for_operator</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.Pagination" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.Pagination">Pagination</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.Pagination.cursor" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.Pagination.cursor">cursor</a></code></li>
@@ -2174,77 +2396,94 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121">PricingOption121</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141">PricingOption141</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.cpm" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.cpm">cpm</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption121.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.cpm" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.cpm">cpm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption141.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122">PricingOption122</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410">PricingOption1410</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1410.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411">PricingOption1411</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption1411.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142">PricingOption142</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.max_cpm" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.max_cpm">max_cpm</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.percent" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption122.percent">percent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.max_cpm" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.max_cpm">max_cpm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.percent" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption142.percent">percent</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123">PricingOption123</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143">PricingOption143</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.amount" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.amount">amount</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.period" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption123.period">period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.amount" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.period" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption143.period">period</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124">PricingOption124</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144">PricingOption144</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.unit" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.unit">unit</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.unit_price" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption124.unit_price">unit_price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.unit" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.unit_price" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption144.unit_price">unit_price</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125">PricingOption125</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125.pricing_option_id" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption125.pricing_option_id">pricing_option_id</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145">PricingOption145</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.currency" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.description" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.ext" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.metadata" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.metadata">metadata</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption145.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126">PricingOption126</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146">PricingOption146</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption126.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146.pricing_option_id" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption146.pricing_option_id">pricing_option_id</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127">PricingOption127</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147">PricingOption147</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption127.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption147.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128">PricingOption128</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148">PricingOption148</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption128.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption148.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129">PricingOption129</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149">PricingOption149</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption129.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149.model_config" href="#adcp.types.generated_poc.bundled.signals.get_signals_response.PricingOption149.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

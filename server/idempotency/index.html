@@ -100,6 +100,10 @@ in a follow-up PR.</li>
 <dd>
 <div class="desc"><p>The :class:<code><a title="adcp.server.idempotency.IdempotencyStore" href="#adcp.server.idempotency.IdempotencyStore">IdempotencyStore</a></code> coordinator: canonical hashing + backend + decorator …</p></div>
 </dd>
+<dt><code class="name"><a title="adcp.server.idempotency.webhook_dedup" href="webhook_dedup.html">adcp.server.idempotency.webhook_dedup</a></code></dt>
+<dd>
+<div class="desc"><p>Webhook receiver-side dedup store …</p></div>
+</dd>
 </dl>
 </section>
 <section>
@@ -967,6 +971,208 @@ guarantee is the whole reason to use a SQL backend.</li>
 </li>
 </ul>
 </dd>
+<dt id="adcp.server.idempotency.WebhookDedupStore"><code class="flex name class">
+<span>class <span class="ident">WebhookDedupStore</span></span>
+<span>(</span><span>backend: <a title="adcp.server.idempotency.IdempotencyBackend" href="#adcp.server.idempotency.IdempotencyBackend">IdempotencyBackend</a>,<br>ttl_seconds: int = 86400,<br>*,<br>namespace: str = 'webhook',<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WebhookDedupStore:
+    &#34;&#34;&#34;Dedup ``(sender_id, idempotency_key)`` pairs to suppress retried webhooks.
+
+    :param backend: any :class:`IdempotencyBackend`. Same MemoryBackend or
+        PgBackend type used by :class:`IdempotencyStore` is fine — the
+        ``namespace`` parameter prefixes all sender IDs so request-side and
+        webhook-side scopes can&#39;t alias even when sharing one backend instance.
+    :param ttl_seconds: replay window. Must be within ``[86400, 604800]`` per
+        the spec minimum. Defaults to 86400 (24h).
+    :param namespace: prefix applied to every ``sender_id`` before it hits
+        the backend. Defaults to ``&#34;webhook&#34;``, which is safe when the same
+        backend is shared with :class:`IdempotencyStore` (request-side keys
+        are scoped by a principal_id that isn&#39;t wrapped in this namespace,
+        so collisions are impossible). Override only if you run multiple
+        webhook scopes against one backend (e.g., separate dedup spaces for
+        task webhooks vs list-change webhooks).
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        backend: IdempotencyBackend,
+        ttl_seconds: int = _MIN_TTL_SECONDS,
+        *,
+        namespace: str = &#34;webhook&#34;,
+        clock: Callable[[], float] = time.time,
+    ) -&gt; None:
+        if not _MIN_TTL_SECONDS &lt;= ttl_seconds &lt;= _MAX_TTL_SECONDS:
+            raise ValueError(
+                f&#34;ttl_seconds must be in [{_MIN_TTL_SECONDS}, {_MAX_TTL_SECONDS}] &#34;
+                f&#34;per webhook spec minimum, got {ttl_seconds}&#34;
+            )
+        if not namespace:
+            raise ValueError(&#34;namespace must be a non-empty string&#34;)
+        self.backend = backend
+        self.ttl_seconds = ttl_seconds
+        self.namespace = namespace
+        self._clock = clock
+
+    async def check_and_record(self, sender_id: str, idempotency_key: str) -&gt; bool:
+        &#34;&#34;&#34;Atomically check for first-seen and record if new.
+
+        Returns ``True`` when the pair is first-seen (event should be
+        processed), ``False`` on duplicate (caller MUST still return 2xx to
+        the sender — the event was delivered successfully, it&#39;s just a retry).
+
+        Race note: the check-then-put pattern is not atomic across concurrent
+        callers unless the backend provides its own atomicity. MemoryBackend
+        serializes individual ``get`` and ``put`` under an ``asyncio.Lock`` but
+        does NOT bracket them together — two concurrent retries of the same
+        event CAN both observe &#34;first-seen&#34; and both process the event. That&#39;s
+        a tolerable failure mode: the ultimate guarantee is &#34;at most once per
+        replay window in the common case&#34;; a concurrent retry arriving in the
+        same few milliseconds is rare and, if it happens, produces the same
+        &#34;duplicated side effect&#34; outcome the at-least-once contract already
+        warns callers to tolerate. PgBackend implementations SHOULD use
+        ``INSERT ... ON CONFLICT DO NOTHING`` returning ``rowcount`` for
+        lock-free atomicity.
+        &#34;&#34;&#34;
+        if not sender_id:
+            raise ValueError(&#34;sender_id must be a non-empty string&#34;)
+        if not idempotency_key:
+            raise ValueError(&#34;idempotency_key must be a non-empty string&#34;)
+
+        scoped_sender = f&#34;{self.namespace}:{sender_id}&#34;
+        existing = await self.backend.get(scoped_sender, idempotency_key)
+        if existing is not None:
+            logger.debug(
+                &#34;webhook dedup: duplicate sender=%s key_prefix=%s&#34;,
+                sender_id,
+                idempotency_key[:8],
+            )
+            return False
+
+        entry = CachedResponse(
+            payload_hash=_SENTINEL_HASH,
+            response={},
+            expires_at_epoch=self._clock() + self.ttl_seconds,
+        )
+        try:
+            await self.backend.put(scoped_sender, idempotency_key, entry)
+        except Exception:
+            # Same fail-open reasoning as the request-side store: log and
+            # process. Swallowing the put failure means this event MIGHT
+            # reprocess on retry, not that we drop it. Better than raising,
+            # which would look like handler failure to the sender.
+            logger.warning(
+                &#34;webhook dedup put failed for sender=%s key_prefix=%s — &#34;
+                &#34;event processed but next retry will reprocess&#34;,
+                sender_id,
+                idempotency_key[:8],
+                exc_info=True,
+            )
+        return True</code></pre>
+</details>
+<div class="desc"><p>Dedup <code>(sender_id, idempotency_key)</code> pairs to suppress retried webhooks.</p>
+<p>:param backend: any :class:<code><a title="adcp.server.idempotency.IdempotencyBackend" href="#adcp.server.idempotency.IdempotencyBackend">IdempotencyBackend</a></code>. Same MemoryBackend or
+PgBackend type used by :class:<code><a title="adcp.server.idempotency.IdempotencyStore" href="#adcp.server.idempotency.IdempotencyStore">IdempotencyStore</a></code> is fine — the
+<code>namespace</code> parameter prefixes all sender IDs so request-side and
+webhook-side scopes can't alias even when sharing one backend instance.
+:param ttl_seconds: replay window. Must be within <code>[86400, 604800]</code> per
+the spec minimum. Defaults to 86400 (24h).
+:param namespace: prefix applied to every <code>sender_id</code> before it hits
+the backend. Defaults to <code>"webhook"</code>, which is safe when the same
+backend is shared with :class:<code><a title="adcp.server.idempotency.IdempotencyStore" href="#adcp.server.idempotency.IdempotencyStore">IdempotencyStore</a></code> (request-side keys
+are scoped by a principal_id that isn't wrapped in this namespace,
+so collisions are impossible). Override only if you run multiple
+webhook scopes against one backend (e.g., separate dedup spaces for
+task webhooks vs list-change webhooks).</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.server.idempotency.WebhookDedupStore.check_and_record"><code class="name flex">
+<span>async def <span class="ident">check_and_record</span></span>(<span>self, sender_id: str, idempotency_key: str) ‑> bool</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def check_and_record(self, sender_id: str, idempotency_key: str) -&gt; bool:
+    &#34;&#34;&#34;Atomically check for first-seen and record if new.
+
+    Returns ``True`` when the pair is first-seen (event should be
+    processed), ``False`` on duplicate (caller MUST still return 2xx to
+    the sender — the event was delivered successfully, it&#39;s just a retry).
+
+    Race note: the check-then-put pattern is not atomic across concurrent
+    callers unless the backend provides its own atomicity. MemoryBackend
+    serializes individual ``get`` and ``put`` under an ``asyncio.Lock`` but
+    does NOT bracket them together — two concurrent retries of the same
+    event CAN both observe &#34;first-seen&#34; and both process the event. That&#39;s
+    a tolerable failure mode: the ultimate guarantee is &#34;at most once per
+    replay window in the common case&#34;; a concurrent retry arriving in the
+    same few milliseconds is rare and, if it happens, produces the same
+    &#34;duplicated side effect&#34; outcome the at-least-once contract already
+    warns callers to tolerate. PgBackend implementations SHOULD use
+    ``INSERT ... ON CONFLICT DO NOTHING`` returning ``rowcount`` for
+    lock-free atomicity.
+    &#34;&#34;&#34;
+    if not sender_id:
+        raise ValueError(&#34;sender_id must be a non-empty string&#34;)
+    if not idempotency_key:
+        raise ValueError(&#34;idempotency_key must be a non-empty string&#34;)
+
+    scoped_sender = f&#34;{self.namespace}:{sender_id}&#34;
+    existing = await self.backend.get(scoped_sender, idempotency_key)
+    if existing is not None:
+        logger.debug(
+            &#34;webhook dedup: duplicate sender=%s key_prefix=%s&#34;,
+            sender_id,
+            idempotency_key[:8],
+        )
+        return False
+
+    entry = CachedResponse(
+        payload_hash=_SENTINEL_HASH,
+        response={},
+        expires_at_epoch=self._clock() + self.ttl_seconds,
+    )
+    try:
+        await self.backend.put(scoped_sender, idempotency_key, entry)
+    except Exception:
+        # Same fail-open reasoning as the request-side store: log and
+        # process. Swallowing the put failure means this event MIGHT
+        # reprocess on retry, not that we drop it. Better than raising,
+        # which would look like handler failure to the sender.
+        logger.warning(
+            &#34;webhook dedup put failed for sender=%s key_prefix=%s — &#34;
+            &#34;event processed but next retry will reprocess&#34;,
+            sender_id,
+            idempotency_key[:8],
+            exc_info=True,
+        )
+    return True</code></pre>
+</details>
+<div class="desc"><p>Atomically check for first-seen and record if new.</p>
+<p>Returns <code>True</code> when the pair is first-seen (event should be
+processed), <code>False</code> on duplicate (caller MUST still return 2xx to
+the sender — the event was delivered successfully, it's just a retry).</p>
+<p>Race note: the check-then-put pattern is not atomic across concurrent
+callers unless the backend provides its own atomicity. MemoryBackend
+serializes individual <code>get</code> and <code>put</code> under an <code>asyncio.Lock</code> but
+does NOT bracket them together — two concurrent retries of the same
+event CAN both observe "first-seen" and both process the event. That's
+a tolerable failure mode: the ultimate guarantee is "at most once per
+replay window in the common case"; a concurrent retry arriving in the
+same few milliseconds is rare and, if it happens, produces the same
+"duplicated side effect" outcome the at-least-once contract already
+warns callers to tolerate. PgBackend implementations SHOULD use
+<code>INSERT &hellip; ON CONFLICT DO NOTHING</code> returning <code>rowcount</code> for
+lock-free atomicity.</p></div>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -985,6 +1191,7 @@ guarantee is the whole reason to use a SQL backend.</li>
 <li><code><a title="adcp.server.idempotency.backends" href="backends.html">adcp.server.idempotency.backends</a></code></li>
 <li><code><a title="adcp.server.idempotency.canonicalize" href="canonicalize.html">adcp.server.idempotency.canonicalize</a></code></li>
 <li><code><a title="adcp.server.idempotency.store" href="store.html">adcp.server.idempotency.store</a></code></li>
+<li><code><a title="adcp.server.idempotency.webhook_dedup" href="webhook_dedup.html">adcp.server.idempotency.webhook_dedup</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
@@ -1026,6 +1233,12 @@ guarantee is the whole reason to use a SQL backend.</li>
 </li>
 <li>
 <h4><code><a title="adcp.server.idempotency.PgBackend" href="#adcp.server.idempotency.PgBackend">PgBackend</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.server.idempotency.WebhookDedupStore" href="#adcp.server.idempotency.WebhookDedupStore">WebhookDedupStore</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.server.idempotency.WebhookDedupStore.check_and_record" href="#adcp.server.idempotency.WebhookDedupStore.check_and_record">check_and_record</a></code></li>
+</ul>
 </li>
 </ul>
 </li>

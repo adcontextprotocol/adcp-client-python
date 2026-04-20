@@ -3202,7 +3202,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     media_buy_id: Annotated[
         str, Field(description=&#34;Seller&#39;s unique identifier for the created media buy&#34;)
@@ -3210,13 +3210,13 @@ validated to form a valid model.</p>
     account: Annotated[
         account_1.Account | None,
         Field(
-            description=&#39;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#39;
+            description=&#34;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#34;
         ),
     ] = None
     invoice_recipient: Annotated[
         business_entity.BusinessEntity | None,
         Field(
-            description=&#39;Per-buy invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#39;
+            description=&#34;Per-buy invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#34;
         ),
     ] = None
     status: Annotated[
@@ -3228,28 +3228,28 @@ validated to form a valid model.</p>
     confirmed_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp when this media buy was confirmed by the seller. A successful create_media_buy response constitutes order confirmation.&#39;
+            description=&#34;ISO 8601 timestamp when this media buy was confirmed by the seller. A successful create_media_buy response constitutes order confirmation.&#34;
         ),
     ] = None
     creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+        AwareDatetime | None, Field(description=&#34;ISO 8601 timestamp for creative upload deadline&#34;)
     ] = None
     revision: Annotated[
         int | None,
         Field(
-            description=&#39;Initial revision number for this media buy. Use in subsequent update_media_buy requests for optimistic concurrency.&#39;,
+            description=&#34;Initial revision number for this media buy. Use in subsequent update_media_buy requests for optimistic concurrency.&#34;,
             ge=1,
         ),
     ] = None
     valid_actions: Annotated[
         list[ValidAction] | None,
         Field(
-            description=&#39;Actions the buyer can perform on this media buy after creation. Saves a round-trip to get_media_buys.&#39;
+            description=&#34;Actions the buyer can perform on this media buy after creation. Saves a round-trip to get_media_buys.&#34;
         ),
     ] = None
     packages: Annotated[
         list[package.Package],
-        Field(description=&#39;Array of created packages with complete state information&#39;),
+        Field(description=&#34;Array of created packages with complete state information&#34;),
     ]
     planned_delivery: Annotated[
         planned_delivery_1.PlannedDelivery | None,
@@ -3259,7 +3259,7 @@ validated to form a valid model.</p>
     ] = None
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -3360,11 +3360,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
         list[error.Error],
-        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
+        Field(description=&#34;Array of errors explaining why the operation failed&#34;, min_length=1),
     ]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -4432,23 +4432,23 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class GetAccountFinancialsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     account: Annotated[
         account_ref.AccountReference,
-        Field(description=&#39;Account reference, echoed from the request&#39;),
+        Field(description=&#34;Account reference, echoed from the request&#34;),
     ]
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code for all monetary amounts in this response&#39;,
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code for all monetary amounts in this response&#34;,
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     period: Annotated[
         date_range.DateRange,
         Field(
-            description=&#39;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#39;
+            description=&#34;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#34;
         ),
     ]
     timezone: Annotated[
@@ -4457,28 +4457,28 @@ attributes &ndash; see the documentation for details.</p></div>
             description=&#34;IANA timezone of the seller&#39;s billing day boundaries (e.g., &#39;America/New_York&#39;). All dates in this response — period, invoice periods, due dates — are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day.&#34;
         ),
     ]
-    spend: Annotated[Spend | None, Field(description=&#39;Spend summary for the period&#39;)] = None
+    spend: Annotated[Spend | None, Field(description=&#34;Spend summary for the period&#34;)] = None
     credit: Annotated[
         Credit | None,
         Field(
-            description=&#39;Credit status. Present for credit-based accounts (payment_terms like net_30).&#39;
+            description=&#34;Credit status. Present for credit-based accounts (payment_terms like net_30).&#34;
         ),
     ] = None
     balance: Annotated[
-        Balance | None, Field(description=&#39;Prepay balance. Present for prepay accounts.&#39;)
+        Balance | None, Field(description=&#34;Prepay balance. Present for prepay accounts.&#34;)
     ] = None
     payment_status: Annotated[
         PaymentStatus | None,
         Field(
-            description=&#39;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#39;
+            description=&#34;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#34;
         ),
     ] = None
     payment_terms: Annotated[
-        PaymentTerms | None, Field(description=&#39;Payment terms in effect for this account&#39;)
+        PaymentTerms | None, Field(description=&#34;Payment terms in effect for this account&#34;)
     ] = None
     invoices: Annotated[
         list[Invoice] | None,
-        Field(description=&#39;Recent invoices. Sellers may limit the number returned.&#39;),
+        Field(description=&#34;Recent invoices. Sellers may limit the number returned.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -4575,9 +4575,9 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
+    errors: Annotated[list[error.Error], Field(description=&#34;Operation-level errors&#34;, min_length=1)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>

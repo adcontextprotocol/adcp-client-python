@@ -56,11 +56,11 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Action(Enum):
-    created = &#39;created&#39;
-    updated = &#39;updated&#39;
-    unchanged = &#39;unchanged&#39;
-    failed = &#39;failed&#39;
-    deleted = &#39;deleted&#39;</code></pre>
+    created = &#34;created&#34;
+    updated = &#34;updated&#34;
+    unchanged = &#34;unchanged&#34;
+    failed = &#34;failed&#34;
+    deleted = &#34;deleted&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -136,55 +136,55 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Catalog(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    catalog_id: Annotated[str, Field(description=&#39;Catalog ID from the request&#39;)]
+    catalog_id: Annotated[str, Field(description=&#34;Catalog ID from the request&#34;)]
     action: Annotated[
-        Action, Field(description=&#39;Action taken for this catalog&#39;, title=&#39;Catalog Action&#39;)
+        Action, Field(description=&#34;Action taken for this catalog&#34;, title=&#34;Catalog Action&#34;)
     ]
     platform_id: Annotated[
-        str | None, Field(description=&#39;Platform-specific ID assigned to the catalog&#39;)
+        str | None, Field(description=&#34;Platform-specific ID assigned to the catalog&#34;)
     ] = None
     item_count: Annotated[
-        int | None, Field(description=&#39;Total number of items in the catalog after sync&#39;, ge=0)
+        int | None, Field(description=&#34;Total number of items in the catalog after sync&#34;, ge=0)
     ] = None
     items_approved: Annotated[
         int | None,
         Field(
-            description=&#39;Number of items approved by the platform. Populated when the platform performs item-level review.&#39;,
+            description=&#34;Number of items approved by the platform. Populated when the platform performs item-level review.&#34;,
             ge=0,
         ),
     ] = None
     items_pending: Annotated[
         int | None,
         Field(
-            description=&#39;Number of items pending platform review. Common for product catalogs where items must pass content policy checks.&#39;,
+            description=&#34;Number of items pending platform review. Common for product catalogs where items must pass content policy checks.&#34;,
             ge=0,
         ),
     ] = None
     items_rejected: Annotated[
         int | None,
         Field(
-            description=&#39;Number of items rejected by the platform. Check item_issues for rejection reasons.&#39;,
+            description=&#34;Number of items rejected by the platform. Check item_issues for rejection reasons.&#34;,
             ge=0,
         ),
     ] = None
     item_issues: Annotated[
         list[ItemIssue] | None,
         Field(
-            description=&#39;Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review.&#39;
+            description=&#34;Per-item issues reported by the platform (rejections, warnings). Only present when the platform performs item-level review.&#34;
         ),
     ] = None
     last_synced_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp of when the most recent sync was accepted by the platform&#39;
+            description=&#34;ISO 8601 timestamp of when the most recent sync was accepted by the platform&#34;
         ),
     ] = None
     next_fetch_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp of when the platform will next fetch the feed URL. Only present for URL-based catalogs with update_frequency.&#39;
+            description=&#34;ISO 8601 timestamp of when the platform will next fetch the feed URL. Only present for URL-based catalogs with update_frequency.&#34;
         ),
     ] = None
     changes: Annotated[
@@ -196,7 +196,7 @@ attributes &ndash; see the documentation for details.</p></div>
         Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
     ] = None
     warnings: Annotated[
-        list[str] | None, Field(description=&#39;Non-fatal warnings about this catalog&#39;)
+        list[str] | None, Field(description=&#34;Non-fatal warnings about this catalog&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -295,37 +295,37 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Error(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     code: Annotated[
         str,
         Field(
-            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;,
+            description=&#34;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#34;,
             max_length=64,
             min_length=1,
         ),
     ]
-    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
-    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
+    suggestion: Annotated[str | None, Field(description=&#34;Suggested fix for the error&#34;)] = None
     retry_after: Annotated[
         float | None,
         Field(
-            description=&#39;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#39;,
+            description=&#34;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#34;,
             ge=1.0,
             le=3600.0,
         ),
     ] = None
     details: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+        dict[str, Any] | None, Field(description=&#34;Additional task-specific error details&#34;)
     ] = None
     recovery: Annotated[
         Recovery | None,
         Field(
-            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+            description=&#34;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -346,7 +346,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32">Error32</a></li>
+<li><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33">Error33</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -394,8 +394,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32"><code class="flex name class">
-<span>class <span class="ident">Error32</span></span>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33"><code class="flex name class">
+<span>class <span class="ident">Error33</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -403,7 +403,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Error32(Error):
+<pre><code class="python">class Error33(Error):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -424,7 +424,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -451,11 +451,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ItemIssue(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    item_id: Annotated[str, Field(description=&#39;ID of the catalog item with an issue&#39;)]
-    status: Annotated[Status, Field(description=&#39;Item review status&#39;, title=&#39;Catalog Item Status&#39;)]
-    reasons: Annotated[list[str] | None, Field(description=&#39;Reasons for rejection or warning&#39;)] = (
+    item_id: Annotated[str, Field(description=&#34;ID of the catalog item with an issue&#34;)]
+    status: Annotated[Status, Field(description=&#34;Item review status&#34;, title=&#34;Catalog Item Status&#34;)]
+    reasons: Annotated[list[str] | None, Field(description=&#34;Reasons for rejection or warning&#34;)] = (
         None
     )</code></pre>
 </details>
@@ -514,9 +514,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Recovery(Enum):
-    transient = &#39;transient&#39;
-    correctable = &#39;correctable&#39;
-    terminal = &#39;terminal&#39;</code></pre>
+    transient = &#34;transient&#34;
+    correctable = &#34;correctable&#34;
+    terminal = &#34;terminal&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -583,10 +583,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    approved = &#39;approved&#39;
-    pending = &#39;pending&#39;
-    rejected = &#39;rejected&#39;
-    warning = &#39;warning&#39;</code></pre>
+    approved = &#34;approved&#34;
+    pending = &#34;pending&#34;
+    rejected = &#34;rejected&#34;
+    warning = &#34;warning&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -658,10 +658,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SyncCatalogsResponse3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+        bool | None, Field(description=&#34;Whether this was a dry run (no actual changes made)&#34;)
     ] = None
     catalogs: Annotated[
         list[Catalog],
@@ -671,20 +671,20 @@ attributes &ndash; see the documentation for details.</p></div>
     ]
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -752,12 +752,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCatalogsResponse4(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
-        list[Error32],
+        list[Error33],
         Field(
-            description=&#39;Operation-level errors that prevented processing any catalogs (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            description=&#34;Operation-level errors that prevented processing any catalogs (e.g., authentication failure, service unavailable, invalid request format)&#34;,
             min_length=1,
         ),
     ]
@@ -765,14 +765,14 @@ validated to form a valid model.</p>
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -797,7 +797,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.SyncCatalogsResponse4.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32">Error32</a>]</code></dt>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.SyncCatalogsResponse4.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33">Error33</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -879,9 +879,9 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32">Error32</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33">Error33</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error32.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_response.Error33.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

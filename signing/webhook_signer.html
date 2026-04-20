@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
-<title>adcp.types.generated_poc.core.collection_list_ref API documentation</title>
-<meta name="description" content="">
+<title>adcp.signing.webhook_signer API documentation</title>
+<meta name="description" content="Signer for the AdCP webhook-signing profile (adcp#2423) …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -33,89 +33,84 @@ el.replaceWith(d);
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>adcp.types.generated_poc.core.collection_list_ref</code></h1>
+<h1 class="title">Module <code>adcp.signing.webhook_signer</code></h1>
 </header>
 <section id="section-intro">
+<p>Signer for the AdCP webhook-signing profile (adcp#2423).</p>
+<p>Same 9421 substrate as :func:<code><a title="adcp.signing.signer.sign_request" href="signer.html#adcp.signing.signer.sign_request">sign_request()</a></code>, with three
+values pinned by the webhook profile:</p>
+<ul>
+<li><code>tag</code> — <code>adcp/webhook-signing/v1</code></li>
+<li><code>cover_content_digest</code> — always <code>True</code> (body IS the event)</li>
+<li>the signing JWK MUST have <code>adcp_use: "webhook-signing"</code> in the sender's
+published <code>adagents.json</code>; verifying this at publish time is out of scope
+for the signer, but callers should enforce it when registering their keyring.</li>
+</ul>
 </section>
 <section>
 </section>
 <section>
 </section>
 <section>
-</section>
-<section>
-<h2 class="section-title" id="header-classes">Classes</h2>
+<h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference"><code class="flex name class">
-<span>class <span class="ident">CollectionListReference</span></span>
-<span>(</span><span>**data: Any)</span>
+<dt id="adcp.signing.webhook_signer.sign_webhook"><code class="name flex">
+<span>def <span class="ident">sign_webhook</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>created: int | None = None,<br>expires_in_seconds: int = 300,<br>nonce: str | None = None,<br>label: str = 'sig1') ‑> <a title="adcp.signing.signer.SignedHeaders" href="signer.html#adcp.signing.signer.SignedHeaders">SignedHeaders</a></span>
 </code></dt>
 <dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class CollectionListReference(AdCPBaseModel):
-    model_config = ConfigDict(
-        extra=&#34;forbid&#34;,
-    )
-    agent_url: Annotated[AnyUrl, Field(description=&#34;URL of the agent managing the collection list&#34;)]
-    list_id: Annotated[
-        str, Field(description=&#34;Identifier for the collection list within the agent&#34;, min_length=1)
-    ]
-    auth_token: Annotated[
-        str | None,
-        Field(
-            description=&#34;JWT or other authorization token for accessing the list. Optional if the list is public or caller has implicit access.&#34;
-        ),
-    ] = None</code></pre>
+<pre><code class="python">def sign_webhook(
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+    private_key: PrivateKey,
+    key_id: str,
+    alg: str,
+    created: int | None = None,
+    expires_in_seconds: int = DEFAULT_EXPIRES_IN_SECONDS,
+    nonce: str | None = None,
+    label: str = SIG_LABEL_DEFAULT,
+) -&gt; SignedHeaders:
+    &#34;&#34;&#34;Sign an outgoing webhook POST per adcp/webhook-signing/v1.
+
+    ``cover_content_digest=True`` and ``tag=WEBHOOK_TAG`` are pinned. The
+    caller attaches ``SignedHeaders.as_dict()`` to the outgoing HTTP request.
+
+    The ``method`` is normally ``&#34;POST&#34;`` for webhook delivery; passed through
+    unchanged so callers signing a retried ``PUT`` or variant delivery verb
+    are not forced into an extra translation.
+    &#34;&#34;&#34;
+    return sign_request(
+        method=method,
+        url=url,
+        headers=headers,
+        body=body,
+        private_key=private_key,
+        key_id=key_id,
+        alg=alg,
+        cover_content_digest=True,
+        created=created,
+        expires_in_seconds=expires_in_seconds,
+        nonce=nonce,
+        tag=WEBHOOK_TAG,
+        label=label,
+    )</code></pre>
 </details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.agent_url"><code class="name">var <span class="ident">agent_url</span> : pydantic.networks.AnyUrl</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.auth_token"><code class="name">var <span class="ident">auth_token</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.list_id"><code class="name">var <span class="ident">list_id</span> : str</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
+<div class="desc"><p>Sign an outgoing webhook POST per adcp/webhook-signing/v1.</p>
+<p><code>cover_content_digest=True</code> and <code>tag=WEBHOOK_TAG</code> are pinned. The
+caller attaches <code>SignedHeaders.as_dict()</code> to the outgoing HTTP request.</p>
+<p>The <code>method</code> is normally <code>"POST"</code> for webhook delivery; passed through
+unchanged so callers signing a retried <code>PUT</code> or variant delivery verb
+are not forced into an extra translation.</p></div>
 </dd>
 </dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-</dl>
+</section>
+<section>
 </section>
 </article>
 <nav id="sidebar">
@@ -125,20 +120,12 @@ validated to form a valid model.</p>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="adcp.types.generated_poc.core" href="index.html">adcp.types.generated_poc.core</a></code></li>
+<li><code><a title="adcp.signing" href="index.html">adcp.signing</a></code></li>
 </ul>
 </li>
-<li><h3><a href="#header-classes">Classes</a></h3>
-<ul>
-<li>
-<h4><code><a title="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference" href="#adcp.types.generated_poc.core.collection_list_ref.CollectionListReference">CollectionListReference</a></code></h4>
+<li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.agent_url" href="#adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.agent_url">agent_url</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.auth_token" href="#adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.auth_token">auth_token</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.list_id" href="#adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.list_id">list_id</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.model_config" href="#adcp.types.generated_poc.core.collection_list_ref.CollectionListReference.model_config">model_config</a></code></li>
-</ul>
-</li>
+<li><code><a title="adcp.signing.webhook_signer.sign_webhook" href="#adcp.signing.webhook_signer.sign_webhook">sign_webhook</a></code></li>
 </ul>
 </li>
 </ul>

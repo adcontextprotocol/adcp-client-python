@@ -56,11 +56,11 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Action(Enum):
-    created = &#39;created&#39;
-    updated = &#39;updated&#39;
-    unchanged = &#39;unchanged&#39;
-    deleted = &#39;deleted&#39;
-    failed = &#39;failed&#39;</code></pre>
+    created = &#34;created&#34;
+    updated = &#34;updated&#34;
+    unchanged = &#34;unchanged&#34;
+    deleted = &#34;deleted&#34;
+    failed = &#34;failed&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -136,15 +136,15 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Audience(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     audience_id: Annotated[
         str, Field(description=&#34;Audience ID from the request (buyer&#39;s identifier)&#34;)
     ]
-    name: Annotated[str | None, Field(description=&#39;Name of the audience&#39;)] = None
+    name: Annotated[str | None, Field(description=&#34;Name of the audience&#34;)] = None
     seller_id: Annotated[
         str | None,
-        Field(description=&#39;Seller-assigned identifier for this audience in their ad platform&#39;),
+        Field(description=&#34;Seller-assigned identifier for this audience in their ad platform&#34;),
     ] = None
     action: Annotated[
         Action,
@@ -161,14 +161,14 @@ attributes &ndash; see the documentation for details.</p></div>
     uploaded_count: Annotated[
         int | None,
         Field(
-            description=&#39;Number of members submitted in this sync operation (delta, not cumulative). In discovery-only calls (no audiences array), this is 0.&#39;,
+            description=&#34;Number of members submitted in this sync operation (delta, not cumulative). In discovery-only calls (no audiences array), this is 0.&#34;,
             ge=0,
         ),
     ] = None
     total_uploaded_count: Annotated[
         int | None,
         Field(
-            description=&#39;Cumulative number of members uploaded across all syncs for this audience. Compare with matched_count to calculate match rate (matched_count / total_uploaded_count). Populated when the seller tracks cumulative upload counts.&#39;,
+            description=&#34;Cumulative number of members uploaded across all syncs for this audience. Compare with matched_count to calculate match rate (matched_count / total_uploaded_count). Populated when the seller tracks cumulative upload counts.&#34;,
             ge=0,
         ),
     ] = None
@@ -190,14 +190,14 @@ attributes &ndash; see the documentation for details.</p></div>
     match_breakdown: Annotated[
         list[MatchBreakdownItem] | None,
         Field(
-            description=&#39;Per-identifier-type match results. Shows which ID types are resolving and at what rate. Helps buyers decide which identifiers to prioritize. Populated when the seller can report per-type matching. Omitted when the seller only supports aggregate match counts.&#39;,
+            description=&#34;Per-identifier-type match results. Shows which ID types are resolving and at what rate. Helps buyers decide which identifiers to prioritize. Populated when the seller can report per-type matching. Omitted when the seller only supports aggregate match counts.&#34;,
             min_length=1,
         ),
     ] = None
     last_synced_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp of when the most recent sync operation was accepted by the platform. Useful for agents reasoning about audience freshness. Omitted if the seller does not track this.&#39;
+            description=&#34;ISO 8601 timestamp of when the most recent sync operation was accepted by the platform. Useful for agents reasoning about audience freshness. Omitted if the seller does not track this.&#34;
         ),
     ] = None
     minimum_size: Annotated[
@@ -308,37 +308,37 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Error(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     code: Annotated[
         str,
         Field(
-            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;,
+            description=&#34;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#34;,
             max_length=64,
             min_length=1,
         ),
     ]
-    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
-    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
+    suggestion: Annotated[str | None, Field(description=&#34;Suggested fix for the error&#34;)] = None
     retry_after: Annotated[
         float | None,
         Field(
-            description=&#39;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#39;,
+            description=&#34;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#34;,
             ge=1.0,
             le=3600.0,
         ),
     ] = None
     details: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+        dict[str, Any] | None, Field(description=&#34;Additional task-specific error details&#34;)
     ] = None
     recovery: Annotated[
         Recovery | None,
         Field(
-            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+            description=&#34;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -359,7 +359,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30" href="#adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30">Error30</a></li>
+<li><a title="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31" href="#adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31">Error31</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -407,8 +407,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30"><code class="flex name class">
-<span>class <span class="ident">Error30</span></span>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31"><code class="flex name class">
+<span>class <span class="ident">Error31</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -416,7 +416,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Error30(Error):
+<pre><code class="python">class Error31(Error):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -437,7 +437,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -463,15 +463,15 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class IdType(Enum):
-    hashed_email = &#39;hashed_email&#39;
-    hashed_phone = &#39;hashed_phone&#39;
-    rampid = &#39;rampid&#39;
-    id5 = &#39;id5&#39;
-    uid2 = &#39;uid2&#39;
-    euid = &#39;euid&#39;
-    pairid = &#39;pairid&#39;
-    maid = &#39;maid&#39;
-    other = &#39;other&#39;</code></pre>
+    hashed_email = &#34;hashed_email&#34;
+    hashed_phone = &#34;hashed_phone&#34;
+    rampid = &#34;rampid&#34;
+    id5 = &#34;id5&#34;
+    uid2 = &#34;uid2&#34;
+    euid = &#34;euid&#34;
+    pairid = &#34;pairid&#34;
+    maid = &#34;maid&#34;
+    other = &#34;other&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -563,33 +563,33 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class MatchBreakdownItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     id_type: Annotated[
         IdType,
         Field(
-            description=&#39;Identifier type. Combines hashed PII types (hashed_email, hashed_phone) with universal ID types (rampid, uid2, maid, etc.).&#39;,
-            title=&#39;Match ID Type&#39;,
+            description=&#34;Identifier type. Combines hashed PII types (hashed_email, hashed_phone) with universal ID types (rampid, uid2, maid, etc.).&#34;,
+            title=&#34;Match ID Type&#34;,
         ),
     ]
     submitted: Annotated[
         int,
         Field(
-            description=&#39;Cumulative number of members submitted with this identifier type across all syncs (matches total_uploaded_count semantics, not uploaded_count). Compare with matched to calculate per-type match rate.&#39;,
+            description=&#34;Cumulative number of members submitted with this identifier type across all syncs (matches total_uploaded_count semantics, not uploaded_count). Compare with matched to calculate per-type match rate.&#34;,
             ge=0,
         ),
     ]
     matched: Annotated[
         int,
         Field(
-            description=&#39;Cumulative number of members matched via this identifier type across all syncs.&#39;,
+            description=&#34;Cumulative number of members matched via this identifier type across all syncs.&#34;,
             ge=0,
         ),
     ]
     match_rate: Annotated[
         float,
         Field(
-            description=&#39;Match rate for this identifier type (matched / submitted). Server-authoritative — consumers should prefer this value over computing their own.&#39;,
+            description=&#34;Match rate for this identifier type (matched / submitted). Server-authoritative — consumers should prefer this value over computing their own.&#34;,
             ge=0.0,
             le=1.0,
         ),
@@ -654,9 +654,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Recovery(Enum):
-    transient = &#39;transient&#39;
-    correctable = &#39;correctable&#39;
-    terminal = &#39;terminal&#39;</code></pre>
+    transient = &#34;transient&#34;
+    correctable = &#34;correctable&#34;
+    terminal = &#34;terminal&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -723,9 +723,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    processing = &#39;processing&#39;
-    ready = &#39;ready&#39;
-    too_small = &#39;too_small&#39;</code></pre>
+    processing = &#34;processing&#34;
+    ready = &#34;ready&#34;
+    too_small = &#34;too_small&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -793,27 +793,27 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SyncAudiencesResponse3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     audiences: Annotated[
-        list[Audience], Field(description=&#39;Results for each audience on the account&#39;)
+        list[Audience], Field(description=&#34;Results for each audience on the account&#34;)
     ]
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -877,24 +877,24 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncAudiencesResponse4(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
-        list[Error30],
-        Field(description=&#39;Operation-level errors that prevented processing&#39;, min_length=1),
+        list[Error31],
+        Field(description=&#34;Operation-level errors that prevented processing&#34;, min_length=1),
     ]
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -919,7 +919,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.SyncAudiencesResponse4.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30" href="#adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30">Error30</a>]</code></dt>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.SyncAudiencesResponse4.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31" href="#adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31">Error31</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1001,9 +1001,9 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30" href="#adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30">Error30</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31" href="#adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31">Error31</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error30.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31.model_config" href="#adcp.types.generated_poc.bundled.media_buy.sync_audiences_response.Error31.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

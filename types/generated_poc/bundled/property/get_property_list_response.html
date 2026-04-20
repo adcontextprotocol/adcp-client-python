@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Account(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     account_id: Annotated[
         str,
         Field(
-            description=&#39;Seller-assigned account identifier (from sync_accounts or list_accounts)&#39;
+            description=&#34;Seller-assigned account identifier (from sync_accounts or list_accounts)&#34;
         ),
     ]</code></pre>
 </details>
@@ -114,31 +114,31 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Account32(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     brand: Annotated[
         Brand,
         Field(
-            description=&#39;Brand reference identifying the advertiser&#39;,
+            description=&#34;Brand reference identifying the advertiser&#34;,
             examples=[
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
-                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;glow&#34;},
+                {&#34;domain&#34;: &#34;acme-corp.com&#34;},
             ],
-            title=&#39;Brand Reference&#39;,
+            title=&#34;Brand Reference&#34;,
         ),
     ]
     operator: Annotated[
         str,
         Field(
             description=&#34;Domain of the entity operating on the brand&#39;s behalf. When the brand operates directly, this is the brand&#39;s domain.&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     sandbox: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, references the sandbox account for this brand/operator pair. Defaults to false (production account).&#39;
+            description=&#34;When true, references the sandbox account for this brand/operator pair. Defaults to false (production account).&#34;
         ),
     ] = False</code></pre>
 </details>
@@ -198,17 +198,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BaseProperties(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     selection_type: Annotated[
-        Literal[&#39;publisher_tags&#39;],
-        Field(description=&#39;Discriminator indicating selection by property tags within a publisher&#39;),
+        Literal[&#34;publisher_tags&#34;],
+        Field(description=&#34;Discriminator indicating selection by property tags within a publisher&#34;),
     ]
     publisher_domain: Annotated[
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;raptive.com&#39;)&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     tags: Annotated[
@@ -275,19 +275,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BaseProperties10(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     selection_type: Annotated[
-        Literal[&#39;publisher_ids&#39;],
+        Literal[&#34;publisher_ids&#34;],
         Field(
-            description=&#39;Discriminator indicating selection by specific property IDs within a publisher&#39;
+            description=&#34;Discriminator indicating selection by specific property IDs within a publisher&#34;
         ),
     ]
     publisher_domain: Annotated[
         str,
         Field(
             description=&#34;Domain where publisher&#39;s adagents.json is hosted (e.g., &#39;raptive.com&#39;)&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     property_ids: Annotated[
@@ -351,15 +351,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BaseProperties11(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     selection_type: Annotated[
-        Literal[&#39;identifiers&#39;],
-        Field(description=&#39;Discriminator indicating selection by direct identifiers&#39;),
+        Literal[&#34;identifiers&#34;],
+        Field(description=&#34;Discriminator indicating selection by direct identifiers&#34;),
     ]
     identifiers: Annotated[
         list[Identifier],
-        Field(description=&#39;Direct property identifiers (domains, app IDs, etc.)&#39;, min_length=1),
+        Field(description=&#34;Direct property identifiers (domains, app IDs, etc.)&#34;, min_length=1),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -416,15 +416,15 @@ validated to form a valid model.</p>
     root: Annotated[
         BaseProperties | BaseProperties10 | BaseProperties11,
         Field(
-            description=&#39;A source of properties for a property list. Supports three selection patterns: publisher with tags, publisher with property IDs, or direct identifiers.&#39;,
-            discriminator=&#39;selection_type&#39;,
-            title=&#39;Base Property Source&#39;,
+            description=&#34;A source of properties for a property list. Supports three selection patterns: publisher with tags, publisher with property IDs, or direct identifiers.&#34;,
+            discriminator=&#34;selection_type&#34;,
+            title=&#34;Base Property Source&#34;,
         ),
     ]
 
     def __getattr__(self, name: str) -&gt; Any:
         &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
+        if name.startswith(&#34;_&#34;):
             raise AttributeError(name)
         return getattr(self.root, name)</code></pre>
 </details>
@@ -478,22 +478,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Brand(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     domain: Annotated[
         str,
         Field(
             description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     brand_id: Annotated[
         str | None,
         Field(
-            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
-            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Brand ID&#39;,
+            description=&#34;Brand identifier within the house portfolio. Optional for single-brand domains.&#34;,
+            examples=[&#34;tide&#34;, &#34;cheerios&#34;, &#34;air_jordan&#34;, &#34;nike&#34;, &#34;pampers&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Brand ID&#34;,
         ),
     ] = None
     industries: Annotated[
@@ -569,22 +569,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Brand24(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     domain: Annotated[
         str,
         Field(
             description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     brand_id: Annotated[
         str | None,
         Field(
-            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
-            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Brand ID&#39;,
+            description=&#34;Brand identifier within the house portfolio. Optional for single-brand domains.&#34;,
+            examples=[&#34;tide&#34;, &#34;cheerios&#34;, &#34;air_jordan&#34;, &#34;nike&#34;, &#34;pampers&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Brand ID&#34;,
         ),
     ] = None
     industries: Annotated[
@@ -659,26 +659,26 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ChannelsAnyEnum(Enum):
-    display = &#39;display&#39;
-    olv = &#39;olv&#39;
-    social = &#39;social&#39;
-    search = &#39;search&#39;
-    ctv = &#39;ctv&#39;
-    linear_tv = &#39;linear_tv&#39;
-    radio = &#39;radio&#39;
-    streaming_audio = &#39;streaming_audio&#39;
-    podcast = &#39;podcast&#39;
-    dooh = &#39;dooh&#39;
-    ooh = &#39;ooh&#39;
-    print = &#39;print&#39;
-    cinema = &#39;cinema&#39;
-    email = &#39;email&#39;
-    gaming = &#39;gaming&#39;
-    retail_media = &#39;retail_media&#39;
-    influencer = &#39;influencer&#39;
-    affiliate = &#39;affiliate&#39;
-    product_placement = &#39;product_placement&#39;
-    sponsored_intelligence = &#39;sponsored_intelligence&#39;</code></pre>
+    display = &#34;display&#34;
+    olv = &#34;olv&#34;
+    social = &#34;social&#34;
+    search = &#34;search&#34;
+    ctv = &#34;ctv&#34;
+    linear_tv = &#34;linear_tv&#34;
+    radio = &#34;radio&#34;
+    streaming_audio = &#34;streaming_audio&#34;
+    podcast = &#34;podcast&#34;
+    dooh = &#34;dooh&#34;
+    ooh = &#34;ooh&#34;
+    print = &#34;print&#34;
+    cinema = &#34;cinema&#34;
+    email = &#34;email&#34;
+    gaming = &#34;gaming&#34;
+    retail_media = &#34;retail_media&#34;
+    influencer = &#34;influencer&#34;
+    affiliate = &#34;affiliate&#34;
+    product_placement = &#34;product_placement&#34;
+    sponsored_intelligence = &#34;sponsored_intelligence&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -813,7 +813,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CountriesAllItem(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -911,7 +911,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DataSubjectContestation(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     url: AnyUrl
     email: EmailStr | None = None
@@ -977,7 +977,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DataSubjectContestation59(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     url: AnyUrl | None = None
     email: EmailStr
@@ -1181,22 +1181,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class FeatureRequirement(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     feature_id: Annotated[
-        str, Field(description=&#39;Feature to evaluate (discovered via get_adcp_capabilities)&#39;)
+        str, Field(description=&#34;Feature to evaluate (discovered via get_adcp_capabilities)&#34;)
     ]
     min_value: Annotated[
         float | None,
-        Field(description=&#39;Minimum numeric value required (for quantitative features)&#39;),
+        Field(description=&#34;Minimum numeric value required (for quantitative features)&#34;),
     ] = None
     max_value: Annotated[
-        float | None, Field(description=&#39;Maximum numeric value allowed (for quantitative features)&#39;)
+        float | None, Field(description=&#34;Maximum numeric value allowed (for quantitative features)&#34;)
     ] = None
     allowed_values: Annotated[
         list[Any] | None,
         Field(
-            description=&#39;Values that pass the requirement (for binary/categorical features)&#39;,
+            description=&#34;Values that pass the requirement (for binary/categorical features)&#34;,
             min_length=1,
         ),
     ] = None
@@ -1209,7 +1209,7 @@ validated to form a valid model.</p>
     policy_id: Annotated[
         str | None,
         Field(
-            description=&#39;Optional attribution — when this requirement exists to satisfy a specific policy, policy_id references the authorizing PolicyEntry. Reserved field; populated by producers in 3.1 and later (see issue #2303). Governance agents MAY ignore in 3.0.&#39;
+            description=&#34;Optional attribution — when this requirement exists to satisfy a specific policy, policy_id references the authorizing PolicyEntry. Reserved field; populated by producers in 3.1 and later (see issue #2303). Governance agents MAY ignore in 3.0.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -1281,35 +1281,35 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Filters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     countries_all: Annotated[
         list[CountriesAllItem] | None,
         Field(
-            description=&#39;Property must have feature data for ALL listed countries (ISO codes). When omitted, no country restriction is applied.&#39;,
+            description=&#34;Property must have feature data for ALL listed countries (ISO codes). When omitted, no country restriction is applied.&#34;,
             min_length=1,
         ),
     ] = None
     channels_any: Annotated[
         list[ChannelsAnyEnum] | None,
         Field(
-            description=&#39;Property must support ANY of the listed channels. When omitted, no channel restriction is applied.&#39;,
+            description=&#34;Property must support ANY of the listed channels. When omitted, no channel restriction is applied.&#34;,
             min_length=1,
         ),
     ] = None
     property_types: Annotated[
-        list[PropertyType] | None, Field(description=&#39;Filter to these property types&#39;, min_length=1)
+        list[PropertyType] | None, Field(description=&#34;Filter to these property types&#34;, min_length=1)
     ] = None
     feature_requirements: Annotated[
         list[FeatureRequirement] | None,
         Field(
-            description=&#39;Feature-based requirements. Property must pass ALL requirements (AND logic).&#39;,
+            description=&#34;Feature-based requirements. Property must pass ALL requirements (AND logic).&#34;,
             min_length=1,
         ),
     ] = None
     exclude_identifiers: Annotated[
         list[ExcludeIdentifier] | None,
-        Field(description=&#39;Identifiers to always exclude from results&#39;, min_length=1),
+        Field(description=&#34;Identifiers to always exclude from results&#34;, min_length=1),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1376,32 +1376,32 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetPropertyListResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     list: Annotated[
         List,
-        Field(description=&#39;The property list metadata (always returned)&#39;, title=&#39;Property List&#39;),
+        Field(description=&#34;The property list metadata (always returned)&#34;, title=&#34;Property List&#34;),
     ]
     identifiers: Annotated[
         list[Identifier5] | None,
         Field(
-            description=&#39;Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.&#39;
+            description=&#34;Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.&#34;
         ),
     ] = None
     pagination: Annotated[
         Pagination | None,
         Field(
-            description=&#39;Standard cursor-based pagination metadata for list responses&#39;,
-            title=&#39;Pagination Response&#39;,
+            description=&#34;Standard cursor-based pagination metadata for list responses&#34;,
+            title=&#34;Pagination Response&#34;,
         ),
     ] = None
     resolved_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When the list was resolved&#39;)
+        AwareDatetime | None, Field(description=&#34;When the list was resolved&#34;)
     ] = None
     cache_valid_until: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;Cache expiration timestamp. Re-fetch the list after this time to get updated identifiers.&#39;
+            description=&#34;Cache expiration timestamp. Re-fetch the list after this time to get updated identifiers.&#34;
         ),
     ] = None
     coverage_gaps: Annotated[
@@ -1414,14 +1414,14 @@ validated to form a valid model.</p>
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -1501,21 +1501,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Identifier(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     type: Annotated[
         Type,
         Field(
-            description=&#39;Type of identifier&#39;,
+            description=&#34;Type of identifier&#34;,
             examples=[
-                &#39;domain&#39;,
-                &#39;ios_bundle&#39;,
-                &#39;venue_id&#39;,
-                &#39;apple_podcast_id&#39;,
-                &#39;station_id&#39;,
-                &#39;facility_id&#39;,
+                &#34;domain&#34;,
+                &#34;ios_bundle&#34;,
+                &#34;venue_id&#34;,
+                &#34;apple_podcast_id&#34;,
+                &#34;station_id&#34;,
+                &#34;facility_id&#34;,
             ],
-            title=&#39;Property Identifier Types&#39;,
+            title=&#34;Property Identifier Types&#34;,
         ),
     ]
     value: Annotated[
@@ -1628,8 +1628,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class IfNotCovered(Enum):
-    exclude = &#39;exclude&#39;
-    include = &#39;include&#39;</code></pre>
+    exclude = &#34;exclude&#34;
+    include = &#34;include&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1693,31 +1693,31 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class List(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    list_id: Annotated[str, Field(description=&#39;Unique identifier for this property list&#39;)]
-    name: Annotated[str, Field(description=&#39;Human-readable name for the list&#39;)]
+    list_id: Annotated[str, Field(description=&#34;Unique identifier for this property list&#34;)]
+    name: Annotated[str, Field(description=&#34;Human-readable name for the list&#34;)]
     description: Annotated[str | None, Field(description=&#34;Description of the list&#39;s purpose&#34;)] = (
         None
     )
     account: Annotated[
         Account | Account32 | None,
         Field(
-            description=&#39;Account that owns this list. Returned as account_id form (seller-assigned identifier).&#39;,
+            description=&#34;Account that owns this list. Returned as account_id form (seller-assigned identifier).&#34;,
             examples=[
-                {&#39;account_id&#39;: &#39;acc_acme_001&#39;},
-                {&#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;}, &#39;operator&#39;: &#39;acme-corp.com&#39;},
+                {&#34;account_id&#34;: &#34;acc_acme_001&#34;},
+                {&#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;}, &#34;operator&#34;: &#34;acme-corp.com&#34;},
                 {
-                    &#39;brand&#39;: {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                    &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
+                    &#34;brand&#34;: {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                    &#34;operator&#34;: &#34;pinnacle-media.com&#34;,
                 },
                 {
-                    &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
-                    &#39;operator&#39;: &#39;acme-corp.com&#39;,
-                    &#39;sandbox&#39;: True,
+                    &#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;},
+                    &#34;operator&#34;: &#34;acme-corp.com&#34;,
+                    &#34;sandbox&#34;: True,
                 },
             ],
-            title=&#39;Account Reference&#39;,
+            title=&#34;Account Reference&#34;,
         ),
     ] = None
     base_properties: Annotated[
@@ -1729,47 +1729,47 @@ attributes &ndash; see the documentation for details.</p></div>
     filters: Annotated[
         Filters | None,
         Field(
-            description=&#39;Dynamic filters applied when resolving the list&#39;,
-            title=&#39;Property List Filters&#39;,
+            description=&#34;Dynamic filters applied when resolving the list&#34;,
+            title=&#34;Property List Filters&#34;,
         ),
     ] = None
     brand: Annotated[
         Brand24 | None,
         Field(
-            description=&#39;Brand reference used to automatically apply appropriate rules. Resolved to full brand identity at execution time.&#39;,
+            description=&#34;Brand reference used to automatically apply appropriate rules. Resolved to full brand identity at execution time.&#34;,
             examples=[
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
-                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;glow&#34;},
+                {&#34;domain&#34;: &#34;acme-corp.com&#34;},
             ],
-            title=&#39;Brand Reference&#39;,
+            title=&#34;Brand Reference&#34;,
         ),
     ] = None
     webhook_url: Annotated[
         AnyUrl | None,
-        Field(description=&#39;URL to receive notifications when the resolved list changes&#39;),
+        Field(description=&#34;URL to receive notifications when the resolved list changes&#34;),
     ] = None
     cache_duration_hours: Annotated[
         int | None,
         Field(
-            description=&#39;Recommended cache duration for resolved list. Consumers should re-fetch after this period.&#39;,
+            description=&#34;Recommended cache duration for resolved list. Consumers should re-fetch after this period.&#34;,
             ge=1,
         ),
     ] = 24
-    created_at: Annotated[AwareDatetime | None, Field(description=&#39;When the list was created&#39;)] = (
+    created_at: Annotated[AwareDatetime | None, Field(description=&#34;When the list was created&#34;)] = (
         None
     )
     updated_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When the list was last modified&#39;)
+        AwareDatetime | None, Field(description=&#34;When the list was last modified&#34;)
     ] = None
     property_count: Annotated[
         int | None,
-        Field(description=&#39;Number of properties in the resolved list (at time of last resolution)&#39;),
+        Field(description=&#34;Number of properties in the resolved list (at time of last resolution)&#34;),
     ] = None
     pricing_options: Annotated[
         list[PricingOption] | None,
         Field(
-            description=&#39;Pricing options for this property list. Present when the requesting account has a billing relationship with the list provider. The buyer passes the selected pricing_option_id in report_usage.&#39;,
+            description=&#34;Pricing options for this property list. Present when the requesting account has a billing relationship with the list provider. The buyer passes the selected pricing_option_id in report_usage.&#34;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -1859,6 +1859,64 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata"><code class="flex name class">
+<span>class <span class="ident">Metadata</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metadata(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#34;allow&#34;,
+    )
+    summary_for_operator: Annotated[
+        str | None,
+        Field(
+            description=&#34;One or two sentences describing the pricing construct in plain language, displayed to the buyer&#39;s operator when requesting approval. Should not repeat the top-level `description` verbatim — summarize the charge mechanic instead (e.g., &#39;Base $12 CPM plus $0.50 per qualifying post-view conversion, capped at $45 CPM&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata.summary_for_operator"><code class="name">var <span class="ident">summary_for_operator</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.Pagination"><code class="flex name class">
 <span>class <span class="ident">Pagination</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -1870,21 +1928,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     has_more: Annotated[
-        bool, Field(description=&#39;Whether more results are available beyond this page&#39;)
+        bool, Field(description=&#34;Whether more results are available beyond this page&#34;)
     ]
     cursor: Annotated[
         str | None,
         Field(
-            description=&#39;Opaque cursor to pass in the next request to fetch the next page. Only present when has_more is true.&#39;
+            description=&#34;Opaque cursor to pass in the next request to fetch the next page. Only present when has_more is true.&#34;
         ),
     ] = None
     total_count: Annotated[
         int | None,
         Field(
-            description=&#39;Total number of items matching the query across all pages. Optional because not all backends can efficiently compute this.&#39;,
+            description=&#34;Total number of items matching the query across all pages. Optional because not all backends can efficiently compute this.&#34;,
             ge=0,
         ),
     ] = None</code></pre>
@@ -1944,10 +2002,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Period(Enum):
-    monthly = &#39;monthly&#39;
-    quarterly = &#39;quarterly&#39;
-    annual = &#39;annual&#39;
-    campaign = &#39;campaign&#39;</code></pre>
+    monthly = &#34;monthly&#34;
+    quarterly = &#34;quarterly&#34;
+    annual = &#34;annual&#34;
+    campaign = &#34;campaign&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2018,19 +2076,29 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PricingOption(
-    RootModel[PricingOption116 | PricingOption117 | PricingOption118 | PricingOption119]
+    RootModel[
+        PricingOption137
+        | PricingOption138
+        | PricingOption139
+        | PricingOption1310
+        | PricingOption1311
+    ]
 ):
     root: Annotated[
-        PricingOption116 | PricingOption117 | PricingOption118 | PricingOption119,
+        PricingOption137
+        | PricingOption138
+        | PricingOption139
+        | PricingOption1310
+        | PricingOption1311,
         Field(
-            description=&#39;A pricing option offered by a vendor agent (signals, creative, governance). Combines pricing_option_id with the pricing model fields. Pass pricing_option_id in report_usage for billing verification. All vendor discovery responses return pricing_options as an array — vendors may offer multiple options (volume tiers, context-specific rates, different models per product line).&#39;,
-            title=&#39;Vendor Pricing Option&#39;,
+            description=&#34;A pricing option offered by a vendor agent (signals, creative, governance). Combines pricing_option_id with the pricing model fields. Pass pricing_option_id in report_usage for billing verification. All vendor discovery responses return pricing_options as an array — vendors may offer multiple options (volume tiers, context-specific rates, different models per product line).&#34;,
+            title=&#34;Vendor Pricing Option&#34;,
         ),
     ]
 
     def __getattr__(self, name: str) -&gt; Any:
         &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
+        if name.startswith(&#34;_&#34;):
             raise AttributeError(name)
         return getattr(self.root, name)</code></pre>
 </details>
@@ -2056,7 +2124,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[PricingOption116, PricingOption117, PricingOption118, PricingOption119]]</li>
+<li>pydantic.root_model.RootModel[Union[PricingOption137, PricingOption138, PricingOption139, PricingOption1310, PricingOption1311]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
@@ -2067,14 +2135,14 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116">PricingOption116</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117">PricingOption117</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118">PricingOption118</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119">PricingOption119</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137">PricingOption137</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138">PricingOption138</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139">PricingOption139</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310">PricingOption1310</a> | <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311">PricingOption1311</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111"><code class="flex name class">
-<span>class <span class="ident">PricingOption111</span></span>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131"><code class="flex name class">
+<span>class <span class="ident">PricingOption131</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2082,18 +2150,18 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption111(AdCPBaseModel):
+<pre><code class="python">class PricingOption131(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;cpm&#39;]
-    cpm: Annotated[float, Field(description=&#39;Cost per thousand impressions&#39;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    model: Literal[&#34;cpm&#34;]
+    cpm: Annotated[float, Field(description=&#34;Cost per thousand impressions&#34;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -2114,27 +2182,27 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116">PricingOption116</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137">PricingOption137</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.cpm"><code class="name">var <span class="ident">cpm</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.cpm"><code class="name">var <span class="ident">cpm</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model"><code class="name">var <span class="ident">model</span> : Literal['cpm']</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model"><code class="name">var <span class="ident">model</span> : Literal['cpm']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2150,8 +2218,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112"><code class="flex name class">
-<span>class <span class="ident">PricingOption112</span></span>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310"><code class="flex name class">
+<span>class <span class="ident">PricingOption1310</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2159,30 +2227,124 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption112(AdCPBaseModel):
+<pre><code class="python">class PricingOption1310(PricingOption134, PricingOption136):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134">PricingOption134</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136">PricingOption136</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134">PricingOption134</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311"><code class="flex name class">
+<span>class <span class="ident">PricingOption1311</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PricingOption1311(PricingOption135, PricingOption136):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135">PricingOption135</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136">PricingOption136</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135">PricingOption135</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132"><code class="flex name class">
+<span>class <span class="ident">PricingOption132</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PricingOption132(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;percent_of_media&#39;]
+    model: Literal[&#34;percent_of_media&#34;]
     percent: Annotated[
-        float, Field(description=&#39;Percentage of media spend, e.g. 15 = 15%&#39;, ge=0.0, le=100.0)
+        float, Field(description=&#34;Percentage of media spend, e.g. 15 = 15%&#34;, ge=0.0, le=100.0)
     ]
     max_cpm: Annotated[
         float | None,
         Field(
-            description=&#39;Optional CPM cap. When set, the effective charge is min(percent × media_spend_per_mille, max_cpm).&#39;,
+            description=&#34;Optional CPM cap. When set, the effective charge is min(percent × media_spend_per_mille, max_cpm).&#34;,
             ge=0.0,
         ),
     ] = None
     currency: Annotated[
         str,
-        Field(description=&#39;ISO 4217 currency code for the resulting charge&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+        Field(description=&#34;ISO 4217 currency code for the resulting charge&#34;, pattern=&#34;^[A-Z]{3}$&#34;),
     ]
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -2203,31 +2365,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117">PricingOption117</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138">PricingOption138</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.max_cpm"><code class="name">var <span class="ident">max_cpm</span> : float | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.max_cpm"><code class="name">var <span class="ident">max_cpm</span> : float | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model"><code class="name">var <span class="ident">model</span> : Literal['percent_of_media']</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model"><code class="name">var <span class="ident">model</span> : Literal['percent_of_media']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.percent"><code class="name">var <span class="ident">percent</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.percent"><code class="name">var <span class="ident">percent</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2243,8 +2405,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113"><code class="flex name class">
-<span>class <span class="ident">PricingOption113</span></span>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133"><code class="flex name class">
+<span>class <span class="ident">PricingOption133</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2252,19 +2414,19 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption113(AdCPBaseModel):
+<pre><code class="python">class PricingOption133(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;flat_fee&#39;]
-    amount: Annotated[float, Field(description=&#39;Fixed charge for the billing period&#39;, ge=0.0)]
-    period: Annotated[Period, Field(description=&#39;Billing period for the flat fee.&#39;)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    model: Literal[&#34;flat_fee&#34;]
+    amount: Annotated[float, Field(description=&#34;Fixed charge for the billing period&#34;, ge=0.0)]
+    period: Annotated[Period, Field(description=&#34;Billing period for the flat fee.&#34;)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -2285,31 +2447,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118">PricingOption118</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139">PricingOption139</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.amount"><code class="name">var <span class="ident">amount</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model"><code class="name">var <span class="ident">model</span> : Literal['flat_fee']</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model"><code class="name">var <span class="ident">model</span> : Literal['flat_fee']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Period" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Period">Period</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.period"><code class="name">var <span class="ident">period</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Period" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Period">Period</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2325,8 +2487,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114"><code class="flex name class">
-<span>class <span class="ident">PricingOption114</span></span>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134"><code class="flex name class">
+<span>class <span class="ident">PricingOption134</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2334,24 +2496,24 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption114(AdCPBaseModel):
+<pre><code class="python">class PricingOption134(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;per_unit&#39;]
+    model: Literal[&#34;per_unit&#34;]
     unit: Annotated[
         str,
         Field(
             description=&#34;What is counted — e.g. &#39;format&#39;, &#39;image&#39;, &#39;token&#39;, &#39;variant&#39;, &#39;render&#39;, &#39;evaluation&#39;.&#34;
         ),
     ]
-    unit_price: Annotated[float, Field(description=&#39;Cost per one unit&#39;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    unit_price: Annotated[float, Field(description=&#34;Cost per one unit&#34;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -2372,31 +2534,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119">PricingOption119</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310">PricingOption1310</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.currency"><code class="name">var <span class="ident">currency</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model"><code class="name">var <span class="ident">model</span> : Literal['per_unit']</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model"><code class="name">var <span class="ident">model</span> : Literal['per_unit']</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.unit"><code class="name">var <span class="ident">unit</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.unit"><code class="name">var <span class="ident">unit</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.unit_price"><code class="name">var <span class="ident">unit_price</span> : float</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.unit_price"><code class="name">var <span class="ident">unit_price</span> : float</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2412,8 +2574,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115"><code class="flex name class">
-<span>class <span class="ident">PricingOption115</span></span>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135"><code class="flex name class">
+<span>class <span class="ident">PricingOption135</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2421,11 +2583,110 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption115(AdCPBaseModel):
+<pre><code class="python">class PricingOption135(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#34;allow&#34;,
+    )
+    model: Literal[&#34;custom&#34;]
+    description: Annotated[
+        str,
+        Field(
+            description=&#34;Human-readable description of the custom pricing model. Buyers display this to the operator when requesting approval.&#34;,
+            min_length=1,
+        ),
+    ]
+    metadata: Annotated[
+        Metadata,
+        Field(
+            description=&#34;Structured parameters for the custom model. Keys follow lowercase_snake_case. Values may be primitives, arrays, or nested objects. Must be sufficient for a human to understand the pricing basis and for a downstream system to reconstruct the charge. Vendors SHOULD include a `summary_for_operator` string (one or two sentences, suitable for display in a buyer&#39;s operator-review UI) so reviewers across vendors see a consistent prompt. Required operator-review fields (approver role, dollar threshold for automatic approval, escalation contact) MAY be surfaced via additional keys the buyer&#39;s review surface recognizes.&#34;
+        ),
+    ]
+    currency: Annotated[
+        str | None,
+        Field(
+            description=&#34;ISO 4217 currency code. Present when the pricing resolves to a monetary charge in a specific currency.&#34;,
+            pattern=&#34;^[A-Z]{3}$&#34;,
+        ),
+    ] = None
+    ext: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311">PricingOption1311</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.currency"><code class="name">var <span class="ident">currency</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.ext"><code class="name">var <span class="ident">ext</span> : dict[str, typing.Any] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.metadata"><code class="name">var <span class="ident">metadata</span> : <a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata">Metadata</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model"><code class="name">var <span class="ident">model</span> : Literal['custom']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136"><code class="flex name class">
+<span>class <span class="ident">PricingOption136</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class PricingOption136(AdCPBaseModel):
     pricing_option_id: Annotated[
         str,
         Field(
-            description=&#39;Opaque identifier for this pricing option, unique within the vendor agent. Pass this in report_usage to identify which pricing option was applied.&#39;
+            description=&#34;Opaque identifier for this pricing option, unique within the vendor agent. Pass this in report_usage to identify which pricing option was applied.&#34;
         ),
     ]</code></pre>
 </details>
@@ -2446,18 +2707,19 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116">PricingOption116</a></li>
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117">PricingOption117</a></li>
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118">PricingOption118</a></li>
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119">PricingOption119</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310">PricingOption1310</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311">PricingOption1311</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137">PricingOption137</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138">PricingOption138</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139">PricingOption139</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2473,8 +2735,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116"><code class="flex name class">
-<span>class <span class="ident">PricingOption116</span></span>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137"><code class="flex name class">
+<span>class <span class="ident">PricingOption137</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2482,7 +2744,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption116(PricingOption111, PricingOption115):
+<pre><code class="python">class PricingOption137(PricingOption131, PricingOption136):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2497,31 +2759,31 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111">PricingOption111</a></li>
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115">PricingOption115</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131">PricingOption131</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136">PricingOption136</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111">PricingOption111</a></b></code>:
+<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131">PricingOption131</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117"><code class="flex name class">
-<span>class <span class="ident">PricingOption117</span></span>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138"><code class="flex name class">
+<span>class <span class="ident">PricingOption138</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2529,7 +2791,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption117(PricingOption112, PricingOption115):
+<pre><code class="python">class PricingOption138(PricingOption132, PricingOption136):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2544,31 +2806,31 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112">PricingOption112</a></li>
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115">PricingOption115</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132">PricingOption132</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136">PricingOption136</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112">PricingOption112</a></b></code>:
+<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132">PricingOption132</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118"><code class="flex name class">
-<span>class <span class="ident">PricingOption118</span></span>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139"><code class="flex name class">
+<span>class <span class="ident">PricingOption139</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -2576,7 +2838,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class PricingOption118(PricingOption113, PricingOption115):
+<pre><code class="python">class PricingOption139(PricingOption133, PricingOption136):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2591,72 +2853,25 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113">PricingOption113</a></li>
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115">PricingOption115</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133">PricingOption133</a></li>
+<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136">PricingOption136</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113">PricingOption113</a></b></code>:
+<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133">PricingOption133</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119"><code class="flex name class">
-<span>class <span class="ident">PricingOption119</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class PricingOption119(PricingOption114, PricingOption115):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114">PricingOption114</a></li>
-<li><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115">PricingOption115</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114">PricingOption114</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -2674,10 +2889,10 @@ validated to form a valid model.</p>
     root: Annotated[
         str,
         Field(
-            description=&#39;Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.&#39;,
-            examples=[&#39;cnn_ctv_app&#39;, &#39;homepage&#39;, &#39;mobile_ios&#39;, &#39;instagram&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Property ID&#39;,
+            description=&#34;Identifier for a publisher property. Must be lowercase alphanumeric with underscores only.&#34;,
+            examples=[&#34;cnn_ctv_app&#34;, &#34;homepage&#34;, &#34;mobile_ios&#34;, &#34;instagram&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Property ID&#34;,
         ),
     ]</code></pre>
 </details>
@@ -2730,16 +2945,16 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PropertyType(Enum):
-    website = &#39;website&#39;
-    mobile_app = &#39;mobile_app&#39;
-    ctv_app = &#39;ctv_app&#39;
-    desktop_app = &#39;desktop_app&#39;
-    dooh = &#39;dooh&#39;
-    podcast = &#39;podcast&#39;
-    radio = &#39;radio&#39;
-    linear_tv = &#39;linear_tv&#39;
-    streaming_audio = &#39;streaming_audio&#39;
-    ai_assistant = &#39;ai_assistant&#39;</code></pre>
+    website = &#34;website&#34;
+    mobile_app = &#34;mobile_app&#34;
+    ctv_app = &#34;ctv_app&#34;
+    desktop_app = &#34;desktop_app&#34;
+    dooh = &#34;dooh&#34;
+    podcast = &#34;podcast&#34;
+    radio = &#34;radio&#34;
+    linear_tv = &#34;linear_tv&#34;
+    streaming_audio = &#34;streaming_audio&#34;
+    ai_assistant = &#34;ai_assistant&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2837,10 +3052,10 @@ attributes &ndash; see the documentation for details.</p></div>
     root: Annotated[
         str,
         Field(
-            description=&#39;Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.&#39;,
-            examples=[&#39;ctv&#39;, &#39;premium&#39;, &#39;news&#39;, &#39;sports&#39;, &#39;meta_network&#39;, &#39;social_media&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Property Tag&#39;,
+            description=&#34;Tag for categorizing publisher properties. Must be lowercase alphanumeric with underscores only.&#34;,
+            examples=[&#34;ctv&#34;, &#34;premium&#34;, &#34;news&#34;, &#34;sports&#34;, &#34;meta_network&#34;, &#34;social_media&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Property Tag&#34;,
         ),
     ]</code></pre>
 </details>
@@ -2893,27 +3108,27 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    domain = &#39;domain&#39;
-    subdomain = &#39;subdomain&#39;
-    network_id = &#39;network_id&#39;
-    ios_bundle = &#39;ios_bundle&#39;
-    android_package = &#39;android_package&#39;
-    apple_app_store_id = &#39;apple_app_store_id&#39;
-    google_play_id = &#39;google_play_id&#39;
-    roku_store_id = &#39;roku_store_id&#39;
-    fire_tv_asin = &#39;fire_tv_asin&#39;
-    samsung_app_id = &#39;samsung_app_id&#39;
-    apple_tv_bundle = &#39;apple_tv_bundle&#39;
-    bundle_id = &#39;bundle_id&#39;
-    venue_id = &#39;venue_id&#39;
-    screen_id = &#39;screen_id&#39;
-    openooh_venue_type = &#39;openooh_venue_type&#39;
-    rss_url = &#39;rss_url&#39;
-    apple_podcast_id = &#39;apple_podcast_id&#39;
-    spotify_collection_id = &#39;spotify_collection_id&#39;
-    podcast_guid = &#39;podcast_guid&#39;
-    station_id = &#39;station_id&#39;
-    facility_id = &#39;facility_id&#39;</code></pre>
+    domain = &#34;domain&#34;
+    subdomain = &#34;subdomain&#34;
+    network_id = &#34;network_id&#34;
+    ios_bundle = &#34;ios_bundle&#34;
+    android_package = &#34;android_package&#34;
+    apple_app_store_id = &#34;apple_app_store_id&#34;
+    google_play_id = &#34;google_play_id&#34;
+    roku_store_id = &#34;roku_store_id&#34;
+    fire_tv_asin = &#34;fire_tv_asin&#34;
+    samsung_app_id = &#34;samsung_app_id&#34;
+    apple_tv_bundle = &#34;apple_tv_bundle&#34;
+    bundle_id = &#34;bundle_id&#34;
+    venue_id = &#34;venue_id&#34;
+    screen_id = &#34;screen_id&#34;
+    openooh_venue_type = &#34;openooh_venue_type&#34;
+    rss_url = &#34;rss_url&#34;
+    apple_podcast_id = &#34;apple_podcast_id&#34;
+    spotify_collection_id = &#34;spotify_collection_id&#34;
+    podcast_guid = &#34;podcast_guid&#34;
+    station_id = &#34;station_id&#34;
+    facility_id = &#34;facility_id&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3278,6 +3493,13 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata">Metadata</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata.summary_for_operator" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Metadata.summary_for_operator">summary_for_operator</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Pagination" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Pagination">Pagination</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.Pagination.cursor" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.Pagination.cursor">cursor</a></code></li>
@@ -3303,77 +3525,94 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111">PricingOption111</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131">PricingOption131</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.cpm" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.cpm">cpm</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption111.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.cpm" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.cpm">cpm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption131.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112">PricingOption112</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310">PricingOption1310</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1310.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311">PricingOption1311</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption1311.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132">PricingOption132</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.max_cpm" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.max_cpm">max_cpm</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.percent" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption112.percent">percent</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.max_cpm" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.max_cpm">max_cpm</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.percent" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption132.percent">percent</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113">PricingOption113</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133">PricingOption133</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.amount" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.amount">amount</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.period" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption113.period">period</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.amount" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.amount">amount</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.period" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption133.period">period</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114">PricingOption114</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134">PricingOption134</a></code></h4>
 <ul class="two-column">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.currency">currency</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.ext">ext</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model">model</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.unit" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.unit">unit</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.unit_price" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption114.unit_price">unit_price</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.unit" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.unit">unit</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.unit_price" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption134.unit_price">unit_price</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115">PricingOption115</a></code></h4>
-<ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115.pricing_option_id" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption115.pricing_option_id">pricing_option_id</a></code></li>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135">PricingOption135</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.currency" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.description" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.ext" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.metadata" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.metadata">metadata</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model">model</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption135.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116">PricingOption116</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136">PricingOption136</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption116.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136.pricing_option_id" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption136.pricing_option_id">pricing_option_id</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117">PricingOption117</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137">PricingOption137</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption117.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption137.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118">PricingOption118</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138">PricingOption138</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption118.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption138.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119">PricingOption119</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139">PricingOption139</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption119.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139.model_config" href="#adcp.types.generated_poc.bundled.property.get_property_list_response.PricingOption139.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

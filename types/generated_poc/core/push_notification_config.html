@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Authentication(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     schemes: Annotated[
         list[auth_scheme.AuthenticationScheme],
         Field(
-            description=&#34;Array of authentication schemes. Supported: [&#39;Bearer&#39;] for simple token auth, [&#39;HMAC-SHA256&#39;] for signature verification (recommended for production)&#34;,
+            description=&#34;Array of authentication schemes. Supported: [&#39;Bearer&#39;] for simple token auth, [&#39;HMAC-SHA256&#39;] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.&#34;,
             max_length=1,
             min_length=1,
         ),
@@ -70,7 +70,7 @@ el.replaceWith(d);
     credentials: Annotated[
         str,
         Field(
-            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
+            description=&#34;Credentials for the legacy scheme. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#34;,
             min_length=32,
         ),
     ]</code></pre>
@@ -126,18 +126,20 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]
+    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for task status notifications&#34;)]
     token: Annotated[
         str | None,
         Field(
-            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
             min_length=16,
         ),
     ] = None
     authentication: Annotated[
-        Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
-    ]</code></pre>
+        Authentication | None,
+        Field(
+            description=&#34;Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. When omitted, the seller MUST sign webhooks with the 9421 profile.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -156,7 +158,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.core.push_notification_config.Authentication" href="#adcp.types.generated_poc.core.push_notification_config.Authentication">Authentication</a></code></dt>
+<dt id="adcp.types.generated_poc.core.push_notification_config.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.core.push_notification_config.Authentication" href="#adcp.types.generated_poc.core.push_notification_config.Authentication">Authentication</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>

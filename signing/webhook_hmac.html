@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing.webhook_hmac API documentation</title>
+<meta name="description" content="Legacy HMAC-SHA256 webhook verifier …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing.webhook_hmac</code></h1>
+</header>
+<section id="section-intro">
+<p>Legacy HMAC-SHA256 webhook verifier.</p>
+<p>The 3.0 baseline is RFC 9421 webhook signing (see :mod:<code>webhook_verifier</code>).
+HMAC-SHA256 remains available through AdCP 3.x as an opt-in fallback — buyers
+populate <code>push_notification_config.authentication.credentials</code> and sellers
+MAY honor it. The <code>authentication</code> field is removed in 4.0.</p>
+<p>Wire format, matching :func:<code><a title="adcp.webhooks.get_adcp_signed_headers_for_webhook" href="../webhooks.html#adcp.webhooks.get_adcp_signed_headers_for_webhook">get_adcp_signed_headers_for_webhook()</a></code>:</p>
+<ul>
+<li><code>X-AdCP-Signature</code> — <code>sha256=&lt;hex_digest&gt;</code> of <code>HMAC_SHA256(secret,
+f"{timestamp}.{raw_body_bytes.decode()}")</code></li>
+<li><code>X-AdCP-Timestamp</code> — Unix epoch seconds, string</li>
+</ul>
+<p>The sender serializes the payload via <code>json.dumps(payload_dict)</code> with default
+separators, so receivers MUST verify against the raw request body bytes, not
+a re-serialized copy — JSON round-trips through a dict reorder keys and break
+the signature. Always call with <code>request.body()</code> / <code>request.get_data()</code>.</p>
+<p><strong>Security note — no nonce-based replay cache.</strong> The legacy HMAC scheme binds
+only the timestamp into the signed message; unlike the 9421 profile, it has
+no nonce, so a replayed signed body within the skew window re-verifies
+without objection. Downstream dedup (<code>WebhookDedupStore</code>) catches repeated
+events by <code>idempotency_key</code> — a replayed payload reuses the original's
+<code>idempotency_key</code> and correctly dedupes. The residual risk is limited to
+scenarios where an attacker has captured a signed body AND can influence
+receiver behavior based on the rebroadcast pre-dedup; all modern receivers
+should dedup before side effects. This is an accepted limitation of the
+legacy scheme — migrate to 9421 for nonce-based replay resistance.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.signing.webhook_hmac.verify_webhook_hmac"><code class="name flex">
+<span>def <span class="ident">verify_webhook_hmac</span></span>(<span>*,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions" href="#adcp.signing.webhook_hmac.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a>) ‑> <a title="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender" href="#adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender">VerifiedLegacyWebhookSender</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_webhook_hmac(
+    *,
+    headers: Mapping[str, str],
+    body: bytes,
+    options: LegacyWebhookHmacOptions,
+) -&gt; VerifiedLegacyWebhookSender:
+    &#34;&#34;&#34;Verify an HMAC-SHA256-signed webhook body per the legacy scheme.
+
+    Raises :class:`LegacyWebhookHmacError` on any failure. Fires a one-time
+    :class:`DeprecationWarning` — operators SHOULD migrate to 9421 before AdCP
+    4.0 removes the ``authentication`` field.
+
+    ``headers`` can be any ``Mapping[str, str]`` — ``dict``,
+    ``werkzeug.datastructures.EnvironHeaders``, Starlette&#39;s ``Headers``, etc.
+    Keys are case-folded internally.
+    &#34;&#34;&#34;
+    _warn_once()
+
+    header_map = {str(k).lower(): str(v) for k, v in headers.items()}
+    sig_value = header_map.get(_SIGNATURE_HEADER)
+    ts_value = header_map.get(_TIMESTAMP_HEADER)
+    if sig_value is None or ts_value is None:
+        raise LegacyWebhookHmacError(&#34;missing X-AdCP-Signature or X-AdCP-Timestamp header&#34;)
+    if not sig_value.startswith(_HEX_PREFIX):
+        raise LegacyWebhookHmacError(
+            f&#34;signature must start with {_HEX_PREFIX!r}, got {sig_value[:16]!r}&#34;
+        )
+    hex_sig = sig_value[len(_HEX_PREFIX) :]
+
+    try:
+        ts_int = int(ts_value)
+    except ValueError as exc:
+        raise LegacyWebhookHmacError(f&#34;invalid timestamp {ts_value!r}&#34;) from exc
+
+    # Bound on the skew window. Matches the 9421 max window (300s) exactly —
+    # the 9421 pipeline applies DEFAULT_SKEW_SECONDS inside its window check,
+    # so both schemes have the same &#34;skew budget&#34; on the wire. Do NOT add
+    # DEFAULT_SKEW_SECONDS on top; that would double-count and yield a 360s
+    # budget for HMAC vs 300s for 9421.
+    skew = abs(options.now - ts_int)
+    if skew &gt; options.window_seconds:
+        raise LegacyWebhookHmacError(
+            f&#34;timestamp skew {skew:.0f}s exceeds window {options.window_seconds}s&#34;
+        )
+
+    # The sender constructs the message as f&#34;{timestamp}.{json_payload}&#34;
+    # where json_payload is the body bytes as UTF-8. Re-decoding a dict would
+    # re-serialize with potentially different key order and break the
+    # signature — verify against the raw bytes as received.
+    message = f&#34;{ts_value}.&#34;.encode() + body
+    expected = hmac.new(options.secret, message, hashlib.sha256).hexdigest()
+    # Constant-time compare — hmac.compare_digest handles str/str.
+    if not hmac.compare_digest(expected, hex_sig):
+        raise LegacyWebhookHmacError(&#34;signature did not match&#34;)
+
+    return VerifiedLegacyWebhookSender(sender_identity=options.sender_identity)</code></pre>
+</details>
+<div class="desc"><p>Verify an HMAC-SHA256-signed webhook body per the legacy scheme.</p>
+<p>Raises :class:<code><a title="adcp.signing.webhook_hmac.LegacyWebhookHmacError" href="#adcp.signing.webhook_hmac.LegacyWebhookHmacError">LegacyWebhookHmacError</a></code> on any failure. Fires a one-time
+:class:<code>DeprecationWarning</code> — operators SHOULD migrate to 9421 before AdCP
+4.0 removes the <code>authentication</code> field.</p>
+<p><code>headers</code> can be any <code>Mapping[str, str]</code> — <code>dict</code>,
+<code>werkzeug.datastructures.EnvironHeaders</code>, Starlette's <code>Headers</code>, etc.
+Keys are case-folded internally.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.signing.webhook_hmac.LegacyWebhookHmacError"><code class="flex name class">
+<span>class <span class="ident">LegacyWebhookHmacError</span></span>
+<span>(</span><span>reason: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LegacyWebhookHmacError(Exception):
+    &#34;&#34;&#34;Raised when HMAC-SHA256 legacy verification fails.
+
+    Distinct from :class:`adcp.signing.errors.SignatureVerificationError` so
+    callers can distinguish legacy-path failures from 9421-path failures —
+    operators want to know which scheme fired when diagnosing a 401.
+    &#34;&#34;&#34;
+
+    def __init__(self, reason: str) -&gt; None:
+        super().__init__(reason)
+        self.reason = reason</code></pre>
+</details>
+<div class="desc"><p>Raised when HMAC-SHA256 legacy verification fails.</p>
+<p>Distinct from :class:<code><a title="adcp.signing.errors.SignatureVerificationError" href="errors.html#adcp.signing.errors.SignatureVerificationError">SignatureVerificationError</a></code> so
+callers can distinguish legacy-path failures from 9421-path failures —
+operators want to know which scheme fired when diagnosing a 401.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions"><code class="flex name class">
+<span>class <span class="ident">LegacyWebhookHmacOptions</span></span>
+<span>(</span><span>secret: bytes, sender_identity: str, now: float, window_seconds: int = 300)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class LegacyWebhookHmacOptions:
+    &#34;&#34;&#34;Options for the HMAC verifier.
+
+    :param secret_resolver: callable ``(header_map) -&gt; bytes | None`` that
+        returns the shared secret for this incoming request. The receiver is
+        responsible for determining sender identity from headers (Bearer
+        token, IP allowlist, hostname) and looking up the secret bound to
+        that sender. The resolver returns ``None`` when no sender can be
+        authenticated — the verifier then rejects without attempting compare.
+    :param sender_identity: the string used to scope dedup after verification
+        succeeds. In HMAC-legacy, there is no cryptographic sender identity
+        (the secret IS the identity), so the caller provides one — typically
+        derived from the same lookup that produced the secret.
+    :param now: current time, epoch seconds. Defaults fetched at call time.
+    :param window_seconds: accepted skew. Sender timestamp outside ``[now -
+        window, now + window]`` rejects.
+    &#34;&#34;&#34;
+
+    secret: bytes
+    sender_identity: str
+    now: float
+    window_seconds: int = _DEFAULT_WINDOW_SECONDS</code></pre>
+</details>
+<div class="desc"><p>Options for the HMAC verifier.</p>
+<p>:param secret_resolver: callable <code>(header_map) -&gt; bytes | None</code> that
+returns the shared secret for this incoming request. The receiver is
+responsible for determining sender identity from headers (Bearer
+token, IP allowlist, hostname) and looking up the secret bound to
+that sender. The resolver returns <code>None</code> when no sender can be
+authenticated — the verifier then rejects without attempting compare.
+:param sender_identity: the string used to scope dedup after verification
+succeeds. In HMAC-legacy, there is no cryptographic sender identity
+(the secret IS the identity), so the caller provides one — typically
+derived from the same lookup that produced the secret.
+:param now: current time, epoch seconds. Defaults fetched at call time.
+:param window_seconds: accepted skew. Sender timestamp outside <code>[now -
+window, now + window]</code> rejects.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.now"><code class="name">var <span class="ident">now</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.secret"><code class="name">var <span class="ident">secret</span> : bytes</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.sender_identity"><code class="name">var <span class="ident">sender_identity</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.window_seconds"><code class="name">var <span class="ident">window_seconds</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender"><code class="flex name class">
+<span>class <span class="ident">VerifiedLegacyWebhookSender</span></span>
+<span>(</span><span>sender_identity: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class VerifiedLegacyWebhookSender:
+    &#34;&#34;&#34;Identity returned by the HMAC verifier on success.
+
+    Shape-compatible with the 9421 ``VerifiedWebhookSender.as_sender_identity``
+    so downstream dedup code treats both the same.
+    &#34;&#34;&#34;
+
+    sender_identity: str
+
+    def as_sender_identity(self) -&gt; str:
+        return self.sender_identity</code></pre>
+</details>
+<div class="desc"><p>Identity returned by the HMAC verifier on success.</p>
+<p>Shape-compatible with the 9421 <code>VerifiedWebhookSender.as_sender_identity</code>
+so downstream dedup code treats both the same.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender.sender_identity"><code class="name">var <span class="ident">sender_identity</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender.as_sender_identity"><code class="name flex">
+<span>def <span class="ident">as_sender_identity</span></span>(<span>self) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_sender_identity(self) -&gt; str:
+    return self.sender_identity</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.signing" href="index.html">adcp.signing</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.signing.webhook_hmac.verify_webhook_hmac" href="#adcp.signing.webhook_hmac.verify_webhook_hmac">verify_webhook_hmac</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.signing.webhook_hmac.LegacyWebhookHmacError" href="#adcp.signing.webhook_hmac.LegacyWebhookHmacError">LegacyWebhookHmacError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions" href="#adcp.signing.webhook_hmac.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.now" href="#adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.now">now</a></code></li>
+<li><code><a title="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.secret" href="#adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.secret">secret</a></code></li>
+<li><code><a title="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.sender_identity" href="#adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.sender_identity">sender_identity</a></code></li>
+<li><code><a title="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.window_seconds" href="#adcp.signing.webhook_hmac.LegacyWebhookHmacOptions.window_seconds">window_seconds</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender" href="#adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender">VerifiedLegacyWebhookSender</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender.as_sender_identity" href="#adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender.as_sender_identity">as_sender_identity</a></code></li>
+<li><code><a title="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender.sender_identity" href="#adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender.sender_identity">sender_identity</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

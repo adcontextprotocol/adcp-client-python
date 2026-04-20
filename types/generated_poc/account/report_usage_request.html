@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ReportUsageRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     adcp_major_version: Annotated[
         int | None,
@@ -70,19 +70,19 @@ el.replaceWith(d);
     idempotency_key: Annotated[
         str,
         Field(
-            description=&#39;Client-generated unique key for this request. If a request with the same key has already been accepted, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request. Prevents duplicate billing on retries.&#39;
+            description=&#34;Client-generated unique key for this request. If a request with the same key has already been accepted, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request. Prevents duplicate billing on retries.&#34;
         ),
     ]
     reporting_period: Annotated[
         datetime_range.DatetimeRange,
         Field(
-            description=&#39;The time range covered by this usage report. Applies to all records in the request.&#39;
+            description=&#34;The time range covered by this usage report. Applies to all records in the request.&#34;
         ),
     ]
     usage: Annotated[
         list[UsageItem],
         Field(
-            description=&#39;One or more usage records. Each record is self-contained: it carries its own account, allowing a single request to span multiple accounts.&#39;,
+            description=&#34;One or more usage records. Each record is self-contained: it carries its own account, allowing a single request to span multiple accounts.&#34;,
             min_length=1,
         ),
     ]
@@ -157,25 +157,25 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class UsageItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     account: Annotated[
-        account_ref.AccountReference, Field(description=&#39;Account for this usage record.&#39;)
+        account_ref.AccountReference, Field(description=&#34;Account for this usage record.&#34;)
     ]
     media_buy_id: Annotated[
         str | None,
         Field(
-            description=&#39;Seller-assigned media buy identifier. Links this usage record to a specific media buy.&#39;
+            description=&#34;Seller-assigned media buy identifier. Links this usage record to a specific media buy.&#34;
         ),
     ] = None
     vendor_cost: Annotated[
         float,
         Field(
-            description=&#39;Amount owed to the vendor for this record, denominated in currency.&#39;,
+            description=&#34;Amount owed to the vendor for this record, denominated in currency.&#34;,
             ge=0.0,
         ),
     ]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code.&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code.&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     pricing_option_id: Annotated[
         str | None,
         Field(
@@ -183,41 +183,41 @@ validated to form a valid model.</p>
         ),
     ] = None
     impressions: Annotated[
-        int | None, Field(description=&#39;Impressions delivered using this vendor service.&#39;, ge=0)
+        int | None, Field(description=&#34;Impressions delivered using this vendor service.&#34;, ge=0)
     ] = None
     media_spend: Annotated[
         float | None,
         Field(
-            description=&#39;Media spend in currency for the period. Required when a percent_of_media pricing model was used, so the vendor can verify the applied rate.&#39;,
+            description=&#34;Media spend in currency for the period. Required when a percent_of_media pricing model was used, so the vendor can verify the applied rate.&#34;,
             ge=0.0,
         ),
     ] = None
     signal_agent_segment_id: Annotated[
         str | None,
-        Field(description=&#39;Signal identifier from get_signals. Required for signals agents.&#39;),
+        Field(description=&#34;Signal identifier from get_signals. Required for signals agents.&#34;),
     ] = None
     standards_id: Annotated[
         str | None,
         Field(
-            description=&#39;Content standards configuration identifier. Required for governance agents.&#39;
+            description=&#34;Content standards configuration identifier. Required for governance agents.&#34;
         ),
     ] = None
     rights_id: Annotated[
         str | None,
         Field(
-            description=&#39;Rights grant identifier from acquire_rights. Required for brand/rights agents. Links usage records to specific rights grants for cap tracking, billing verification, and overage calculation.&#39;
+            description=&#34;Rights grant identifier from acquire_rights. Required for brand/rights agents. Links usage records to specific rights grants for cap tracking, billing verification, and overage calculation.&#34;
         ),
     ] = None
     creative_id: Annotated[
         str | None,
         Field(
-            description=&#39;Creative identifier from build_creative or list_creatives. Required for creative agents. Links usage records to specific creatives for billing verification.&#39;
+            description=&#34;Creative identifier from build_creative or list_creatives. Required for creative agents. Links usage records to specific creatives for billing verification.&#34;
         ),
     ] = None
     property_list_id: Annotated[
         str | None,
         Field(
-            description=&#39;Property list identifier from list_property_lists. Required for property list agents. Links usage records to specific property lists for billing verification.&#39;
+            description=&#34;Property list identifier from list_property_lists. Required for property list agents. Links usage records to specific property lists for billing verification.&#34;
         ),
     ] = None</code></pre>
 </details>

@@ -57,7 +57,7 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class GetAccountFinancialsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     adcp_major_version: Annotated[
         int | None,
@@ -69,12 +69,12 @@ el.replaceWith(d);
     ] = None
     account: Annotated[
         account_ref.AccountReference,
-        Field(description=&#39;Account to query financials for. Must be an operator-billed account.&#39;),
+        Field(description=&#34;Account to query financials for. Must be an operator-billed account.&#34;),
     ]
     period: Annotated[
         date_range.DateRange | None,
         Field(
-            description=&#39;Date range for the spend summary. Defaults to the current billing cycle if omitted.&#39;
+            description=&#34;Date range for the spend summary. Defaults to the current billing cycle if omitted.&#34;
         ),
     ] = None
     context: context_1.ContextObject | None = None

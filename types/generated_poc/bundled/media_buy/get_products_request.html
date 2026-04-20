@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Account(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     account_id: Annotated[
         str,
         Field(
-            description=&#39;Seller-assigned account identifier (from sync_accounts or list_accounts)&#39;
+            description=&#34;Seller-assigned account identifier (from sync_accounts or list_accounts)&#34;
         ),
     ]</code></pre>
 </details>
@@ -114,31 +114,31 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Account28(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     brand: Annotated[
         Brand21,
         Field(
-            description=&#39;Brand reference identifying the advertiser&#39;,
+            description=&#34;Brand reference identifying the advertiser&#34;,
             examples=[
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
-                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;glow&#34;},
+                {&#34;domain&#34;: &#34;acme-corp.com&#34;},
             ],
-            title=&#39;Brand Reference&#39;,
+            title=&#34;Brand Reference&#34;,
         ),
     ]
     operator: Annotated[
         str,
         Field(
             description=&#34;Domain of the entity operating on the brand&#39;s behalf. When the brand operates directly, this is the brand&#39;s domain.&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     sandbox: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, references the sandbox account for this brand/operator pair. Defaults to false (production account).&#39;
+            description=&#34;When true, references the sandbox account for this brand/operator pair. Defaults to false (production account).&#34;
         ),
     ] = False</code></pre>
 </details>
@@ -197,9 +197,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Action(Enum):
-    include = &#39;include&#39;
-    omit = &#39;omit&#39;
-    more_like_this = &#39;more_like_this&#39;</code></pre>
+    include = &#34;include&#34;
+    omit = &#34;omit&#34;
+    more_like_this = &#34;more_like_this&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -266,9 +266,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Action5(Enum):
-    include = &#39;include&#39;
-    omit = &#39;omit&#39;
-    finalize = &#39;finalize&#39;</code></pre>
+    include = &#34;include&#34;
+    omit = &#34;omit&#34;
+    finalize = &#34;finalize&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -336,22 +336,22 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Brand(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     domain: Annotated[
         str,
         Field(
             description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     brand_id: Annotated[
         str | None,
         Field(
-            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
-            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Brand ID&#39;,
+            description=&#34;Brand identifier within the house portfolio. Optional for single-brand domains.&#34;,
+            examples=[&#34;tide&#34;, &#34;cheerios&#34;, &#34;air_jordan&#34;, &#34;nike&#34;, &#34;pampers&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Brand ID&#34;,
         ),
     ] = None
     industries: Annotated[
@@ -427,22 +427,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Brand21(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     domain: Annotated[
         str,
         Field(
             description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     brand_id: Annotated[
         str | None,
         Field(
-            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
-            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Brand ID&#39;,
+            description=&#34;Brand identifier within the house portfolio. Optional for single-brand domains.&#34;,
+            examples=[&#34;tide&#34;, &#34;cheerios&#34;, &#34;air_jordan&#34;, &#34;nike&#34;, &#34;pampers&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Brand ID&#34;,
         ),
     ] = None
     industries: Annotated[
@@ -518,14 +518,14 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BudgetRange(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    min: Annotated[float, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)]
-    max: Annotated[float | None, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)] = None
+    min: Annotated[float, Field(description=&#34;Minimum budget amount&#34;, ge=0.0)]
+    max: Annotated[float | None, Field(description=&#34;Maximum budget amount&#34;, ge=0.0)] = None
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
+            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#34;^[A-Z]{3}$&#34;
         ),
     ]</code></pre>
 </details>
@@ -585,14 +585,14 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class BudgetRange1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    min: Annotated[float | None, Field(description=&#39;Minimum budget amount&#39;, ge=0.0)] = None
-    max: Annotated[float, Field(description=&#39;Maximum budget amount&#39;, ge=0.0)]
+    min: Annotated[float | None, Field(description=&#34;Minimum budget amount&#34;, ge=0.0)] = None
+    max: Annotated[float, Field(description=&#34;Maximum budget amount&#34;, ge=0.0)]
     currency: Annotated[
         str,
         Field(
-            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#39;^[A-Z]{3}$&#39;
+            description=&#34;ISO 4217 currency code (e.g., &#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;)&#34;, pattern=&#34;^[A-Z]{3}$&#34;
         ),
     ]</code></pre>
 </details>
@@ -651,9 +651,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class BuyingMode(Enum):
-    brief = &#39;brief&#39;
-    wholesale = &#39;wholesale&#39;
-    refine = &#39;refine&#39;</code></pre>
+    brief = &#34;brief&#34;
+    wholesale = &#34;wholesale&#34;
+    refine = &#34;refine&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -721,7 +721,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Catalog(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     catalog_id: Annotated[
         str | None,
@@ -739,7 +739,7 @@ attributes &ndash; see the documentation for details.</p></div>
         Type,
         Field(
             description=&#34;Catalog type. Structural types: &#39;offering&#39; (AdCP Offering objects), &#39;product&#39; (ecommerce entries), &#39;inventory&#39; (stock per location), &#39;store&#39; (physical locations), &#39;promotion&#39; (deals and pricing). Vertical types: &#39;hotel&#39;, &#39;flight&#39;, &#39;job&#39;, &#39;vehicle&#39;, &#39;real_estate&#39;, &#39;education&#39;, &#39;destination&#39;, &#39;app&#39; — each with an industry-specific item schema.&#34;,
-            title=&#39;Catalog Type&#39;,
+            title=&#34;Catalog Type&#34;,
         ),
     ]
     url: Annotated[
@@ -751,15 +751,15 @@ attributes &ndash; see the documentation for details.</p></div>
     feed_format: Annotated[
         FeedFormat | None,
         Field(
-            description=&#39;Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.&#39;,
-            title=&#39;Feed Format&#39;,
+            description=&#34;Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.&#34;,
+            title=&#34;Feed Format&#34;,
         ),
     ] = None
     update_frequency: Annotated[
         UpdateFrequency | None,
         Field(
-            description=&#39;How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.&#39;,
-            title=&#39;Update Frequency&#39;,
+            description=&#34;How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.&#34;,
+            title=&#34;Update Frequency&#34;,
         ),
     ] = None
     items: Annotated[
@@ -772,7 +772,7 @@ attributes &ndash; see the documentation for details.</p></div>
     ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter catalog to specific item IDs. For offering-type catalogs, these are offering_id values. For product-type catalogs, these are SKU identifiers.&#39;,
+            description=&#34;Filter catalog to specific item IDs. For offering-type catalogs, these are offering_id values. For product-type catalogs, these are SKU identifiers.&#34;,
             min_length=1,
         ),
     ] = None
@@ -786,7 +786,7 @@ attributes &ndash; see the documentation for details.</p></div>
     tags: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter catalog to items with these tags. Tags are matched using OR logic — items matching any tag are included.&#39;,
+            description=&#34;Filter catalog to items with these tags. Tags are matched using OR logic — items matching any tag are included.&#34;,
             min_length=1,
         ),
     ] = None
@@ -813,13 +813,13 @@ attributes &ndash; see the documentation for details.</p></div>
         ContentIdType | None,
         Field(
             description=&#34;Identifier type that the event&#39;s content_ids field should be matched against for items in this catalog. For example, &#39;gtin&#39; means content_ids values are Global Trade Item Numbers, &#39;sku&#39; means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum.&#34;,
-            title=&#39;Content ID Type&#39;,
+            title=&#34;Content ID Type&#34;,
         ),
     ] = None
     feed_field_mappings: Annotated[
         list[FeedFieldMapping] | None,
         Field(
-            description=&#39;Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.&#39;,
+            description=&#34;Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.&#34;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -927,26 +927,26 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Channel(Enum):
-    display = &#39;display&#39;
-    olv = &#39;olv&#39;
-    social = &#39;social&#39;
-    search = &#39;search&#39;
-    ctv = &#39;ctv&#39;
-    linear_tv = &#39;linear_tv&#39;
-    radio = &#39;radio&#39;
-    streaming_audio = &#39;streaming_audio&#39;
-    podcast = &#39;podcast&#39;
-    dooh = &#39;dooh&#39;
-    ooh = &#39;ooh&#39;
-    print = &#39;print&#39;
-    cinema = &#39;cinema&#39;
-    email = &#39;email&#39;
-    gaming = &#39;gaming&#39;
-    retail_media = &#39;retail_media&#39;
-    influencer = &#39;influencer&#39;
-    affiliate = &#39;affiliate&#39;
-    product_placement = &#39;product_placement&#39;
-    sponsored_intelligence = &#39;sponsored_intelligence&#39;</code></pre>
+    display = &#34;display&#34;
+    olv = &#34;olv&#34;
+    social = &#34;social&#34;
+    search = &#34;search&#34;
+    ctv = &#34;ctv&#34;
+    linear_tv = &#34;linear_tv&#34;
+    radio = &#34;radio&#34;
+    streaming_audio = &#34;streaming_audio&#34;
+    podcast = &#34;podcast&#34;
+    dooh = &#34;dooh&#34;
+    ooh = &#34;ooh&#34;
+    print = &#34;print&#34;
+    cinema = &#34;cinema&#34;
+    email = &#34;email&#34;
+    gaming = &#34;gaming&#34;
+    retail_media = &#34;retail_media&#34;
+    influencer = &#34;influencer&#34;
+    affiliate = &#34;affiliate&#34;
+    product_placement = &#34;product_placement&#34;
+    sponsored_intelligence = &#34;sponsored_intelligence&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1081,18 +1081,18 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ContentIdType(Enum):
-    sku = &#39;sku&#39;
-    gtin = &#39;gtin&#39;
-    offering_id = &#39;offering_id&#39;
-    job_id = &#39;job_id&#39;
-    hotel_id = &#39;hotel_id&#39;
-    flight_id = &#39;flight_id&#39;
-    vehicle_id = &#39;vehicle_id&#39;
-    listing_id = &#39;listing_id&#39;
-    store_id = &#39;store_id&#39;
-    program_id = &#39;program_id&#39;
-    destination_id = &#39;destination_id&#39;
-    app_id = &#39;app_id&#39;</code></pre>
+    sku = &#34;sku&#34;
+    gtin = &#34;gtin&#34;
+    offering_id = &#34;offering_id&#34;
+    job_id = &#34;job_id&#34;
+    hotel_id = &#34;hotel_id&#34;
+    flight_id = &#34;flight_id&#34;
+    vehicle_id = &#34;vehicle_id&#34;
+    listing_id = &#34;listing_id&#34;
+    store_id = &#34;store_id&#34;
+    program_id = &#34;program_id&#34;
+    destination_id = &#34;destination_id&#34;
+    app_id = &#34;app_id&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1195,34 +1195,34 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ConversionEvent(Enum):
-    page_view = &#39;page_view&#39;
-    view_content = &#39;view_content&#39;
-    select_content = &#39;select_content&#39;
-    select_item = &#39;select_item&#39;
-    search = &#39;search&#39;
-    share = &#39;share&#39;
-    add_to_cart = &#39;add_to_cart&#39;
-    remove_from_cart = &#39;remove_from_cart&#39;
-    viewed_cart = &#39;viewed_cart&#39;
-    add_to_wishlist = &#39;add_to_wishlist&#39;
-    initiate_checkout = &#39;initiate_checkout&#39;
-    add_payment_info = &#39;add_payment_info&#39;
-    purchase = &#39;purchase&#39;
-    refund = &#39;refund&#39;
-    lead = &#39;lead&#39;
-    qualify_lead = &#39;qualify_lead&#39;
-    close_convert_lead = &#39;close_convert_lead&#39;
-    disqualify_lead = &#39;disqualify_lead&#39;
-    complete_registration = &#39;complete_registration&#39;
-    subscribe = &#39;subscribe&#39;
-    start_trial = &#39;start_trial&#39;
-    app_install = &#39;app_install&#39;
-    app_launch = &#39;app_launch&#39;
-    contact = &#39;contact&#39;
-    schedule = &#39;schedule&#39;
-    donate = &#39;donate&#39;
-    submit_application = &#39;submit_application&#39;
-    custom = &#39;custom&#39;</code></pre>
+    page_view = &#34;page_view&#34;
+    view_content = &#34;view_content&#34;
+    select_content = &#34;select_content&#34;
+    select_item = &#34;select_item&#34;
+    search = &#34;search&#34;
+    share = &#34;share&#34;
+    add_to_cart = &#34;add_to_cart&#34;
+    remove_from_cart = &#34;remove_from_cart&#34;
+    viewed_cart = &#34;viewed_cart&#34;
+    add_to_wishlist = &#34;add_to_wishlist&#34;
+    initiate_checkout = &#34;initiate_checkout&#34;
+    add_payment_info = &#34;add_payment_info&#34;
+    purchase = &#34;purchase&#34;
+    refund = &#34;refund&#34;
+    lead = &#34;lead&#34;
+    qualify_lead = &#34;qualify_lead&#34;
+    close_convert_lead = &#34;close_convert_lead&#34;
+    disqualify_lead = &#34;disqualify_lead&#34;
+    complete_registration = &#34;complete_registration&#34;
+    subscribe = &#34;subscribe&#34;
+    start_trial = &#34;start_trial&#34;
+    app_install = &#34;app_install&#34;
+    app_launch = &#34;app_launch&#34;
+    contact = &#34;contact&#34;
+    schedule = &#34;schedule&#34;
+    donate = &#34;donate&#34;
+    submit_application = &#34;submit_application&#34;
+    custom = &#34;custom&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1389,7 +1389,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Country(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -1441,7 +1441,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DataSubjectContestation(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     url: AnyUrl
     email: EmailStr | None = None
@@ -1508,7 +1508,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DataSubjectContestation47(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     url: AnyUrl | None = None
     email: EmailStr
@@ -1758,9 +1758,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Exclusivity(Enum):
-    none = &#39;none&#39;
-    category = &#39;category&#39;
-    exclusive = &#39;exclusive&#39;</code></pre>
+    none = &#34;none&#34;
+    category = &#34;category&#34;
+    exclusive = &#34;exclusive&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1828,12 +1828,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class FeedFieldMapping(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     feed_field: Annotated[
         str | None,
         Field(
-            description=&#39;Field name in the external feed record. Omit when injecting a static literal value (use the value property instead).&#39;
+            description=&#34;Field name in the external feed record. Omit when injecting a static literal value (use the value property instead).&#34;
         ),
     ] = None
     catalog_field: Annotated[
@@ -1851,13 +1851,13 @@ attributes &ndash; see the documentation for details.</p></div>
     value: Annotated[
         Any | None,
         Field(
-            description=&#39;Static literal value to inject into catalog_field for every item, regardless of what the feed contains. Mutually exclusive with feed_field. Useful for fields the feed omits (e.g., currency when price is always USD, or a constant category value).&#39;
+            description=&#34;Static literal value to inject into catalog_field for every item, regardless of what the feed contains. Mutually exclusive with feed_field. Useful for fields the feed omits (e.g., currency when price is always USD, or a constant category value).&#34;
         ),
     ] = None
     transform: Annotated[
         Transform | None,
         Field(
-            description=&#39;Named transform to apply to the feed field value before writing to the catalog schema. See transform-specific parameters (format, timezone, by, separator).&#39;
+            description=&#34;Named transform to apply to the feed field value before writing to the catalog schema. See transform-specific parameters (format, timezone, by, separator).&#34;
         ),
     ] = None
     format: Annotated[
@@ -1884,18 +1884,18 @@ attributes &ndash; see the documentation for details.</p></div>
         Field(
             description=&#34;For transform &#39;split&#39;: the separator character or string to split on. Defaults to &#39;,&#39;.&#34;
         ),
-    ] = &#39;,&#39;
+    ] = &#34;,&#34;
     default: Annotated[
         Any | None,
         Field(
-            description=&#39;Fallback value to use when feed_field is absent, null, or empty. Applied after any transform would have been applied. Allows optional feed fields to have a guaranteed baseline value.&#39;
+            description=&#34;Fallback value to use when feed_field is absent, null, or empty. Applied after any transform would have been applied. Allows optional feed fields to have a guaranteed baseline value.&#34;
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -1986,11 +1986,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class FeedFormat(Enum):
-    google_merchant_center = &#39;google_merchant_center&#39;
-    facebook_catalog = &#39;facebook_catalog&#39;
-    shopify = &#39;shopify&#39;
-    linkedin_jobs = &#39;linkedin_jobs&#39;
-    custom = &#39;custom&#39;</code></pre>
+    google_merchant_center = &#34;google_merchant_center&#34;
+    facebook_catalog = &#34;facebook_catalog&#34;
+    shopify = &#34;shopify&#34;
+    linkedin_jobs = &#34;linkedin_jobs&#34;
+    custom = &#34;custom&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2065,36 +2065,36 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Field1(Enum):
-    product_id = &#39;product_id&#39;
-    name = &#39;name&#39;
-    description = &#39;description&#39;
-    publisher_properties = &#39;publisher_properties&#39;
-    channels = &#39;channels&#39;
-    format_ids = &#39;format_ids&#39;
-    placements = &#39;placements&#39;
-    delivery_type = &#39;delivery_type&#39;
-    exclusivity = &#39;exclusivity&#39;
-    pricing_options = &#39;pricing_options&#39;
-    forecast = &#39;forecast&#39;
-    outcome_measurement = &#39;outcome_measurement&#39;
-    delivery_measurement = &#39;delivery_measurement&#39;
-    reporting_capabilities = &#39;reporting_capabilities&#39;
-    creative_policy = &#39;creative_policy&#39;
-    catalog_types = &#39;catalog_types&#39;
-    metric_optimization = &#39;metric_optimization&#39;
-    conversion_tracking = &#39;conversion_tracking&#39;
-    data_provider_signals = &#39;data_provider_signals&#39;
-    max_optimization_goals = &#39;max_optimization_goals&#39;
-    catalog_match = &#39;catalog_match&#39;
-    collections = &#39;collections&#39;
-    collection_targeting_allowed = &#39;collection_targeting_allowed&#39;
-    installments = &#39;installments&#39;
-    brief_relevance = &#39;brief_relevance&#39;
-    expires_at = &#39;expires_at&#39;
-    product_card = &#39;product_card&#39;
-    product_card_detailed = &#39;product_card_detailed&#39;
-    enforced_policies = &#39;enforced_policies&#39;
-    trusted_match = &#39;trusted_match&#39;</code></pre>
+    product_id = &#34;product_id&#34;
+    name = &#34;name&#34;
+    description = &#34;description&#34;
+    publisher_properties = &#34;publisher_properties&#34;
+    channels = &#34;channels&#34;
+    format_ids = &#34;format_ids&#34;
+    placements = &#34;placements&#34;
+    delivery_type = &#34;delivery_type&#34;
+    exclusivity = &#34;exclusivity&#34;
+    pricing_options = &#34;pricing_options&#34;
+    forecast = &#34;forecast&#34;
+    outcome_measurement = &#34;outcome_measurement&#34;
+    delivery_measurement = &#34;delivery_measurement&#34;
+    reporting_capabilities = &#34;reporting_capabilities&#34;
+    creative_policy = &#34;creative_policy&#34;
+    catalog_types = &#34;catalog_types&#34;
+    metric_optimization = &#34;metric_optimization&#34;
+    conversion_tracking = &#34;conversion_tracking&#34;
+    data_provider_signals = &#34;data_provider_signals&#34;
+    max_optimization_goals = &#34;max_optimization_goals&#34;
+    catalog_match = &#34;catalog_match&#34;
+    collections = &#34;collections&#34;
+    collection_targeting_allowed = &#34;collection_targeting_allowed&#34;
+    installments = &#34;installments&#34;
+    brief_relevance = &#34;brief_relevance&#34;
+    expires_at = &#34;expires_at&#34;
+    product_card = &#34;product_card&#34;
+    product_card_detailed = &#34;product_card_detailed&#34;
+    enforced_policies = &#34;enforced_policies&#34;
+    trusted_match = &#34;trusted_match&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2270,50 +2270,50 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Filters(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     delivery_type: Annotated[
         PreferredDeliveryType | None,
-        Field(description=&#39;Type of inventory delivery&#39;, title=&#39;Delivery Type&#39;),
+        Field(description=&#34;Type of inventory delivery&#34;, title=&#34;Delivery Type&#34;),
     ] = None
     exclusivity: Annotated[
         Exclusivity | None,
         Field(
             description=&#34;Filter by exclusivity level. Returns products matching the specified exclusivity (e.g., &#39;exclusive&#39; returns only sole-sponsorship products).&#34;,
-            title=&#39;Exclusivity&#39;,
+            title=&#34;Exclusivity&#34;,
         ),
     ] = None
     is_fixed_price: Annotated[
         bool | None,
         Field(
-            description=&#39;Filter by pricing availability: true = products offering fixed pricing (at least one option with fixed_price), false = products offering auction pricing (at least one option without fixed_price). Products with both fixed and auction options match both true and false.&#39;
+            description=&#34;Filter by pricing availability: true = products offering fixed pricing (at least one option with fixed_price), false = products offering auction pricing (at least one option without fixed_price). Products with both fixed and auction options match both true and false.&#34;
         ),
     ] = None
     format_ids: Annotated[
-        list[FormatId] | None, Field(description=&#39;Filter by specific format IDs&#39;, min_length=1)
+        list[FormatId] | None, Field(description=&#34;Filter by specific format IDs&#34;, min_length=1)
     ] = None
     standard_formats_only: Annotated[
-        bool | None, Field(description=&#39;Only return products accepting IAB standard formats&#39;)
+        bool | None, Field(description=&#34;Only return products accepting IAB standard formats&#34;)
     ] = None
     min_exposures: Annotated[
         int | None,
-        Field(description=&#39;Minimum exposures/impressions needed for measurement validity&#39;, ge=1),
+        Field(description=&#34;Minimum exposures/impressions needed for measurement validity&#34;, ge=1),
     ] = None
     start_date: Annotated[
         date_aliased | None,
         Field(
-            description=&#39;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+            description=&#34;Campaign start date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
         ),
     ] = None
     end_date: Annotated[
         date_aliased | None,
         Field(
-            description=&#39;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#39;
+            description=&#34;Campaign end date (ISO 8601 date format: YYYY-MM-DD) for availability checks&#34;
         ),
     ] = None
     budget_range: Annotated[
         BudgetRange | BudgetRange1 | None,
-        Field(description=&#39;Budget range to filter appropriate products&#39;),
+        Field(description=&#34;Budget range to filter appropriate products&#34;),
     ] = None
     countries: Annotated[
         list[Country] | None,
@@ -2332,7 +2332,7 @@ attributes &ndash; see the documentation for details.</p></div>
     metros: Annotated[
         list[Metro] | None,
         Field(
-            description=&#39;Filter by metro coverage for locally-bound inventory (radio, DOOH, local TV). Use when products have DMA/metro-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#39;,
+            description=&#34;Filter by metro coverage for locally-bound inventory (radio, DOOH, local TV). Use when products have DMA/metro-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#34;,
             min_length=1,
         ),
     ] = None
@@ -2347,47 +2347,47 @@ attributes &ndash; see the documentation for details.</p></div>
         list[AnyUrl] | None,
         Field(
             deprecated=True,
-            description=&#39;Deprecated: Use trusted_match filter instead. Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#39;,
+            description=&#34;Deprecated: Use trusted_match filter instead. Filter to products executable through specific agentic ad exchanges. URLs are canonical identifiers.&#34;,
         ),
     ] = None
     trusted_match: Annotated[
         TrustedMatch | None,
         Field(
-            description=&#39;Filter products by Trusted Match Protocol capabilities. Only products with matching TMP support are returned.&#39;
+            description=&#34;Filter products by Trusted Match Protocol capabilities. Only products with matching TMP support are returned.&#34;
         ),
     ] = None
     required_features: Annotated[
         RequiredFeatures | None,
         Field(
-            description=&#39;Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering.&#39;,
-            title=&#39;Media Buy Features&#39;,
+            description=&#34;Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering.&#34;,
+            title=&#34;Media Buy Features&#34;,
         ),
     ] = None
     required_geo_targeting: Annotated[
         list[RequiredGeoTargetingItem] | None,
         Field(
-            description=&#39;Filter to products from sellers supporting specific geo targeting capabilities. Each entry specifies a targeting level (country, region, metro, postal_area) and optionally a system for levels that have multiple classification systems.&#39;,
+            description=&#34;Filter to products from sellers supporting specific geo targeting capabilities. Each entry specifies a targeting level (country, region, metro, postal_area) and optionally a system for levels that have multiple classification systems.&#34;,
             min_length=1,
         ),
     ] = None
     signal_targeting: Annotated[
         list[SignalTargeting] | None,
         Field(
-            description=&#39;Filter to products supporting specific signals from data provider catalogs. Products must have the requested signals in their data_provider_signals and signal_targeting_allowed must be true (or all signals requested).&#39;,
+            description=&#34;Filter to products supporting specific signals from data provider catalogs. Products must have the requested signals in their data_provider_signals and signal_targeting_allowed must be true (or all signals requested).&#34;,
             min_length=1,
         ),
     ] = None
     postal_areas: Annotated[
         list[PostalArea] | None,
         Field(
-            description=&#39;Filter by postal area coverage for locally-bound inventory (direct mail, DOOH, local campaigns). Use when products have postal-area-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#39;,
+            description=&#34;Filter by postal area coverage for locally-bound inventory (direct mail, DOOH, local campaigns). Use when products have postal-area-specific coverage. For digital inventory where products have broad coverage, use required_geo_targeting instead to filter by seller capability.&#34;,
             min_length=1,
         ),
     ] = None
     geo_proximity: Annotated[
         list[GeoProximity | GeoProximity9 | GeoProximity10] | None,
         Field(
-            description=&#39;Filter by proximity to geographic points. Returns products with inventory coverage near these locations. Follows the same format as the targeting overlay — each entry uses exactly one method: travel_time + transport_mode, radius, or geometry. For locally-bound inventory (DOOH, radio), filters to products with coverage in the area. For digital inventory, filters to products from sellers supporting geo_proximity targeting.&#39;,
+            description=&#34;Filter by proximity to geographic points. Returns products with inventory coverage near these locations. Follows the same format as the targeting overlay — each entry uses exactly one method: travel_time + transport_mode, radius, or geometry. For locally-bound inventory (DOOH, radio), filters to products with coverage in the area. For digital inventory, filters to products from sellers supporting geo_proximity targeting.&#34;,
             min_length=1,
         ),
     ] = None
@@ -2401,7 +2401,7 @@ attributes &ndash; see the documentation for details.</p></div>
     keywords: Annotated[
         list[Keyword] | None,
         Field(
-            description=&#39;Filter by keyword relevance for search and retail media platforms. Returns products that support keyword targeting for these terms. Allows the sell-side agent to assess keyword availability and recommend appropriate products. Use match_type to indicate the desired precision.&#39;,
+            description=&#34;Filter by keyword relevance for search and retail media platforms. Returns products that support keyword targeting for these terms. Allows the sell-side agent to assess keyword availability and recommend appropriate products. Use match_type to indicate the desired precision.&#34;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -2566,7 +2566,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class FormatId(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     agent_url: Annotated[
         AnyUrl,
@@ -2578,27 +2578,27 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Format identifier within the agent&#39;s namespace (e.g., &#39;display_static&#39;, &#39;video_hosted&#39;, &#39;audio_standard&#39;). When used alone, references a template format. When combined with dimension/duration fields, creates a parameterized format ID for a specific variant.&#34;,
-            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+            pattern=&#34;^[a-zA-Z0-9_-]+$&#34;,
         ),
     ]
     width: Annotated[
         int | None,
         Field(
-            description=&#39;Width in pixels for visual formats. When specified, height must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#39;,
+            description=&#34;Width in pixels for visual formats. When specified, height must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#34;,
             ge=1,
         ),
     ] = None
     height: Annotated[
         int | None,
         Field(
-            description=&#39;Height in pixels for visual formats. When specified, width must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#39;,
+            description=&#34;Height in pixels for visual formats. When specified, width must also be specified. Both fields together create a parameterized format ID for dimension-specific variants.&#34;,
             ge=1,
         ),
     ] = None
     duration_ms: Annotated[
         float | None,
         Field(
-            description=&#39;Duration in milliseconds for time-based formats (video, audio). When specified, creates a parameterized format ID. Omit to reference a template format without parameters.&#39;,
+            description=&#34;Duration in milliseconds for time-based formats (video, audio). When specified, creates a parameterized format ID. Omit to reference a template format without parameters.&#34;,
             ge=1.0,
         ),
     ] = None</code></pre>
@@ -2667,32 +2667,32 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GeoProximity(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     lat: Annotated[
-        float, Field(description=&#39;Latitude in decimal degrees (WGS 84)&#39;, ge=-90.0, le=90.0)
+        float, Field(description=&#34;Latitude in decimal degrees (WGS 84)&#34;, ge=-90.0, le=90.0)
     ]
     lng: Annotated[
-        float, Field(description=&#39;Longitude in decimal degrees (WGS 84)&#39;, ge=-180.0, le=180.0)
+        float, Field(description=&#34;Longitude in decimal degrees (WGS 84)&#34;, ge=-180.0, le=180.0)
     ]
     label: Annotated[
         str | None,
         Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
     ] = None
     travel_time: Annotated[
-        TravelTime, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
+        TravelTime, Field(description=&#34;Travel time limit for isochrone calculation&#34;)
     ]
     transport_mode: Annotated[
         TransportMode,
         Field(
-            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;,
-            title=&#39;Transport Mode&#39;,
+            description=&#34;Transportation mode for isochrone calculation. Required when travel_time is provided.&#34;,
+            title=&#34;Transport Mode&#34;,
         ),
     ]
-    radius: Annotated[Radius | None, Field(description=&#39;Simple radius from the point&#39;)] = None
+    radius: Annotated[Radius | None, Field(description=&#34;Simple radius from the point&#34;)] = None
     geometry: Annotated[
         Geometry | None,
-        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
+        Field(description=&#34;Pre-computed GeoJSON geometry defining the proximity boundary&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2767,33 +2767,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GeoProximity10(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     lat: Annotated[
-        float | None, Field(description=&#39;Latitude in decimal degrees (WGS 84)&#39;, ge=-90.0, le=90.0)
+        float | None, Field(description=&#34;Latitude in decimal degrees (WGS 84)&#34;, ge=-90.0, le=90.0)
     ] = None
     lng: Annotated[
         float | None,
-        Field(description=&#39;Longitude in decimal degrees (WGS 84)&#39;, ge=-180.0, le=180.0),
+        Field(description=&#34;Longitude in decimal degrees (WGS 84)&#34;, ge=-180.0, le=180.0),
     ] = None
     label: Annotated[
         str | None,
         Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
     ] = None
     travel_time: Annotated[
-        TravelTime9 | None, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
+        TravelTime9 | None, Field(description=&#34;Travel time limit for isochrone calculation&#34;)
     ] = None
     transport_mode: Annotated[
         TransportMode | None,
         Field(
-            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;,
-            title=&#39;Transport Mode&#39;,
+            description=&#34;Transportation mode for isochrone calculation. Required when travel_time is provided.&#34;,
+            title=&#34;Transport Mode&#34;,
         ),
     ] = None
-    radius: Annotated[Radius9 | None, Field(description=&#39;Simple radius from the point&#39;)] = None
+    radius: Annotated[Radius9 | None, Field(description=&#34;Simple radius from the point&#34;)] = None
     geometry: Annotated[
         Geometry9,
-        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
+        Field(description=&#34;Pre-computed GeoJSON geometry defining the proximity boundary&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2868,32 +2868,32 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GeoProximity9(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     lat: Annotated[
-        float, Field(description=&#39;Latitude in decimal degrees (WGS 84)&#39;, ge=-90.0, le=90.0)
+        float, Field(description=&#34;Latitude in decimal degrees (WGS 84)&#34;, ge=-90.0, le=90.0)
     ]
     lng: Annotated[
-        float, Field(description=&#39;Longitude in decimal degrees (WGS 84)&#39;, ge=-180.0, le=180.0)
+        float, Field(description=&#34;Longitude in decimal degrees (WGS 84)&#34;, ge=-180.0, le=180.0)
     ]
     label: Annotated[
         str | None,
         Field(description=&#34;Human-readable label (e.g., &#39;Düsseldorf&#39;, &#39;Heathrow Airport&#39;)&#34;),
     ] = None
     travel_time: Annotated[
-        TravelTime8 | None, Field(description=&#39;Travel time limit for isochrone calculation&#39;)
+        TravelTime8 | None, Field(description=&#34;Travel time limit for isochrone calculation&#34;)
     ] = None
     transport_mode: Annotated[
         TransportMode | None,
         Field(
-            description=&#39;Transportation mode for isochrone calculation. Required when travel_time is provided.&#39;,
-            title=&#39;Transport Mode&#39;,
+            description=&#34;Transportation mode for isochrone calculation. Required when travel_time is provided.&#34;,
+            title=&#34;Transport Mode&#34;,
         ),
     ] = None
-    radius: Annotated[Radius8, Field(description=&#39;Simple radius from the point&#39;)]
+    radius: Annotated[Radius8, Field(description=&#34;Simple radius from the point&#34;)]
     geometry: Annotated[
         Geometry8 | None,
-        Field(description=&#39;Pre-computed GeoJSON geometry defining the proximity boundary&#39;),
+        Field(description=&#34;Pre-computed GeoJSON geometry defining the proximity boundary&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2968,10 +2968,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Geometry(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    type: Annotated[Type39, Field(description=&#39;GeoJSON geometry type&#39;)]
-    coordinates: Annotated[list[Any], Field(description=&#39;GeoJSON coordinates array&#39;)]</code></pre>
+    type: Annotated[Type39, Field(description=&#34;GeoJSON geometry type&#34;)]
+    coordinates: Annotated[list[Any], Field(description=&#34;GeoJSON coordinates array&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -3122,7 +3122,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetProductsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     adcp_major_version: Annotated[
         int | None,
@@ -3154,115 +3154,115 @@ validated to form a valid model.</p>
     brand: Annotated[
         Brand | None,
         Field(
-            description=&#39;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#39;,
+            description=&#34;Brand reference for product discovery context. Resolved to full brand identity at execution time.&#34;,
             examples=[
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
-                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;glow&#34;},
+                {&#34;domain&#34;: &#34;acme-corp.com&#34;},
             ],
-            title=&#39;Brand Reference&#39;,
+            title=&#34;Brand Reference&#34;,
         ),
     ] = None
     catalog: Annotated[
         Catalog | None,
         Field(
-            description=&#39;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#39;,
+            description=&#34;Catalog of items the buyer wants to promote. The seller matches catalog items against its inventory and returns products where matches exist. Supports all catalog types: a job catalog finds job ad products, a product catalog finds sponsored product slots. Reference a synced catalog by catalog_id, or provide inline items.&#34;,
             examples=[
                 {
-                    &#39;description&#39;: &#39;Synced product catalog from Google Merchant Center&#39;,
-                    &#39;data&#39;: {
-                        &#39;catalog_id&#39;: &#39;gmc-primary&#39;,
-                        &#39;name&#39;: &#39;Primary Product Feed&#39;,
-                        &#39;type&#39;: &#39;product&#39;,
-                        &#39;url&#39;: &#39;https://feeds.acmecorp.com/products.xml&#39;,
-                        &#39;feed_format&#39;: &#39;google_merchant_center&#39;,
-                        &#39;update_frequency&#39;: &#39;daily&#39;,
+                    &#34;description&#34;: &#34;Synced product catalog from Google Merchant Center&#34;,
+                    &#34;data&#34;: {
+                        &#34;catalog_id&#34;: &#34;gmc-primary&#34;,
+                        &#34;name&#34;: &#34;Primary Product Feed&#34;,
+                        &#34;type&#34;: &#34;product&#34;,
+                        &#34;url&#34;: &#34;https://feeds.acmecorp.com/products.xml&#34;,
+                        &#34;feed_format&#34;: &#34;google_merchant_center&#34;,
+                        &#34;update_frequency&#34;: &#34;daily&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Inventory feed for store-level stock data&#39;,
-                    &#39;data&#39;: {
-                        &#39;catalog_id&#39;: &#39;store-inventory&#39;,
-                        &#39;name&#39;: &#39;Store Inventory&#39;,
-                        &#39;type&#39;: &#39;inventory&#39;,
-                        &#39;url&#39;: &#39;https://feeds.acmecorp.com/inventory.json&#39;,
-                        &#39;feed_format&#39;: &#39;custom&#39;,
-                        &#39;update_frequency&#39;: &#39;hourly&#39;,
+                    &#34;description&#34;: &#34;Inventory feed for store-level stock data&#34;,
+                    &#34;data&#34;: {
+                        &#34;catalog_id&#34;: &#34;store-inventory&#34;,
+                        &#34;name&#34;: &#34;Store Inventory&#34;,
+                        &#34;type&#34;: &#34;inventory&#34;,
+                        &#34;url&#34;: &#34;https://feeds.acmecorp.com/inventory.json&#34;,
+                        &#34;feed_format&#34;: &#34;custom&#34;,
+                        &#34;update_frequency&#34;: &#34;hourly&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Store locator feed&#39;,
-                    &#39;data&#39;: {
-                        &#39;catalog_id&#39;: &#39;retail-locations&#39;,
-                        &#39;name&#39;: &#39;Retail Locations&#39;,
-                        &#39;type&#39;: &#39;store&#39;,
-                        &#39;url&#39;: &#39;https://feeds.acmecorp.com/stores.json&#39;,
-                        &#39;feed_format&#39;: &#39;custom&#39;,
-                        &#39;update_frequency&#39;: &#39;weekly&#39;,
+                    &#34;description&#34;: &#34;Store locator feed&#34;,
+                    &#34;data&#34;: {
+                        &#34;catalog_id&#34;: &#34;retail-locations&#34;,
+                        &#34;name&#34;: &#34;Retail Locations&#34;,
+                        &#34;type&#34;: &#34;store&#34;,
+                        &#34;url&#34;: &#34;https://feeds.acmecorp.com/stores.json&#34;,
+                        &#34;feed_format&#34;: &#34;custom&#34;,
+                        &#34;update_frequency&#34;: &#34;weekly&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Promotional pricing feed&#39;,
-                    &#39;data&#39;: {
-                        &#39;catalog_id&#39;: &#39;summer-sale&#39;,
-                        &#39;name&#39;: &#39;Summer Sale Promotions&#39;,
-                        &#39;type&#39;: &#39;promotion&#39;,
-                        &#39;url&#39;: &#39;https://feeds.acmecorp.com/promotions.json&#39;,
-                        &#39;feed_format&#39;: &#39;google_merchant_center&#39;,
-                        &#39;update_frequency&#39;: &#39;daily&#39;,
+                    &#34;description&#34;: &#34;Promotional pricing feed&#34;,
+                    &#34;data&#34;: {
+                        &#34;catalog_id&#34;: &#34;summer-sale&#34;,
+                        &#34;name&#34;: &#34;Summer Sale Promotions&#34;,
+                        &#34;type&#34;: &#34;promotion&#34;,
+                        &#34;url&#34;: &#34;https://feeds.acmecorp.com/promotions.json&#34;,
+                        &#34;feed_format&#34;: &#34;google_merchant_center&#34;,
+                        &#34;update_frequency&#34;: &#34;daily&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Inline offering catalog (no sync needed)&#39;,
-                    &#39;data&#39;: {
-                        &#39;type&#39;: &#39;offering&#39;,
-                        &#39;items&#39;: [
+                    &#34;description&#34;: &#34;Inline offering catalog (no sync needed)&#34;,
+                    &#34;data&#34;: {
+                        &#34;type&#34;: &#34;offering&#34;,
+                        &#34;items&#34;: [
                             {
-                                &#39;offering_id&#39;: &#39;summer-sale&#39;,
-                                &#39;name&#39;: &#39;Summer Sale&#39;,
-                                &#39;landing_url&#39;: &#39;https://acme.com/summer&#39;,
+                                &#34;offering_id&#34;: &#34;summer-sale&#34;,
+                                &#34;name&#34;: &#34;Summer Sale&#34;,
+                                &#34;landing_url&#34;: &#34;https://acme.com/summer&#34;,
                             }
                         ],
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Reference to a previously synced catalog by ID&#39;,
-                    &#39;data&#39;: {
-                        &#39;catalog_id&#39;: &#39;gmc-primary&#39;,
-                        &#39;type&#39;: &#39;product&#39;,
-                        &#39;ids&#39;: [&#39;SKU-12345&#39;, &#39;SKU-67890&#39;],
+                    &#34;description&#34;: &#34;Reference to a previously synced catalog by ID&#34;,
+                    &#34;data&#34;: {
+                        &#34;catalog_id&#34;: &#34;gmc-primary&#34;,
+                        &#34;type&#34;: &#34;product&#34;,
+                        &#34;ids&#34;: [&#34;SKU-12345&#34;, &#34;SKU-67890&#34;],
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Product catalog with GTIN cross-retailer matching and attribution&#39;,
-                    &#39;data&#39;: {
-                        &#39;type&#39;: &#39;product&#39;,
-                        &#39;gtins&#39;: [&#39;00013000006040&#39;, &#39;00013000006057&#39;],
-                        &#39;content_id_type&#39;: &#39;gtin&#39;,
-                        &#39;conversion_events&#39;: [&#39;purchase&#39;, &#39;add_to_cart&#39;],
+                    &#34;description&#34;: &#34;Product catalog with GTIN cross-retailer matching and attribution&#34;,
+                    &#34;data&#34;: {
+                        &#34;type&#34;: &#34;product&#34;,
+                        &#34;gtins&#34;: [&#34;00013000006040&#34;, &#34;00013000006057&#34;],
+                        &#34;content_id_type&#34;: &#34;gtin&#34;,
+                        &#34;conversion_events&#34;: [&#34;purchase&#34;, &#34;add_to_cart&#34;],
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Inline store catalog with catchment areas&#39;,
-                    &#39;data&#39;: {
-                        &#39;catalog_id&#39;: &#39;retail-locations&#39;,
-                        &#39;name&#39;: &#39;Retail Locations&#39;,
-                        &#39;type&#39;: &#39;store&#39;,
-                        &#39;items&#39;: [
+                    &#34;description&#34;: &#34;Inline store catalog with catchment areas&#34;,
+                    &#34;data&#34;: {
+                        &#34;catalog_id&#34;: &#34;retail-locations&#34;,
+                        &#34;name&#34;: &#34;Retail Locations&#34;,
+                        &#34;type&#34;: &#34;store&#34;,
+                        &#34;items&#34;: [
                             {
-                                &#39;store_id&#39;: &#39;amsterdam-flagship&#39;,
-                                &#39;name&#39;: &#39;Amsterdam Flagship&#39;,
-                                &#39;location&#39;: {&#39;lat&#39;: 52.3676, &#39;lng&#39;: 4.9041},
-                                &#39;catchments&#39;: [
+                                &#34;store_id&#34;: &#34;amsterdam-flagship&#34;,
+                                &#34;name&#34;: &#34;Amsterdam Flagship&#34;,
+                                &#34;location&#34;: {&#34;lat&#34;: 52.3676, &#34;lng&#34;: 4.9041},
+                                &#34;catchments&#34;: [
                                     {
-                                        &#39;catchment_id&#39;: &#39;walk&#39;,
-                                        &#39;travel_time&#39;: {&#39;value&#39;: 10, &#39;unit&#39;: &#39;min&#39;},
-                                        &#39;transport_mode&#39;: &#39;walking&#39;,
+                                        &#34;catchment_id&#34;: &#34;walk&#34;,
+                                        &#34;travel_time&#34;: {&#34;value&#34;: 10, &#34;unit&#34;: &#34;min&#34;},
+                                        &#34;transport_mode&#34;: &#34;walking&#34;,
                                     },
                                     {
-                                        &#39;catchment_id&#39;: &#39;drive&#39;,
-                                        &#39;travel_time&#39;: {&#39;value&#39;: 15, &#39;unit&#39;: &#39;min&#39;},
-                                        &#39;transport_mode&#39;: &#39;driving&#39;,
+                                        &#34;catchment_id&#34;: &#34;drive&#34;,
+                                        &#34;travel_time&#34;: {&#34;value&#34;: 15, &#34;unit&#34;: &#34;min&#34;},
+                                        &#34;transport_mode&#34;: &#34;driving&#34;,
                                     },
                                 ],
                             }
@@ -3270,7 +3270,7 @@ validated to form a valid model.</p>
                     },
                 },
             ],
-            title=&#39;Catalog&#39;,
+            title=&#34;Catalog&#34;,
         ),
     ] = None
     account: Annotated[
@@ -3278,77 +3278,77 @@ validated to form a valid model.</p>
         Field(
             description=&#34;Account for product lookup. Returns products with pricing specific to this account&#39;s rate card.&#34;,
             examples=[
-                {&#39;account_id&#39;: &#39;acc_acme_001&#39;},
-                {&#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;}, &#39;operator&#39;: &#39;acme-corp.com&#39;},
+                {&#34;account_id&#34;: &#34;acc_acme_001&#34;},
+                {&#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;}, &#34;operator&#34;: &#34;acme-corp.com&#34;},
                 {
-                    &#39;brand&#39;: {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                    &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
+                    &#34;brand&#34;: {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                    &#34;operator&#34;: &#34;pinnacle-media.com&#34;,
                 },
                 {
-                    &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
-                    &#39;operator&#39;: &#39;acme-corp.com&#39;,
-                    &#39;sandbox&#39;: True,
+                    &#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;},
+                    &#34;operator&#34;: &#34;acme-corp.com&#34;,
+                    &#34;sandbox&#34;: True,
                 },
             ],
-            title=&#39;Account Reference&#39;,
+            title=&#34;Account Reference&#34;,
         ),
     ] = None
     preferred_delivery_types: Annotated[
         list[PreferredDeliveryType] | None,
         Field(
-            description=&#39;Delivery types the buyer prefers, in priority order. Unlike filters.delivery_type which excludes non-matching products, this signals preference for curation — the publisher may still include other delivery types when they match the brief well.&#39;,
+            description=&#34;Delivery types the buyer prefers, in priority order. Unlike filters.delivery_type which excludes non-matching products, this signals preference for curation — the publisher may still include other delivery types when they match the brief well.&#34;,
             min_length=1,
         ),
     ] = None
     filters: Annotated[
         Filters | None,
-        Field(description=&#39;Structured filters for product discovery&#39;, title=&#39;Product Filters&#39;),
+        Field(description=&#34;Structured filters for product discovery&#34;, title=&#34;Product Filters&#34;),
     ] = None
     property_list: Annotated[
         PropertyList | None,
         Field(
-            description=&#39;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#39;,
-            title=&#39;Property List Reference&#39;,
+            description=&#34;[AdCP 3.0] Reference to an externally managed property list. When provided, the sales agent should filter products to only those available on properties in the list.&#34;,
+            title=&#34;Property List Reference&#34;,
         ),
     ] = None
     fields: Annotated[
         list[Field1] | None,
         Field(
-            description=&#39;Specific product fields to include in the response. When omitted, all fields are returned. Use for lightweight discovery calls where only a subset of product data is needed (e.g., just IDs and pricing for comparison). Required fields (product_id, name) are always included regardless of selection.&#39;,
+            description=&#34;Specific product fields to include in the response. When omitted, all fields are returned. Use for lightweight discovery calls where only a subset of product data is needed (e.g., just IDs and pricing for comparison). Required fields (product_id, name) are always included regardless of selection.&#34;,
             min_length=1,
         ),
     ] = None
     time_budget: Annotated[
         TimeBudget | None,
         Field(
-            description=&#39;Maximum time the buyer will commit to this request. The seller returns the best results achievable within this budget and does not start processes (human approvals, expensive external queries) that cannot complete in time. When omitted, the seller decides timing.&#39;
+            description=&#34;Maximum time the buyer will commit to this request. The seller returns the best results achievable within this budget and does not start processes (human approvals, expensive external queries) that cannot complete in time. When omitted, the seller decides timing.&#34;
         ),
     ] = None
     pagination: Annotated[
         Pagination | None,
         Field(
-            description=&#39;Standard cursor-based pagination parameters for list operations&#39;,
-            title=&#39;Pagination Request&#39;,
+            description=&#34;Standard cursor-based pagination parameters for list operations&#34;,
+            title=&#34;Pagination Request&#34;,
         ),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     required_policies: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies.&#39;
+            description=&#34;Registry policy IDs that the buyer requires to be enforced for products in this response. Sellers filter products to only those that comply with or already enforce the requested policies.&#34;
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -3459,7 +3459,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Gtin(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[0-9]{8,14}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[0-9]{8,14}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -3511,13 +3511,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Keyword(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    keyword: Annotated[str, Field(description=&#39;The keyword to target&#39;, min_length=1)]
+    keyword: Annotated[str, Field(description=&#34;The keyword to target&#34;, min_length=1)]
     match_type: Annotated[
         MatchType | None,
         Field(
-            description=&#39;Desired match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly. Defaults to broad.&#39;
+            description=&#34;Desired match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly. Defaults to broad.&#34;
         ),
     ] = MatchType.broad</code></pre>
 </details>
@@ -3572,10 +3572,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Level(Enum):
-    country = &#39;country&#39;
-    region = &#39;region&#39;
-    metro = &#39;metro&#39;
-    postal_area = &#39;postal_area&#39;</code></pre>
+    country = &#34;country&#34;
+    region = &#34;region&#34;
+    metro = &#34;metro&#34;
+    postal_area = &#34;postal_area&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3646,9 +3646,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class MatchType(Enum):
-    broad = &#39;broad&#39;
-    phrase = &#39;phrase&#39;
-    exact = &#39;exact&#39;</code></pre>
+    broad = &#34;broad&#34;
+    phrase = &#34;phrase&#34;
+    exact = &#34;exact&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3715,11 +3715,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Metric(Enum):
-    viewability = &#39;viewability&#39;
-    ivt = &#39;ivt&#39;
-    completion_rate = &#39;completion_rate&#39;
-    brand_safety = &#39;brand_safety&#39;
-    attention_score = &#39;attention_score&#39;</code></pre>
+    viewability = &#34;viewability&#34;
+    ivt = &#34;ivt&#34;
+    completion_rate = &#34;completion_rate&#34;
+    brand_safety = &#34;brand_safety&#34;
+    attention_score = &#34;attention_score&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3795,10 +3795,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Metro(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     system: Annotated[
-        System, Field(description=&#39;Metro classification system&#39;, title=&#39;Metro Area System&#39;)
+        System, Field(description=&#34;Metro classification system&#34;, title=&#34;Metro Area System&#34;)
     ]
     code: Annotated[
         str, Field(description=&#34;Metro code within the system (e.g., &#39;501&#39; for NYC DMA)&#34;)
@@ -3856,14 +3856,14 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     max_results: Annotated[
-        int | None, Field(description=&#39;Maximum number of items to return per page&#39;, ge=1, le=100)
+        int | None, Field(description=&#34;Maximum number of items to return per page&#34;, ge=1, le=100)
     ] = 50
     cursor: Annotated[
         str | None,
-        Field(description=&#39;Opaque cursor from a previous response to fetch the next page&#39;),
+        Field(description=&#34;Opaque cursor from a previous response to fetch the next page&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -3918,13 +3918,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PostalArea(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     system: Annotated[
         System11,
         Field(
             description=&#34;Postal code system (e.g., &#39;us_zip&#39;, &#39;gb_outward&#39;)&#34;,
-            title=&#39;Postal Code System&#39;,
+            title=&#34;Postal Code System&#34;,
         ),
     ]
     values: Annotated[
@@ -3986,8 +3986,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PreferredDeliveryType(Enum):
-    guaranteed = &#39;guaranteed&#39;
-    non_guaranteed = &#39;non_guaranteed&#39;</code></pre>
+    guaranteed = &#34;guaranteed&#34;
+    non_guaranteed = &#34;non_guaranteed&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -4051,16 +4051,16 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class PropertyList(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    agent_url: Annotated[AnyUrl, Field(description=&#39;URL of the agent managing the property list&#39;)]
+    agent_url: Annotated[AnyUrl, Field(description=&#34;URL of the agent managing the property list&#34;)]
     list_id: Annotated[
-        str, Field(description=&#39;Identifier for the property list within the agent&#39;, min_length=1)
+        str, Field(description=&#34;Identifier for the property list within the agent&#34;, min_length=1)
     ]
     auth_token: Annotated[
         str | None,
         Field(
-            description=&#39;JWT or other authorization token for accessing the list. Optional if the list is public or caller has implicit access.&#39;
+            description=&#34;JWT or other authorization token for accessing the list. Optional if the list is public or caller has implicit access.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -4120,15 +4120,15 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Provider(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     agent_url: Annotated[AnyUrl, Field(description=&#34;Provider&#39;s agent URL from the registry.&#34;)]
     context_match: Annotated[
-        bool | None, Field(description=&#39;When true, require this provider to support context match.&#39;)
+        bool | None, Field(description=&#34;When true, require this provider to support context match.&#34;)
     ] = None
     identity_match: Annotated[
         bool | None,
-        Field(description=&#39;When true, require this provider to support identity match.&#39;),
+        Field(description=&#34;When true, require this provider to support identity match.&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -4187,10 +4187,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Radius(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    value: Annotated[float, Field(description=&#39;Radius distance&#39;, gt=0.0)]
-    unit: Annotated[Unit47, Field(description=&#39;Distance unit&#39;, title=&#39;Distance Unit&#39;)]</code></pre>
+    value: Annotated[float, Field(description=&#34;Radius distance&#34;, gt=0.0)]
+    unit: Annotated[Unit47, Field(description=&#34;Distance unit&#34;, title=&#34;Distance Unit&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -4341,12 +4341,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Refine(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     scope: Annotated[
-        Literal[&#39;request&#39;],
+        Literal[&#34;request&#34;],
         Field(
-            description=&#39;Change scoped to the overall request — direction for the selection as a whole.&#39;
+            description=&#34;Change scoped to the overall request — direction for the selection as a whole.&#34;
         ),
     ]
     ask: Annotated[
@@ -4409,11 +4409,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Refine4(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    scope: Annotated[Literal[&#39;product&#39;], Field(description=&#39;Change scoped to a specific product.&#39;)]
+    scope: Annotated[Literal[&#34;product&#34;], Field(description=&#34;Change scoped to a specific product.&#34;)]
     id: Annotated[
-        str, Field(description=&#39;Product ID from a previous get_products response.&#39;, min_length=1)
+        str, Field(description=&#34;Product ID from a previous get_products response.&#34;, min_length=1)
     ]
     action: Annotated[
         Action,
@@ -4489,13 +4489,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Refine5(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     scope: Annotated[
-        Literal[&#39;proposal&#39;], Field(description=&#39;Change scoped to a specific proposal.&#39;)
+        Literal[&#34;proposal&#34;], Field(description=&#34;Change scoped to a specific proposal.&#34;)
     ]
     id: Annotated[
-        str, Field(description=&#39;Proposal ID from a previous get_products response.&#39;, min_length=1)
+        str, Field(description=&#34;Proposal ID from a previous get_products response.&#34;, min_length=1)
     ]
     action: Annotated[
         Action5,
@@ -4570,7 +4570,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Region(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}-[A-Z0-9]+$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}-[A-Z0-9]+$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -4623,18 +4623,18 @@ validated to form a valid model.</p>
 <pre><code class="python">class RequiredFeatures(AdCPBaseModel):
     inline_creative_management: Annotated[
         bool | None,
-        Field(description=&#39;Supports creatives provided inline in create_media_buy requests&#39;),
+        Field(description=&#34;Supports creatives provided inline in create_media_buy requests&#34;),
     ] = None
     property_list_filtering: Annotated[
         bool | None,
         Field(
-            description=&#39;Honors property_list parameter in get_products to filter results to buyer-approved properties&#39;
+            description=&#34;Honors property_list parameter in get_products to filter results to buyer-approved properties&#34;
         ),
     ] = None
     catalog_management: Annotated[
         bool | None,
         Field(
-            description=&#39;Supports sync_catalogs task for catalog feed management with platform review and approval&#39;
+            description=&#34;Supports sync_catalogs task for catalog feed management with platform review and approval&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -4694,13 +4694,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class RequiredGeoTargetingItem(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     level: Annotated[
         Level,
         Field(
-            description=&#39;Geographic targeting level (country, region, metro, postal_area)&#39;,
-            title=&#39;Geographic Targeting Level&#39;,
+            description=&#34;Geographic targeting level (country, region, metro, postal_area)&#34;,
+            title=&#34;Geographic Targeting Level&#34;,
         ),
     ]
     system: Annotated[
@@ -4762,19 +4762,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class RequiredPerformanceStandard(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     metric: Annotated[
         Metric,
         Field(
-            description=&#39;The performance metric this standard applies to.&#39;,
-            title=&#39;Performance Standard Metric&#39;,
+            description=&#34;The performance metric this standard applies to.&#34;,
+            title=&#34;Performance Standard Metric&#34;,
         ),
     ]
     threshold: Annotated[
         float,
         Field(
-            description=&#39;Rate threshold as a decimal (e.g., 0.70 for 70%). Whether this is a floor or ceiling depends on the metric: for viewability, completion_rate, brand_safety, attention_score the actual rate must be &gt;= threshold; for ivt the actual rate must be &lt;= threshold.&#39;,
+            description=&#34;Rate threshold as a decimal (e.g., 0.70 for 70%). Whether this is a floor or ceiling depends on the metric: for viewability, completion_rate, brand_safety, attention_score the actual rate must be &gt;= threshold; for ivt the actual rate must be &lt;= threshold.&#34;,
             ge=0.0,
             le=1.0,
         ),
@@ -4783,7 +4783,7 @@ validated to form a valid model.</p>
         Standard | None,
         Field(
             description=&#34;Measurement standard. Required when metric is &#39;viewability&#39; (MRC and GroupM define materially different thresholds). Omit for other metrics.&#34;,
-            title=&#39;Viewability Standard&#39;,
+            title=&#34;Viewability Standard&#34;,
         ),
     ] = None
     vendor: Annotated[
@@ -4791,11 +4791,11 @@ validated to form a valid model.</p>
         Field(
             description=&#34;Vendor measuring this metric (e.g., { domain: &#39;doubleverify.com&#39; }). The vendor&#39;s brand.json agents array (type: &#39;measurement&#39;) is the discovery point for their measurement agent. When specified on a confirmed package, creatives MUST include tracker_script or tracker_pixel assets from this vendor.&#34;,
             examples=[
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
-                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;glow&#34;},
+                {&#34;domain&#34;: &#34;acme-corp.com&#34;},
             ],
-            title=&#39;Brand Reference&#39;,
+            title=&#34;Brand Reference&#34;,
         ),
     ]</code></pre>
 </details>
@@ -4858,10 +4858,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ResponseType(Enum):
-    activation = &#39;activation&#39;
-    catalog_items = &#39;catalog_items&#39;
-    creative = &#39;creative&#39;
-    deal = &#39;deal&#39;</code></pre>
+    activation = &#34;activation&#34;
+    catalog_items = &#34;catalog_items&#34;
+    creative = &#34;creative&#34;
+    deal = &#34;deal&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -4933,10 +4933,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SignalId(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     source: Annotated[
-        Literal[&#39;catalog&#39;],
+        Literal[&#34;catalog&#34;],
         Field(
             description=&#34;Discriminator indicating this signal is from a data provider&#39;s published catalog&#34;
         ),
@@ -4945,14 +4945,14 @@ attributes &ndash; see the documentation for details.</p></div>
         str,
         Field(
             description=&#34;Domain of the data provider that owns this signal (e.g., &#39;polk.com&#39;, &#39;experian.com&#39;). The signal definition is published at this domain&#39;s /.well-known/adagents.json&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     id: Annotated[
         str,
         Field(
             description=&#34;Signal identifier within the data provider&#39;s catalog (e.g., &#39;likely_tesla_buyers&#39;, &#39;income_100k_plus&#39;)&#34;,
-            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+            pattern=&#34;^[a-zA-Z0-9_-]+$&#34;,
         ),
     ]</code></pre>
 </details>
@@ -4970,6 +4970,11 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10">SignalId10</a></li>
+<li><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12">SignalId12</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -5001,6 +5006,190 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10"><code class="flex name class">
+<span>class <span class="ident">SignalId10</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SignalId10(SignalId):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId">SignalId</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId">SignalId</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11"><code class="flex name class">
+<span>class <span class="ident">SignalId11</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SignalId11(SignalId9):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9">SignalId9</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9">SignalId9</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12"><code class="flex name class">
+<span>class <span class="ident">SignalId12</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SignalId12(SignalId):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId">SignalId</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId">SignalId</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13"><code class="flex name class">
+<span>class <span class="ident">SignalId13</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class SignalId13(SignalId9):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9">SignalId9</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9">SignalId9</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9.model_dump" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9.model_dump_json" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9.model_summary" href="../../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9"><code class="flex name class">
 <span>class <span class="ident">SignalId9</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -5012,12 +5201,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SignalId9(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     source: Annotated[
-        Literal[&#39;agent&#39;],
+        Literal[&#34;agent&#34;],
         Field(
-            description=&#39;Discriminator indicating this signal is native to the agent (not from a data provider catalog)&#39;
+            description=&#34;Discriminator indicating this signal is native to the agent (not from a data provider catalog)&#34;
         ),
     ]
     agent_url: Annotated[
@@ -5030,7 +5219,7 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Signal identifier within the agent&#39;s signal set (e.g., &#39;custom_auto_intenders&#39;)&#34;,
-            pattern=&#39;^[a-zA-Z0-9_-]+$&#39;,
+            pattern=&#34;^[a-zA-Z0-9_-]+$&#34;,
         ),
     ]</code></pre>
 </details>
@@ -5048,6 +5237,11 @@ validated to form a valid model.</p>
 <ul class="hlist">
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11">SignalId11</a></li>
+<li><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13">SignalId13</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -5092,15 +5286,15 @@ validated to form a valid model.</p>
     root: Annotated[
         SignalTargeting1 | SignalTargeting2 | SignalTargeting3,
         Field(
-            description=&#39;Targeting constraint for a specific signal. Uses value_type as discriminator to determine the targeting expression format.&#39;,
-            discriminator=&#39;value_type&#39;,
-            title=&#39;Signal Targeting&#39;,
+            description=&#34;Targeting constraint for a specific signal. Uses value_type as discriminator to determine the targeting expression format.&#34;,
+            discriminator=&#34;value_type&#34;,
+            title=&#34;Signal Targeting&#34;,
         ),
     ]
 
     def __getattr__(self, name: str) -&gt; Any:
         &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
+        if name.startswith(&#34;_&#34;):
             raise AttributeError(name)
         return getattr(self.root, name)</code></pre>
 </details>
@@ -5154,17 +5348,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SignalTargeting1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     signal_id: Annotated[
         SignalId | SignalId9,
-        Field(description=&#39;The signal to target&#39;, discriminator=&#39;source&#39;, title=&#39;Signal ID&#39;),
+        Field(description=&#34;The signal to target&#34;, discriminator=&#34;source&#34;, title=&#34;Signal ID&#34;),
     ]
-    value_type: Annotated[Literal[&#39;binary&#39;], Field(description=&#39;Discriminator for binary signals&#39;)]
+    value_type: Annotated[Literal[&#34;binary&#34;], Field(description=&#34;Discriminator for binary signals&#34;)]
     value: Annotated[
         bool,
         Field(
-            description=&#39;Whether to include (true) or exclude (false) users matching this signal&#39;
+            description=&#34;Whether to include (true) or exclude (false) users matching this signal&#34;
         ),
     ]</code></pre>
 </details>
@@ -5224,19 +5418,19 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SignalTargeting2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     signal_id: Annotated[
-        SignalId | SignalId9,
-        Field(description=&#39;The signal to target&#39;, discriminator=&#39;source&#39;, title=&#39;Signal ID&#39;),
+        SignalId10 | SignalId11,
+        Field(description=&#34;The signal to target&#34;, discriminator=&#34;source&#34;, title=&#34;Signal ID&#34;),
     ]
     value_type: Annotated[
-        Literal[&#39;categorical&#39;], Field(description=&#39;Discriminator for categorical signals&#39;)
+        Literal[&#34;categorical&#34;], Field(description=&#34;Discriminator for categorical signals&#34;)
     ]
     values: Annotated[
         list[str],
         Field(
-            description=&#39;Values to target. Users with any of these values will be included.&#39;,
+            description=&#34;Values to target. Users with any of these values will be included.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -5262,7 +5456,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalTargeting2.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId">SignalId</a> | <a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9">SignalId9</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalTargeting2.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10">SignalId10</a> | <a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11">SignalId11</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -5297,14 +5491,14 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SignalTargeting3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     signal_id: Annotated[
-        SignalId | SignalId9,
-        Field(description=&#39;The signal to target&#39;, discriminator=&#39;source&#39;, title=&#39;Signal ID&#39;),
+        SignalId12 | SignalId13,
+        Field(description=&#34;The signal to target&#34;, discriminator=&#34;source&#34;, title=&#34;Signal ID&#34;),
     ]
     value_type: Annotated[
-        Literal[&#39;numeric&#39;], Field(description=&#39;Discriminator for numeric signals&#39;)
+        Literal[&#34;numeric&#34;], Field(description=&#34;Discriminator for numeric signals&#34;)
     ]
     min_value: Annotated[
         float | None,
@@ -5348,7 +5542,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalTargeting3.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId">SignalId</a> | <a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId9">SignalId9</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalTargeting3.signal_id"><code class="name">var <span class="ident">signal_id</span> : <a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12">SignalId12</a> | <a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13">SignalId13</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -5378,8 +5572,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Standard(Enum):
-    mrc = &#39;mrc&#39;
-    groupm = &#39;groupm&#39;</code></pre>
+    mrc = &#34;mrc&#34;
+    groupm = &#34;groupm&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -5442,11 +5636,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class System(Enum):
-    nielsen_dma = &#39;nielsen_dma&#39;
-    uk_itl1 = &#39;uk_itl1&#39;
-    uk_itl2 = &#39;uk_itl2&#39;
-    eurostat_nuts2 = &#39;eurostat_nuts2&#39;
-    custom = &#39;custom&#39;</code></pre>
+    nielsen_dma = &#34;nielsen_dma&#34;
+    uk_itl1 = &#34;uk_itl1&#34;
+    uk_itl2 = &#34;uk_itl2&#34;
+    eurostat_nuts2 = &#34;eurostat_nuts2&#34;
+    custom = &#34;custom&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -5521,17 +5715,17 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class System11(Enum):
-    us_zip = &#39;us_zip&#39;
-    us_zip_plus_four = &#39;us_zip_plus_four&#39;
-    gb_outward = &#39;gb_outward&#39;
-    gb_full = &#39;gb_full&#39;
-    ca_fsa = &#39;ca_fsa&#39;
-    ca_full = &#39;ca_full&#39;
-    de_plz = &#39;de_plz&#39;
-    fr_code_postal = &#39;fr_code_postal&#39;
-    au_postcode = &#39;au_postcode&#39;
-    ch_plz = &#39;ch_plz&#39;
-    at_plz = &#39;at_plz&#39;</code></pre>
+    us_zip = &#34;us_zip&#34;
+    us_zip_plus_four = &#34;us_zip_plus_four&#34;
+    gb_outward = &#34;gb_outward&#34;
+    gb_full = &#34;gb_full&#34;
+    ca_fsa = &#34;ca_fsa&#34;
+    ca_full = &#34;ca_full&#34;
+    de_plz = &#34;de_plz&#34;
+    fr_code_postal = &#34;fr_code_postal&#34;
+    au_postcode = &#34;au_postcode&#34;
+    ch_plz = &#34;ch_plz&#34;
+    at_plz = &#34;at_plz&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -5691,10 +5885,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Transform(Enum):
-    date = &#39;date&#39;
-    divide = &#39;divide&#39;
-    boolean = &#39;boolean&#39;
-    split = &#39;split&#39;</code></pre>
+    date = &#34;date&#34;
+    divide = &#34;divide&#34;
+    boolean = &#34;boolean&#34;
+    split = &#34;split&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -5765,10 +5959,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TransportMode(Enum):
-    walking = &#39;walking&#39;
-    cycling = &#39;cycling&#39;
-    driving = &#39;driving&#39;
-    public_transport = &#39;public_transport&#39;</code></pre>
+    walking = &#34;walking&#34;
+    cycling = &#34;cycling&#34;
+    driving = &#34;driving&#34;
+    public_transport = &#34;public_transport&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -5840,10 +6034,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class TravelTime(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    value: Annotated[float, Field(description=&#39;Travel time limit&#39;, ge=1.0)]
-    unit: Annotated[Unit, Field(description=&#39;Time unit&#39;)]</code></pre>
+    value: Annotated[float, Field(description=&#34;Travel time limit&#34;, ge=1.0)]
+    unit: Annotated[Unit, Field(description=&#34;Time unit&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -5994,12 +6188,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class TrustedMatch(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     providers: Annotated[
         list[Provider] | None,
         Field(
-            description=&#39;Filter to products with specific TMP providers and match types. Each entry identifies a provider by agent_url and optionally requires specific match capabilities. Products must match at least one entry.&#39;,
+            description=&#34;Filter to products with specific TMP providers and match types. Each entry identifies a provider by agent_url and optionally requires specific match capabilities. Products must match at least one entry.&#34;,
             min_length=1,
         ),
     ] = None
@@ -6062,19 +6256,19 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    offering = &#39;offering&#39;
-    product = &#39;product&#39;
-    inventory = &#39;inventory&#39;
-    store = &#39;store&#39;
-    promotion = &#39;promotion&#39;
-    hotel = &#39;hotel&#39;
-    flight = &#39;flight&#39;
-    job = &#39;job&#39;
-    vehicle = &#39;vehicle&#39;
-    real_estate = &#39;real_estate&#39;
-    education = &#39;education&#39;
-    destination = &#39;destination&#39;
-    app = &#39;app&#39;</code></pre>
+    offering = &#34;offering&#34;
+    product = &#34;product&#34;
+    inventory = &#34;inventory&#34;
+    store = &#34;store&#34;
+    promotion = &#34;promotion&#34;
+    hotel = &#34;hotel&#34;
+    flight = &#34;flight&#34;
+    job = &#34;job&#34;
+    vehicle = &#34;vehicle&#34;
+    real_estate = &#34;real_estate&#34;
+    education = &#34;education&#34;
+    destination = &#34;destination&#34;
+    app = &#34;app&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -6181,8 +6375,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type39(Enum):
-    Polygon = &#39;Polygon&#39;
-    MultiPolygon = &#39;MultiPolygon&#39;</code></pre>
+    Polygon = &#34;Polygon&#34;
+    MultiPolygon = &#34;MultiPolygon&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -6245,8 +6439,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Unit(Enum):
-    min = &#39;min&#39;
-    hr = &#39;hr&#39;</code></pre>
+    min = &#34;min&#34;
+    hr = &#34;hr&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -6309,9 +6503,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Unit47(Enum):
-    km = &#39;km&#39;
-    mi = &#39;mi&#39;
-    m = &#39;m&#39;</code></pre>
+    km = &#34;km&#34;
+    mi = &#34;mi&#34;
+    m = &#34;m&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -6378,11 +6572,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Unit52(Enum):
-    seconds = &#39;seconds&#39;
-    minutes = &#39;minutes&#39;
-    hours = &#39;hours&#39;
-    days = &#39;days&#39;
-    campaign = &#39;campaign&#39;</code></pre>
+    seconds = &#34;seconds&#34;
+    minutes = &#34;minutes&#34;
+    hours = &#34;hours&#34;
+    days = &#34;days&#34;
+    campaign = &#34;campaign&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -6457,10 +6651,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class UpdateFrequency(Enum):
-    realtime = &#39;realtime&#39;
-    hourly = &#39;hourly&#39;
-    daily = &#39;daily&#39;
-    weekly = &#39;weekly&#39;</code></pre>
+    realtime = &#34;realtime&#34;
+    hourly = &#34;hourly&#34;
+    daily = &#34;daily&#34;
+    weekly = &#34;weekly&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -6532,22 +6726,22 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Vendor(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     domain: Annotated[
         str,
         Field(
             description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     brand_id: Annotated[
         str | None,
         Field(
-            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
-            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Brand ID&#39;,
+            description=&#34;Brand identifier within the house portfolio. Optional for single-brand domains.&#34;,
+            examples=[&#34;tide&#34;, &#34;cheerios&#34;, &#34;air_jordan&#34;, &#34;nike&#34;, &#34;pampers&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Brand ID&#34;,
         ),
     ] = None
     industries: Annotated[
@@ -7229,6 +7423,30 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.id" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.id">id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.model_config" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.source" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId.source">source</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10">SignalId10</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10.model_config" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId10.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11">SignalId11</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11.model_config" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId11.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12">SignalId12</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12.model_config" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId12.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13">SignalId13</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13.model_config" href="#adcp.types.generated_poc.bundled.media_buy.get_products_request.SignalId13.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

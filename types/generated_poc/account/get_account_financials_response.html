@@ -56,8 +56,8 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Balance(AdCPBaseModel):
-    available: Annotated[float, Field(description=&#39;Remaining prepaid balance&#39;, ge=0.0)]
-    last_top_up: Annotated[LastTopUp | None, Field(description=&#39;Most recent balance top-up&#39;)] = None</code></pre>
+    available: Annotated[float, Field(description=&#34;Remaining prepaid balance&#34;, ge=0.0)]
+    last_top_up: Annotated[LastTopUp | None, Field(description=&#34;Most recent balance top-up&#34;)] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -110,14 +110,14 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Credit(AdCPBaseModel):
-    credit_limit: Annotated[float, Field(description=&#39;Maximum outstanding balance allowed&#39;, ge=0.0)]
+    credit_limit: Annotated[float, Field(description=&#34;Maximum outstanding balance allowed&#34;, ge=0.0)]
     available_credit: Annotated[
         float,
-        Field(description=&#39;Remaining credit available (credit_limit minus outstanding balance)&#39;),
+        Field(description=&#34;Remaining credit available (credit_limit minus outstanding balance)&#34;),
     ]
     utilization_percent: Annotated[
         float | None,
-        Field(description=&#39;Credit utilization as a percentage (0-100)&#39;, ge=0.0, le=100.0),
+        Field(description=&#34;Credit utilization as a percentage (0-100)&#34;, ge=0.0, le=100.0),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -176,23 +176,23 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     account: Annotated[
         account_ref.AccountReference,
-        Field(description=&#39;Account reference, echoed from the request&#39;),
+        Field(description=&#34;Account reference, echoed from the request&#34;),
     ]
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code for all monetary amounts in this response&#39;,
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code for all monetary amounts in this response&#34;,
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     period: Annotated[
         date_range.DateRange,
         Field(
-            description=&#39;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#39;
+            description=&#34;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#34;
         ),
     ]
     timezone: Annotated[
@@ -201,28 +201,28 @@ validated to form a valid model.</p>
             description=&#34;IANA timezone of the seller&#39;s billing day boundaries (e.g., &#39;America/New_York&#39;). All dates in this response — period, invoice periods, due dates — are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day.&#34;
         ),
     ]
-    spend: Annotated[Spend | None, Field(description=&#39;Spend summary for the period&#39;)] = None
+    spend: Annotated[Spend | None, Field(description=&#34;Spend summary for the period&#34;)] = None
     credit: Annotated[
         Credit | None,
         Field(
-            description=&#39;Credit status. Present for credit-based accounts (payment_terms like net_30).&#39;
+            description=&#34;Credit status. Present for credit-based accounts (payment_terms like net_30).&#34;
         ),
     ] = None
     balance: Annotated[
-        Balance | None, Field(description=&#39;Prepay balance. Present for prepay accounts.&#39;)
+        Balance | None, Field(description=&#34;Prepay balance. Present for prepay accounts.&#34;)
     ] = None
     payment_status: Annotated[
         PaymentStatus | None,
         Field(
-            description=&#39;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#39;
+            description=&#34;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#34;
         ),
     ] = None
     payment_terms: Annotated[
-        PaymentTerms | None, Field(description=&#39;Payment terms in effect for this account&#39;)
+        PaymentTerms | None, Field(description=&#34;Payment terms in effect for this account&#34;)
     ] = None
     invoices: Annotated[
         list[Invoice] | None,
-        Field(description=&#39;Recent invoices. Sellers may limit the number returned.&#39;),
+        Field(description=&#34;Recent invoices. Sellers may limit the number returned.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -319,9 +319,9 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
+    errors: Annotated[list[error.Error], Field(description=&#34;Operation-level errors&#34;, min_length=1)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -380,13 +380,13 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Invoice(AdCPBaseModel):
-    invoice_id: Annotated[str, Field(description=&#39;Seller-assigned invoice identifier&#39;)]
+    invoice_id: Annotated[str, Field(description=&#34;Seller-assigned invoice identifier&#34;)]
     period: Annotated[
-        date_range.DateRange | None, Field(description=&#39;Billing period covered by this invoice&#39;)
+        date_range.DateRange | None, Field(description=&#34;Billing period covered by this invoice&#34;)
     ] = None
-    amount: Annotated[float, Field(description=&#39;Invoice total in currency&#39;, ge=0.0)]
-    status: Annotated[Status, Field(description=&#39;Invoice status&#39;)]
-    due_date: Annotated[date_aliased | None, Field(description=&#39;Payment due date&#39;)] = None
+    amount: Annotated[float, Field(description=&#34;Invoice total in currency&#34;, ge=0.0)]
+    status: Annotated[Status, Field(description=&#34;Invoice status&#34;)]
+    due_date: Annotated[date_aliased | None, Field(description=&#34;Payment due date&#34;)] = None
     paid_date: Annotated[
         date_aliased | None,
         Field(description=&#34;Date payment was received. Present when status is &#39;paid&#39;.&#34;),
@@ -459,8 +459,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class LastTopUp(AdCPBaseModel):
-    amount: Annotated[float, Field(description=&#39;Top-up amount&#39;, ge=0.0)]
-    date: Annotated[date_aliased, Field(description=&#39;Date of top-up&#39;)]</code></pre>
+    amount: Annotated[float, Field(description=&#34;Top-up amount&#34;, ge=0.0)]
+    date: Annotated[date_aliased, Field(description=&#34;Date of top-up&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -513,9 +513,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PaymentStatus(Enum):
-    current = &#39;current&#39;
-    past_due = &#39;past_due&#39;
-    suspended = &#39;suspended&#39;</code></pre>
+    current = &#34;current&#34;
+    past_due = &#34;past_due&#34;
+    suspended = &#34;suspended&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -582,12 +582,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PaymentTerms(Enum):
-    net_15 = &#39;net_15&#39;
-    net_30 = &#39;net_30&#39;
-    net_45 = &#39;net_45&#39;
-    net_60 = &#39;net_60&#39;
-    net_90 = &#39;net_90&#39;
-    prepay = &#39;prepay&#39;</code></pre>
+    net_15 = &#34;net_15&#34;
+    net_30 = &#34;net_30&#34;
+    net_45 = &#34;net_45&#34;
+    net_60 = &#34;net_60&#34;
+    net_90 = &#34;net_90&#34;
+    prepay = &#34;prepay&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -667,10 +667,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Spend(AdCPBaseModel):
     total_spend: Annotated[
-        float, Field(description=&#39;Total spend in the period, in currency&#39;, ge=0.0)
+        float, Field(description=&#34;Total spend in the period, in currency&#34;, ge=0.0)
     ]
     media_buy_count: Annotated[
-        int | None, Field(description=&#39;Number of active media buys in the period&#39;, ge=0)
+        int | None, Field(description=&#34;Number of active media buys in the period&#34;, ge=0)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -724,11 +724,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    draft = &#39;draft&#39;
-    issued = &#39;issued&#39;
-    paid = &#39;paid&#39;
-    past_due = &#39;past_due&#39;
-    void = &#39;void&#39;</code></pre>
+    draft = &#34;draft&#34;
+    issued = &#34;issued&#34;
+    paid = &#34;paid&#34;
+    past_due = &#34;past_due&#34;
+    void = &#34;void&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

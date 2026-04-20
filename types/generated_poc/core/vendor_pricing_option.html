@@ -46,6 +46,64 @@ el.replaceWith(d);
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
 <dl>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.Metadata"><code class="flex name class">
+<span>class <span class="ident">Metadata</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Metadata(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#34;allow&#34;,
+    )
+    summary_for_operator: Annotated[
+        str | None,
+        Field(
+            description=&#34;One or two sentences describing the pricing construct in plain language, displayed to the buyer&#39;s operator when requesting approval. Should not repeat the top-level `description` verbatim — summarize the charge mechanic instead (e.g., &#39;Base $12 CPM plus $0.50 per qualifying post-view conversion, capped at $45 CPM&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.Metadata.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.Metadata.summary_for_operator"><code class="name">var <span class="ident">summary_for_operator</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.vendor_pricing_option.Period"><code class="flex name class">
 <span>class <span class="ident">Period</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -56,10 +114,10 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Period(Enum):
-    monthly = &#39;monthly&#39;
-    quarterly = &#39;quarterly&#39;
-    annual = &#39;annual&#39;
-    campaign = &#39;campaign&#39;</code></pre>
+    monthly = &#34;monthly&#34;
+    quarterly = &#34;quarterly&#34;
+    annual = &#34;annual&#34;
+    campaign = &#34;campaign&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -131,20 +189,28 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class VendorPricingOption(
     RootModel[
-        VendorPricingOption6 | VendorPricingOption7 | VendorPricingOption8 | VendorPricingOption9
+        VendorPricingOption7
+        | VendorPricingOption8
+        | VendorPricingOption9
+        | VendorPricingOption10
+        | VendorPricingOption11
     ]
 ):
     root: Annotated[
-        VendorPricingOption6 | VendorPricingOption7 | VendorPricingOption8 | VendorPricingOption9,
+        VendorPricingOption7
+        | VendorPricingOption8
+        | VendorPricingOption9
+        | VendorPricingOption10
+        | VendorPricingOption11,
         Field(
-            description=&#39;A pricing option offered by a vendor agent (signals, creative, governance). Combines pricing_option_id with the pricing model fields. Pass pricing_option_id in report_usage for billing verification. All vendor discovery responses return pricing_options as an array — vendors may offer multiple options (volume tiers, context-specific rates, different models per product line).&#39;,
-            title=&#39;Vendor Pricing Option&#39;,
+            description=&#34;A pricing option offered by a vendor agent (signals, creative, governance). Combines pricing_option_id with the pricing model fields. Pass pricing_option_id in report_usage for billing verification. All vendor discovery responses return pricing_options as an array — vendors may offer multiple options (volume tiers, context-specific rates, different models per product line).&#34;,
+            title=&#34;Vendor Pricing Option&#34;,
         ),
     ]
 
     def __getattr__(self, name: str) -&gt; Any:
         &#34;&#34;&#34;Proxy attribute access to the wrapped type.&#34;&#34;&#34;
-        if name.startswith(&#39;_&#39;):
+        if name.startswith(&#34;_&#34;):
             raise AttributeError(name)
         return getattr(self.root, name)</code></pre>
 </details>
@@ -170,7 +236,7 @@ validated to form a valid model.</p>
 <p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pydantic.root_model.RootModel[Union[VendorPricingOption6, VendorPricingOption7, VendorPricingOption8, VendorPricingOption9]]</li>
+<li>pydantic.root_model.RootModel[Union[VendorPricingOption7, VendorPricingOption8, VendorPricingOption9, VendorPricingOption10, VendorPricingOption11]]</li>
 <li>pydantic.root_model.RootModel</li>
 <li>pydantic.main.BaseModel</li>
 <li>typing.Generic</li>
@@ -181,7 +247,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a> | <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7">VendorPricingOption7</a> | <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8">VendorPricingOption8</a> | <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9">VendorPricingOption9</a></code></dt>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption.root"><code class="name">var <span class="ident">root</span> : <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7">VendorPricingOption7</a> | <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8">VendorPricingOption8</a> | <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9">VendorPricingOption9</a> | <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10">VendorPricingOption10</a> | <a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11">VendorPricingOption11</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -198,11 +264,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VendorPricingOption1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;cpm&#39;]
-    cpm: Annotated[float, Field(description=&#39;Cost per thousand impressions&#39;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    model: Literal[&#34;cpm&#34;]
+    cpm: Annotated[float, Field(description=&#34;Cost per thousand impressions&#34;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -222,7 +288,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7">VendorPricingOption7</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -258,6 +324,100 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10"><code class="flex name class">
+<span>class <span class="ident">VendorPricingOption10</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VendorPricingOption10(VendorPricingOption4, VendorPricingOption6):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4">VendorPricingOption4</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4">VendorPricingOption4</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11"><code class="flex name class">
+<span>class <span class="ident">VendorPricingOption11</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VendorPricingOption11(VendorPricingOption5, VendorPricingOption6):
+    pass</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5">VendorPricingOption5</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a></li>
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5">VendorPricingOption5</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
 <dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption2"><code class="flex name class">
 <span>class <span class="ident">VendorPricingOption2</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -269,22 +429,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VendorPricingOption2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;percent_of_media&#39;]
+    model: Literal[&#34;percent_of_media&#34;]
     percent: Annotated[
-        float, Field(description=&#39;Percentage of media spend, e.g. 15 = 15%&#39;, ge=0.0, le=100.0)
+        float, Field(description=&#34;Percentage of media spend, e.g. 15 = 15%&#34;, ge=0.0, le=100.0)
     ]
     max_cpm: Annotated[
         float | None,
         Field(
-            description=&#39;Optional CPM cap. When set, the effective charge is min(percent × media_spend_per_mille, max_cpm).&#39;,
+            description=&#34;Optional CPM cap. When set, the effective charge is min(percent × media_spend_per_mille, max_cpm).&#34;,
             ge=0.0,
         ),
     ] = None
     currency: Annotated[
         str,
-        Field(description=&#39;ISO 4217 currency code for the resulting charge&#39;, pattern=&#39;^[A-Z]{3}$&#39;),
+        Field(description=&#34;ISO 4217 currency code for the resulting charge&#34;, pattern=&#34;^[A-Z]{3}$&#34;),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -305,7 +465,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7">VendorPricingOption7</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8">VendorPricingOption8</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -356,12 +516,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VendorPricingOption3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;flat_fee&#39;]
-    amount: Annotated[float, Field(description=&#39;Fixed charge for the billing period&#39;, ge=0.0)]
-    period: Annotated[Period, Field(description=&#39;Billing period for the flat fee.&#39;)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    model: Literal[&#34;flat_fee&#34;]
+    amount: Annotated[float, Field(description=&#34;Fixed charge for the billing period&#34;, ge=0.0)]
+    period: Annotated[Period, Field(description=&#34;Billing period for the flat fee.&#34;)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -381,7 +541,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8">VendorPricingOption8</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9">VendorPricingOption9</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -432,17 +592,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class VendorPricingOption4(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    model: Literal[&#39;per_unit&#39;]
+    model: Literal[&#34;per_unit&#34;]
     unit: Annotated[
         str,
         Field(
             description=&#34;What is counted — e.g. &#39;format&#39;, &#39;image&#39;, &#39;token&#39;, &#39;variant&#39;, &#39;render&#39;, &#39;evaluation&#39;.&#34;
         ),
     ]
-    unit_price: Annotated[float, Field(description=&#39;Cost per one unit&#39;, ge=0.0)]
-    currency: Annotated[str, Field(description=&#39;ISO 4217 currency code&#39;, pattern=&#39;^[A-Z]{3}$&#39;)]
+    unit_price: Annotated[float, Field(description=&#34;Cost per one unit&#34;, ge=0.0)]
+    currency: Annotated[str, Field(description=&#34;ISO 4217 currency code&#34;, pattern=&#34;^[A-Z]{3}$&#34;)]
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -462,7 +622,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9">VendorPricingOption9</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10">VendorPricingOption10</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -512,12 +672,31 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class VendorPricingOption5(AdCPBaseModel):
-    pricing_option_id: Annotated[
+    model_config = ConfigDict(
+        extra=&#34;allow&#34;,
+    )
+    model: Literal[&#34;custom&#34;]
+    description: Annotated[
         str,
         Field(
-            description=&#39;Opaque identifier for this pricing option, unique within the vendor agent. Pass this in report_usage to identify which pricing option was applied.&#39;
+            description=&#34;Human-readable description of the custom pricing model. Buyers display this to the operator when requesting approval.&#34;,
+            min_length=1,
         ),
-    ]</code></pre>
+    ]
+    metadata: Annotated[
+        Metadata,
+        Field(
+            description=&#34;Structured parameters for the custom model. Keys follow lowercase_snake_case. Values may be primitives, arrays, or nested objects. Must be sufficient for a human to understand the pricing basis and for a downstream system to reconstruct the charge. Vendors SHOULD include a `summary_for_operator` string (one or two sentences, suitable for display in a buyer&#39;s operator-review UI) so reviewers across vendors see a consistent prompt. Required operator-review fields (approver role, dollar threshold for automatic approval, escalation contact) MAY be surfaced via additional keys the buyer&#39;s review surface recognizes.&#34;
+        ),
+    ]
+    currency: Annotated[
+        str | None,
+        Field(
+            description=&#34;ISO 4217 currency code. Present when the pricing resolves to a monetary charge in a specific currency.&#34;,
+            pattern=&#34;^[A-Z]{3}$&#34;,
+        ),
+    ] = None
+    ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -536,18 +715,31 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a></li>
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7">VendorPricingOption7</a></li>
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8">VendorPricingOption8</a></li>
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9">VendorPricingOption9</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11">VendorPricingOption11</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.currency"><code class="name">var <span class="ident">currency</span> : str | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.description"><code class="name">var <span class="ident">description</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.metadata"><code class="name">var <span class="ident">metadata</span> : <a title="adcp.types.generated_poc.core.vendor_pricing_option.Metadata" href="#adcp.types.generated_poc.core.vendor_pricing_option.Metadata">Metadata</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model"><code class="name">var <span class="ident">model</span> : Literal['custom']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -572,7 +764,69 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class VendorPricingOption6(VendorPricingOption1, VendorPricingOption5):
+<pre><code class="python">class VendorPricingOption6(AdCPBaseModel):
+    pricing_option_id: Annotated[
+        str,
+        Field(
+            description=&#34;Opaque identifier for this pricing option, unique within the vendor agent. Pass this in report_usage to identify which pricing option was applied.&#34;
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10">VendorPricingOption10</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11">VendorPricingOption11</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7">VendorPricingOption7</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8">VendorPricingOption8</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9">VendorPricingOption9</a></li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6.pricing_option_id"><code class="name">var <span class="ident">pricing_option_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7"><code class="flex name class">
+<span>class <span class="ident">VendorPricingOption7</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class VendorPricingOption7(VendorPricingOption1, VendorPricingOption6):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -588,13 +842,13 @@ validated to form a valid model.</p>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption1" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption1">VendorPricingOption1</a></li>
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5">VendorPricingOption5</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -610,8 +864,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7"><code class="flex name class">
-<span>class <span class="ident">VendorPricingOption7</span></span>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8"><code class="flex name class">
+<span>class <span class="ident">VendorPricingOption8</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -619,7 +873,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class VendorPricingOption7(VendorPricingOption2, VendorPricingOption5):
+<pre><code class="python">class VendorPricingOption8(VendorPricingOption2, VendorPricingOption6):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -635,13 +889,13 @@ validated to form a valid model.</p>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption2" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption2">VendorPricingOption2</a></li>
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5">VendorPricingOption5</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption7.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -657,8 +911,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8"><code class="flex name class">
-<span>class <span class="ident">VendorPricingOption8</span></span>
+<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9"><code class="flex name class">
+<span>class <span class="ident">VendorPricingOption9</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -666,7 +920,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class VendorPricingOption8(VendorPricingOption3, VendorPricingOption5):
+<pre><code class="python">class VendorPricingOption9(VendorPricingOption3, VendorPricingOption6):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -682,54 +936,7 @@ validated to form a valid model.</p>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3">VendorPricingOption3</a></li>
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5">VendorPricingOption5</a></li>
-<li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
-<li>pydantic.main.BaseModel</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption8.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-<h3>Inherited members</h3>
-<ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3">VendorPricingOption3</a></b></code>:
-<ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
-</ul>
-</li>
-</ul>
-</dd>
-<dt id="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption9"><code class="flex name class">
-<span>class <span class="ident">VendorPricingOption9</span></span>
-<span>(</span><span>**data: Any)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class VendorPricingOption9(VendorPricingOption4, VendorPricingOption5):
-    pass</code></pre>
-</details>
-<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
-<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
-versions are silently dropped rather than causing validation errors.
-Generated types whose schemas set <code>additionalProperties: true</code>
-override this with <code>extra='allow'</code> in their own <code>model_config</code>.
-Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
-<p>Create a new model by parsing and validating input data from keyword arguments.</p>
-<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
-validated to form a valid model.</p>
-<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4">VendorPricingOption4</a></li>
-<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5">VendorPricingOption5</a></li>
+<li><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a></li>
 <li><a title="adcp.types.base.AdCPBaseModel" href="../../base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
 <li>pydantic.main.BaseModel</li>
 </ul>
@@ -742,11 +949,11 @@ validated to form a valid model.</p>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
-<li><code><b><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4">VendorPricingOption4</a></b></code>:
+<li><code><b><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3">VendorPricingOption3</a></b></code>:
 <ul class="hlist">
-<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption4.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3.model_dump" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3.model_dump_json" href="../../base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption3.model_summary" href="../../base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
 </ul>
 </li>
 </ul>
@@ -766,6 +973,13 @@ validated to form a valid model.</p>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.Metadata" href="#adcp.types.generated_poc.core.vendor_pricing_option.Metadata">Metadata</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.Metadata.model_config" href="#adcp.types.generated_poc.core.vendor_pricing_option.Metadata.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.Metadata.summary_for_operator" href="#adcp.types.generated_poc.core.vendor_pricing_option.Metadata.summary_for_operator">summary_for_operator</a></code></li>
+</ul>
+</li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.Period" href="#adcp.types.generated_poc.core.vendor_pricing_option.Period">Period</a></code></h4>
 <ul class="">
@@ -790,6 +1004,18 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption1.ext" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption1.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption1.model" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption1.model">model</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption1.model_config" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption1.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10">VendorPricingOption10</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10.model_config" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption10.model_config">model_config</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11">VendorPricingOption11</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11.model_config" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption11.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>
@@ -827,15 +1053,20 @@ validated to form a valid model.</p>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5">VendorPricingOption5</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.currency" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.currency">currency</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.description" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.description">description</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.ext" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.metadata" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.metadata">metadata</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model">model</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model_config" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.model_config">model_config</a></code></li>
-<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.pricing_option_id" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption5.pricing_option_id">pricing_option_id</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6">VendorPricingOption6</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6.model_config" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6.pricing_option_id" href="#adcp.types.generated_poc.core.vendor_pricing_option.VendorPricingOption6.pricing_option_id">pricing_option_id</a></code></li>
 </ul>
 </li>
 <li>

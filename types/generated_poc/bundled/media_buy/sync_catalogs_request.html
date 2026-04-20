@@ -57,12 +57,12 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Account(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     account_id: Annotated[
         str,
         Field(
-            description=&#39;Seller-assigned account identifier (from sync_accounts or list_accounts)&#39;
+            description=&#34;Seller-assigned account identifier (from sync_accounts or list_accounts)&#34;
         ),
     ]</code></pre>
 </details>
@@ -114,31 +114,31 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Account49(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     brand: Annotated[
         Brand,
         Field(
-            description=&#39;Brand reference identifying the advertiser&#39;,
+            description=&#34;Brand reference identifying the advertiser&#34;,
             examples=[
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
-                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;glow&#34;},
+                {&#34;domain&#34;: &#34;acme-corp.com&#34;},
             ],
-            title=&#39;Brand Reference&#39;,
+            title=&#34;Brand Reference&#34;,
         ),
     ]
     operator: Annotated[
         str,
         Field(
             description=&#34;Domain of the entity operating on the brand&#39;s behalf. When the brand operates directly, this is the brand&#39;s domain.&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     sandbox: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, references the sandbox account for this brand/operator pair. Defaults to false (production account).&#39;
+            description=&#34;When true, references the sandbox account for this brand/operator pair. Defaults to false (production account).&#34;
         ),
     ] = False</code></pre>
 </details>
@@ -198,12 +198,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Authentication(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     schemes: Annotated[
         list[Scheme],
         Field(
-            description=&#34;Array of authentication schemes. Supported: [&#39;Bearer&#39;] for simple token auth, [&#39;HMAC-SHA256&#39;] for signature verification (recommended for production)&#34;,
+            description=&#34;Array of authentication schemes. Supported: [&#39;Bearer&#39;] for simple token auth, [&#39;HMAC-SHA256&#39;] for legacy shared-secret signing. Both are deprecated; new integrations SHOULD omit `authentication` and use the RFC 9421 webhook profile.&#34;,
             max_length=1,
             min_length=1,
         ),
@@ -211,7 +211,7 @@ validated to form a valid model.</p>
     credentials: Annotated[
         str,
         Field(
-            description=&#39;Credentials for authentication. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#39;,
+            description=&#34;Credentials for the legacy scheme. For Bearer: token sent in Authorization header. For HMAC-SHA256: shared secret used to generate signature. Minimum 32 characters. Exchanged out-of-band during onboarding.&#34;,
             min_length=32,
         ),
     ]</code></pre>
@@ -268,22 +268,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Brand(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     domain: Annotated[
         str,
         Field(
             description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     brand_id: Annotated[
         str | None,
         Field(
-            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
-            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Brand ID&#39;,
+            description=&#34;Brand identifier within the house portfolio. Optional for single-brand domains.&#34;,
+            examples=[&#34;tide&#34;, &#34;cheerios&#34;, &#34;air_jordan&#34;, &#34;nike&#34;, &#34;pampers&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Brand ID&#34;,
         ),
     ] = None
     industries: Annotated[
@@ -359,7 +359,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Catalog(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     catalog_id: Annotated[
         str | None,
@@ -377,7 +377,7 @@ validated to form a valid model.</p>
         Type,
         Field(
             description=&#34;Catalog type. Structural types: &#39;offering&#39; (AdCP Offering objects), &#39;product&#39; (ecommerce entries), &#39;inventory&#39; (stock per location), &#39;store&#39; (physical locations), &#39;promotion&#39; (deals and pricing). Vertical types: &#39;hotel&#39;, &#39;flight&#39;, &#39;job&#39;, &#39;vehicle&#39;, &#39;real_estate&#39;, &#39;education&#39;, &#39;destination&#39;, &#39;app&#39; — each with an industry-specific item schema.&#34;,
-            title=&#39;Catalog Type&#39;,
+            title=&#34;Catalog Type&#34;,
         ),
     ]
     url: Annotated[
@@ -389,15 +389,15 @@ validated to form a valid model.</p>
     feed_format: Annotated[
         FeedFormat | None,
         Field(
-            description=&#39;Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.&#39;,
-            title=&#39;Feed Format&#39;,
+            description=&#34;Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.&#34;,
+            title=&#34;Feed Format&#34;,
         ),
     ] = None
     update_frequency: Annotated[
         UpdateFrequency | None,
         Field(
-            description=&#39;How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.&#39;,
-            title=&#39;Update Frequency&#39;,
+            description=&#34;How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.&#34;,
+            title=&#34;Update Frequency&#34;,
         ),
     ] = None
     items: Annotated[
@@ -410,7 +410,7 @@ validated to form a valid model.</p>
     ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter catalog to specific item IDs. For offering-type catalogs, these are offering_id values. For product-type catalogs, these are SKU identifiers.&#39;,
+            description=&#34;Filter catalog to specific item IDs. For offering-type catalogs, these are offering_id values. For product-type catalogs, these are SKU identifiers.&#34;,
             min_length=1,
         ),
     ] = None
@@ -424,7 +424,7 @@ validated to form a valid model.</p>
     tags: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Filter catalog to items with these tags. Tags are matched using OR logic — items matching any tag are included.&#39;,
+            description=&#34;Filter catalog to items with these tags. Tags are matched using OR logic — items matching any tag are included.&#34;,
             min_length=1,
         ),
     ] = None
@@ -451,13 +451,13 @@ validated to form a valid model.</p>
         ContentIdType | None,
         Field(
             description=&#34;Identifier type that the event&#39;s content_ids field should be matched against for items in this catalog. For example, &#39;gtin&#39; means content_ids values are Global Trade Item Numbers, &#39;sku&#39; means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum.&#34;,
-            title=&#39;Content ID Type&#39;,
+            title=&#34;Content ID Type&#34;,
         ),
     ] = None
     feed_field_mappings: Annotated[
         list[FeedFieldMapping] | None,
         Field(
-            description=&#39;Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.&#39;,
+            description=&#34;Declarative normalization rules for external feeds. Maps non-standard feed field names, date formats, price encodings, and image URLs to the AdCP catalog item schema. Applied during sync_catalogs ingestion. Supports field renames, named transforms (date, divide, boolean, split), static literal injection, and assignment of image URLs to typed asset pools.&#34;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -565,18 +565,18 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ContentIdType(Enum):
-    sku = &#39;sku&#39;
-    gtin = &#39;gtin&#39;
-    offering_id = &#39;offering_id&#39;
-    job_id = &#39;job_id&#39;
-    hotel_id = &#39;hotel_id&#39;
-    flight_id = &#39;flight_id&#39;
-    vehicle_id = &#39;vehicle_id&#39;
-    listing_id = &#39;listing_id&#39;
-    store_id = &#39;store_id&#39;
-    program_id = &#39;program_id&#39;
-    destination_id = &#39;destination_id&#39;
-    app_id = &#39;app_id&#39;</code></pre>
+    sku = &#34;sku&#34;
+    gtin = &#34;gtin&#34;
+    offering_id = &#34;offering_id&#34;
+    job_id = &#34;job_id&#34;
+    hotel_id = &#34;hotel_id&#34;
+    flight_id = &#34;flight_id&#34;
+    vehicle_id = &#34;vehicle_id&#34;
+    listing_id = &#34;listing_id&#34;
+    store_id = &#34;store_id&#34;
+    program_id = &#34;program_id&#34;
+    destination_id = &#34;destination_id&#34;
+    app_id = &#34;app_id&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -679,34 +679,34 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ConversionEvent(Enum):
-    page_view = &#39;page_view&#39;
-    view_content = &#39;view_content&#39;
-    select_content = &#39;select_content&#39;
-    select_item = &#39;select_item&#39;
-    search = &#39;search&#39;
-    share = &#39;share&#39;
-    add_to_cart = &#39;add_to_cart&#39;
-    remove_from_cart = &#39;remove_from_cart&#39;
-    viewed_cart = &#39;viewed_cart&#39;
-    add_to_wishlist = &#39;add_to_wishlist&#39;
-    initiate_checkout = &#39;initiate_checkout&#39;
-    add_payment_info = &#39;add_payment_info&#39;
-    purchase = &#39;purchase&#39;
-    refund = &#39;refund&#39;
-    lead = &#39;lead&#39;
-    qualify_lead = &#39;qualify_lead&#39;
-    close_convert_lead = &#39;close_convert_lead&#39;
-    disqualify_lead = &#39;disqualify_lead&#39;
-    complete_registration = &#39;complete_registration&#39;
-    subscribe = &#39;subscribe&#39;
-    start_trial = &#39;start_trial&#39;
-    app_install = &#39;app_install&#39;
-    app_launch = &#39;app_launch&#39;
-    contact = &#39;contact&#39;
-    schedule = &#39;schedule&#39;
-    donate = &#39;donate&#39;
-    submit_application = &#39;submit_application&#39;
-    custom = &#39;custom&#39;</code></pre>
+    page_view = &#34;page_view&#34;
+    view_content = &#34;view_content&#34;
+    select_content = &#34;select_content&#34;
+    select_item = &#34;select_item&#34;
+    search = &#34;search&#34;
+    share = &#34;share&#34;
+    add_to_cart = &#34;add_to_cart&#34;
+    remove_from_cart = &#34;remove_from_cart&#34;
+    viewed_cart = &#34;viewed_cart&#34;
+    add_to_wishlist = &#34;add_to_wishlist&#34;
+    initiate_checkout = &#34;initiate_checkout&#34;
+    add_payment_info = &#34;add_payment_info&#34;
+    purchase = &#34;purchase&#34;
+    refund = &#34;refund&#34;
+    lead = &#34;lead&#34;
+    qualify_lead = &#34;qualify_lead&#34;
+    close_convert_lead = &#34;close_convert_lead&#34;
+    disqualify_lead = &#34;disqualify_lead&#34;
+    complete_registration = &#34;complete_registration&#34;
+    subscribe = &#34;subscribe&#34;
+    start_trial = &#34;start_trial&#34;
+    app_install = &#34;app_install&#34;
+    app_launch = &#34;app_launch&#34;
+    contact = &#34;contact&#34;
+    schedule = &#34;schedule&#34;
+    donate = &#34;donate&#34;
+    submit_application = &#34;submit_application&#34;
+    custom = &#34;custom&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -874,7 +874,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class DataSubjectContestation(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     url: AnyUrl
     email: EmailStr | None = None
@@ -936,7 +936,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DataSubjectContestation85(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     url: AnyUrl | None = None
     email: EmailStr
@@ -998,12 +998,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class FeedFieldMapping(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     feed_field: Annotated[
         str | None,
         Field(
-            description=&#39;Field name in the external feed record. Omit when injecting a static literal value (use the value property instead).&#39;
+            description=&#34;Field name in the external feed record. Omit when injecting a static literal value (use the value property instead).&#34;
         ),
     ] = None
     catalog_field: Annotated[
@@ -1021,13 +1021,13 @@ validated to form a valid model.</p>
     value: Annotated[
         Any | None,
         Field(
-            description=&#39;Static literal value to inject into catalog_field for every item, regardless of what the feed contains. Mutually exclusive with feed_field. Useful for fields the feed omits (e.g., currency when price is always USD, or a constant category value).&#39;
+            description=&#34;Static literal value to inject into catalog_field for every item, regardless of what the feed contains. Mutually exclusive with feed_field. Useful for fields the feed omits (e.g., currency when price is always USD, or a constant category value).&#34;
         ),
     ] = None
     transform: Annotated[
         Transform | None,
         Field(
-            description=&#39;Named transform to apply to the feed field value before writing to the catalog schema. See transform-specific parameters (format, timezone, by, separator).&#39;
+            description=&#34;Named transform to apply to the feed field value before writing to the catalog schema. See transform-specific parameters (format, timezone, by, separator).&#34;
         ),
     ] = None
     format: Annotated[
@@ -1054,18 +1054,18 @@ validated to form a valid model.</p>
         Field(
             description=&#34;For transform &#39;split&#39;: the separator character or string to split on. Defaults to &#39;,&#39;.&#34;
         ),
-    ] = &#39;,&#39;
+    ] = &#34;,&#34;
     default: Annotated[
         Any | None,
         Field(
-            description=&#39;Fallback value to use when feed_field is absent, null, or empty. Applied after any transform would have been applied. Allows optional feed fields to have a guaranteed baseline value.&#39;
+            description=&#34;Fallback value to use when feed_field is absent, null, or empty. Applied after any transform would have been applied. Allows optional feed fields to have a guaranteed baseline value.&#34;
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -1156,11 +1156,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class FeedFormat(Enum):
-    google_merchant_center = &#39;google_merchant_center&#39;
-    facebook_catalog = &#39;facebook_catalog&#39;
-    shopify = &#39;shopify&#39;
-    linkedin_jobs = &#39;linkedin_jobs&#39;
-    custom = &#39;custom&#39;</code></pre>
+    google_merchant_center = &#34;google_merchant_center&#34;
+    facebook_catalog = &#34;facebook_catalog&#34;
+    shopify = &#34;shopify&#34;
+    linkedin_jobs = &#34;linkedin_jobs&#34;
+    custom = &#34;custom&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1235,7 +1235,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Gtin(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[0-9]{8,14}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[0-9]{8,14}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -1286,18 +1286,20 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]
+    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for task status notifications&#34;)]
     token: Annotated[
         str | None,
         Field(
-            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
             min_length=16,
         ),
     ] = None
     authentication: Annotated[
-        Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
-    ]</code></pre>
+        Authentication | None,
+        Field(
+            description=&#34;Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. When omitted, the seller MUST sign webhooks with the 9421 profile.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1316,7 +1318,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication">Authentication</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication" href="#adcp.types.generated_poc.bundled.media_buy.sync_catalogs_request.Authentication">Authentication</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1354,8 +1356,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Scheme(Enum):
-    Bearer = &#39;Bearer&#39;
-    HMAC_SHA256 = &#39;HMAC-SHA256&#39;</code></pre>
+    Bearer = &#34;Bearer&#34;
+    HMAC_SHA256 = &#34;HMAC-SHA256&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1419,7 +1421,7 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SyncCatalogsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     adcp_major_version: Annotated[
         int | None,
@@ -1432,36 +1434,36 @@ attributes &ndash; see the documentation for details.</p></div>
     idempotency_key: Annotated[
         str,
         Field(
-            description=&#39;Client-generated unique key for at-most-once execution. `catalog_id` gives resource-level dedup per catalog, but the sync envelope emits audit events and triggers platform review for large feeds — this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `catalogs` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.&#39;,
+            description=&#34;Client-generated unique key for at-most-once execution. `catalog_id` gives resource-level dedup per catalog, but the sync envelope emits audit events and triggers platform review for large feeds — this key prevents those side effects from firing twice on retry. Also serves as a request ID on discovery-only calls (when `catalogs` is omitted). MUST be unique per (seller, request) pair. Use a fresh UUID v4 for each request.&#34;,
             max_length=255,
             min_length=16,
-            pattern=&#39;^[A-Za-z0-9_.:-]{16,255}$&#39;,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
         ),
     ]
     account: Annotated[
         Account | Account49,
         Field(
-            description=&#39;Account that owns these catalogs.&#39;,
+            description=&#34;Account that owns these catalogs.&#34;,
             examples=[
-                {&#39;account_id&#39;: &#39;acc_acme_001&#39;},
-                {&#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;}, &#39;operator&#39;: &#39;acme-corp.com&#39;},
+                {&#34;account_id&#34;: &#34;acc_acme_001&#34;},
+                {&#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;}, &#34;operator&#34;: &#34;acme-corp.com&#34;},
                 {
-                    &#39;brand&#39;: {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                    &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
+                    &#34;brand&#34;: {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                    &#34;operator&#34;: &#34;pinnacle-media.com&#34;,
                 },
                 {
-                    &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
-                    &#39;operator&#39;: &#39;acme-corp.com&#39;,
-                    &#39;sandbox&#39;: True,
+                    &#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;},
+                    &#34;operator&#34;: &#34;acme-corp.com&#34;,
+                    &#34;sandbox&#34;: True,
                 },
             ],
-            title=&#39;Account Reference&#39;,
+            title=&#34;Account Reference&#34;,
         ),
     ]
     catalogs: Annotated[
         list[Catalog] | None,
         Field(
-            description=&#39;Array of catalog feeds to sync (create or update). When omitted, the call is discovery-only and returns all existing catalogs on the account without modification.&#39;,
+            description=&#34;Array of catalog feeds to sync (create or update). When omitted, the call is discovery-only and returns all existing catalogs on the account without modification.&#34;,
             max_length=50,
             min_length=1,
         ),
@@ -1469,7 +1471,7 @@ attributes &ndash; see the documentation for details.</p></div>
     catalog_ids: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Optional filter to limit sync scope to specific catalog IDs. When provided, only these catalogs will be created/updated. Other catalogs on the account are unaffected.&#39;,
+            description=&#34;Optional filter to limit sync scope to specific catalog IDs. When provided, only these catalogs will be created/updated. Other catalogs on the account are unaffected.&#34;,
             max_length=50,
             min_length=1,
         ),
@@ -1477,41 +1479,41 @@ attributes &ndash; see the documentation for details.</p></div>
     delete_missing: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, buyer-managed catalogs on the account not included in this sync will be removed. Does not affect seller-managed catalogs. Do not combine with an omitted catalogs array or all buyer-managed catalogs will be deleted.&#39;
+            description=&#34;When true, buyer-managed catalogs on the account not included in this sync will be removed. Does not affect seller-managed catalogs. Do not combine with an omitted catalogs array or all buyer-managed catalogs will be deleted.&#34;
         ),
     ] = False
     dry_run: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, preview changes without applying them. Returns what would be created/updated/deleted.&#39;
+            description=&#34;When true, preview changes without applying them. Returns what would be created/updated/deleted.&#34;
         ),
     ] = False
     validation_mode: Annotated[
         ValidationMode | None,
         Field(
             description=&#34;Validation strictness. &#39;strict&#39; fails entire sync on any validation error. &#39;lenient&#39; processes valid catalogs and reports errors.&#34;,
-            title=&#39;Validation Mode&#39;,
+            title=&#34;Validation Mode&#34;,
         ),
     ] = ValidationMode.strict
     push_notification_config: Annotated[
         PushNotificationConfig | None,
         Field(
-            description=&#39;Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (common for large feeds requiring platform review).&#39;,
-            title=&#39;Push Notification Config&#39;,
+            description=&#34;Optional webhook configuration for async sync notifications. Publisher will send webhook when sync completes if operation takes longer than immediate response time (common for large feeds requiring platform review).&#34;,
+            title=&#34;Push Notification Config&#34;,
         ),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -1602,10 +1604,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Transform(Enum):
-    date = &#39;date&#39;
-    divide = &#39;divide&#39;
-    boolean = &#39;boolean&#39;
-    split = &#39;split&#39;</code></pre>
+    date = &#34;date&#34;
+    divide = &#34;divide&#34;
+    boolean = &#34;boolean&#34;
+    split = &#34;split&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1676,19 +1678,19 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    offering = &#39;offering&#39;
-    product = &#39;product&#39;
-    inventory = &#39;inventory&#39;
-    store = &#39;store&#39;
-    promotion = &#39;promotion&#39;
-    hotel = &#39;hotel&#39;
-    flight = &#39;flight&#39;
-    job = &#39;job&#39;
-    vehicle = &#39;vehicle&#39;
-    real_estate = &#39;real_estate&#39;
-    education = &#39;education&#39;
-    destination = &#39;destination&#39;
-    app = &#39;app&#39;</code></pre>
+    offering = &#34;offering&#34;
+    product = &#34;product&#34;
+    inventory = &#34;inventory&#34;
+    store = &#34;store&#34;
+    promotion = &#34;promotion&#34;
+    hotel = &#34;hotel&#34;
+    flight = &#34;flight&#34;
+    job = &#34;job&#34;
+    vehicle = &#34;vehicle&#34;
+    real_estate = &#34;real_estate&#34;
+    education = &#34;education&#34;
+    destination = &#34;destination&#34;
+    app = &#34;app&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1795,10 +1797,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class UpdateFrequency(Enum):
-    realtime = &#39;realtime&#39;
-    hourly = &#39;hourly&#39;
-    daily = &#39;daily&#39;
-    weekly = &#39;weekly&#39;</code></pre>
+    realtime = &#34;realtime&#34;
+    hourly = &#34;hourly&#34;
+    daily = &#34;daily&#34;
+    weekly = &#34;weekly&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1869,8 +1871,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ValidationMode(Enum):
-    strict = &#39;strict&#39;
-    lenient = &#39;lenient&#39;</code></pre>
+    strict = &#34;strict&#34;
+    lenient = &#34;lenient&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

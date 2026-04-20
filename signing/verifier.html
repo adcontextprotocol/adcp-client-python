@@ -152,7 +152,7 @@ taxonomy — conformance requires byte-for-byte match on the code string.</p>
         )
 
     alg = str(parsed.params[&#34;alg&#34;])
-    _check_key_purpose(jwk, alg)
+    _check_key_purpose(jwk, alg, expected_adcp_use=options.expected_adcp_use)
 
     if options.revocation_list is not None:
         as_of = datetime.fromtimestamp(options.now, tz=timezone.utc)
@@ -376,7 +376,7 @@ requests — only pick <code>"either"</code> if you've weighed that tradeoff.</p
 </dd>
 <dt id="adcp.signing.verifier.VerifyOptions"><code class="flex name class">
 <span>class <span class="ident">VerifyOptions</span></span>
-<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.verifier.VerifierCapability" href="#adcp.signing.verifier.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.verifier.JwksResolver" href="#adcp.signing.verifier.JwksResolver">JwksResolver</a>,<br>replay_store: ReplayStore | None = None,<br>revocation_checker: RevocationChecker | None = None,<br>revocation_list: RevocationList | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>allowed_algs: frozenset[str] = frozenset({'ed25519', 'ecdsa-p256-sha256'}),<br>agent_url: str | None = None)</span>
+<span>(</span><span>*,<br>now: float,<br>capability: <a title="adcp.signing.verifier.VerifierCapability" href="#adcp.signing.verifier.VerifierCapability">VerifierCapability</a>,<br>operation: str,<br>jwks_resolver: <a title="adcp.signing.verifier.JwksResolver" href="#adcp.signing.verifier.JwksResolver">JwksResolver</a>,<br>replay_store: ReplayStore | None = None,<br>revocation_checker: RevocationChecker | None = None,<br>revocation_list: RevocationList | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>expected_tag: str = 'adcp/request-signing/v1',<br>expected_adcp_use: str = 'request-signing',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>agent_url: str | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -396,10 +396,11 @@ class VerifyOptions:
     max_window_seconds: int = MAX_WINDOW_SECONDS
     label: str = SIG_LABEL_DEFAULT
     expected_tag: str = DEFAULT_TAG
+    expected_adcp_use: str = ADCP_USE_REQUEST
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None</code></pre>
 </details>
-<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', allowed_algs: 'frozenset[str]' = frozenset({'ed25519', 'ecdsa-p256-sha256'}), agent_url: 'str | None' = None)</p></div>
+<div class="desc"><p>VerifyOptions(*, now: 'float', capability: 'VerifierCapability', operation: 'str', jwks_resolver: 'JwksResolver', replay_store: 'ReplayStore | None' = None, revocation_checker: 'RevocationChecker | None' = None, revocation_list: 'RevocationList | None' = None, max_skew_seconds: 'int' = 60, max_window_seconds: 'int' = 300, label: 'str' = 'sig1', expected_tag: 'str' = 'adcp/request-signing/v1', expected_adcp_use: 'str' = 'request-signing', allowed_algs: 'frozenset[str]' = frozenset({'ecdsa-p256-sha256', 'ed25519'}), agent_url: 'str | None' = None)</p></div>
 <h3>Instance variables</h3>
 <dl>
 <dt id="adcp.signing.verifier.VerifyOptions.agent_url"><code class="name">var <span class="ident">agent_url</span> : str | None</code></dt>
@@ -411,6 +412,10 @@ class VerifyOptions:
 <div class="desc"></div>
 </dd>
 <dt id="adcp.signing.verifier.VerifyOptions.capability"><code class="name">var <span class="ident">capability</span> : <a title="adcp.signing.verifier.VerifierCapability" href="#adcp.signing.verifier.VerifierCapability">VerifierCapability</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.verifier.VerifyOptions.expected_adcp_use"><code class="name">var <span class="ident">expected_adcp_use</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -504,6 +509,7 @@ class VerifyOptions:
 <li><code><a title="adcp.signing.verifier.VerifyOptions.agent_url" href="#adcp.signing.verifier.VerifyOptions.agent_url">agent_url</a></code></li>
 <li><code><a title="adcp.signing.verifier.VerifyOptions.allowed_algs" href="#adcp.signing.verifier.VerifyOptions.allowed_algs">allowed_algs</a></code></li>
 <li><code><a title="adcp.signing.verifier.VerifyOptions.capability" href="#adcp.signing.verifier.VerifyOptions.capability">capability</a></code></li>
+<li><code><a title="adcp.signing.verifier.VerifyOptions.expected_adcp_use" href="#adcp.signing.verifier.VerifyOptions.expected_adcp_use">expected_adcp_use</a></code></li>
 <li><code><a title="adcp.signing.verifier.VerifyOptions.expected_tag" href="#adcp.signing.verifier.VerifyOptions.expected_tag">expected_tag</a></code></li>
 <li><code><a title="adcp.signing.verifier.VerifyOptions.jwks_resolver" href="#adcp.signing.verifier.VerifyOptions.jwks_resolver">jwks_resolver</a></code></li>
 <li><code><a title="adcp.signing.verifier.VerifyOptions.label" href="#adcp.signing.verifier.VerifyOptions.label">label</a></code></li>

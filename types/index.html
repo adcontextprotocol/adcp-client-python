@@ -2214,25 +2214,34 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ArtifactWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#34;Sender-generated key stable across retries of the same webhook event. Sales agents MUST generate a cryptographically random value (UUID v4 recommended) per distinct emission of a batch and reuse the same key on every retry. Recipients MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different sales agents are independent. Distinct from `batch_id`, which identifies the logical batch: `idempotency_key` identifies this specific emission event, so a re-emission of the same `batch_id` (e.g., after a correction) is a different event and MUST carry a fresh `idempotency_key`.&#34;,
+            max_length=255,
+            min_length=16,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
+        ),
+    ]
     media_buy_id: Annotated[
-        str, Field(description=&#39;Media buy identifier these artifacts belong to&#39;)
+        str, Field(description=&#34;Media buy identifier these artifacts belong to&#34;)
     ]
     batch_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#39;
+            description=&#34;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#34;
         ),
     ]
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;When this batch was generated (ISO 8601)&#39;)
+        AwareDatetime, Field(description=&#34;When this batch was generated (ISO 8601)&#34;)
     ]
     artifacts: Annotated[
-        list[Artifact], Field(description=&#39;Content artifacts from delivered impressions&#39;)
+        list[Artifact], Field(description=&#34;Content artifacts from delivered impressions&#34;)
     ]
     pagination: Annotated[
-        Pagination | None, Field(description=&#39;Pagination info when batching large artifact sets&#39;)
+        Pagination | None, Field(description=&#34;Pagination info when batching large artifact sets&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -2262,6 +2271,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.ArtifactWebhookPayload.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.ArtifactWebhookPayload.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -7764,23 +7777,32 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CollectionListChangedWebhook(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    event: Annotated[Literal[&#39;collection_list_changed&#39;], Field(description=&#39;The event type&#39;)]
-    list_id: Annotated[str, Field(description=&#39;ID of the collection list that changed&#39;)]
-    list_name: Annotated[str | None, Field(description=&#39;Name of the collection list&#39;)] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#34;Sender-generated key stable across retries of the same webhook event. Governance agents MUST generate a cryptographically random value (UUID v4 recommended) per distinct list-change event and reuse the same key on every retry. Recipients MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different governance agents are independent.&#34;,
+            max_length=255,
+            min_length=16,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
+        ),
+    ]
+    event: Annotated[Literal[&#34;collection_list_changed&#34;], Field(description=&#34;The event type&#34;)]
+    list_id: Annotated[str, Field(description=&#34;ID of the collection list that changed&#34;)]
+    list_name: Annotated[str | None, Field(description=&#34;Name of the collection list&#34;)] = None
     change_summary: Annotated[
-        ChangeSummary | None, Field(description=&#39;Summary of changes to the resolved list&#39;)
+        ChangeSummary | None, Field(description=&#34;Summary of changes to the resolved list&#34;)
     ] = None
-    resolved_at: Annotated[AwareDatetime, Field(description=&#39;When the list was re-resolved&#39;)]
+    resolved_at: Annotated[AwareDatetime, Field(description=&#34;When the list was re-resolved&#34;)]
     cache_valid_until: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;When the consumer should refresh from the governance agent&#39;),
+        Field(description=&#34;When the consumer should refresh from the governance agent&#34;),
     ] = None
     signature: Annotated[
         str,
         Field(
-            description=&#39;HMAC-SHA256 webhook signature over {unix_timestamp}.{raw_http_body_bytes} using the secret exchanged out-of-band when the seller registered with the governance agent. Recipients MUST verify against the X-ADCP-Signature and X-ADCP-Timestamp headers using timing-safe comparison and MUST reject requests where |now - timestamp| &gt; 300 seconds. The body copy of this field is a convenience only — the headers are authoritative. See docs/building/implementation/security#webhook-security.&#39;
+            description=&#34;HMAC-SHA256 webhook signature over {unix_timestamp}.{raw_http_body_bytes} using the secret exchanged out-of-band when the seller registered with the governance agent. Recipients MUST verify against the X-ADCP-Signature and X-ADCP-Timestamp headers using timing-safe comparison and MUST reject requests where |now - timestamp| &gt; 300 seconds. The body copy of this field is a convenience only — the headers are authoritative. See docs/building/implementation/security#webhook-security.&#34;
         ),
     ]
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -7815,6 +7837,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.CollectionListChangedWebhook.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.CollectionListChangedWebhook.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -11068,7 +11094,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     media_buy_id: Annotated[
         str, Field(description=&#34;Seller&#39;s unique identifier for the created media buy&#34;)
@@ -11076,13 +11102,13 @@ validated to form a valid model.</p>
     account: Annotated[
         account_1.Account | None,
         Field(
-            description=&#39;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#39;
+            description=&#34;Account billed for this media buy. Includes advertiser, billing proxy (if any), and rate card applied.&#34;
         ),
     ] = None
     invoice_recipient: Annotated[
         business_entity.BusinessEntity | None,
         Field(
-            description=&#39;Per-buy invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#39;
+            description=&#34;Per-buy invoice recipient, echoed from the request when provided. Confirms the seller accepted the billing override. Bank details are omitted (write-only).&#34;
         ),
     ] = None
     status: Annotated[
@@ -11094,28 +11120,28 @@ validated to form a valid model.</p>
     confirmed_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp when this media buy was confirmed by the seller. A successful create_media_buy response constitutes order confirmation.&#39;
+            description=&#34;ISO 8601 timestamp when this media buy was confirmed by the seller. A successful create_media_buy response constitutes order confirmation.&#34;
         ),
     ] = None
     creative_deadline: Annotated[
-        AwareDatetime | None, Field(description=&#39;ISO 8601 timestamp for creative upload deadline&#39;)
+        AwareDatetime | None, Field(description=&#34;ISO 8601 timestamp for creative upload deadline&#34;)
     ] = None
     revision: Annotated[
         int | None,
         Field(
-            description=&#39;Initial revision number for this media buy. Use in subsequent update_media_buy requests for optimistic concurrency.&#39;,
+            description=&#34;Initial revision number for this media buy. Use in subsequent update_media_buy requests for optimistic concurrency.&#34;,
             ge=1,
         ),
     ] = None
     valid_actions: Annotated[
         list[ValidAction] | None,
         Field(
-            description=&#39;Actions the buyer can perform on this media buy after creation. Saves a round-trip to get_media_buys.&#39;
+            description=&#34;Actions the buyer can perform on this media buy after creation. Saves a round-trip to get_media_buys.&#34;
         ),
     ] = None
     packages: Annotated[
         list[package.Package],
-        Field(description=&#39;Array of created packages with complete state information&#39;),
+        Field(description=&#34;Array of created packages with complete state information&#34;),
     ]
     planned_delivery: Annotated[
         planned_delivery_1.PlannedDelivery | None,
@@ -11125,7 +11151,7 @@ validated to form a valid model.</p>
     ] = None
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -11226,11 +11252,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreateMediaBuyResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
         list[error.Error],
-        Field(description=&#39;Array of errors explaining why the operation failed&#39;, min_length=1),
+        Field(description=&#34;Array of errors explaining why the operation failed&#34;, min_length=1),
     ]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -17713,14 +17739,14 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ForecastRangeUnit(Enum):
-    spend = &#39;spend&#39;
-    availability = &#39;availability&#39;
-    reach_freq = &#39;reach_freq&#39;
-    weekly = &#39;weekly&#39;
-    daily = &#39;daily&#39;
-    clicks = &#39;clicks&#39;
-    conversions = &#39;conversions&#39;
-    package = &#39;package&#39;</code></pre>
+    spend = &#34;spend&#34;
+    availability = &#34;availability&#34;
+    reach_freq = &#34;reach_freq&#34;
+    weekly = &#34;weekly&#34;
+    daily = &#34;daily&#34;
+    clicks = &#34;clicks&#34;
+    conversions = &#34;conversions&#34;
+    package = &#34;package&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -18876,7 +18902,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     adcp_major_version: Annotated[
         int | None,
@@ -18888,12 +18914,12 @@ validated to form a valid model.</p>
     ] = None
     account: Annotated[
         account_ref.AccountReference,
-        Field(description=&#39;Account to query financials for. Must be an operator-billed account.&#39;),
+        Field(description=&#34;Account to query financials for. Must be an operator-billed account.&#34;),
     ]
     period: Annotated[
         date_range.DateRange | None,
         Field(
-            description=&#39;Date range for the spend summary. Defaults to the current billing cycle if omitted.&#39;
+            description=&#34;Date range for the spend summary. Defaults to the current billing cycle if omitted.&#34;
         ),
     ] = None
     context: context_1.ContextObject | None = None
@@ -18963,23 +18989,23 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     account: Annotated[
         account_ref.AccountReference,
-        Field(description=&#39;Account reference, echoed from the request&#39;),
+        Field(description=&#34;Account reference, echoed from the request&#34;),
     ]
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code for all monetary amounts in this response&#39;,
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code for all monetary amounts in this response&#34;,
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     period: Annotated[
         date_range.DateRange,
         Field(
-            description=&#39;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#39;
+            description=&#34;The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries.&#34;
         ),
     ]
     timezone: Annotated[
@@ -18988,28 +19014,28 @@ validated to form a valid model.</p>
             description=&#34;IANA timezone of the seller&#39;s billing day boundaries (e.g., &#39;America/New_York&#39;). All dates in this response — period, invoice periods, due dates — are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day.&#34;
         ),
     ]
-    spend: Annotated[Spend | None, Field(description=&#39;Spend summary for the period&#39;)] = None
+    spend: Annotated[Spend | None, Field(description=&#34;Spend summary for the period&#34;)] = None
     credit: Annotated[
         Credit | None,
         Field(
-            description=&#39;Credit status. Present for credit-based accounts (payment_terms like net_30).&#39;
+            description=&#34;Credit status. Present for credit-based accounts (payment_terms like net_30).&#34;
         ),
     ] = None
     balance: Annotated[
-        Balance | None, Field(description=&#39;Prepay balance. Present for prepay accounts.&#39;)
+        Balance | None, Field(description=&#34;Prepay balance. Present for prepay accounts.&#34;)
     ] = None
     payment_status: Annotated[
         PaymentStatus | None,
         Field(
-            description=&#39;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#39;
+            description=&#34;Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues.&#34;
         ),
     ] = None
     payment_terms: Annotated[
-        PaymentTerms | None, Field(description=&#39;Payment terms in effect for this account&#39;)
+        PaymentTerms | None, Field(description=&#34;Payment terms in effect for this account&#34;)
     ] = None
     invoices: Annotated[
         list[Invoice] | None,
-        Field(description=&#39;Recent invoices. Sellers may limit the number returned.&#39;),
+        Field(description=&#34;Recent invoices. Sellers may limit the number returned.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -19106,9 +19132,9 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAccountFinancialsResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    errors: Annotated[list[error.Error], Field(description=&#39;Operation-level errors&#39;, min_length=1)]
+    errors: Annotated[list[error.Error], Field(description=&#34;Operation-level errors&#34;, min_length=1)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -19248,90 +19274,96 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAdcpCapabilitiesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    adcp: Annotated[Adcp, Field(description=&#39;Core AdCP protocol information&#39;)]
+    adcp: Annotated[Adcp, Field(description=&#34;Core AdCP protocol information&#34;)]
     supported_protocols: Annotated[
         list[SupportedProtocol],
         Field(
-            description=&#39;AdCP protocols this agent supports. Each value both (a) declares which tools the agent implements and (b) commits the agent to pass the baseline compliance storyboard at /compliance/{version}/protocols/{protocol}/ (with snake_case → kebab-case path mapping, e.g. media_buy → /compliance/.../protocols/media-buy/). Compliance testing support is declared separately via the `compliance_testing` capability block (below), not as a protocol claim.&#39;,
+            description=&#34;AdCP protocols this agent supports. Each value both (a) declares which tools the agent implements and (b) commits the agent to pass the baseline compliance storyboard at /compliance/{version}/protocols/{protocol}/ (with snake_case → kebab-case path mapping, e.g. media_buy → /compliance/.../protocols/media-buy/). Compliance testing support is declared separately via the `compliance_testing` capability block (below), not as a protocol claim.&#34;,
             min_length=1,
         ),
     ]
     account: Annotated[
         Account | None,
         Field(
-            description=&#39;Account management capabilities. Describes how accounts are established, what billing models are supported, and whether an account is required before browsing products.&#39;
+            description=&#34;Account management capabilities. Describes how accounts are established, what billing models are supported, and whether an account is required before browsing products.&#34;
         ),
     ] = None
     media_buy: Annotated[
         MediaBuy | None,
         Field(
-            description=&#39;Media-buy protocol capabilities. Expected when media_buy is in supported_protocols. Sellers declaring media_buy should also include account with supported_billing.&#39;
+            description=&#34;Media-buy protocol capabilities. Expected when media_buy is in supported_protocols. Sellers declaring media_buy should also include account with supported_billing.&#34;
         ),
     ] = None
     signals: Annotated[
         Signals | None,
         Field(
-            description=&#39;Signals protocol capabilities. Only present if signals is in supported_protocols.&#39;
+            description=&#34;Signals protocol capabilities. Only present if signals is in supported_protocols.&#34;
         ),
     ] = None
     governance: Annotated[
         Governance | None,
         Field(
-            description=&#39;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property and creative data like compliance scores, brand safety ratings, sustainability metrics, and creative quality assessments.&#39;
+            description=&#34;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property and creative data like compliance scores, brand safety ratings, sustainability metrics, and creative quality assessments.&#34;
         ),
     ] = None
     sponsored_intelligence: Annotated[
         SponsoredIntelligence | None,
         Field(
-            description=&#39;Sponsored Intelligence protocol capabilities. Only present if sponsored_intelligence is in supported_protocols. SI agents handle conversational brand experiences.&#39;
+            description=&#34;Sponsored Intelligence protocol capabilities. Only present if sponsored_intelligence is in supported_protocols. SI agents handle conversational brand experiences.&#34;
         ),
     ] = None
     brand: Annotated[
         Brand | None,
         Field(
-            description=&#39;Brand protocol capabilities. Only present if brand is in supported_protocols. Brand agents provide identity data (logos, colors, tone, assets) and optionally rights clearance for licensable content (talent, music, stock media).&#39;
+            description=&#34;Brand protocol capabilities. Only present if brand is in supported_protocols. Brand agents provide identity data (logos, colors, tone, assets) and optionally rights clearance for licensable content (talent, music, stock media).&#34;
         ),
     ] = None
     creative: Annotated[
         Creative | None,
         Field(
-            description=&#39;Creative protocol capabilities. Only present if creative is in supported_protocols.&#39;
+            description=&#34;Creative protocol capabilities. Only present if creative is in supported_protocols.&#34;
         ),
     ] = None
     request_signing: Annotated[
         RequestSigning | None,
         Field(
-            description=&#39;RFC 9421 HTTP Signatures support for incoming requests. Optional in 3.0 — capability-advertised so counterparties can opt into signing selectively. Required for spend-committing operations in 4.0 (the next breaking-changes accumulation window). The full profile is defined in docs/building/implementation/security.mdx (Signed Requests (Transport Layer)).&#39;
+            description=&#34;RFC 9421 HTTP Signatures support for incoming requests. Optional in 3.0 — capability-advertised so counterparties can opt into signing selectively. Required for spend-committing operations in 4.0 (the next breaking-changes accumulation window). The full profile is defined in docs/building/implementation/security.mdx (Signed Requests (Transport Layer)).&#34;
         ),
     ] = None
     compliance_testing: Annotated[
         ComplianceTesting | None,
         Field(
-            description=&#39;Compliance testing capabilities. The presence of this block declares that the agent supports deterministic testing via comply_test_controller for lifecycle state machine validation. Omit the block entirely if the agent does not support compliance testing.&#39;
+            description=&#34;Compliance testing capabilities. The presence of this block declares that the agent supports deterministic testing via comply_test_controller for lifecycle state machine validation. Omit the block entirely if the agent does not support compliance testing.&#34;
         ),
     ] = None
     specialisms: Annotated[
         list[specialism.AdcpSpecialism] | None,
         Field(
-            description=&#39;Optional — specialized compliance claims this agent supports. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols — the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements — the AAO Verified badge enumerates which specialisms were demonstrably passed.&#39;
+            description=&#34;Optional — specialized compliance claims this agent supports. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols — the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements — the AAO Verified badge enumerates which specialisms were demonstrably passed.&#34;
         ),
     ] = None
     extensions_supported: Annotated[
         list[ExtensionsSupportedItem] | None,
         Field(
-            description=&#39;Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.&#39;
+            description=&#34;Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.&#34;
+        ),
+    ] = None
+    experimental_features: Annotated[
+        list[ExperimentalFeature] | None,
+        Field(
+            description=&#34;Experimental AdCP surfaces this agent implements. A surface is experimental when its schema carries x-status: experimental and the working group has not yet frozen it. Sellers that implement any experimental surface MUST list its feature id here. Buyers inspect this array before relying on experimental surfaces — a seller that does not list a surface is asserting it does not implement it. Experimental surfaces MAY break between any two 3.x releases with at least 6 weeks notice; the full contract is in docs/reference/experimental-status.&#34;
         ),
     ] = None
     last_updated: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp of when capabilities were last updated. Buyers can use this for cache invalidation.&#39;
+            description=&#34;ISO 8601 timestamp of when capabilities were last updated. Buyers can use this for cache invalidation.&#34;
         ),
     ] = None
     errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
+        list[error.Error] | None, Field(description=&#34;Task-specific errors and warnings&#34;)
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -19378,6 +19410,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.GetAdcpCapabilitiesResponse.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="generated_poc/core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.GetAdcpCapabilitiesResponse.experimental_features"><code class="name">var <span class="ident">experimental_features</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature" href="generated_poc/protocol/get_adcp_capabilities_response.html#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature">ExperimentalFeature</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -26712,57 +26748,66 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class McpWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#34;Sender-generated key stable across retries of the same webhook event. Publishers MUST generate a cryptographically random value (UUID v4 recommended) per distinct event and reuse the same key on every retry of that event. Receivers MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different publishers are independent. This is the canonical dedup field — the (task_id, status, timestamp) tuple is insufficient when a single transition is retried with unchanged timestamp or when two transitions share a timestamp.&#34;,
+            max_length=255,
+            min_length=16,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
+        ),
+    ]
     operation_id: Annotated[
         str | None,
         Field(
-            description=&#39;Client-generated identifier that was embedded in the webhook URL by the buyer. Publishers echo this back in webhook payloads so clients can correlate notifications without parsing URL paths. Typically generated as a unique ID per task invocation.&#39;
+            description=&#34;Client-generated identifier that was embedded in the webhook URL by the buyer. Publishers echo this back in webhook payloads so clients can correlate notifications without parsing URL paths. Typically generated as a unique ID per task invocation.&#34;
         ),
     ] = None
     task_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#39;
+            description=&#34;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#34;
         ),
     ]
     task_type: Annotated[
         task_type_1.TaskType,
         Field(
-            description=&#39;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#39;
+            description=&#34;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#34;
         ),
     ]
     protocol: Annotated[
         adcp_protocol.AdcpProtocol | None,
         Field(
-            description=&#39;AdCP protocol this task belongs to. Helps classify the operation type at a high level.&#39;
+            description=&#34;AdCP protocol this task belongs to. Helps classify the operation type at a high level.&#34;
         ),
     ] = None
     status: Annotated[
         task_status.TaskStatus,
         Field(
-            description=&#39;Current task status. Webhooks are triggered for status changes after initial submission.&#39;
+            description=&#34;Current task status. Webhooks are triggered for status changes after initial submission.&#34;
         ),
     ]
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this webhook was generated.&#39;)
+        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when this webhook was generated.&#34;)
     ]
     message: Annotated[
         str | None,
         Field(
-            description=&#39;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#39;
+            description=&#34;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#34;
         ),
     ] = None
     context_id: Annotated[
         str | None,
         Field(
-            description=&#39;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#39;
+            description=&#34;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#34;
         ),
     ] = None
     result: Annotated[
         async_response_data.AdcpAsyncResponseData | None,
         Field(
-            description=&#39;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#39;
+            description=&#34;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -26784,6 +26829,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.McpWebhookPayload.context_id"><code class="name">var <span class="ident">context_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.McpWebhookPayload.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -31888,7 +31937,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PrimaryCountry(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -33349,18 +33398,27 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PropertyListChangedWebhook(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    event: Annotated[Literal[&#39;property_list_changed&#39;], Field(description=&#39;The event type&#39;)]
-    list_id: Annotated[str, Field(description=&#39;ID of the property list that changed&#39;)]
-    list_name: Annotated[str | None, Field(description=&#39;Name of the property list&#39;)] = None
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#34;Sender-generated key stable across retries of the same webhook event. Governance agents MUST generate a cryptographically random value (UUID v4 recommended) per distinct list-change event and reuse the same key on every retry. Recipients MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different governance agents are independent.&#34;,
+            max_length=255,
+            min_length=16,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
+        ),
+    ]
+    event: Annotated[Literal[&#34;property_list_changed&#34;], Field(description=&#34;The event type&#34;)]
+    list_id: Annotated[str, Field(description=&#34;ID of the property list that changed&#34;)]
+    list_name: Annotated[str | None, Field(description=&#34;Name of the property list&#34;)] = None
     change_summary: Annotated[
-        ChangeSummary | None, Field(description=&#39;Summary of changes to the resolved list&#39;)
+        ChangeSummary | None, Field(description=&#34;Summary of changes to the resolved list&#34;)
     ] = None
-    resolved_at: Annotated[AwareDatetime, Field(description=&#39;When the list was re-resolved&#39;)]
+    resolved_at: Annotated[AwareDatetime, Field(description=&#34;When the list was re-resolved&#34;)]
     cache_valid_until: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;When the consumer should refresh from the governance agent&#39;),
+        Field(description=&#34;When the consumer should refresh from the governance agent&#34;),
     ] = None
     signature: Annotated[
         str,
@@ -33400,6 +33458,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.PropertyListChangedWebhook.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="generated_poc/core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.PropertyListChangedWebhook.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -34704,7 +34766,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherDomain(RootModel[str]):
     root: Annotated[
-        str, Field(pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;)
+        str, Field(pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -35057,18 +35119,20 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PushNotificationConfig(AdCPBaseModel):
-    url: Annotated[AnyUrl, Field(description=&#39;Webhook endpoint URL for task status notifications&#39;)]
+    url: Annotated[AnyUrl, Field(description=&#34;Webhook endpoint URL for task status notifications&#34;)]
     token: Annotated[
         str | None,
         Field(
-            description=&#39;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#39;,
+            description=&#34;Optional client-provided token for webhook validation. Echoed back in webhook payload to validate request authenticity.&#34;,
             min_length=16,
         ),
     ] = None
     authentication: Annotated[
-        Authentication,
-        Field(description=&#39;Authentication configuration for webhook delivery (A2A-compatible)&#39;),
-    ]</code></pre>
+        Authentication | None,
+        Field(
+            description=&#34;Legacy authentication configuration (A2A-compatible). Opts the seller into Bearer or HMAC-SHA256 signing instead of the default RFC 9421 webhook profile. Deprecated; removed in AdCP 4.0. When omitted, the seller MUST sign webhooks with the 9421 profile.&#34;
+        ),
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -35087,7 +35151,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.core.push_notification_config.Authentication" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.Authentication">Authentication</a></code></dt>
+<dt id="adcp.types.PushNotificationConfig.authentication"><code class="name">var <span class="ident">authentication</span> : <a title="adcp.types.generated_poc.core.push_notification_config.Authentication" href="generated_poc/core/push_notification_config.html#adcp.types.generated_poc.core.push_notification_config.Authentication">Authentication</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -35679,7 +35743,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ReportUsageRequest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     adcp_major_version: Annotated[
         int | None,
@@ -35692,19 +35756,19 @@ validated to form a valid model.</p>
     idempotency_key: Annotated[
         str,
         Field(
-            description=&#39;Client-generated unique key for this request. If a request with the same key has already been accepted, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request. Prevents duplicate billing on retries.&#39;
+            description=&#34;Client-generated unique key for this request. If a request with the same key has already been accepted, the server returns the original response without re-processing. MUST be unique per (seller, request) pair to prevent cross-seller correlation. Use a fresh UUID v4 for each request. Prevents duplicate billing on retries.&#34;
         ),
     ]
     reporting_period: Annotated[
         datetime_range.DatetimeRange,
         Field(
-            description=&#39;The time range covered by this usage report. Applies to all records in the request.&#39;
+            description=&#34;The time range covered by this usage report. Applies to all records in the request.&#34;
         ),
     ]
     usage: Annotated[
         list[UsageItem],
         Field(
-            description=&#39;One or more usage records. Each record is self-contained: it carries its own account, allowing a single request to span multiple accounts.&#39;,
+            description=&#34;One or more usage records. Each record is self-contained: it carries its own account, allowing a single request to span multiple accounts.&#34;,
             min_length=1,
         ),
     ]
@@ -41656,7 +41720,7 @@ validated to form a valid model.</p>
 <li>adcp.types.core.TaskResult[Union[CalibrateContentResponse1, CalibrateContentResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[ComplyTestControllerResponse1, ComplyTestControllerResponse2, ComplyTestControllerResponse3, ComplyTestControllerResponse4]]</li>
 <li>adcp.types.core.TaskResult[Union[CreateContentStandardsResponse1, CreateContentStandardsResponse2]]</li>
-<li>adcp.types.core.TaskResult[Union[CreateMediaBuyResponse1, CreateMediaBuyResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[CreateMediaBuyResponse1, CreateMediaBuyResponse2, CreateMediaBuyResponse3]]</li>
 <li>adcp.types.core.TaskResult[Union[GetAccountFinancialsResponse1, GetAccountFinancialsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[GetBrandIdentityResponse1, GetBrandIdentityResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[GetContentStandardsResponse1, GetContentStandardsResponse2]]</li>
@@ -46891,6 +46955,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.ArtifactWebhookPayload.artifacts" href="#adcp.types.ArtifactWebhookPayload.artifacts">artifacts</a></code></li>
 <li><code><a title="adcp.types.ArtifactWebhookPayload.batch_id" href="#adcp.types.ArtifactWebhookPayload.batch_id">batch_id</a></code></li>
 <li><code><a title="adcp.types.ArtifactWebhookPayload.ext" href="#adcp.types.ArtifactWebhookPayload.ext">ext</a></code></li>
+<li><code><a title="adcp.types.ArtifactWebhookPayload.idempotency_key" href="#adcp.types.ArtifactWebhookPayload.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.ArtifactWebhookPayload.media_buy_id" href="#adcp.types.ArtifactWebhookPayload.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.ArtifactWebhookPayload.model_config" href="#adcp.types.ArtifactWebhookPayload.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.ArtifactWebhookPayload.pagination" href="#adcp.types.ArtifactWebhookPayload.pagination">pagination</a></code></li>
@@ -47566,6 +47631,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.CollectionListChangedWebhook.change_summary" href="#adcp.types.CollectionListChangedWebhook.change_summary">change_summary</a></code></li>
 <li><code><a title="adcp.types.CollectionListChangedWebhook.event" href="#adcp.types.CollectionListChangedWebhook.event">event</a></code></li>
 <li><code><a title="adcp.types.CollectionListChangedWebhook.ext" href="#adcp.types.CollectionListChangedWebhook.ext">ext</a></code></li>
+<li><code><a title="adcp.types.CollectionListChangedWebhook.idempotency_key" href="#adcp.types.CollectionListChangedWebhook.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.CollectionListChangedWebhook.list_id" href="#adcp.types.CollectionListChangedWebhook.list_id">list_id</a></code></li>
 <li><code><a title="adcp.types.CollectionListChangedWebhook.list_name" href="#adcp.types.CollectionListChangedWebhook.list_name">list_name</a></code></li>
 <li><code><a title="adcp.types.CollectionListChangedWebhook.model_config" href="#adcp.types.CollectionListChangedWebhook.model_config">model_config</a></code></li>
@@ -49040,6 +49106,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.context" href="#adcp.types.GetAdcpCapabilitiesResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.creative" href="#adcp.types.GetAdcpCapabilitiesResponse.creative">creative</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.errors" href="#adcp.types.GetAdcpCapabilitiesResponse.errors">errors</a></code></li>
+<li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.experimental_features" href="#adcp.types.GetAdcpCapabilitiesResponse.experimental_features">experimental_features</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.ext" href="#adcp.types.GetAdcpCapabilitiesResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.extensions_supported" href="#adcp.types.GetAdcpCapabilitiesResponse.extensions_supported">extensions_supported</a></code></li>
 <li><code><a title="adcp.types.GetAdcpCapabilitiesResponse.governance" href="#adcp.types.GetAdcpCapabilitiesResponse.governance">governance</a></code></li>
@@ -49978,6 +50045,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <h4><code><a title="adcp.types.McpWebhookPayload" href="#adcp.types.McpWebhookPayload">McpWebhookPayload</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.McpWebhookPayload.context_id" href="#adcp.types.McpWebhookPayload.context_id">context_id</a></code></li>
+<li><code><a title="adcp.types.McpWebhookPayload.idempotency_key" href="#adcp.types.McpWebhookPayload.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.McpWebhookPayload.message" href="#adcp.types.McpWebhookPayload.message">message</a></code></li>
 <li><code><a title="adcp.types.McpWebhookPayload.model_config" href="#adcp.types.McpWebhookPayload.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.McpWebhookPayload.operation_id" href="#adcp.types.McpWebhookPayload.operation_id">operation_id</a></code></li>
@@ -50840,6 +50908,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <li><code><a title="adcp.types.PropertyListChangedWebhook.change_summary" href="#adcp.types.PropertyListChangedWebhook.change_summary">change_summary</a></code></li>
 <li><code><a title="adcp.types.PropertyListChangedWebhook.event" href="#adcp.types.PropertyListChangedWebhook.event">event</a></code></li>
 <li><code><a title="adcp.types.PropertyListChangedWebhook.ext" href="#adcp.types.PropertyListChangedWebhook.ext">ext</a></code></li>
+<li><code><a title="adcp.types.PropertyListChangedWebhook.idempotency_key" href="#adcp.types.PropertyListChangedWebhook.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.PropertyListChangedWebhook.list_id" href="#adcp.types.PropertyListChangedWebhook.list_id">list_id</a></code></li>
 <li><code><a title="adcp.types.PropertyListChangedWebhook.list_name" href="#adcp.types.PropertyListChangedWebhook.list_name">list_name</a></code></li>
 <li><code><a title="adcp.types.PropertyListChangedWebhook.model_config" href="#adcp.types.PropertyListChangedWebhook.model_config">model_config</a></code></li>

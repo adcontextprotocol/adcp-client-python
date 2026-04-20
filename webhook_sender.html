@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.webhook_sender API documentation</title>
+<meta name="description" content="One-call outbound webhook delivery for AdCP senders …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.webhook_sender</code></h1>
+</header>
+<section id="section-intro">
+<p>One-call outbound webhook delivery for AdCP senders.</p>
+<p>A seller that wants to emit a signed webhook today has to do six steps by hand
+— construct payload, JSON-serialize to bytes, sign, merge headers, POST with
+<code>content=</code> (not <code>json=</code>, which reserializes and breaks the signature),
+and remember to reuse <code>idempotency_key</code> on retry. Each step is a footgun.</p>
+<p>:class:<code><a title="adcp.webhook_sender.WebhookSender" href="#adcp.webhook_sender.WebhookSender">WebhookSender</a></code> packages all of them::</p>
+<pre><code>from adcp.webhooks import WebhookSender
+
+sender = WebhookSender.from_jwk(webhook_signing_jwk_with_private_d)
+
+async with sender:
+    result = await sender.send_mcp(
+        url="https://buyer.example.com/webhooks/adcp/create_media_buy/op_abc",
+        task_id="task_456",
+        task_type="create_media_buy",
+        status="completed",
+        result={"media_buy_id": "mb_1"},
+    )
+    if not result.ok:
+        # Retry replays the exact same bytes under a fresh signature,
+        # preserving idempotency_key so the receiver dedupes.
+        retry = await sender.resend(result)
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult"><code class="flex name class">
+<span>class <span class="ident">WebhookDeliveryResult</span></span>
+<span>(</span><span>status_code: int,<br>idempotency_key: str,<br>url: str,<br>response_headers: Mapping[str, str],<br>response_body: bytes,<br>sent_body: bytes = b'',<br>sent_extra_headers: Mapping[str, str] = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class WebhookDeliveryResult:
+    &#34;&#34;&#34;Outcome of one ``send_*`` call.
+
+    Senders care about: did it land (``ok``), what key was used (for logs
+    and retry), what did the receiver say (``status_code``, ``response_body``).
+
+    The ``sent_body`` and ``sent_extra_headers`` fields capture exactly what
+    was signed and POSTed — the sender&#39;s :meth:`WebhookSender.resend` replays
+    them under a fresh signature (preserving ``idempotency_key`` for dedup)
+    rather than re-serializing from a user-supplied dict, which would drift
+    if any field (``timestamp``, nested ``result``) differs between calls.
+    &#34;&#34;&#34;
+
+    status_code: int
+    idempotency_key: str
+    url: str
+    response_headers: Mapping[str, str]
+    response_body: bytes
+    sent_body: bytes = b&#34;&#34;
+    sent_extra_headers: Mapping[str, str] = field(default_factory=dict)
+
+    @property
+    def ok(self) -&gt; bool:
+        &#34;&#34;&#34;True on 2xx. Note: receivers MUST return 2xx on duplicates too, so
+        a 200 with ``duplicate=true`` in the body is still ``ok``.&#34;&#34;&#34;
+        return 200 &lt;= self.status_code &lt; 300</code></pre>
+</details>
+<div class="desc"><p>Outcome of one <code>send_*</code> call.</p>
+<p>Senders care about: did it land (<code>ok</code>), what key was used (for logs
+and retry), what did the receiver say (<code>status_code</code>, <code>response_body</code>).</p>
+<p>The <code>sent_body</code> and <code>sent_extra_headers</code> fields capture exactly what
+was signed and POSTed — the sender's :meth:<code><a title="adcp.webhook_sender.WebhookSender.resend" href="#adcp.webhook_sender.WebhookSender.resend">WebhookSender.resend()</a></code> replays
+them under a fresh signature (preserving <code>idempotency_key</code> for dedup)
+rather than re-serializing from a user-supplied dict, which would drift
+if any field (<code>timestamp</code>, nested <code>result</code>) differs between calls.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult.ok"><code class="name">prop <span class="ident">ok</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def ok(self) -&gt; bool:
+    &#34;&#34;&#34;True on 2xx. Note: receivers MUST return 2xx on duplicates too, so
+    a 200 with ``duplicate=true`` in the body is still ``ok``.&#34;&#34;&#34;
+    return 200 &lt;= self.status_code &lt; 300</code></pre>
+</details>
+<div class="desc"><p>True on 2xx. Note: receivers MUST return 2xx on duplicates too, so
+a 200 with <code>duplicate=true</code> in the body is still <code>ok</code>.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult.response_body"><code class="name">var <span class="ident">response_body</span> : bytes</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult.response_headers"><code class="name">var <span class="ident">response_headers</span> : Mapping[str, str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult.sent_body"><code class="name">var <span class="ident">sent_body</span> : bytes</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult.sent_extra_headers"><code class="name">var <span class="ident">sent_extra_headers</span> : Mapping[str, str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult.status_code"><code class="name">var <span class="ident">status_code</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookDeliveryResult.url"><code class="name">var <span class="ident">url</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender"><code class="flex name class">
+<span>class <span class="ident">WebhookSender</span></span>
+<span>(</span><span>*,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>client: httpx.AsyncClient | None = None,<br>timeout_seconds: float = 10.0)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WebhookSender:
+    &#34;&#34;&#34;Outbound signed-webhook delivery client.
+
+    Owns one webhook-signing private key. Reuses a single :class:`httpx.AsyncClient`
+    across requests for connection pooling — pass your own via ``client=`` if
+    you want to share it with other SDK surfaces.
+
+    Thread/task safety: safe to call concurrent ``send_*`` from many asyncio
+    tasks. The underlying ``httpx.AsyncClient`` manages its own pool.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        private_key: PrivateKey,
+        key_id: str,
+        alg: str,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    ) -&gt; None:
+        self._private_key = private_key
+        self._key_id = key_id
+        self._alg = alg
+        self._timeout = timeout_seconds
+        self._client = client
+        self._owns_client = client is None
+
+    @classmethod
+    def from_jwk(
+        cls,
+        jwk: Mapping[str, Any],
+        *,
+        d_field: str = &#34;d&#34;,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    ) -&gt; WebhookSender:
+        &#34;&#34;&#34;Construct from a JWK that includes the private scalar.
+
+        The JWK MUST have ``adcp_use == &#34;webhook-signing&#34;`` — the sender
+        doesn&#39;t validate this (you&#39;re signing with your own key; validation
+        happens at the receiver), but a key whose adcp_use is wrong will be
+        rejected by every conformant verifier.
+        &#34;&#34;&#34;
+        # Snapshot the mapping once — a live Mapping could otherwise return
+        # different values across the adcp_use / kid / d / alg reads.
+        jwk_snapshot = dict(jwk)
+        if jwk_snapshot.get(&#34;adcp_use&#34;) != &#34;webhook-signing&#34;:
+            raise ValueError(
+                f&#34;WebhookSender requires a JWK with adcp_use=&#39;webhook-signing&#39; &#34;
+                f&#34;(got {jwk_snapshot.get(&#39;adcp_use&#39;)!r}). Webhook-signing and &#34;
+                f&#34;request-signing keys MUST be distinct so a signature from one &#34;
+                f&#34;surface cannot be replayed as the other. Generate a separate &#34;
+                f&#34;key with adcp_use=&#39;webhook-signing&#39; and publish it in your &#34;
+                f&#34;adagents.json alongside your request-signing key. See &#34;
+                f&#34;https://adcontextprotocol.org/docs/building/implementation/security&#34;
+            )
+        alg = jwk_snapshot.get(&#34;alg&#34;)
+        if alg == &#34;EdDSA&#34;:
+            alg = &#34;ed25519&#34;
+        elif alg == &#34;ES256&#34;:
+            alg = &#34;ecdsa-p256-sha256&#34;
+        if alg not in (&#34;ed25519&#34;, &#34;ecdsa-p256-sha256&#34;):
+            raise ValueError(f&#34;unsupported JWK alg {jwk_snapshot.get(&#39;alg&#39;)!r}&#34;)
+        private_key = private_key_from_jwk(jwk_snapshot, d_field=d_field)
+        return cls(
+            private_key=private_key,
+            key_id=str(jwk_snapshot[&#34;kid&#34;]),
+            alg=alg,
+            client=client,
+            timeout_seconds=timeout_seconds,
+        )
+
+    def __repr__(self) -&gt; str:
+        # Explicit repr so no future debug helper or error traceback auto-
+        # renders self.__dict__ and pulls the private key into logs.
+        return f&#34;WebhookSender(key_id={self._key_id!r}, alg={self._alg!r})&#34;
+
+    async def aclose(self) -&gt; None:
+        &#34;&#34;&#34;Close the internal httpx client if we own it.&#34;&#34;&#34;
+        if self._owns_client and self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+    async def __aenter__(self) -&gt; WebhookSender:
+        await self._get_client()
+        return self
+
+    async def __aexit__(self, *args: Any) -&gt; None:
+        await self.aclose()
+
+    async def _get_client(self) -&gt; httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=self._timeout)
+        return self._client
+
+    async def send_mcp(
+        self,
+        *,
+        url: str,
+        task_id: str,
+        status: GeneratedTaskStatus | str,
+        task_type: str | None = None,
+        result: AdcpAsyncResponseData | dict[str, Any] | None = None,
+        timestamp: datetime | None = None,
+        operation_id: str | None = None,
+        message: str | None = None,
+        context_id: str | None = None,
+        domain: str | None = None,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed MCP-style task-status webhook.
+
+        On retry, prefer :meth:`resend` over calling this again — ``resend``
+        replays the exact same bytes, whereas re-invoking ``send_mcp`` with
+        the &#34;same&#34; args would produce a fresh ``timestamp`` and potentially
+        a different serialized body, which the receiver would dedupe but
+        with different observed payload data.
+        &#34;&#34;&#34;
+        payload = create_mcp_webhook_payload(
+            task_id=task_id,
+            status=status,
+            task_type=task_type,
+            result=result,
+            timestamp=timestamp,
+            operation_id=operation_id,
+            message=message,
+            context_id=context_id,
+            domain=domain,
+            idempotency_key=idempotency_key,
+        )
+        return await self.send_raw(
+            url=url,
+            idempotency_key=str(payload[&#34;idempotency_key&#34;]),
+            payload=payload,
+            extra_headers=extra_headers,
+        )
+
+    async def send_revocation_notification(
+        self,
+        *,
+        url: str,
+        rights_id: str,
+        brand_id: str,
+        reason: str,
+        effective_at: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed rights-revocation notification.&#34;&#34;&#34;
+        key = idempotency_key or generate_webhook_idempotency_key()
+        payload: dict[str, Any] = {
+            &#34;idempotency_key&#34;: key,
+            &#34;rights_id&#34;: rights_id,
+            &#34;brand_id&#34;: brand_id,
+            &#34;reason&#34;: reason,
+            &#34;effective_at&#34;: effective_at,
+        }
+        return await self.send_raw(
+            url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_artifact_webhook(
+        self,
+        *,
+        url: str,
+        media_buy_id: str,
+        batch_id: str,
+        timestamp: str,
+        artifacts: list[dict[str, Any]],
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed content-standards artifact webhook.&#34;&#34;&#34;
+        key = idempotency_key or generate_webhook_idempotency_key()
+        payload: dict[str, Any] = {
+            &#34;idempotency_key&#34;: key,
+            &#34;media_buy_id&#34;: media_buy_id,
+            &#34;batch_id&#34;: batch_id,
+            &#34;timestamp&#34;: timestamp,
+            &#34;artifacts&#34;: artifacts,
+        }
+        return await self.send_raw(
+            url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_collection_list_changed(
+        self,
+        *,
+        url: str,
+        list_id: str,
+        resolved_at: str,
+        signature: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed governance collection-list-changed webhook.
+
+        ``signature`` is the payload-level signature field that predates 9421
+        webhook transport signing — it remains required by the schema. The
+        9421 signature this method adds protects the transport envelope.
+        &#34;&#34;&#34;
+        key = idempotency_key or generate_webhook_idempotency_key()
+        payload: dict[str, Any] = {
+            &#34;idempotency_key&#34;: key,
+            &#34;event&#34;: &#34;collection_list_changed&#34;,
+            &#34;list_id&#34;: list_id,
+            &#34;resolved_at&#34;: resolved_at,
+            &#34;signature&#34;: signature,
+        }
+        return await self.send_raw(
+            url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_property_list_changed(
+        self,
+        *,
+        url: str,
+        list_id: str,
+        resolved_at: str,
+        signature: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed governance property-list-changed webhook.&#34;&#34;&#34;
+        key = idempotency_key or generate_webhook_idempotency_key()
+        payload: dict[str, Any] = {
+            &#34;idempotency_key&#34;: key,
+            &#34;event&#34;: &#34;property_list_changed&#34;,
+            &#34;list_id&#34;: list_id,
+            &#34;resolved_at&#34;: resolved_at,
+            &#34;signature&#34;: signature,
+        }
+        return await self.send_raw(
+            url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_raw(
+        self,
+        *,
+        url: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;Low-level escape hatch: sign + POST an arbitrary payload.
+
+        The ``idempotency_key`` kwarg is required and is injected into the
+        payload before signing — the visible signature makes the contract
+        impossible to forget, unlike a runtime dict check. If ``payload``
+        already carries an ``idempotency_key``, the kwarg wins so the two
+        cannot disagree.
+        &#34;&#34;&#34;
+        if not isinstance(idempotency_key, str) or not idempotency_key:
+            raise ValueError(&#34;idempotency_key must be a non-empty string&#34;)
+        body_dict = {**payload, &#34;idempotency_key&#34;: idempotency_key}
+        # Byte-exact serialization — this is the ONLY representation that
+        # gets signed AND posted. Do not allow an httpx `json=` path anywhere
+        # in the stack because it would reserialize and break the digest.
+        body = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+        return await self._send_bytes(
+            url=url,
+            body=body,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def resend(self, result: WebhookDeliveryResult) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;Replay an earlier delivery under a fresh signature.
+
+        The bytes are identical (same ``idempotency_key``, same payload
+        fields, same serialization) — only the Signature / Signature-Input /
+        Content-Digest headers are regenerated. The receiver dedupes via
+        ``idempotency_key``, so the replayed event is a spec-correct retry
+        that won&#39;t cause double-processing.
+        &#34;&#34;&#34;
+        if not result.sent_body:
+            raise ValueError(
+                &#34;cannot resend: result has no captured sent_body (likely constructed &#34;
+                &#34;externally). Call a send_* method on this sender first.&#34;
+            )
+        return await self._send_bytes(
+            url=result.url,
+            body=result.sent_body,
+            idempotency_key=result.idempotency_key,
+            extra_headers=result.sent_extra_headers or None,
+        )
+
+    async def _send_bytes(
+        self,
+        *,
+        url: str,
+        body: bytes,
+        idempotency_key: str,
+        extra_headers: Mapping[str, str] | None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;Sign + POST a pre-serialized body. Shared by send_raw and resend.&#34;&#34;&#34;
+        base_headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+        signed = sign_webhook(
+            method=&#34;POST&#34;,
+            url=url,
+            headers=base_headers,
+            body=body,
+            private_key=self._private_key,
+            key_id=self._key_id,
+            alg=self._alg,
+        )
+        headers: dict[str, str] = {**base_headers, **signed.as_dict()}
+        if extra_headers:
+            # Pre-scan so a bad extra_header doesn&#39;t leave half-merged state.
+            reserved = {&#34;signature&#34;, &#34;signature-input&#34;, &#34;content-digest&#34;, &#34;content-type&#34;}
+            for k in extra_headers:
+                if str(k).lower() in reserved:
+                    raise ValueError(
+                        f&#34;extra_headers may not override signature-binding or &#34;
+                        f&#34;content-type header {k!r}&#34;
+                    )
+            for k, v in extra_headers.items():
+                headers[k] = v
+
+        client = await self._get_client()
+        response = await client.post(url, content=body, headers=headers)
+        return WebhookDeliveryResult(
+            status_code=response.status_code,
+            idempotency_key=idempotency_key,
+            url=url,
+            response_headers=dict(response.headers),
+            response_body=response.content,
+            sent_body=body,
+            sent_extra_headers=dict(extra_headers) if extra_headers else {},
+        )</code></pre>
+</details>
+<div class="desc"><p>Outbound signed-webhook delivery client.</p>
+<p>Owns one webhook-signing private key. Reuses a single :class:<code>httpx.AsyncClient</code>
+across requests for connection pooling — pass your own via <code>client=</code> if
+you want to share it with other SDK surfaces.</p>
+<p>Thread/task safety: safe to call concurrent <code>send_*</code> from many asyncio
+tasks. The underlying <code>httpx.AsyncClient</code> manages its own pool.</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.webhook_sender.WebhookSender.from_jwk"><code class="name flex">
+<span>def <span class="ident">from_jwk</span></span>(<span>jwk: Mapping[str, Any],<br>*,<br>d_field: str = 'd',<br>client: httpx.AsyncClient | None = None,<br>timeout_seconds: float = 10.0) ‑> <a title="adcp.webhook_sender.WebhookSender" href="#adcp.webhook_sender.WebhookSender">WebhookSender</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct from a JWK that includes the private scalar.</p>
+<p>The JWK MUST have <code>adcp_use == "webhook-signing"</code> — the sender
+doesn't validate this (you're signing with your own key; validation
+happens at the receiver), but a key whose adcp_use is wrong will be
+rejected by every conformant verifier.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhook_sender.WebhookSender.aclose"><code class="name flex">
+<span>async def <span class="ident">aclose</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def aclose(self) -&gt; None:
+    &#34;&#34;&#34;Close the internal httpx client if we own it.&#34;&#34;&#34;
+    if self._owns_client and self._client is not None:
+        await self._client.aclose()
+        self._client = None</code></pre>
+</details>
+<div class="desc"><p>Close the internal httpx client if we own it.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender.resend"><code class="name flex">
+<span>async def <span class="ident">resend</span></span>(<span>self,<br>result: <a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a>) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def resend(self, result: WebhookDeliveryResult) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;Replay an earlier delivery under a fresh signature.
+
+    The bytes are identical (same ``idempotency_key``, same payload
+    fields, same serialization) — only the Signature / Signature-Input /
+    Content-Digest headers are regenerated. The receiver dedupes via
+    ``idempotency_key``, so the replayed event is a spec-correct retry
+    that won&#39;t cause double-processing.
+    &#34;&#34;&#34;
+    if not result.sent_body:
+        raise ValueError(
+            &#34;cannot resend: result has no captured sent_body (likely constructed &#34;
+            &#34;externally). Call a send_* method on this sender first.&#34;
+        )
+    return await self._send_bytes(
+        url=result.url,
+        body=result.sent_body,
+        idempotency_key=result.idempotency_key,
+        extra_headers=result.sent_extra_headers or None,
+    )</code></pre>
+</details>
+<div class="desc"><p>Replay an earlier delivery under a fresh signature.</p>
+<p>The bytes are identical (same <code>idempotency_key</code>, same payload
+fields, same serialization) — only the Signature / Signature-Input /
+Content-Digest headers are regenerated. The receiver dedupes via
+<code>idempotency_key</code>, so the replayed event is a spec-correct retry
+that won't cause double-processing.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender.send_artifact_webhook"><code class="name flex">
+<span>async def <span class="ident">send_artifact_webhook</span></span>(<span>self,<br>*,<br>url: str,<br>media_buy_id: str,<br>batch_id: str,<br>timestamp: str,<br>artifacts: list[dict[str, Any]],<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_artifact_webhook(
+    self,
+    *,
+    url: str,
+    media_buy_id: str,
+    batch_id: str,
+    timestamp: str,
+    artifacts: list[dict[str, Any]],
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed content-standards artifact webhook.&#34;&#34;&#34;
+    key = idempotency_key or generate_webhook_idempotency_key()
+    payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: key,
+        &#34;media_buy_id&#34;: media_buy_id,
+        &#34;batch_id&#34;: batch_id,
+        &#34;timestamp&#34;: timestamp,
+        &#34;artifacts&#34;: artifacts,
+    }
+    return await self.send_raw(
+        url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed content-standards artifact webhook.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender.send_collection_list_changed"><code class="name flex">
+<span>async def <span class="ident">send_collection_list_changed</span></span>(<span>self,<br>*,<br>url: str,<br>list_id: str,<br>resolved_at: str,<br>signature: str,<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_collection_list_changed(
+    self,
+    *,
+    url: str,
+    list_id: str,
+    resolved_at: str,
+    signature: str,
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed governance collection-list-changed webhook.
+
+    ``signature`` is the payload-level signature field that predates 9421
+    webhook transport signing — it remains required by the schema. The
+    9421 signature this method adds protects the transport envelope.
+    &#34;&#34;&#34;
+    key = idempotency_key or generate_webhook_idempotency_key()
+    payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: key,
+        &#34;event&#34;: &#34;collection_list_changed&#34;,
+        &#34;list_id&#34;: list_id,
+        &#34;resolved_at&#34;: resolved_at,
+        &#34;signature&#34;: signature,
+    }
+    return await self.send_raw(
+        url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed governance collection-list-changed webhook.</p>
+<p><code>signature</code> is the payload-level signature field that predates 9421
+webhook transport signing — it remains required by the schema. The
+9421 signature this method adds protects the transport envelope.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender.send_mcp"><code class="name flex">
+<span>async def <span class="ident">send_mcp</span></span>(<span>self,<br>*,<br>url: str,<br>task_id: str,<br>status: GeneratedTaskStatus | str,<br>task_type: str | None = None,<br>result: AdcpAsyncResponseData | dict[str, Any] | None = None,<br>timestamp: datetime | None = None,<br>operation_id: str | None = None,<br>message: str | None = None,<br>context_id: str | None = None,<br>domain: str | None = None,<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_mcp(
+    self,
+    *,
+    url: str,
+    task_id: str,
+    status: GeneratedTaskStatus | str,
+    task_type: str | None = None,
+    result: AdcpAsyncResponseData | dict[str, Any] | None = None,
+    timestamp: datetime | None = None,
+    operation_id: str | None = None,
+    message: str | None = None,
+    context_id: str | None = None,
+    domain: str | None = None,
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed MCP-style task-status webhook.
+
+    On retry, prefer :meth:`resend` over calling this again — ``resend``
+    replays the exact same bytes, whereas re-invoking ``send_mcp`` with
+    the &#34;same&#34; args would produce a fresh ``timestamp`` and potentially
+    a different serialized body, which the receiver would dedupe but
+    with different observed payload data.
+    &#34;&#34;&#34;
+    payload = create_mcp_webhook_payload(
+        task_id=task_id,
+        status=status,
+        task_type=task_type,
+        result=result,
+        timestamp=timestamp,
+        operation_id=operation_id,
+        message=message,
+        context_id=context_id,
+        domain=domain,
+        idempotency_key=idempotency_key,
+    )
+    return await self.send_raw(
+        url=url,
+        idempotency_key=str(payload[&#34;idempotency_key&#34;]),
+        payload=payload,
+        extra_headers=extra_headers,
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed MCP-style task-status webhook.</p>
+<p>On retry, prefer :meth:<code>resend</code> over calling this again — <code>resend</code>
+replays the exact same bytes, whereas re-invoking <code>send_mcp</code> with
+the "same" args would produce a fresh <code>timestamp</code> and potentially
+a different serialized body, which the receiver would dedupe but
+with different observed payload data.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender.send_property_list_changed"><code class="name flex">
+<span>async def <span class="ident">send_property_list_changed</span></span>(<span>self,<br>*,<br>url: str,<br>list_id: str,<br>resolved_at: str,<br>signature: str,<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_property_list_changed(
+    self,
+    *,
+    url: str,
+    list_id: str,
+    resolved_at: str,
+    signature: str,
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed governance property-list-changed webhook.&#34;&#34;&#34;
+    key = idempotency_key or generate_webhook_idempotency_key()
+    payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: key,
+        &#34;event&#34;: &#34;property_list_changed&#34;,
+        &#34;list_id&#34;: list_id,
+        &#34;resolved_at&#34;: resolved_at,
+        &#34;signature&#34;: signature,
+    }
+    return await self.send_raw(
+        url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed governance property-list-changed webhook.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender.send_raw"><code class="name flex">
+<span>async def <span class="ident">send_raw</span></span>(<span>self,<br>*,<br>url: str,<br>idempotency_key: str,<br>payload: dict[str, Any],<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_raw(
+    self,
+    *,
+    url: str,
+    idempotency_key: str,
+    payload: dict[str, Any],
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;Low-level escape hatch: sign + POST an arbitrary payload.
+
+    The ``idempotency_key`` kwarg is required and is injected into the
+    payload before signing — the visible signature makes the contract
+    impossible to forget, unlike a runtime dict check. If ``payload``
+    already carries an ``idempotency_key``, the kwarg wins so the two
+    cannot disagree.
+    &#34;&#34;&#34;
+    if not isinstance(idempotency_key, str) or not idempotency_key:
+        raise ValueError(&#34;idempotency_key must be a non-empty string&#34;)
+    body_dict = {**payload, &#34;idempotency_key&#34;: idempotency_key}
+    # Byte-exact serialization — this is the ONLY representation that
+    # gets signed AND posted. Do not allow an httpx `json=` path anywhere
+    # in the stack because it would reserialize and break the digest.
+    body = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+    return await self._send_bytes(
+        url=url,
+        body=body,
+        idempotency_key=idempotency_key,
+        extra_headers=extra_headers,
+    )</code></pre>
+</details>
+<div class="desc"><p>Low-level escape hatch: sign + POST an arbitrary payload.</p>
+<p>The <code>idempotency_key</code> kwarg is required and is injected into the
+payload before signing — the visible signature makes the contract
+impossible to forget, unlike a runtime dict check. If <code>payload</code>
+already carries an <code>idempotency_key</code>, the kwarg wins so the two
+cannot disagree.</p></div>
+</dd>
+<dt id="adcp.webhook_sender.WebhookSender.send_revocation_notification"><code class="name flex">
+<span>async def <span class="ident">send_revocation_notification</span></span>(<span>self,<br>*,<br>url: str,<br>rights_id: str,<br>brand_id: str,<br>reason: str,<br>effective_at: str,<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_revocation_notification(
+    self,
+    *,
+    url: str,
+    rights_id: str,
+    brand_id: str,
+    reason: str,
+    effective_at: str,
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed rights-revocation notification.&#34;&#34;&#34;
+    key = idempotency_key or generate_webhook_idempotency_key()
+    payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: key,
+        &#34;rights_id&#34;: rights_id,
+        &#34;brand_id&#34;: brand_id,
+        &#34;reason&#34;: reason,
+        &#34;effective_at&#34;: effective_at,
+    }
+    return await self.send_raw(
+        url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed rights-revocation notification.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp" href="index.html">adcp</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.webhook_sender.WebhookDeliveryResult" href="#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.webhook_sender.WebhookDeliveryResult.idempotency_key" href="#adcp.webhook_sender.WebhookDeliveryResult.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookDeliveryResult.ok" href="#adcp.webhook_sender.WebhookDeliveryResult.ok">ok</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookDeliveryResult.response_body" href="#adcp.webhook_sender.WebhookDeliveryResult.response_body">response_body</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookDeliveryResult.response_headers" href="#adcp.webhook_sender.WebhookDeliveryResult.response_headers">response_headers</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookDeliveryResult.sent_body" href="#adcp.webhook_sender.WebhookDeliveryResult.sent_body">sent_body</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookDeliveryResult.sent_extra_headers" href="#adcp.webhook_sender.WebhookDeliveryResult.sent_extra_headers">sent_extra_headers</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookDeliveryResult.status_code" href="#adcp.webhook_sender.WebhookDeliveryResult.status_code">status_code</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookDeliveryResult.url" href="#adcp.webhook_sender.WebhookDeliveryResult.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhook_sender.WebhookSender" href="#adcp.webhook_sender.WebhookSender">WebhookSender</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhook_sender.WebhookSender.aclose" href="#adcp.webhook_sender.WebhookSender.aclose">aclose</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.from_jwk" href="#adcp.webhook_sender.WebhookSender.from_jwk">from_jwk</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.resend" href="#adcp.webhook_sender.WebhookSender.resend">resend</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.send_artifact_webhook" href="#adcp.webhook_sender.WebhookSender.send_artifact_webhook">send_artifact_webhook</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.send_collection_list_changed" href="#adcp.webhook_sender.WebhookSender.send_collection_list_changed">send_collection_list_changed</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.send_mcp" href="#adcp.webhook_sender.WebhookSender.send_mcp">send_mcp</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.send_property_list_changed" href="#adcp.webhook_sender.WebhookSender.send_property_list_changed">send_property_list_changed</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.send_raw" href="#adcp.webhook_sender.WebhookSender.send_raw">send_raw</a></code></li>
+<li><code><a title="adcp.webhook_sender.WebhookSender.send_revocation_notification" href="#adcp.webhook_sender.WebhookSender.send_revocation_notification">send_revocation_notification</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>adcp.signing.webhook_verifier API documentation</title>
+<meta name="description" content="Verifier for the AdCP webhook-signing profile (adcp#2423) …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>adcp.signing.webhook_verifier</code></h1>
+</header>
+<section id="section-intro">
+<p>Verifier for the AdCP webhook-signing profile (adcp#2423).</p>
+<p>The webhook profile reuses the 14-step RFC 9421 pipeline from
+:mod:<code><a title="adcp.signing.verifier" href="verifier.html">adcp.signing.verifier</a></code> but binds three things differently:</p>
+<ul>
+<li><code>tag</code> — <code>adcp/webhook-signing/v1</code> (distinct from request signing so a
+signature from one profile can never be replayed as the other).</li>
+<li>JWK <code>adcp_use</code> — <code>webhook-signing</code> (cross-purpose key reuse is locally
+enforceable here).</li>
+<li><code>content-digest</code> — REQUIRED. No <code>covers_content_digest: "forbidden"</code>
+escape hatch; webhooks are delivery of an <em>event</em>, and a signature that
+doesn't cover the body is not protecting the attack surface.</li>
+</ul>
+<p>Error codes follow the <code>webhook_signature_*</code> taxonomy. The wrapper catches
+the request-family codes the core verifier raises and translates them via
+<code>REQUEST_TO_WEBHOOK_CODE</code> — keeps the core verifier unchanged and guarantees
+webhook routes never leak request-signing error strings.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="adcp.signing.webhook_verifier.verify_webhook_signature"><code class="name flex">
+<span>def <span class="ident">verify_webhook_signature</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.signing.webhook_verifier.WebhookVerifyOptions" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions">WebhookVerifyOptions</a>) ‑> <a title="adcp.signing.webhook_verifier.VerifiedWebhookSender" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender">VerifiedWebhookSender</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_webhook_signature(
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+    options: WebhookVerifyOptions,
+) -&gt; VerifiedWebhookSender:
+    &#34;&#34;&#34;Verify an incoming signed webhook per the adcp/webhook-signing/v1 profile.
+
+    Raises :class:`SignatureVerificationError` with a ``webhook_signature_*``
+    code on failure. Success returns a :class:`VerifiedWebhookSender` carrying
+    the identity to scope dedup state by.
+    &#34;&#34;&#34;
+    _precheck_webhook_has_required_components(headers)
+
+    request_options = VerifyOptions(
+        now=options.clock(),
+        capability=VerifierCapability(
+            supported=True,
+            covers_content_digest=&#34;required&#34;,
+            required_for=frozenset({&#34;webhook&#34;}),
+        ),
+        operation=&#34;webhook&#34;,
+        jwks_resolver=options.jwks_resolver,
+        replay_store=options.replay_store,
+        revocation_checker=options.revocation_checker,
+        revocation_list=options.revocation_list,
+        max_skew_seconds=options.max_skew_seconds,
+        max_window_seconds=options.max_window_seconds,
+        label=options.label,
+        expected_tag=WEBHOOK_TAG,
+        expected_adcp_use=ADCP_USE_WEBHOOK,
+        allowed_algs=options.allowed_algs,
+        agent_url=options.sender_url,
+    )
+
+    try:
+        signer: VerifiedSigner = verify_request_signature(
+            method=method, url=url, headers=headers, body=body, options=request_options
+        )
+    except SignatureVerificationError as exc:
+        raise _retag_to_webhook(exc) from exc
+
+    return VerifiedWebhookSender(
+        key_id=signer.key_id,
+        alg=signer.alg,
+        label=signer.label,
+        verified_at=signer.verified_at,
+        sender_url=signer.agent_url,
+    )</code></pre>
+</details>
+<div class="desc"><p>Verify an incoming signed webhook per the adcp/webhook-signing/v1 profile.</p>
+<p>Raises :class:<code>SignatureVerificationError</code> with a <code>webhook_signature_*</code>
+code on failure. Success returns a :class:<code><a title="adcp.signing.webhook_verifier.VerifiedWebhookSender" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender">VerifiedWebhookSender</a></code> carrying
+the identity to scope dedup state by.</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.signing.webhook_verifier.VerifiedWebhookSender"><code class="flex name class">
+<span>class <span class="ident">VerifiedWebhookSender</span></span>
+<span>(</span><span>key_id: str,<br>alg: str,<br>label: str,<br>verified_at: float,<br>sender_url: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class VerifiedWebhookSender:
+    &#34;&#34;&#34;Returned on successful webhook verification.
+
+    Distinct type from :class:`VerifiedSigner` so a caller that mistakenly
+    passes a request-verified signer into a webhook-scoped dedup store (or the
+    reverse) will fail to type-check. Both carry the same bytes; the type
+    separation is a guardrail, not a data difference.
+    &#34;&#34;&#34;
+
+    key_id: str
+    alg: str
+    label: str
+    verified_at: float
+    sender_url: str | None = None
+
+    def as_sender_identity(self) -&gt; str:
+        &#34;&#34;&#34;Identity string used to scope dedup state.
+
+        Webhook dedup MUST be scoped to the authenticated sender — trusting a
+        payload field for identity is the attack-surface hole the spec&#39;s
+        &#34;Sender requirements&#34; paragraph calls out. The key_id is the
+        cryptographically verified identity; prefer ``sender_url:key_id`` when
+        a sender URL is present to tolerate JWKS reuse across co-deployed
+        senders.
+        &#34;&#34;&#34;
+        if self.sender_url is not None:
+            return f&#34;{self.sender_url}|{self.key_id}&#34;
+        return self.key_id</code></pre>
+</details>
+<div class="desc"><p>Returned on successful webhook verification.</p>
+<p>Distinct type from :class:<code>VerifiedSigner</code> so a caller that mistakenly
+passes a request-verified signer into a webhook-scoped dedup store (or the
+reverse) will fail to type-check. Both carry the same bytes; the type
+separation is a guardrail, not a data difference.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.webhook_verifier.VerifiedWebhookSender.alg"><code class="name">var <span class="ident">alg</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.VerifiedWebhookSender.key_id"><code class="name">var <span class="ident">key_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.VerifiedWebhookSender.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.VerifiedWebhookSender.sender_url"><code class="name">var <span class="ident">sender_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.VerifiedWebhookSender.verified_at"><code class="name">var <span class="ident">verified_at</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.webhook_verifier.VerifiedWebhookSender.as_sender_identity"><code class="name flex">
+<span>def <span class="ident">as_sender_identity</span></span>(<span>self) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_sender_identity(self) -&gt; str:
+    &#34;&#34;&#34;Identity string used to scope dedup state.
+
+    Webhook dedup MUST be scoped to the authenticated sender — trusting a
+    payload field for identity is the attack-surface hole the spec&#39;s
+    &#34;Sender requirements&#34; paragraph calls out. The key_id is the
+    cryptographically verified identity; prefer ``sender_url:key_id`` when
+    a sender URL is present to tolerate JWKS reuse across co-deployed
+    senders.
+    &#34;&#34;&#34;
+    if self.sender_url is not None:
+        return f&#34;{self.sender_url}|{self.key_id}&#34;
+    return self.key_id</code></pre>
+</details>
+<div class="desc"><p>Identity string used to scope dedup state.</p>
+<p>Webhook dedup MUST be scoped to the authenticated sender — trusting a
+payload field for identity is the attack-surface hole the spec's
+"Sender requirements" paragraph calls out. The key_id is the
+cryptographically verified identity; prefer <code>sender_url:key_id</code> when
+a sender URL is present to tolerate JWKS reuse across co-deployed
+senders.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions"><code class="flex name class">
+<span>class <span class="ident">WebhookVerifyOptions</span></span>
+<span>(</span><span>*,<br>jwks_resolver: JwksResolver,<br>replay_store: ReplayStore | None = None,<br>revocation_checker: RevocationChecker | None = None,<br>revocation_list: RevocationList | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>sender_url: str | None = None,<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True, kw_only=True)
+class WebhookVerifyOptions:
+    &#34;&#34;&#34;Options for the webhook verifier.
+
+    Subset of :class:`VerifyOptions` — several fields are pinned (tag, adcp_use,
+    content-digest policy) because the webhook profile doesn&#39;t leave them as
+    caller choices.
+
+    Unlike the request verifier, there is no ``now`` field — the webhook
+    verifier stamps time-of-check itself, so the same :class:`WebhookVerifyOptions`
+    instance can live for the lifetime of your receiver without a factory
+    closure around it. Override via ``clock=`` for deterministic tests.
+    &#34;&#34;&#34;
+
+    jwks_resolver: JwksResolver
+    replay_store: ReplayStore | None = None
+    revocation_checker: RevocationChecker | None = None
+    revocation_list: RevocationList | None = None
+    max_skew_seconds: int = DEFAULT_SKEW_SECONDS
+    max_window_seconds: int = MAX_WINDOW_SECONDS
+    label: str = SIG_LABEL_DEFAULT
+    allowed_algs: frozenset[str] = ALLOWED_ALGS
+    sender_url: str | None = None
+    clock: Callable[[], float] = time.time</code></pre>
+</details>
+<div class="desc"><p>Options for the webhook verifier.</p>
+<p>Subset of :class:<code>VerifyOptions</code> — several fields are pinned (tag, adcp_use,
+content-digest policy) because the webhook profile doesn't leave them as
+caller choices.</p>
+<p>Unlike the request verifier, there is no <code>now</code> field — the webhook
+verifier stamps time-of-check itself, so the same :class:<code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions">WebhookVerifyOptions</a></code>
+instance can live for the lifetime of your receiver without a factory
+closure around it. Override via <code>clock=</code> for deterministic tests.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.allowed_algs"><code class="name">var <span class="ident">allowed_algs</span> : frozenset[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.jwks_resolver"><code class="name">var <span class="ident">jwks_resolver</span> : <a title="adcp.signing.jwks.JwksResolver" href="jwks.html#adcp.signing.jwks.JwksResolver">JwksResolver</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.max_skew_seconds"><code class="name">var <span class="ident">max_skew_seconds</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.max_window_seconds"><code class="name">var <span class="ident">max_window_seconds</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.replay_store"><code class="name">var <span class="ident">replay_store</span> : <a title="adcp.signing.replay.ReplayStore" href="replay.html#adcp.signing.replay.ReplayStore">ReplayStore</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.revocation_checker"><code class="name">var <span class="ident">revocation_checker</span> : <a title="adcp.signing.revocation.RevocationChecker" href="revocation.html#adcp.signing.revocation.RevocationChecker">RevocationChecker</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.revocation_list"><code class="name">var <span class="ident">revocation_list</span> : <a title="adcp.signing.revocation.RevocationList" href="revocation.html#adcp.signing.revocation.RevocationList">RevocationList</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.sender_url"><code class="name">var <span class="ident">sender_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions.clock"><code class="name flex">
+<span>def <span class="ident">clock</span></span>(<span>...) ‑> Callable[[], float]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>time() -&gt; floating point number</p>
+<p>Return the current time in seconds since the Epoch.
+Fractions of a second may be present if the system clock provides them.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="adcp.signing" href="index.html">adcp.signing</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="adcp.signing.webhook_verifier.verify_webhook_signature" href="#adcp.signing.webhook_verifier.verify_webhook_signature">verify_webhook_signature</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.signing.webhook_verifier.VerifiedWebhookSender" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender">VerifiedWebhookSender</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.signing.webhook_verifier.VerifiedWebhookSender.alg" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender.alg">alg</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.VerifiedWebhookSender.as_sender_identity" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender.as_sender_identity">as_sender_identity</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.VerifiedWebhookSender.key_id" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender.key_id">key_id</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.VerifiedWebhookSender.label" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender.label">label</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.VerifiedWebhookSender.sender_url" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender.sender_url">sender_url</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.VerifiedWebhookSender.verified_at" href="#adcp.signing.webhook_verifier.VerifiedWebhookSender.verified_at">verified_at</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions">WebhookVerifyOptions</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.allowed_algs" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.allowed_algs">allowed_algs</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.clock" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.clock">clock</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.jwks_resolver" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.jwks_resolver">jwks_resolver</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.label" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.label">label</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.max_skew_seconds" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.max_skew_seconds">max_skew_seconds</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.max_window_seconds" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.max_window_seconds">max_window_seconds</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.replay_store" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.replay_store">replay_store</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.revocation_checker" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.revocation_checker">revocation_checker</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.revocation_list" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.revocation_list">revocation_list</a></code></li>
+<li><code><a title="adcp.signing.webhook_verifier.WebhookVerifyOptions.sender_url" href="#adcp.signing.webhook_verifier.WebhookVerifyOptions.sender_url">sender_url</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

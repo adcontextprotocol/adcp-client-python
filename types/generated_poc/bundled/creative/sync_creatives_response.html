@@ -57,45 +57,45 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Account(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    account_id: Annotated[str, Field(description=&#39;Unique identifier for this account&#39;)]
+    account_id: Annotated[str, Field(description=&#34;Unique identifier for this account&#34;)]
     name: Annotated[
         str, Field(description=&#34;Human-readable account name (e.g., &#39;Acme&#39;, &#39;Acme c/o Pinnacle&#39;)&#34;)
     ]
     advertiser: Annotated[
-        str | None, Field(description=&#39;The advertiser whose rates apply to this account&#39;)
+        str | None, Field(description=&#34;The advertiser whose rates apply to this account&#34;)
     ] = None
     billing_proxy: Annotated[
         str | None,
         Field(
-            description=&#39;Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)&#39;
+            description=&#34;Optional intermediary who receives invoices on behalf of the advertiser (e.g., agency)&#34;
         ),
     ] = None
     status: Annotated[
         Status,
         Field(
-            description=&#39;Account lifecycle status. See the Accounts Protocol overview for the operations matrix showing which tasks are permitted in each state.&#39;,
-            title=&#39;Account Status&#39;,
+            description=&#34;Account lifecycle status. See the Accounts Protocol overview for the operations matrix showing which tasks are permitted in each state.&#34;,
+            title=&#34;Account Status&#34;,
         ),
     ]
     brand: Annotated[
         Brand | None,
         Field(
-            description=&#39;Brand reference identifying the advertiser&#39;,
+            description=&#34;Brand reference identifying the advertiser&#34;,
             examples=[
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
-                {&#39;domain&#39;: &#39;acme-corp.com&#39;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;glow&#34;},
+                {&#34;domain&#34;: &#34;acme-corp.com&#34;},
             ],
-            title=&#39;Brand Reference&#39;,
+            title=&#34;Brand Reference&#34;,
         ),
     ] = None
     operator: Annotated[
         str | None,
         Field(
             description=&#34;Domain of the entity operating this account. When the brand operates directly, this is the brand&#39;s domain.&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ] = None
     billing: Annotated[
@@ -107,76 +107,76 @@ el.replaceWith(d);
     billing_entity: Annotated[
         BillingEntity | None,
         Field(
-            description=&#39;Business entity details for the party responsible for payment. Contains the legal name, tax IDs, address, and bank details needed for formal B2B invoicing. Corresponds to whoever billing points to (operator, agent, or advertiser). When this account appears in a response, bank details MUST be omitted (write-only).&#39;,
+            description=&#34;Business entity details for the party responsible for payment. Contains the legal name, tax IDs, address, and bank details needed for formal B2B invoicing. Corresponds to whoever billing points to (operator, agent, or advertiser). When this account appears in a response, bank details MUST be omitted (write-only).&#34;,
             examples=[
                 {
-                    &#39;description&#39;: &#39;German agency with full B2B details&#39;,
-                    &#39;data&#39;: {
-                        &#39;legal_name&#39;: &#39;Pinnacle Media GmbH&#39;,
-                        &#39;vat_id&#39;: &#39;DE123456789&#39;,
-                        &#39;registration_number&#39;: &#39;HRB 12345&#39;,
-                        &#39;address&#39;: {
-                            &#39;street&#39;: &#39;Friedrichstrasse 100&#39;,
-                            &#39;city&#39;: &#39;Berlin&#39;,
-                            &#39;postal_code&#39;: &#39;10117&#39;,
-                            &#39;country&#39;: &#39;DE&#39;,
+                    &#34;description&#34;: &#34;German agency with full B2B details&#34;,
+                    &#34;data&#34;: {
+                        &#34;legal_name&#34;: &#34;Pinnacle Media GmbH&#34;,
+                        &#34;vat_id&#34;: &#34;DE123456789&#34;,
+                        &#34;registration_number&#34;: &#34;HRB 12345&#34;,
+                        &#34;address&#34;: {
+                            &#34;street&#34;: &#34;Friedrichstrasse 100&#34;,
+                            &#34;city&#34;: &#34;Berlin&#34;,
+                            &#34;postal_code&#34;: &#34;10117&#34;,
+                            &#34;country&#34;: &#34;DE&#34;,
                         },
-                        &#39;contacts&#39;: [
+                        &#34;contacts&#34;: [
                             {
-                                &#39;role&#39;: &#39;billing&#39;,
-                                &#39;name&#39;: &#39;Sam Adeyemi&#39;,
-                                &#39;email&#39;: &#39;billing@pinnacle-media.com&#39;,
-                                &#39;phone&#39;: &#39;+49 30 12345678&#39;,
+                                &#34;role&#34;: &#34;billing&#34;,
+                                &#34;name&#34;: &#34;Sam Adeyemi&#34;,
+                                &#34;email&#34;: &#34;billing@pinnacle-media.com&#34;,
+                                &#34;phone&#34;: &#34;+49 30 12345678&#34;,
                             }
                         ],
-                        &#39;bank&#39;: {
-                            &#39;account_holder&#39;: &#39;Pinnacle Media GmbH&#39;,
-                            &#39;iban&#39;: &#39;DE89370400440532013000&#39;,
-                            &#39;bic&#39;: &#39;COBADEFFXXX&#39;,
+                        &#34;bank&#34;: {
+                            &#34;account_holder&#34;: &#34;Pinnacle Media GmbH&#34;,
+                            &#34;iban&#34;: &#34;DE89370400440532013000&#34;,
+                            &#34;bic&#34;: &#34;COBADEFFXXX&#34;,
                         },
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;US advertiser with EIN and domestic bank details&#39;,
-                    &#39;data&#39;: {
-                        &#39;legal_name&#39;: &#39;Acme Corporation&#39;,
-                        &#39;tax_id&#39;: &#39;12-3456789&#39;,
-                        &#39;address&#39;: {
-                            &#39;street&#39;: &#39;123 Main St&#39;,
-                            &#39;city&#39;: &#39;New York&#39;,
-                            &#39;postal_code&#39;: &#39;10001&#39;,
-                            &#39;region&#39;: &#39;NY&#39;,
-                            &#39;country&#39;: &#39;US&#39;,
+                    &#34;description&#34;: &#34;US advertiser with EIN and domestic bank details&#34;,
+                    &#34;data&#34;: {
+                        &#34;legal_name&#34;: &#34;Acme Corporation&#34;,
+                        &#34;tax_id&#34;: &#34;12-3456789&#34;,
+                        &#34;address&#34;: {
+                            &#34;street&#34;: &#34;123 Main St&#34;,
+                            &#34;city&#34;: &#34;New York&#34;,
+                            &#34;postal_code&#34;: &#34;10001&#34;,
+                            &#34;region&#34;: &#34;NY&#34;,
+                            &#34;country&#34;: &#34;US&#34;,
                         },
-                        &#39;contacts&#39;: [
+                        &#34;contacts&#34;: [
                             {
-                                &#39;role&#39;: &#39;billing&#39;,
-                                &#39;name&#39;: &#39;AP Department&#39;,
-                                &#39;email&#39;: &#39;ap@acme-corp.com&#39;,
+                                &#34;role&#34;: &#34;billing&#34;,
+                                &#34;name&#34;: &#34;AP Department&#34;,
+                                &#34;email&#34;: &#34;ap@acme-corp.com&#34;,
                             }
                         ],
-                        &#39;bank&#39;: {
-                            &#39;account_holder&#39;: &#39;Acme Corporation&#39;,
-                            &#39;routing_number&#39;: &#39;021000021&#39;,
-                            &#39;account_number&#39;: &#39;123456789&#39;,
+                        &#34;bank&#34;: {
+                            &#34;account_holder&#34;: &#34;Acme Corporation&#34;,
+                            &#34;routing_number&#34;: &#34;021000021&#34;,
+                            &#34;account_number&#34;: &#34;123456789&#34;,
                         },
                     },
                 },
             ],
-            title=&#39;Business Entity&#39;,
+            title=&#34;Business Entity&#34;,
         ),
     ] = None
     rate_card: Annotated[
-        str | None, Field(description=&#39;Identifier for the rate card applied to this account&#39;)
+        str | None, Field(description=&#34;Identifier for the rate card applied to this account&#34;)
     ] = None
     payment_terms: Annotated[
         PaymentTerms | None,
         Field(
-            description=&#39;Payment terms agreed for this account. Binding for all invoices when the account is active.&#39;
+            description=&#34;Payment terms agreed for this account. Binding for all invoices when the account is active.&#34;
         ),
     ] = None
     credit_limit: Annotated[
-        CreditLimit | None, Field(description=&#39;Maximum outstanding balance allowed&#39;)
+        CreditLimit | None, Field(description=&#34;Maximum outstanding balance allowed&#34;)
     ] = None
     setup: Annotated[
         Setup | None,
@@ -193,7 +193,7 @@ el.replaceWith(d);
     governance_agents: Annotated[
         list[GovernanceAgent] | None,
         Field(
-            description=&#39;Governance agent endpoints registered on this account. Authentication credentials are write-only and not included in responses — use sync_governance to set or update credentials.&#39;,
+            description=&#34;Governance agent endpoints registered on this account. Authentication credentials are write-only and not included in responses — use sync_governance to set or update credentials.&#34;,
             max_length=10,
         ),
     ] = None
@@ -206,14 +206,14 @@ el.replaceWith(d);
     sandbox: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, this is a sandbox account — no real platform calls, no real spend. For explicit accounts (require_operator_auth: true), sandbox accounts are pre-existing test accounts on the platform discovered via list_accounts. For implicit accounts, sandbox is part of the natural key: the same brand/operator pair can have both a production and sandbox account.&#39;
+            description=&#34;When true, this is a sandbox account — no real platform calls, no real spend. For explicit accounts (require_operator_auth: true), sandbox accounts are pre-existing test accounts on the platform discovered via list_accounts. For implicit accounts, sandbox is part of the natural key: the same brand/operator pair can have both a production and sandbox account.&#34;
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -332,10 +332,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class AccountScope(Enum):
-    operator = &#39;operator&#39;
-    brand = &#39;brand&#39;
-    operator_brand = &#39;operator_brand&#39;
-    agent = &#39;agent&#39;</code></pre>
+    operator = &#34;operator&#34;
+    brand = &#34;brand&#34;
+    operator_brand = &#34;operator_brand&#34;
+    agent = &#34;agent&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -406,11 +406,11 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Action(Enum):
-    created = &#39;created&#39;
-    updated = &#39;updated&#39;
-    unchanged = &#39;unchanged&#39;
-    failed = &#39;failed&#39;
-    deleted = &#39;deleted&#39;</code></pre>
+    created = &#34;created&#34;
+    updated = &#34;updated&#34;
+    unchanged = &#34;unchanged&#34;
+    failed = &#34;failed&#34;
+    deleted = &#34;deleted&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -486,18 +486,18 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Address(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     street: Annotated[
-        str, Field(description=&#39;Street address including building number&#39;, max_length=200)
+        str, Field(description=&#34;Street address including building number&#34;, max_length=200)
     ]
     city: Annotated[str, Field(max_length=100)]
     postal_code: Annotated[str, Field(max_length=20)]
     region: Annotated[
-        str | None, Field(description=&#39;State, province, or region&#39;, max_length=100)
+        str | None, Field(description=&#34;State, province, or region&#34;, max_length=100)
     ] = None
     country: Annotated[
-        str, Field(description=&#39;ISO 3166-1 alpha-2 country code&#39;, pattern=&#39;^[A-Z]{2}$&#39;)
+        str, Field(description=&#34;ISO 3166-1 alpha-2 country code&#34;, pattern=&#34;^[A-Z]{2}$&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -564,32 +564,32 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Bank(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    account_holder: Annotated[str, Field(description=&#39;Name on the bank account&#39;, max_length=200)]
+    account_holder: Annotated[str, Field(description=&#34;Name on the bank account&#34;, max_length=200)]
     iban: Annotated[
         str | None,
         Field(
-            description=&#39;International Bank Account Number (SEPA markets)&#39;,
-            pattern=&#39;^[A-Z]{2}[0-9]{2}[A-Z0-9]{4,30}$&#39;,
+            description=&#34;International Bank Account Number (SEPA markets)&#34;,
+            pattern=&#34;^[A-Z]{2}[0-9]{2}[A-Z0-9]{4,30}$&#34;,
         ),
     ] = None
     bic: Annotated[
         str | None,
         Field(
-            description=&#39;Bank Identifier Code / SWIFT code (SEPA markets)&#39;,
-            pattern=&#39;^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$&#39;,
+            description=&#34;Bank Identifier Code / SWIFT code (SEPA markets)&#34;,
+            pattern=&#34;^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$&#34;,
         ),
     ] = None
     routing_number: Annotated[
         str | None,
         Field(
-            description=&#39;Bank routing number for non-SEPA markets (e.g., US ABA routing number, Canadian transit/institution number)&#39;,
+            description=&#34;Bank routing number for non-SEPA markets (e.g., US ABA routing number, Canadian transit/institution number)&#34;,
             max_length=30,
         ),
     ] = None
     account_number: Annotated[
-        str | None, Field(description=&#39;Bank account number for non-SEPA markets&#39;, max_length=30)
+        str | None, Field(description=&#34;Bank account number for non-SEPA markets&#34;, max_length=30)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -655,9 +655,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Billing(Enum):
-    operator = &#39;operator&#39;
-    agent = &#39;agent&#39;
-    advertiser = &#39;advertiser&#39;</code></pre>
+    operator = &#34;operator&#34;
+    agent = &#34;agent&#34;
+    advertiser = &#34;advertiser&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -725,53 +725,53 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class BillingEntity(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     legal_name: Annotated[
-        str, Field(description=&#39;Registered legal name of the business entity&#39;, max_length=200)
+        str, Field(description=&#34;Registered legal name of the business entity&#34;, max_length=200)
     ]
     vat_id: Annotated[
         str | None,
         Field(
-            description=&#39;VAT identification number (e.g., DE123456789 for Germany, FR12345678901 for France). Required for B2B invoicing in the EU. Must be normalized: no spaces, dots, or dashes.&#39;,
-            pattern=&#39;^[A-Z]{2}[A-Z0-9]{2,13}$&#39;,
+            description=&#34;VAT identification number (e.g., DE123456789 for Germany, FR12345678901 for France). Required for B2B invoicing in the EU. Must be normalized: no spaces, dots, or dashes.&#34;,
+            pattern=&#34;^[A-Z]{2}[A-Z0-9]{2,13}$&#34;,
         ),
     ] = None
     tax_id: Annotated[
         str | None,
         Field(
-            description=&#39;Tax identification number for jurisdictions that do not use VAT (e.g., US EIN)&#39;,
+            description=&#34;Tax identification number for jurisdictions that do not use VAT (e.g., US EIN)&#34;,
             max_length=30,
         ),
     ] = None
     registration_number: Annotated[
         str | None,
         Field(
-            description=&#39;Company registration number (e.g., HRB 12345 for German Handelsregister)&#39;,
+            description=&#34;Company registration number (e.g., HRB 12345 for German Handelsregister)&#34;,
             max_length=50,
         ),
     ] = None
     address: Annotated[
-        Address | None, Field(description=&#39;Postal address for invoicing and legal correspondence&#39;)
+        Address | None, Field(description=&#34;Postal address for invoicing and legal correspondence&#34;)
     ] = None
     contacts: Annotated[
         list[Contact] | None,
         Field(
-            description=&#39;Contacts for billing, legal, and operational matters. Contains personal data subject to GDPR and equivalent regulations. Implementations MUST use this data only for invoicing and account management.&#39;,
+            description=&#34;Contacts for billing, legal, and operational matters. Contains personal data subject to GDPR and equivalent regulations. Implementations MUST use this data only for invoicing and account management.&#34;,
             max_length=10,
         ),
     ] = None
     bank: Annotated[
         Bank | None,
         Field(
-            description=&#39;Bank account details for payment processing. Write-only: included in requests to provide payment coordinates, but MUST NOT be echoed in responses. Sellers store these details and confirm receipt without returning them.&#39;
+            description=&#34;Bank account details for payment processing. Write-only: included in requests to provide payment coordinates, but MUST NOT be echoed in responses. Sellers store these details and confirm receipt without returning them.&#34;
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -851,22 +851,22 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Brand(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     domain: Annotated[
         str,
         Field(
             description=&#34;Domain where /.well-known/brand.json is hosted, or the brand&#39;s operating domain&#34;,
-            pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;,
+            pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;,
         ),
     ]
     brand_id: Annotated[
         str | None,
         Field(
-            description=&#39;Brand identifier within the house portfolio. Optional for single-brand domains.&#39;,
-            examples=[&#39;tide&#39;, &#39;cheerios&#39;, &#39;air_jordan&#39;, &#39;nike&#39;, &#39;pampers&#39;],
-            pattern=&#39;^[a-z0-9_]+$&#39;,
-            title=&#39;Brand ID&#39;,
+            description=&#34;Brand identifier within the house portfolio. Optional for single-brand domains.&#34;,
+            examples=[&#34;tide&#34;, &#34;cheerios&#34;, &#34;air_jordan&#34;, &#34;nike&#34;, &#34;pampers&#34;],
+            pattern=&#34;^[a-z0-9_]+$&#34;,
+            title=&#34;Brand ID&#34;,
         ),
     ] = None
     industries: Annotated[
@@ -941,7 +941,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Category(RootModel[str]):
-    root: Annotated[str, Field(max_length=64, pattern=&#39;^[a-z][a-z0-9_]*$&#39;)]</code></pre>
+    root: Annotated[str, Field(max_length=64, pattern=&#34;^[a-z][a-z0-9_]*$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -992,8 +992,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Compression(Enum):
-    gzip = &#39;gzip&#39;
-    none = &#39;none&#39;</code></pre>
+    gzip = &#34;gzip&#34;
+    none = &#34;none&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1057,12 +1057,12 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Contact(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     role: Annotated[
         Role, Field(description=&#34;Contact&#39;s functional role in the business relationship&#34;)
     ]
-    name: Annotated[str | None, Field(description=&#39;Full name of the contact&#39;, max_length=200)] = (
+    name: Annotated[str | None, Field(description=&#34;Full name of the contact&#34;, max_length=200)] = (
         None
     )
     email: Annotated[EmailStr | None, Field(max_length=254)] = None
@@ -1128,127 +1128,127 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
+    creative_id: Annotated[str, Field(description=&#34;Creative ID from the request&#34;)]
     account: Annotated[
         Account | None,
         Field(
-            description=&#39;Account that owns this creative&#39;,
+            description=&#34;Account that owns this creative&#34;,
             examples=[
                 {
-                    &#39;description&#39;: &#39;Direct advertiser account&#39;,
-                    &#39;data&#39;: {
-                        &#39;account_id&#39;: &#39;acc_acme_direct&#39;,
-                        &#39;name&#39;: &#39;Acme&#39;,
-                        &#39;advertiser&#39;: &#39;Acme Corp&#39;,
-                        &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
-                        &#39;operator&#39;: &#39;acme-corp.com&#39;,
-                        &#39;status&#39;: &#39;active&#39;,
-                        &#39;billing&#39;: &#39;operator&#39;,
-                        &#39;account_scope&#39;: &#39;brand&#39;,
-                        &#39;rate_card&#39;: &#39;acme_vip_2024&#39;,
-                        &#39;payment_terms&#39;: &#39;net_30&#39;,
+                    &#34;description&#34;: &#34;Direct advertiser account&#34;,
+                    &#34;data&#34;: {
+                        &#34;account_id&#34;: &#34;acc_acme_direct&#34;,
+                        &#34;name&#34;: &#34;Acme&#34;,
+                        &#34;advertiser&#34;: &#34;Acme Corp&#34;,
+                        &#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;},
+                        &#34;operator&#34;: &#34;acme-corp.com&#34;,
+                        &#34;status&#34;: &#34;active&#34;,
+                        &#34;billing&#34;: &#34;operator&#34;,
+                        &#34;account_scope&#34;: &#34;brand&#34;,
+                        &#34;rate_card&#34;: &#34;acme_vip_2024&#34;,
+                        &#34;payment_terms&#34;: &#34;net_30&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Advertiser account with agency billing proxy&#39;,
-                    &#39;data&#39;: {
-                        &#39;account_id&#39;: &#39;acc_acme_pinnacle&#39;,
-                        &#39;name&#39;: &#39;Acme c/o Pinnacle&#39;,
-                        &#39;advertiser&#39;: &#39;Acme Corp&#39;,
-                        &#39;billing_proxy&#39;: &#39;Pinnacle Media&#39;,
-                        &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
-                        &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
-                        &#39;status&#39;: &#39;active&#39;,
-                        &#39;billing&#39;: &#39;operator&#39;,
-                        &#39;account_scope&#39;: &#39;operator_brand&#39;,
-                        &#39;rate_card&#39;: &#39;acme_vip_2024&#39;,
-                        &#39;payment_terms&#39;: &#39;net_60&#39;,
+                    &#34;description&#34;: &#34;Advertiser account with agency billing proxy&#34;,
+                    &#34;data&#34;: {
+                        &#34;account_id&#34;: &#34;acc_acme_pinnacle&#34;,
+                        &#34;name&#34;: &#34;Acme c/o Pinnacle&#34;,
+                        &#34;advertiser&#34;: &#34;Acme Corp&#34;,
+                        &#34;billing_proxy&#34;: &#34;Pinnacle Media&#34;,
+                        &#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;},
+                        &#34;operator&#34;: &#34;pinnacle-media.com&#34;,
+                        &#34;status&#34;: &#34;active&#34;,
+                        &#34;billing&#34;: &#34;operator&#34;,
+                        &#34;account_scope&#34;: &#34;operator_brand&#34;,
+                        &#34;rate_card&#34;: &#34;acme_vip_2024&#34;,
+                        &#34;payment_terms&#34;: &#34;net_60&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Agency as direct buyer&#39;,
-                    &#39;data&#39;: {
-                        &#39;account_id&#39;: &#39;acc_pinnacle&#39;,
-                        &#39;name&#39;: &#39;Pinnacle&#39;,
-                        &#39;advertiser&#39;: &#39;Pinnacle Media&#39;,
-                        &#39;brand&#39;: {&#39;domain&#39;: &#39;pinnacle-media.com&#39;},
-                        &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
-                        &#39;status&#39;: &#39;active&#39;,
-                        &#39;billing&#39;: &#39;operator&#39;,
-                        &#39;account_scope&#39;: &#39;operator&#39;,
-                        &#39;rate_card&#39;: &#39;agency_standard&#39;,
-                        &#39;payment_terms&#39;: &#39;net_45&#39;,
+                    &#34;description&#34;: &#34;Agency as direct buyer&#34;,
+                    &#34;data&#34;: {
+                        &#34;account_id&#34;: &#34;acc_pinnacle&#34;,
+                        &#34;name&#34;: &#34;Pinnacle&#34;,
+                        &#34;advertiser&#34;: &#34;Pinnacle Media&#34;,
+                        &#34;brand&#34;: {&#34;domain&#34;: &#34;pinnacle-media.com&#34;},
+                        &#34;operator&#34;: &#34;pinnacle-media.com&#34;,
+                        &#34;status&#34;: &#34;active&#34;,
+                        &#34;billing&#34;: &#34;operator&#34;,
+                        &#34;account_scope&#34;: &#34;operator&#34;,
+                        &#34;rate_card&#34;: &#34;agency_standard&#34;,
+                        &#34;payment_terms&#34;: &#34;net_45&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Account with brand identity and operator (via sync_accounts)&#39;,
-                    &#39;data&#39;: {
-                        &#39;account_id&#39;: &#39;acc_spark_001&#39;,
-                        &#39;name&#39;: &#39;Spark (via Pinnacle)&#39;,
-                        &#39;advertiser&#39;: &#39;Nova Brands&#39;,
-                        &#39;status&#39;: &#39;active&#39;,
-                        &#39;brand&#39;: {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;spark&#39;},
-                        &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
-                        &#39;billing&#39;: &#39;agent&#39;,
-                        &#39;account_scope&#39;: &#39;operator_brand&#39;,
-                        &#39;payment_terms&#39;: &#39;net_30&#39;,
+                    &#34;description&#34;: &#34;Account with brand identity and operator (via sync_accounts)&#34;,
+                    &#34;data&#34;: {
+                        &#34;account_id&#34;: &#34;acc_spark_001&#34;,
+                        &#34;name&#34;: &#34;Spark (via Pinnacle)&#34;,
+                        &#34;advertiser&#34;: &#34;Nova Brands&#34;,
+                        &#34;status&#34;: &#34;active&#34;,
+                        &#34;brand&#34;: {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;spark&#34;},
+                        &#34;operator&#34;: &#34;pinnacle-media.com&#34;,
+                        &#34;billing&#34;: &#34;agent&#34;,
+                        &#34;account_scope&#34;: &#34;operator_brand&#34;,
+                        &#34;payment_terms&#34;: &#34;net_30&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Pending account awaiting seller approval&#39;,
-                    &#39;data&#39;: {
-                        &#39;account_id&#39;: &#39;acc_glow_pending&#39;,
-                        &#39;name&#39;: &#39;Glow&#39;,
-                        &#39;advertiser&#39;: &#39;Nova Brands&#39;,
-                        &#39;status&#39;: &#39;pending_approval&#39;,
-                        &#39;brand&#39;: {&#39;domain&#39;: &#39;nova-brands.com&#39;, &#39;brand_id&#39;: &#39;glow&#39;},
-                        &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
-                        &#39;billing&#39;: &#39;operator&#39;,
-                        &#39;account_scope&#39;: &#39;brand&#39;,
+                    &#34;description&#34;: &#34;Pending account awaiting seller approval&#34;,
+                    &#34;data&#34;: {
+                        &#34;account_id&#34;: &#34;acc_glow_pending&#34;,
+                        &#34;name&#34;: &#34;Glow&#34;,
+                        &#34;advertiser&#34;: &#34;Nova Brands&#34;,
+                        &#34;status&#34;: &#34;pending_approval&#34;,
+                        &#34;brand&#34;: {&#34;domain&#34;: &#34;nova-brands.com&#34;, &#34;brand_id&#34;: &#34;glow&#34;},
+                        &#34;operator&#34;: &#34;pinnacle-media.com&#34;,
+                        &#34;billing&#34;: &#34;operator&#34;,
+                        &#34;account_scope&#34;: &#34;brand&#34;,
                     },
                 },
                 {
-                    &#39;description&#39;: &#39;Agency operates but advertiser is billed directly with structured billing entity&#39;,
-                    &#39;data&#39;: {
-                        &#39;account_id&#39;: &#39;acc_acme_direct_bill&#39;,
-                        &#39;name&#39;: &#39;Acme (billed direct)&#39;,
-                        &#39;advertiser&#39;: &#39;Acme Corp&#39;,
-                        &#39;brand&#39;: {&#39;domain&#39;: &#39;acme-corp.com&#39;},
-                        &#39;operator&#39;: &#39;pinnacle-media.com&#39;,
-                        &#39;status&#39;: &#39;active&#39;,
-                        &#39;billing&#39;: &#39;advertiser&#39;,
-                        &#39;billing_entity&#39;: {
-                            &#39;legal_name&#39;: &#39;Acme Corporation GmbH&#39;,
-                            &#39;vat_id&#39;: &#39;DE987654321&#39;,
-                            &#39;address&#39;: {
-                                &#39;street&#39;: &#39;Hauptstrasse 42&#39;,
-                                &#39;city&#39;: &#39;Munich&#39;,
-                                &#39;postal_code&#39;: &#39;80331&#39;,
-                                &#39;country&#39;: &#39;DE&#39;,
+                    &#34;description&#34;: &#34;Agency operates but advertiser is billed directly with structured billing entity&#34;,
+                    &#34;data&#34;: {
+                        &#34;account_id&#34;: &#34;acc_acme_direct_bill&#34;,
+                        &#34;name&#34;: &#34;Acme (billed direct)&#34;,
+                        &#34;advertiser&#34;: &#34;Acme Corp&#34;,
+                        &#34;brand&#34;: {&#34;domain&#34;: &#34;acme-corp.com&#34;},
+                        &#34;operator&#34;: &#34;pinnacle-media.com&#34;,
+                        &#34;status&#34;: &#34;active&#34;,
+                        &#34;billing&#34;: &#34;advertiser&#34;,
+                        &#34;billing_entity&#34;: {
+                            &#34;legal_name&#34;: &#34;Acme Corporation GmbH&#34;,
+                            &#34;vat_id&#34;: &#34;DE987654321&#34;,
+                            &#34;address&#34;: {
+                                &#34;street&#34;: &#34;Hauptstrasse 42&#34;,
+                                &#34;city&#34;: &#34;Munich&#34;,
+                                &#34;postal_code&#34;: &#34;80331&#34;,
+                                &#34;country&#34;: &#34;DE&#34;,
                             },
-                            &#39;contacts&#39;: [
+                            &#34;contacts&#34;: [
                                 {
-                                    &#39;role&#39;: &#39;billing&#39;,
-                                    &#39;name&#39;: &#39;AP Department&#39;,
-                                    &#39;email&#39;: &#39;billing@acme-corp.com&#39;,
+                                    &#34;role&#34;: &#34;billing&#34;,
+                                    &#34;name&#34;: &#34;AP Department&#34;,
+                                    &#34;email&#34;: &#34;billing@acme-corp.com&#34;,
                                 }
                             ],
                         },
-                        &#39;account_scope&#39;: &#39;operator_brand&#39;,
-                        &#39;payment_terms&#39;: &#39;net_30&#39;,
+                        &#34;account_scope&#34;: &#34;operator_brand&#34;,
+                        &#34;payment_terms&#34;: &#34;net_30&#34;,
                     },
                 },
             ],
-            title=&#39;Account&#39;,
+            title=&#34;Account&#34;,
         ),
     ] = None
     action: Annotated[
-        Action, Field(description=&#39;Action taken for this creative&#39;, title=&#39;Creative Action&#39;)
+        Action, Field(description=&#34;Action taken for this creative&#34;, title=&#34;Creative Action&#34;)
     ]
     platform_id: Annotated[
-        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
+        str | None, Field(description=&#34;Platform-specific ID assigned to the creative&#34;)
     ] = None
     changes: Annotated[
         list[str] | None,
@@ -1259,30 +1259,30 @@ validated to form a valid model.</p>
         Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
     ] = None
     warnings: Annotated[
-        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
+        list[str] | None, Field(description=&#34;Non-fatal warnings about this creative&#34;)
     ] = None
     preview_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
+            description=&#34;Preview URL for generative creatives (only present for generative formats)&#34;
         ),
     ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
+            description=&#34;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#34;
         ),
     ] = None
     assigned_to: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#39;
+            description=&#34;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#34;
         ),
     ] = None
     assignment_errors: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], str] | None,
+        dict[Annotated[str, StringConstraints(pattern=r&#34;^[a-zA-Z0-9_-]+$&#34;)], str] | None,
         Field(
-            description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
+            description=&#34;Assignment errors by package ID (only present when assignment failures occurred)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -1374,7 +1374,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreditLimit(AdCPBaseModel):
     amount: Annotated[float, Field(ge=0.0)]
-    currency: Annotated[str, Field(pattern=&#39;^[A-Z]{3}$&#39;)]</code></pre>
+    currency: Annotated[str, Field(pattern=&#34;^[A-Z]{3}$&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1428,7 +1428,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DataSubjectContestation(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     url: AnyUrl
     email: EmailStr | None = None
@@ -1490,7 +1490,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class DataSubjectContestation89(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     url: AnyUrl | None = None
     email: EmailStr
@@ -1552,37 +1552,37 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Error(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     code: Annotated[
         str,
         Field(
-            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;,
+            description=&#34;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#34;,
             max_length=64,
             min_length=1,
         ),
     ]
-    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
-    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
+    suggestion: Annotated[str | None, Field(description=&#34;Suggested fix for the error&#34;)] = None
     retry_after: Annotated[
         float | None,
         Field(
-            description=&#39;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#39;,
+            description=&#34;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#34;,
             ge=1.0,
             le=3600.0,
         ),
     ] = None
     details: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+        dict[str, Any] | None, Field(description=&#34;Additional task-specific error details&#34;)
     ] = None
     recovery: Annotated[
         Recovery | None,
         Field(
-            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+            description=&#34;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -1603,7 +1603,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
-<li><a title="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34" href="#adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34">Error34</a></li>
+<li><a title="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35" href="#adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35">Error35</a></li>
 </ul>
 <h3>Class variables</h3>
 <dl>
@@ -1651,8 +1651,8 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34"><code class="flex name class">
-<span>class <span class="ident">Error34</span></span>
+<dt id="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35"><code class="flex name class">
+<span>class <span class="ident">Error35</span></span>
 <span>(</span><span>**data: Any)</span>
 </code></dt>
 <dd>
@@ -1660,7 +1660,7 @@ validated to form a valid model.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Error34(Error):
+<pre><code class="python">class Error35(Error):
     pass</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1681,7 +1681,7 @@ validated to form a valid model.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1707,11 +1707,11 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Format(Enum):
-    jsonl = &#39;jsonl&#39;
-    csv = &#39;csv&#39;
-    parquet = &#39;parquet&#39;
-    avro = &#39;avro&#39;
-    orc = &#39;orc&#39;</code></pre>
+    jsonl = &#34;jsonl&#34;
+    csv = &#34;csv&#34;
+    parquet = &#34;parquet&#34;
+    avro = &#34;avro&#34;
+    orc = &#34;orc&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1787,9 +1787,9 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class GovernanceAgent(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    url: Annotated[AnyUrl, Field(description=&#39;Governance agent endpoint URL. Must use HTTPS.&#39;)]
+    url: Annotated[AnyUrl, Field(description=&#34;Governance agent endpoint URL. Must use HTTPS.&#34;)]
     categories: Annotated[
         list[Category] | None,
         Field(
@@ -1849,12 +1849,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PaymentTerms(Enum):
-    net_15 = &#39;net_15&#39;
-    net_30 = &#39;net_30&#39;
-    net_45 = &#39;net_45&#39;
-    net_60 = &#39;net_60&#39;
-    net_90 = &#39;net_90&#39;
-    prepay = &#39;prepay&#39;</code></pre>
+    net_15 = &#34;net_15&#34;
+    net_30 = &#34;net_30&#34;
+    net_45 = &#34;net_45&#34;
+    net_60 = &#34;net_60&#34;
+    net_90 = &#34;net_90&#34;
+    prepay = &#34;prepay&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1933,9 +1933,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Protocol(Enum):
-    s3 = &#39;s3&#39;
-    gcs = &#39;gcs&#39;
-    azure_blob = &#39;azure_blob&#39;</code></pre>
+    s3 = &#34;s3&#34;
+    gcs = &#34;gcs&#34;
+    azure_blob = &#34;azure_blob&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2002,9 +2002,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Recovery(Enum):
-    transient = &#39;transient&#39;
-    correctable = &#39;correctable&#39;
-    terminal = &#39;terminal&#39;</code></pre>
+    transient = &#34;transient&#34;
+    correctable = &#34;correctable&#34;
+    terminal = &#34;terminal&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2072,51 +2072,51 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class ReportingBucket(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     protocol: Annotated[
-        Protocol, Field(description=&#39;Cloud storage protocol&#39;, title=&#39;Cloud Storage Protocol&#39;)
+        Protocol, Field(description=&#34;Cloud storage protocol&#34;, title=&#34;Cloud Storage Protocol&#34;)
     ]
     bucket: Annotated[
         str,
         Field(
-            description=&#39;Bucket or container name&#39;,
+            description=&#34;Bucket or container name&#34;,
             max_length=63,
             min_length=3,
-            pattern=&#39;^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$&#39;,
+            pattern=&#34;^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$&#34;,
         ),
     ]
     prefix: Annotated[
         str | None,
         Field(
-            description=&#39;Path prefix within the bucket. Seller appends date-based partitioning beneath this prefix.&#39;,
-            examples=[&#39;accounts/pinnacle/adcp&#39;, &#39;reporting/2024&#39;],
+            description=&#34;Path prefix within the bucket. Seller appends date-based partitioning beneath this prefix.&#34;,
+            examples=[&#34;accounts/pinnacle/adcp&#34;, &#34;reporting/2024&#34;],
             max_length=512,
-            pattern=&#39;^[a-zA-Z0-9/_.-]+$&#39;,
+            pattern=&#34;^[a-zA-Z0-9/_.-]+$&#34;,
         ),
     ] = None
     region: Annotated[
         str | None,
         Field(
-            description=&#39;Cloud region for the bucket&#39;,
-            examples=[&#39;us-east-1&#39;, &#39;europe-west1&#39;],
+            description=&#34;Cloud region for the bucket&#34;,
+            examples=[&#34;us-east-1&#34;, &#34;europe-west1&#34;],
             max_length=64,
-            pattern=&#39;^[a-z0-9-]+$&#39;,
+            pattern=&#34;^[a-z0-9-]+$&#34;,
         ),
     ] = None
     format: Annotated[
         Format | None,
         Field(
-            description=&#39;File format for delivered files. Parquet, Avro, and ORC use internal compression (the top-level compression field is ignored for these formats).&#39;
+            description=&#34;File format for delivered files. Parquet, Avro, and ORC use internal compression (the top-level compression field is ignored for these formats).&#34;
         ),
     ] = Format.jsonl
     compression: Annotated[
-        Compression | None, Field(description=&#39;Compression applied to delivered files&#39;)
+        Compression | None, Field(description=&#34;Compression applied to delivered files&#34;)
     ] = Compression.gzip
     file_retention_days: Annotated[
         int,
         Field(
-            description=&#39;How long reporting files are retained in the bucket before deletion. Buyers must read files within this window. Minimum recommended: 14 days.&#39;,
+            description=&#34;How long reporting files are retained in the bucket before deletion. Buyers must read files within this window. Minimum recommended: 14 days.&#34;,
             examples=[14, 30, 90],
             ge=1,
         ),
@@ -2124,7 +2124,7 @@ attributes &ndash; see the documentation for details.</p></div>
     setup_instructions: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;URL to documentation for configuring buyer read access to this bucket (IAM role, service account, etc.). Operator-facing documentation — buyer agents MUST NOT auto-fetch this URL; surface it to a human operator. If an implementation fetches it (for preview), apply webhook URL SSRF validation and do not pass the fetched content into an LLM context without indirect-prompt-injection guarding. See docs/media-buy/media-buys/optimization-reporting#security-considerations-for-offline-delivery.&#39;
+            description=&#34;URL to documentation for configuring buyer read access to this bucket (IAM role, service account, etc.). Operator-facing documentation — buyer agents MUST NOT auto-fetch this URL; surface it to a human operator. If an implementation fetches it (for preview), apply webhook URL SSRF validation and do not pass the fetched content into an LLM context without indirect-prompt-injection guarding. See docs/media-buy/media-buys/optimization-reporting#security-considerations-for-offline-delivery.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -2203,10 +2203,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Role(Enum):
-    billing = &#39;billing&#39;
-    legal = &#39;legal&#39;
-    creative = &#39;creative&#39;
-    general = &#39;general&#39;</code></pre>
+    billing = &#34;billing&#34;
+    legal = &#34;legal&#34;
+    creative = &#34;creative&#34;
+    general = &#34;general&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2278,17 +2278,17 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Setup(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;URL where the human can complete the required action (credit application, legal agreement, add funds).&#39;
+            description=&#34;URL where the human can complete the required action (credit application, legal agreement, add funds).&#34;
         ),
     ] = None
     message: Annotated[str, Field(description=&#34;Human-readable description of what&#39;s needed.&#34;)]
     expires_at: Annotated[
-        AwareDatetime | None, Field(description=&#39;When this setup link expires.&#39;)
+        AwareDatetime | None, Field(description=&#34;When this setup link expires.&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -2346,12 +2346,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    active = &#39;active&#39;
-    pending_approval = &#39;pending_approval&#39;
-    rejected = &#39;rejected&#39;
-    payment_required = &#39;payment_required&#39;
-    suspended = &#39;suspended&#39;
-    closed = &#39;closed&#39;</code></pre>
+    active = &#34;active&#34;
+    pending_approval = &#34;pending_approval&#34;
+    rejected = &#34;rejected&#34;
+    payment_required = &#34;payment_required&#34;
+    suspended = &#34;suspended&#34;
+    closed = &#34;closed&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2431,10 +2431,10 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class SyncCreativesResponse3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+        bool | None, Field(description=&#34;Whether this was a dry run (no actual changes made)&#34;)
     ] = None
     creatives: Annotated[
         list[Creative],
@@ -2444,20 +2444,20 @@ attributes &ndash; see the documentation for details.</p></div>
     ]
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -2525,12 +2525,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse4(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
-        list[Error34],
+        list[Error35],
         Field(
-            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            description=&#34;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#34;,
             min_length=1,
         ),
     ]
@@ -2538,14 +2538,14 @@ validated to form a valid model.</p>
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -2570,7 +2570,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.creative.sync_creatives_response.SyncCreativesResponse4.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34" href="#adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34">Error34</a>]</code></dt>
+<dt id="adcp.types.generated_poc.bundled.creative.sync_creatives_response.SyncCreativesResponse4.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35" href="#adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35">Error35</a>]</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -2787,9 +2787,9 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34" href="#adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34">Error34</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35" href="#adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35">Error35</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34.model_config" href="#adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error34.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35.model_config" href="#adcp.types.generated_poc.bundled.creative.sync_creatives_response.Error35.model_config">model_config</a></code></li>
 </ul>
 </li>
 <li>

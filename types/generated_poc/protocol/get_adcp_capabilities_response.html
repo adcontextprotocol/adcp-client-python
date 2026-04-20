@@ -65,32 +65,32 @@ el.replaceWith(d);
     authorization_endpoint: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;OAuth authorization endpoint for obtaining operator-level credentials. Present when the seller supports OAuth for operator authentication. The agent directs the operator to this URL to authenticate and obtain a bearer token. If absent and require_operator_auth is true, operators obtain credentials out-of-band (e.g., seller portal, API key).&#39;
+            description=&#34;OAuth authorization endpoint for obtaining operator-level credentials. Present when the seller supports OAuth for operator authentication. The agent directs the operator to this URL to authenticate and obtain a bearer token. If absent and require_operator_auth is true, operators obtain credentials out-of-band (e.g., seller portal, API key).&#34;
         ),
     ] = None
     supported_billing: Annotated[
         list[SupportedBillingEnum],
         Field(
-            description=&#39;Billing models this seller supports. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The buyer must pass one of these values in sync_accounts.&#39;,
+            description=&#34;Billing models this seller supports. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The buyer must pass one of these values in sync_accounts.&#34;,
             min_length=1,
         ),
     ]
     required_for_products: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account — useful for price comparison and discovery before committing to a seller.&#39;
+            description=&#34;Whether an account reference is required for get_products. When true, the buyer must establish an account before browsing products. When false (default), the buyer can browse products without an account — useful for price comparison and discovery before committing to a seller.&#34;
         ),
     ] = False
     account_financials: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether this seller supports the get_account_financials task for querying account-level financial status (spend, credit, invoices). Only applicable to operator-billed accounts.&#39;
+            description=&#34;Whether this seller supports the get_account_financials task for querying account-level financial status (spend, credit, invoices). Only applicable to operator-billed accounts.&#34;
         ),
     ] = False
     sandbox: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether this seller supports sandbox accounts for testing. Buyers can provision a sandbox account via sync_accounts with sandbox: true, and all requests using that account_id will be treated as sandbox — no real platform calls or spend.&#39;
+            description=&#34;Whether this seller supports sandbox accounts for testing. Buyers can provision a sandbox account via sync_accounts with sandbox: true, and all requests using that account_id will be treated as sandbox — no real platform calls or spend.&#34;
         ),
     ] = False</code></pre>
 </details>
@@ -164,14 +164,14 @@ validated to form a valid model.</p>
     major_versions: Annotated[
         list[MajorVersion],
         Field(
-            description=&#39;AdCP major versions supported by this seller. Major versions indicate breaking changes. When multiple versions are listed, the buyer declares its version via the adcp_major_version field on requests.&#39;,
+            description=&#34;AdCP major versions supported by this seller. Major versions indicate breaking changes. When multiple versions are listed, the buyer declares its version via the adcp_major_version field on requests.&#34;,
             min_length=1,
         ),
     ]
     idempotency: Annotated[
         Idempotency,
         Field(
-            description=&#39;Idempotency semantics for mutating requests. Sellers MUST declare their replay window so buyers can reason about safe retry behavior. Clients MUST NOT assume a default — a seller without this declaration is non-compliant and should be treated as unsafe for retry-sensitive operations.&#39;
+            description=&#34;Idempotency semantics for mutating requests. Sellers MUST declare their replay window so buyers can reason about safe retry behavior. Clients MUST NOT assume a default — a seller without this declaration is non-compliant and should be treated as unsafe for retry-sensitive operations.&#34;
         ),
     ]</code></pre>
 </details>
@@ -227,11 +227,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AgeRestriction(AdCPBaseModel):
     supported: Annotated[
-        bool | None, Field(description=&#39;Whether seller supports age restrictions&#39;)
+        bool | None, Field(description=&#34;Whether seller supports age restrictions&#34;)
     ] = None
     verification_methods: Annotated[
         list[age_verification_method.AgeVerificationMethod] | None,
-        Field(description=&#39;Age verification methods this seller supports&#39;),
+        Field(description=&#34;Age verification methods this seller supports&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -286,11 +286,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AttributionWindow(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     event_type: Annotated[
         event_type_1.EventType | None,
-        Field(description=&#39;Event type this window applies to, or omit for default window&#39;),
+        Field(description=&#34;Event type this window applies to, or omit for default window&#34;),
     ] = None
     post_click: Annotated[
         list[duration.Duration],
@@ -363,12 +363,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AudienceTargeting(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     supported_identifier_types: Annotated[
         list[SupportedIdentifierType],
         Field(
-            description=&#39;PII-derived identifier types accepted for audience matching. Buyers should only send identifiers the seller supports.&#39;,
+            description=&#34;PII-derived identifier types accepted for audience matching. Buyers should only send identifiers the seller supports.&#34;,
             min_length=1,
         ),
     ]
@@ -381,21 +381,21 @@ validated to form a valid model.</p>
     supported_uid_types: Annotated[
         list[uid_type.UidType] | None,
         Field(
-            description=&#39;Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform — check this field before sending uids with type: maid.&#39;,
+            description=&#34;Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform — check this field before sending uids with type: maid.&#34;,
             min_length=1,
         ),
     ] = None
     minimum_audience_size: Annotated[
         int,
         Field(
-            description=&#39;Minimum matched audience size required for targeting. Audiences below this threshold will have status: too_small. Varies by platform (100–1000 is typical).&#39;,
+            description=&#34;Minimum matched audience size required for targeting. Audiences below this threshold will have status: too_small. Varies by platform (100–1000 is typical).&#34;,
             ge=1,
         ),
     ]
     matching_latency_hours: Annotated[
         MatchingLatencyHours | None,
         Field(
-            description=&#39;Expected matching latency range in hours after upload. Use to calibrate polling cadence and set appropriate expectations before configuring push_notification_config.&#39;
+            description=&#34;Expected matching latency range in hours after upload. Use to calibrate polling cadence and set appropriate expectations before configuring push_notification_config.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -463,17 +463,17 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Brand(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     rights: Annotated[
         bool | None,
         Field(
-            description=&#39;Supports get_rights and acquire_rights for rights discovery and clearance&#39;
+            description=&#34;Supports get_rights and acquire_rights for rights discovery and clearance&#34;
         ),
     ] = False
     right_types: Annotated[
         list[right_type.RightType] | None,
-        Field(description=&#39;Types of rights available through this agent&#39;),
+        Field(description=&#34;Types of rights available through this agent&#34;),
     ] = None
     available_uses: Annotated[
         list[right_use.RightUse] | None,
@@ -481,7 +481,7 @@ validated to form a valid model.</p>
     ] = None
     generation_providers: Annotated[
         list[str] | None,
-        Field(description=&#39;LLM/generation providers this agent can issue credentials for&#39;),
+        Field(description=&#34;LLM/generation providers this agent can issue credentials for&#34;),
     ] = None
     description: Annotated[
         str | None,
@@ -554,7 +554,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ComplianceTesting(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     scenarios: Annotated[
         list[Scenario],
@@ -620,14 +620,14 @@ validated to form a valid model.</p>
     supported_channels: Annotated[
         list[channels.MediaChannel] | None,
         Field(
-            description=&#39;Channels for which the seller can provide content artifacts. Helps buyers understand which parts of a mixed-channel buy will have content standards coverage.&#39;,
+            description=&#34;Channels for which the seller can provide content artifacts. Helps buyers understand which parts of a mixed-channel buy will have content standards coverage.&#34;,
             min_length=1,
         ),
     ] = None
     supports_webhook_delivery: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether the seller supports push-based artifact delivery via artifact_webhook configured at buy creation time.&#39;
+            description=&#34;Whether the seller supports push-based artifact delivery via artifact_webhook configured at buy creation time.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -687,40 +687,40 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ConversionTracking(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     multi_source_event_dedup: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether this seller can deduplicate conversion events across multiple event sources within a single goal. When true, the seller honors the deduplication semantics in optimization_goals event_sources arrays — the same event_id from multiple sources counts once. When false or absent, buyers should use a single event source per goal; multi-source arrays will be treated as first-source-wins. Most social platforms cannot deduplicate across independently-managed pixel and CAPI sources.&#39;
+            description=&#34;Whether this seller can deduplicate conversion events across multiple event sources within a single goal. When true, the seller honors the deduplication semantics in optimization_goals event_sources arrays — the same event_id from multiple sources counts once. When false or absent, buyers should use a single event source per goal; multi-source arrays will be treated as first-source-wins. Most social platforms cannot deduplicate across independently-managed pixel and CAPI sources.&#34;
         ),
     ] = None
     supported_event_types: Annotated[
         list[event_type_1.EventType] | None,
         Field(
-            description=&#39;Event types this seller can track and attribute. If omitted, all standard event types are supported.&#39;,
+            description=&#34;Event types this seller can track and attribute. If omitted, all standard event types are supported.&#34;,
             min_length=1,
         ),
     ] = None
     supported_uid_types: Annotated[
         list[uid_type.UidType] | None,
-        Field(description=&#39;Universal ID types accepted for user matching&#39;, min_length=1),
+        Field(description=&#34;Universal ID types accepted for user matching&#34;, min_length=1),
     ] = None
     supported_hashed_identifiers: Annotated[
         list[SupportedIdentifierType] | None,
         Field(
-            description=&#39;Hashed PII types accepted for user matching. Buyers must hash before sending (SHA-256, normalized).&#39;,
+            description=&#34;Hashed PII types accepted for user matching. Buyers must hash before sending (SHA-256, normalized).&#34;,
             min_length=1,
         ),
     ] = None
     supported_action_sources: Annotated[
         list[action_source.ActionSource] | None,
-        Field(description=&#39;Action sources this seller accepts events from&#39;, min_length=1),
+        Field(description=&#34;Action sources this seller accepts events from&#34;, min_length=1),
     ] = None
     attribution_windows: Annotated[
         list[AttributionWindow] | None,
         Field(
-            description=&#39;Attribution windows available from this seller. Single-element arrays indicate fixed windows; multi-element arrays indicate configurable options the buyer can choose from via attribution_window on optimization goals.&#39;
+            description=&#34;Attribution windows available from this seller. Single-element arrays indicate fixed windows; multi-element arrays indicate configurable options the buyer can choose from via attribution_window on optimization goals.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -791,9 +791,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class CoversContentDigest(Enum):
-    required = &#39;required&#39;
-    forbidden = &#39;forbidden&#39;
-    either = &#39;either&#39;</code></pre>
+    required = &#34;required&#34;
+    forbidden = &#34;forbidden&#34;
+    either = &#34;either&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -861,30 +861,30 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     supports_compliance: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, this creative agent can process briefs with compliance requirements (required_disclosures, prohibited_claims) and will validate that disclosures can be satisfied by the target format.&#39;
+            description=&#34;When true, this creative agent can process briefs with compliance requirements (required_disclosures, prohibited_claims) and will validate that disclosures can be satisfied by the target format.&#34;
         ),
     ] = None
     has_creative_library: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, this agent hosts a creative library and supports list_creatives and creative_id references in build_creative. Creative agents with a library should also implement the accounts protocol (sync_accounts / list_accounts) so buyers can establish access.&#39;
+            description=&#34;When true, this agent hosts a creative library and supports list_creatives and creative_id references in build_creative. Creative agents with a library should also implement the accounts protocol (sync_accounts / list_accounts) so buyers can establish access.&#34;
         ),
     ] = False
     supports_generation: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, this agent can generate creatives from natural language briefs via build_creative. The buyer provides a message with creative direction, and the agent produces a manifest with generated assets. When false, build_creative only supports transformation or library retrieval.&#39;
+            description=&#34;When true, this agent can generate creatives from natural language briefs via build_creative. The buyer provides a message with creative direction, and the agent produces a manifest with generated assets. When false, build_creative only supports transformation or library retrieval.&#34;
         ),
     ] = False
     supports_transformation: Annotated[
         bool | None,
         Field(
-            description=&#39;When true, this agent can transform or resize existing manifests via build_creative. The buyer provides a creative_manifest and a target_format_id, and the agent adapts the creative to the new format.&#39;
+            description=&#34;When true, this agent can transform or resize existing manifests via build_creative. The buyer provides a creative_manifest and a target_format_id, and the agent adapts the creative to the new format.&#34;
         ),
     ] = False</code></pre>
 </details>
@@ -960,18 +960,18 @@ validated to form a valid model.</p>
         ),
     ]
     range: Annotated[
-        Range | None, Field(description=&#39;For quantitative features, the valid range&#39;)
+        Range | None, Field(description=&#34;For quantitative features, the valid range&#34;)
     ] = None
     categories: Annotated[
-        list[str] | None, Field(description=&#39;For categorical features, the valid values&#39;)
+        list[str] | None, Field(description=&#34;For categorical features, the valid values&#34;)
     ] = None
     description: Annotated[
-        str | None, Field(description=&#39;Human-readable description of what this feature measures&#39;)
+        str | None, Field(description=&#34;Human-readable description of what this feature measures&#34;)
     ] = None
     methodology_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;URL to documentation explaining how this feature is calculated or measured.&#39;
+            description=&#34;URL to documentation explaining how this feature is calculated or measured.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -1043,16 +1043,16 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreativeSpecs(AdCPBaseModel):
     vast_versions: Annotated[
-        list[VastVersion] | None, Field(description=&#39;VAST versions supported for video creatives&#39;)
+        list[VastVersion] | None, Field(description=&#34;VAST versions supported for video creatives&#34;)
     ] = None
     mraid_versions: Annotated[
         list[MraidVersion] | None,
-        Field(description=&#39;MRAID versions supported for rich media mobile creatives&#39;),
+        Field(description=&#34;MRAID versions supported for rich media mobile creatives&#34;),
     ] = None
-    vpaid: Annotated[bool | None, Field(description=&#39;VPAID support for interactive video ads&#39;)] = (
+    vpaid: Annotated[bool | None, Field(description=&#34;VPAID support for interactive video ads&#34;)] = (
         None
     )
-    simid: Annotated[bool | None, Field(description=&#39;SIMID support for interactive video ads&#39;)] = (
+    simid: Annotated[bool | None, Field(description=&#34;SIMID support for interactive video ads&#34;)] = (
         None
     )</code></pre>
 </details>
@@ -1166,12 +1166,12 @@ validated to form a valid model.</p>
     transports: Annotated[
         list[Transport],
         Field(
-            description=&#39;Available protocol transports. Hosts select based on their capabilities.&#39;,
+            description=&#34;Available protocol transports. Hosts select based on their capabilities.&#34;,
             min_length=1,
         ),
     ]
     preferred: Annotated[
-        Type28 | None, Field(description=&#39;Preferred transport when host supports multiple&#39;)
+        Type28 | None, Field(description=&#34;Preferred transport when host supports multiple&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -1228,22 +1228,22 @@ validated to form a valid model.</p>
     trusted_match: Annotated[
         TrustedMatch | None,
         Field(
-            description=&#39;Trusted Match Protocol (TMP) support. Presence of this object indicates the seller has TMP infrastructure deployed. Check individual products via get_products for per-product TMP capabilities.&#39;
+            description=&#34;Trusted Match Protocol (TMP) support. Presence of this object indicates the seller has TMP infrastructure deployed. Check individual products via get_products for per-product TMP capabilities.&#34;
         ),
     ] = None
     axe_integrations: Annotated[
         list[AnyUrl] | None,
         Field(
-            description=&#39;Deprecated. Legacy AXE integrations. Use trusted_match for new integrations.&#39;
+            description=&#34;Deprecated. Legacy AXE integrations. Use trusted_match for new integrations.&#34;
         ),
     ] = None
     creative_specs: Annotated[
-        CreativeSpecs | None, Field(description=&#39;Creative specification support&#39;)
+        CreativeSpecs | None, Field(description=&#34;Creative specification support&#34;)
     ] = None
     targeting: Annotated[
         Targeting | None,
         Field(
-            description=&#39;Targeting capabilities. If declared true/supported, buyer can use these targeting parameters and seller MUST honor them.&#39;
+            description=&#34;Targeting capabilities. If declared true/supported, buyer can use these targeting parameters and seller MUST honor them.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -1296,6 +1296,63 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature"><code class="flex name class">
+<span>class <span class="ident">ExperimentalFeature</span></span>
+<span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ExperimentalFeature(RootModel[str]):
+    root: Annotated[
+        str,
+        Field(
+            description=&#34;Experimental feature id (dot-separated lowercase identifiers, e.g., &#39;brand.rights_lifecycle&#39;, &#39;governance.campaign&#39;, &#39;trusted_match.core&#39;)&#34;,
+            pattern=&#34;^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$&#34;,
+        ),
+    ]</code></pre>
+</details>
+<div class="desc"><div class="admonition abstract">
+<p class="admonition-title">Usage Documentation</p>
+<p><a href="../concepts/models.md#rootmodel-and-custom-root-types"><code>RootModel</code> and Custom Root Types</a></p>
+</div>
+<p>A Pydantic <code>BaseModel</code> for the root object of the model.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>root</code></strong></dt>
+<dd>The root object of the model.</dd>
+<dt><strong><code>__pydantic_root_model__</code></strong></dt>
+<dd>Whether the model is a RootModel.</dd>
+<dt><strong><code>__pydantic_private__</code></strong></dt>
+<dd>Private fields in the model.</dd>
+<dt><strong><code>__pydantic_extra__</code></strong></dt>
+<dd>Extra fields in the model.</dd>
+</dl>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pydantic.root_model.RootModel[str]</li>
+<li>pydantic.root_model.RootModel</li>
+<li>pydantic.main.BaseModel</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature.root"><code class="name">var <span class="ident">root</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExtensionsSupportedItem"><code class="flex name class">
 <span>class <span class="ident">ExtensionsSupportedItem</span></span>
 <span>(</span><span>root: RootModelRootType = PydanticUndefined, **data)</span>
@@ -1310,7 +1367,7 @@ validated to form a valid model.</p>
         str,
         Field(
             description=&#34;Extension namespace (lowercase alphanumeric with underscores, e.g., &#39;iab_tcf&#39;, &#39;iab_gpp&#39;)&#34;,
-            pattern=&#39;^[a-z][a-z0-9_]*$&#39;,
+            pattern=&#34;^[a-z][a-z0-9_]*$&#34;,
         ),
     ]</code></pre>
 </details>
@@ -1366,7 +1423,7 @@ validated to form a valid model.</p>
     catalog_signals: Annotated[
         bool | None,
         Field(
-            description=&#39;Supports signals from data provider catalogs with structured signal_id references&#39;
+            description=&#34;Supports signals from data provider catalogs with structured signal_id references&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -1418,7 +1475,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GeoMetros(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     nielsen_dma: bool | None = None
     uk_itl1: bool | None = None
@@ -1485,7 +1542,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GeoPostalAreas(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     us_zip: bool | None = None
     us_zip_plus_four: bool | None = None
@@ -1589,25 +1646,25 @@ validated to form a valid model.</p>
     radius: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether seller supports simple radius targeting (distance circle from a point)&#39;
+            description=&#34;Whether seller supports simple radius targeting (distance circle from a point)&#34;
         ),
     ] = None
     travel_time: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether seller supports travel time isochrone targeting (requires a routing engine)&#39;
+            description=&#34;Whether seller supports travel time isochrone targeting (requires a routing engine)&#34;
         ),
     ] = None
     geometry: Annotated[
         bool | None,
         Field(
-            description=&#39;Whether seller supports pre-computed GeoJSON geometry (buyer provides the polygon)&#39;
+            description=&#34;Whether seller supports pre-computed GeoJSON geometry (buyer provides the polygon)&#34;
         ),
     ] = None
     transport_modes: Annotated[
         list[transport_mode.TransportMode] | None,
         Field(
-            description=&#39;Transport modes supported for travel_time isochrones. Only relevant when travel_time is true.&#39;,
+            description=&#34;Transport modes supported for travel_time isochrones. Only relevant when travel_time is true.&#34;,
             min_length=1,
         ),
     ] = None</code></pre>
@@ -1672,90 +1729,96 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class GetAdcpCapabilitiesResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    adcp: Annotated[Adcp, Field(description=&#39;Core AdCP protocol information&#39;)]
+    adcp: Annotated[Adcp, Field(description=&#34;Core AdCP protocol information&#34;)]
     supported_protocols: Annotated[
         list[SupportedProtocol],
         Field(
-            description=&#39;AdCP protocols this agent supports. Each value both (a) declares which tools the agent implements and (b) commits the agent to pass the baseline compliance storyboard at /compliance/{version}/protocols/{protocol}/ (with snake_case → kebab-case path mapping, e.g. media_buy → /compliance/.../protocols/media-buy/). Compliance testing support is declared separately via the `compliance_testing` capability block (below), not as a protocol claim.&#39;,
+            description=&#34;AdCP protocols this agent supports. Each value both (a) declares which tools the agent implements and (b) commits the agent to pass the baseline compliance storyboard at /compliance/{version}/protocols/{protocol}/ (with snake_case → kebab-case path mapping, e.g. media_buy → /compliance/.../protocols/media-buy/). Compliance testing support is declared separately via the `compliance_testing` capability block (below), not as a protocol claim.&#34;,
             min_length=1,
         ),
     ]
     account: Annotated[
         Account | None,
         Field(
-            description=&#39;Account management capabilities. Describes how accounts are established, what billing models are supported, and whether an account is required before browsing products.&#39;
+            description=&#34;Account management capabilities. Describes how accounts are established, what billing models are supported, and whether an account is required before browsing products.&#34;
         ),
     ] = None
     media_buy: Annotated[
         MediaBuy | None,
         Field(
-            description=&#39;Media-buy protocol capabilities. Expected when media_buy is in supported_protocols. Sellers declaring media_buy should also include account with supported_billing.&#39;
+            description=&#34;Media-buy protocol capabilities. Expected when media_buy is in supported_protocols. Sellers declaring media_buy should also include account with supported_billing.&#34;
         ),
     ] = None
     signals: Annotated[
         Signals | None,
         Field(
-            description=&#39;Signals protocol capabilities. Only present if signals is in supported_protocols.&#39;
+            description=&#34;Signals protocol capabilities. Only present if signals is in supported_protocols.&#34;
         ),
     ] = None
     governance: Annotated[
         Governance | None,
         Field(
-            description=&#39;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property and creative data like compliance scores, brand safety ratings, sustainability metrics, and creative quality assessments.&#39;
+            description=&#34;Governance protocol capabilities. Only present if governance is in supported_protocols. Governance agents provide property and creative data like compliance scores, brand safety ratings, sustainability metrics, and creative quality assessments.&#34;
         ),
     ] = None
     sponsored_intelligence: Annotated[
         SponsoredIntelligence | None,
         Field(
-            description=&#39;Sponsored Intelligence protocol capabilities. Only present if sponsored_intelligence is in supported_protocols. SI agents handle conversational brand experiences.&#39;
+            description=&#34;Sponsored Intelligence protocol capabilities. Only present if sponsored_intelligence is in supported_protocols. SI agents handle conversational brand experiences.&#34;
         ),
     ] = None
     brand: Annotated[
         Brand | None,
         Field(
-            description=&#39;Brand protocol capabilities. Only present if brand is in supported_protocols. Brand agents provide identity data (logos, colors, tone, assets) and optionally rights clearance for licensable content (talent, music, stock media).&#39;
+            description=&#34;Brand protocol capabilities. Only present if brand is in supported_protocols. Brand agents provide identity data (logos, colors, tone, assets) and optionally rights clearance for licensable content (talent, music, stock media).&#34;
         ),
     ] = None
     creative: Annotated[
         Creative | None,
         Field(
-            description=&#39;Creative protocol capabilities. Only present if creative is in supported_protocols.&#39;
+            description=&#34;Creative protocol capabilities. Only present if creative is in supported_protocols.&#34;
         ),
     ] = None
     request_signing: Annotated[
         RequestSigning | None,
         Field(
-            description=&#39;RFC 9421 HTTP Signatures support for incoming requests. Optional in 3.0 — capability-advertised so counterparties can opt into signing selectively. Required for spend-committing operations in 4.0 (the next breaking-changes accumulation window). The full profile is defined in docs/building/implementation/security.mdx (Signed Requests (Transport Layer)).&#39;
+            description=&#34;RFC 9421 HTTP Signatures support for incoming requests. Optional in 3.0 — capability-advertised so counterparties can opt into signing selectively. Required for spend-committing operations in 4.0 (the next breaking-changes accumulation window). The full profile is defined in docs/building/implementation/security.mdx (Signed Requests (Transport Layer)).&#34;
         ),
     ] = None
     compliance_testing: Annotated[
         ComplianceTesting | None,
         Field(
-            description=&#39;Compliance testing capabilities. The presence of this block declares that the agent supports deterministic testing via comply_test_controller for lifecycle state machine validation. Omit the block entirely if the agent does not support compliance testing.&#39;
+            description=&#34;Compliance testing capabilities. The presence of this block declares that the agent supports deterministic testing via comply_test_controller for lifecycle state machine validation. Omit the block entirely if the agent does not support compliance testing.&#34;
         ),
     ] = None
     specialisms: Annotated[
         list[specialism.AdcpSpecialism] | None,
         Field(
-            description=&#39;Optional — specialized compliance claims this agent supports. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols — the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements — the AAO Verified badge enumerates which specialisms were demonstrably passed.&#39;
+            description=&#34;Optional — specialized compliance claims this agent supports. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols — the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements — the AAO Verified badge enumerates which specialisms were demonstrably passed.&#34;
         ),
     ] = None
     extensions_supported: Annotated[
         list[ExtensionsSupportedItem] | None,
         Field(
-            description=&#39;Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.&#39;
+            description=&#34;Extension namespaces this agent supports. Buyers can expect meaningful data in ext.{namespace} fields on responses from this agent. Extension schemas are published in the AdCP extension registry.&#34;
+        ),
+    ] = None
+    experimental_features: Annotated[
+        list[ExperimentalFeature] | None,
+        Field(
+            description=&#34;Experimental AdCP surfaces this agent implements. A surface is experimental when its schema carries x-status: experimental and the working group has not yet frozen it. Sellers that implement any experimental surface MUST list its feature id here. Buyers inspect this array before relying on experimental surfaces — a seller that does not list a surface is asserting it does not implement it. Experimental surfaces MAY break between any two 3.x releases with at least 6 weeks notice; the full contract is in docs/reference/experimental-status.&#34;
         ),
     ] = None
     last_updated: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp of when capabilities were last updated. Buyers can use this for cache invalidation.&#39;
+            description=&#34;ISO 8601 timestamp of when capabilities were last updated. Buyers can use this for cache invalidation.&#34;
         ),
     ] = None
     errors: Annotated[
-        list[error.Error] | None, Field(description=&#39;Task-specific errors and warnings&#39;)
+        list[error.Error] | None, Field(description=&#34;Task-specific errors and warnings&#34;)
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -1802,6 +1865,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.errors"><code class="name">var <span class="ident">errors</span> : list[<a title="adcp.types.generated_poc.core.error.Error" href="../core/error.html#adcp.types.generated_poc.core.error.Error">Error</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.experimental_features"><code class="name">var <span class="ident">experimental_features</span> : list[<a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature">ExperimentalFeature</a>] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -1874,13 +1941,13 @@ validated to form a valid model.</p>
     property_features: Annotated[
         list[PropertyFeature] | None,
         Field(
-            description=&#39;Property features this governance agent can evaluate. Each feature describes a score, rating, or certification the agent can provide for properties.&#39;
+            description=&#34;Property features this governance agent can evaluate. Each feature describes a score, rating, or certification the agent can provide for properties.&#34;
         ),
     ] = None
     creative_features: Annotated[
         list[CreativeFeature] | None,
         Field(
-            description=&#39;Creative features this governance agent can evaluate. Each feature describes a score, rating, or assessment the agent can provide for creatives (e.g., security scanning, creative quality, content categorization).&#39;
+            description=&#34;Creative features this governance agent can evaluate. Each feature describes a score, rating, or assessment the agent can provide for creatives (e.g., security scanning, creative quality, content categorization).&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -1994,7 +2061,7 @@ validated to form a valid model.</p>
     supported_match_types: Annotated[
         list[SupportedMatchType],
         Field(
-            description=&#39;Match types this seller supports for keyword targets. Sellers must reject goals with unsupported match types.&#39;,
+            description=&#34;Match types this seller supports for keyword targets. Sellers must reject goals with unsupported match types.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -2098,7 +2165,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class MatchingLatencyHours(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     min: Annotated[int | None, Field(ge=0)] = None
     max: Annotated[int | None, Field(ge=0)] = None</code></pre>
@@ -2157,7 +2224,7 @@ validated to form a valid model.</p>
     supported_pricing_models: Annotated[
         list[pricing_model.PricingModel] | None,
         Field(
-            description=&#39;Pricing models this seller supports across its product portfolio. Buyers can use this for pre-flight filtering before querying individual products. Individual products may support a subset of these models.&#39;,
+            description=&#34;Pricing models this seller supports across its product portfolio. Buyers can use this for pre-flight filtering before querying individual products. Individual products may support a subset of these models.&#34;,
             min_length=1,
         ),
     ] = None
@@ -2177,24 +2244,24 @@ validated to form a valid model.</p>
     ] = None
     features: media_buy_features.MediaBuyFeatures | None = None
     execution: Annotated[
-        Execution | None, Field(description=&#39;Technical execution capabilities for media buying&#39;)
+        Execution | None, Field(description=&#34;Technical execution capabilities for media buying&#34;)
     ] = None
     audience_targeting: Annotated[
         AudienceTargeting | None,
         Field(
-            description=&#39;Audience targeting capabilities. Presence of this object indicates the seller supports audience targeting, including sync_audiences and audience_include/audience_exclude in targeting overlays.&#39;
+            description=&#34;Audience targeting capabilities. Presence of this object indicates the seller supports audience targeting, including sync_audiences and audience_include/audience_exclude in targeting overlays.&#34;
         ),
     ] = None
     conversion_tracking: Annotated[
         ConversionTracking | None,
         Field(
-            description=&#39;Seller-level conversion tracking capabilities. Presence of this object indicates the seller supports sync_event_sources and log_event for conversion event tracking.&#39;
+            description=&#34;Seller-level conversion tracking capabilities. Presence of this object indicates the seller supports sync_event_sources and log_event for conversion event tracking.&#34;
         ),
     ] = None
     content_standards: Annotated[
         ContentStandards | None,
         Field(
-            description=&#39;Content standards implementation details. Presence of this object indicates the seller supports content_standards configuration including sampling rates and category filtering. Gives buyers pre-buy visibility into local evaluation and artifact delivery capabilities.&#39;
+            description=&#34;Content standards implementation details. Presence of this object indicates the seller supports content_standards configuration including sampling rates and category filtering. Gives buyers pre-buy visibility into local evaluation and artifact delivery capabilities.&#34;
         ),
     ] = None
     portfolio: Annotated[
@@ -2334,7 +2401,7 @@ validated to form a valid model.</p>
     supported_match_types: Annotated[
         list[SupportedMatchType],
         Field(
-            description=&#39;Match types this seller supports for negative keywords. Sellers must reject goals with unsupported match types.&#39;,
+            description=&#34;Match types this seller supports for negative keywords. Sellers must reject goals with unsupported match types.&#34;,
             min_length=1,
         ),
     ]</code></pre>
@@ -2395,22 +2462,22 @@ validated to form a valid model.</p>
     ]
     primary_channels: Annotated[
         list[channels.MediaChannel] | None,
-        Field(description=&#39;Primary advertising channels in this portfolio&#39;),
+        Field(description=&#34;Primary advertising channels in this portfolio&#34;),
     ] = None
     primary_countries: Annotated[
         list[PrimaryCountry] | None,
-        Field(description=&#39;Primary countries (ISO 3166-1 alpha-2) where inventory is concentrated&#39;),
+        Field(description=&#34;Primary countries (ISO 3166-1 alpha-2) where inventory is concentrated&#34;),
     ] = None
     description: Annotated[
         str | None,
         Field(
-            description=&#39;Markdown-formatted description of the inventory portfolio&#39;, max_length=5000
+            description=&#34;Markdown-formatted description of the inventory portfolio&#34;, max_length=5000
         ),
     ] = None
     advertising_policies: Annotated[
         str | None,
         Field(
-            description=&#39;Advertising content policies, restrictions, and guidelines&#39;,
+            description=&#34;Advertising content policies, restrictions, and guidelines&#34;,
             max_length=10000,
         ),
     ] = None</code></pre>
@@ -2478,7 +2545,7 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class PrimaryCountry(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[A-Z]{2}$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[A-Z]{2}$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -2542,18 +2609,18 @@ validated to form a valid model.</p>
         ),
     ]
     range: Annotated[
-        Range | None, Field(description=&#39;For quantitative features, the valid range&#39;)
+        Range | None, Field(description=&#34;For quantitative features, the valid range&#34;)
     ] = None
     categories: Annotated[
-        list[str] | None, Field(description=&#39;For categorical features, the valid values&#39;)
+        list[str] | None, Field(description=&#34;For categorical features, the valid values&#34;)
     ] = None
     description: Annotated[
-        str | None, Field(description=&#39;Human-readable description of what this feature measures&#39;)
+        str | None, Field(description=&#34;Human-readable description of what this feature measures&#34;)
     ] = None
     methodology_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;URL to documentation explaining how this feature is calculated or measured. Helps buyers understand and compare methodologies across vendors.&#39;
+            description=&#34;URL to documentation explaining how this feature is calculated or measured. Helps buyers understand and compare methodologies across vendors.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -2625,7 +2692,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class PublisherDomain(RootModel[str]):
     root: Annotated[
-        str, Field(pattern=&#39;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#39;)
+        str, Field(pattern=&#34;^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
@@ -2681,8 +2748,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Range(AdCPBaseModel):
-    min: Annotated[float, Field(description=&#39;Minimum value&#39;)]
-    max: Annotated[float, Field(description=&#39;Maximum value&#39;)]</code></pre>
+    min: Annotated[float, Field(description=&#34;Minimum value&#34;)]
+    max: Annotated[float, Field(description=&#34;Maximum value&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2735,8 +2802,8 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ReportingDeliveryMethod(Enum):
-    webhook = &#39;webhook&#39;
-    offline = &#39;offline&#39;</code></pre>
+    webhook = &#34;webhook&#34;
+    offline = &#34;offline&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2802,7 +2869,7 @@ attributes &ndash; see the documentation for details.</p></div>
     supported: Annotated[
         bool,
         Field(
-            description=&#39;Whether this agent verifies RFC 9421 signatures on incoming requests. When true, signatures present on requests are validated per the AdCP request-signing profile. When false or absent, signatures are ignored (requests are bearer-authenticated only).&#39;
+            description=&#34;Whether this agent verifies RFC 9421 signatures on incoming requests. When true, signatures present on requests are validated per the AdCP request-signing profile. When false or absent, signatures are ignored (requests are bearer-authenticated only).&#34;
         ),
     ]
     covers_content_digest: Annotated[
@@ -2820,13 +2887,13 @@ attributes &ndash; see the documentation for details.</p></div>
     warn_for: Annotated[
         list[str] | None,
         Field(
-            description=&#39;AdCP protocol operation names for which this agent verifies signatures when present and logs failures but does NOT reject the request. Used as a shadow-mode bridge between supported_for and required_for: the verifier surfaces failure rates in monitoring before flipping an operation to required. Precedence: required_for &gt; warn_for &gt; supported_for. An operation in required_for ignores warn_for. Counterparties SHOULD sign operations in warn_for; verifiers MUST NOT reject if the signature is missing or invalid.&#39;
+            description=&#34;AdCP protocol operation names for which this agent verifies signatures when present and logs failures but does NOT reject the request. Used as a shadow-mode bridge between supported_for and required_for: the verifier surfaces failure rates in monitoring before flipping an operation to required. Precedence: required_for &gt; warn_for &gt; supported_for. An operation in required_for ignores warn_for. Counterparties SHOULD sign operations in warn_for; verifiers MUST NOT reject if the signature is missing or invalid.&#34;
         ),
     ] = []
     supported_for: Annotated[
         list[str] | None,
         Field(
-            description=&#39;AdCP protocol operation names for which this agent verifies signatures when present but does not require them. Counterparties SHOULD sign operations in this list. Typically a superset of required_for and warn_for.&#39;
+            description=&#34;AdCP protocol operation names for which this agent verifies signatures when present but does not require them. Counterparties SHOULD sign operations in this list. Typically a superset of required_for and warn_for.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -2893,12 +2960,12 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Scenario(Enum):
-    force_creative_status = &#39;force_creative_status&#39;
-    force_account_status = &#39;force_account_status&#39;
-    force_media_buy_status = &#39;force_media_buy_status&#39;
-    force_session_status = &#39;force_session_status&#39;
-    simulate_delivery = &#39;simulate_delivery&#39;
-    simulate_budget_spend = &#39;simulate_budget_spend&#39;</code></pre>
+    force_creative_status = &#34;force_creative_status&#34;
+    force_account_status = &#34;force_account_status&#34;
+    force_media_buy_status = &#34;force_media_buy_status&#34;
+    force_session_status = &#34;force_session_status&#34;
+    simulate_delivery = &#34;simulate_delivery&#34;
+    simulate_budget_spend = &#34;simulate_budget_spend&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -2985,7 +3052,7 @@ attributes &ndash; see the documentation for details.</p></div>
         ),
     ] = None
     features: Annotated[
-        Features | None, Field(description=&#39;Optional signals features supported&#39;)
+        Features | None, Field(description=&#34;Optional signals features supported&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -3039,13 +3106,13 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SponsoredIntelligence(AdCPBaseModel):
-    endpoint: Annotated[Endpoint, Field(description=&#39;SI agent endpoint configuration&#39;)]
+    endpoint: Annotated[Endpoint, Field(description=&#34;SI agent endpoint configuration&#34;)]
     capabilities: Annotated[
         si_capabilities.SiCapabilities,
-        Field(description=&#39;Modalities, components, and commerce capabilities&#39;),
+        Field(description=&#34;Modalities, components, and commerce capabilities&#34;),
     ]
     brand_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL to brand.json with colors, fonts, logos, tone&#39;)
+        AnyUrl | None, Field(description=&#34;URL to brand.json with colors, fonts, logos, tone&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -3103,9 +3170,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SupportedBillingEnum(Enum):
-    operator = &#39;operator&#39;
-    agent = &#39;agent&#39;
-    advertiser = &#39;advertiser&#39;</code></pre>
+    operator = &#34;operator&#34;
+    agent = &#34;agent&#34;
+    advertiser = &#34;advertiser&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3172,8 +3239,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SupportedIdentifierType(Enum):
-    hashed_email = &#39;hashed_email&#39;
-    hashed_phone = &#39;hashed_phone&#39;</code></pre>
+    hashed_email = &#34;hashed_email&#34;
+    hashed_phone = &#34;hashed_phone&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3236,9 +3303,9 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SupportedMatchType(Enum):
-    broad = &#39;broad&#39;
-    phrase = &#39;phrase&#39;
-    exact = &#39;exact&#39;</code></pre>
+    broad = &#34;broad&#34;
+    phrase = &#34;phrase&#34;
+    exact = &#34;exact&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3305,12 +3372,12 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class SupportedProtocol(Enum):
-    media_buy = &#39;media_buy&#39;
-    signals = &#39;signals&#39;
-    governance = &#39;governance&#39;
-    sponsored_intelligence = &#39;sponsored_intelligence&#39;
-    creative = &#39;creative&#39;
-    brand = &#39;brand&#39;</code></pre>
+    media_buy = &#34;media_buy&#34;
+    signals = &#34;signals&#34;
+    governance = &#34;governance&#34;
+    sponsored_intelligence = &#34;sponsored_intelligence&#34;
+    creative = &#34;creative&#34;
+    brand = &#34;brand&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3389,15 +3456,15 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Surface(Enum):
-    website = &#39;website&#39;
-    mobile_app = &#39;mobile_app&#39;
-    ctv_app = &#39;ctv_app&#39;
-    desktop_app = &#39;desktop_app&#39;
-    dooh = &#39;dooh&#39;
-    podcast = &#39;podcast&#39;
-    radio = &#39;radio&#39;
-    streaming_audio = &#39;streaming_audio&#39;
-    ai_assistant = &#39;ai_assistant&#39;</code></pre>
+    website = &#34;website&#34;
+    mobile_app = &#34;mobile_app&#34;
+    ctv_app = &#34;ctv_app&#34;
+    desktop_app = &#34;desktop_app&#34;
+    dooh = &#34;dooh&#34;
+    podcast = &#34;podcast&#34;
+    radio = &#34;radio&#34;
+    streaming_audio = &#34;streaming_audio&#34;
+    ai_assistant = &#34;ai_assistant&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3489,50 +3556,50 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Targeting(AdCPBaseModel):
     geo_countries: Annotated[
-        bool | None, Field(description=&#39;Country-level targeting using ISO 3166-1 alpha-2 codes&#39;)
+        bool | None, Field(description=&#34;Country-level targeting using ISO 3166-1 alpha-2 codes&#34;)
     ] = None
     geo_regions: Annotated[
         bool | None,
         Field(
-            description=&#39;Region/state-level targeting using ISO 3166-2 codes (e.g., US-NY, GB-SCT)&#39;
+            description=&#34;Region/state-level targeting using ISO 3166-2 codes (e.g., US-NY, GB-SCT)&#34;
         ),
     ] = None
     geo_metros: Annotated[
         GeoMetros | None,
         Field(
-            description=&#39;Metro area targeting. Properties indicate which classification systems are supported.&#39;
+            description=&#34;Metro area targeting. Properties indicate which classification systems are supported.&#34;
         ),
     ] = None
     geo_postal_areas: Annotated[
         GeoPostalAreas | None,
         Field(
-            description=&#39;Postal area targeting. Properties indicate which postal code systems are supported.&#39;
+            description=&#34;Postal area targeting. Properties indicate which postal code systems are supported.&#34;
         ),
     ] = None
     age_restriction: Annotated[
         AgeRestriction | None,
-        Field(description=&#39;Age restriction capabilities for compliance (alcohol, gambling)&#39;),
+        Field(description=&#34;Age restriction capabilities for compliance (alcohol, gambling)&#34;),
     ] = None
     language: Annotated[
         bool | None,
-        Field(description=&#39;Whether seller supports language targeting (ISO 639-1 codes)&#39;),
+        Field(description=&#34;Whether seller supports language targeting (ISO 639-1 codes)&#34;),
     ] = None
     keyword_targets: Annotated[
         KeywordTargets | None,
         Field(
-            description=&#39;Keyword targeting capabilities. Presence indicates support for targeting_overlay.keyword_targets and keyword_targets_add/remove in update_media_buy.&#39;
+            description=&#34;Keyword targeting capabilities. Presence indicates support for targeting_overlay.keyword_targets and keyword_targets_add/remove in update_media_buy.&#34;
         ),
     ] = None
     negative_keywords: Annotated[
         NegativeKeywords | None,
         Field(
-            description=&#39;Negative keyword capabilities. Presence indicates support for targeting_overlay.negative_keywords and negative_keywords_add/remove in update_media_buy.&#39;
+            description=&#34;Negative keyword capabilities. Presence indicates support for targeting_overlay.negative_keywords and negative_keywords_add/remove in update_media_buy.&#34;
         ),
     ] = None
     geo_proximity: Annotated[
         GeoProximity | None,
         Field(
-            description=&#39;Proximity targeting capabilities from arbitrary coordinates via targeting_overlay.geo_proximity.&#39;
+            description=&#34;Proximity targeting capabilities from arbitrary coordinates via targeting_overlay.geo_proximity.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -3616,10 +3683,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Transport(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Type28, Field(description=&#39;Protocol transport type&#39;)]
-    url: Annotated[AnyUrl, Field(description=&#39;Agent endpoint URL for this transport&#39;)]</code></pre>
+    type: Annotated[Type28, Field(description=&#34;Protocol transport type&#34;)]
+    url: Annotated[AnyUrl, Field(description=&#34;Agent endpoint URL for this transport&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -3673,7 +3740,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class TrustedMatch(AdCPBaseModel):
     surfaces: Annotated[
-        list[Surface] | None, Field(description=&#39;Surface types this seller supports via TMP.&#39;)
+        list[Surface] | None, Field(description=&#34;Surface types this seller supports via TMP.&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -3723,9 +3790,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    binary = &#39;binary&#39;
-    quantitative = &#39;quantitative&#39;
-    categorical = &#39;categorical&#39;</code></pre>
+    binary = &#34;binary&#34;
+    quantitative = &#34;quantitative&#34;
+    categorical = &#34;categorical&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3792,8 +3859,8 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type28(Enum):
-    mcp = &#39;mcp&#39;
-    a2a = &#39;a2a&#39;</code></pre>
+    mcp = &#34;mcp&#34;
+    a2a = &#34;a2a&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -3856,7 +3923,7 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class VastVersion(RootModel[str]):
-    root: Annotated[str, Field(pattern=&#39;^[0-9]+\\.[0-9]+$&#39;)]</code></pre>
+    root: Annotated[str, Field(pattern=&#34;^[0-9]+\\.[0-9]+$&#34;)]</code></pre>
 </details>
 <div class="desc"><div class="admonition abstract">
 <p class="admonition-title">Usage Documentation</p>
@@ -4068,6 +4135,13 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature">ExperimentalFeature</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature.model_config">model_config</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature.root" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExperimentalFeature.root">root</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExtensionsSupportedItem" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExtensionsSupportedItem">ExtensionsSupportedItem</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExtensionsSupportedItem.model_config" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.ExtensionsSupportedItem.model_config">model_config</a></code></li>
@@ -4128,6 +4202,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.context" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.context">context</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.creative" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.creative">creative</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.errors" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.errors">errors</a></code></li>
+<li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.experimental_features" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.experimental_features">experimental_features</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.ext" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.extensions_supported" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.extensions_supported">extensions_supported</a></code></li>
 <li><code><a title="adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.governance" href="#adcp.types.generated_poc.protocol.get_adcp_capabilities_response.GetAdcpCapabilitiesResponse.governance">governance</a></code></li>

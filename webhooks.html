@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.6">
 <title>adcp.webhooks API documentation</title>
-<meta name="description" content="Webhook creation and signing utilities for AdCP agents.">
+<meta name="description" content="Webhook creation, signing, and reception for AdCP agents …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -36,7 +36,12 @@ el.replaceWith(d);
 <h1 class="title">Module <code>adcp.webhooks</code></h1>
 </header>
 <section id="section-intro">
-<p>Webhook creation and signing utilities for AdCP agents.</p>
+<p>Webhook creation, signing, and reception for AdCP agents.</p>
+<p>Single front door for both senders (<code><a title="adcp.webhooks.create_mcp_webhook_payload" href="#adcp.webhooks.create_mcp_webhook_payload">create_mcp_webhook_payload()</a></code>,
+<code><a title="adcp.webhooks.sign_webhook" href="#adcp.webhooks.sign_webhook">sign_webhook()</a></code>) and receivers (<code><a title="adcp.webhooks.WebhookReceiver" href="#adcp.webhooks.WebhookReceiver">WebhookReceiver</a></code>). Underlying modules in
+<code>adcp.signing.webhook_*</code> and <code><a title="adcp.webhook_receiver" href="webhook_receiver.html">adcp.webhook_receiver</a></code> are implementation
+details kept for internal organization — prefer the re-exports here for
+stability.</p>
 </section>
 <section>
 </section>
@@ -256,7 +261,7 @@ payloads for sending to clients.</p>
 </code></pre></div>
 </dd>
 <dt id="adcp.webhooks.create_mcp_webhook_payload"><code class="name flex">
-<span>def <span class="ident">create_mcp_webhook_payload</span></span>(<span>task_id: str,<br>status: GeneratedTaskStatus,<br>result: AdcpAsyncResponseData | dict[str, Any] | None = None,<br>timestamp: datetime | None = None,<br>task_type: str | None = None,<br>operation_id: str | None = None,<br>message: str | None = None,<br>context_id: str | None = None,<br>domain: str | None = None) ‑> dict[str, typing.Any]</span>
+<span>def <span class="ident">create_mcp_webhook_payload</span></span>(<span>task_id: str,<br>status: GeneratedTaskStatus | str,<br>result: AdcpAsyncResponseData | dict[str, Any] | None = None,<br>timestamp: datetime | None = None,<br>task_type: str | None = None,<br>operation_id: str | None = None,<br>message: str | None = None,<br>context_id: str | None = None,<br>domain: str | None = None,<br>idempotency_key: str | None = None) ‑> dict[str, typing.Any]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -265,7 +270,7 @@ payloads for sending to clients.</p>
 </summary>
 <pre><code class="python">def create_mcp_webhook_payload(
     task_id: str,
-    status: GeneratedTaskStatus,
+    status: GeneratedTaskStatus | str,
     result: AdcpAsyncResponseData | dict[str, Any] | None = None,
     timestamp: datetime | None = None,
     task_type: str | None = None,
@@ -273,6 +278,7 @@ payloads for sending to clients.</p>
     message: str | None = None,
     context_id: str | None = None,
     domain: str | None = None,
+    idempotency_key: str | None = None,
 ) -&gt; dict[str, Any]:
     &#34;&#34;&#34;
     Create MCP webhook payload dictionary.
@@ -291,6 +297,10 @@ payloads for sending to clients.</p>
         message: Human-readable summary of task state
         context_id: Session/conversation identifier
         domain: AdCP domain this task belongs to
+        idempotency_key: Sender-generated key stable across retries of the same
+            event. Defaults to a freshly-generated UUID v4 — callers retrying
+            delivery of the same event MUST pass the key from their first
+            attempt; passing None twice mints two keys and defeats dedup.
 
     Returns:
         Dictionary matching McpWebhookPayload schema, ready to be sent as JSON
@@ -327,12 +337,15 @@ payloads for sending to clients.</p>
     &#34;&#34;&#34;
     if timestamp is None:
         timestamp = datetime.now(timezone.utc)
+    if idempotency_key is None:
+        idempotency_key = generate_webhook_idempotency_key()
 
     # Convert status enum to string value
     status_value = status.value if hasattr(status, &#34;value&#34;) else str(status)
 
     # Build payload matching McpWebhookPayload schema
     payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: idempotency_key,
         &#34;task_id&#34;: task_id,
         &#34;task_type&#34;: task_type,
         &#34;status&#34;: status_value,
@@ -385,6 +398,11 @@ should be in URL routing, but included for backward compatibility)</dd>
 <dd>Session/conversation identifier</dd>
 <dt><strong><code>domain</code></strong></dt>
 <dd>AdCP domain this task belongs to</dd>
+<dt><strong><code>idempotency_key</code></strong></dt>
+<dd>Sender-generated key stable across retries of the same
+event. Defaults to a freshly-generated UUID v4 — callers retrying
+delivery of the same event MUST pass the key from their first
+attempt; passing None twice mints two keys and defeats dedup.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>Dictionary matching McpWebhookPayload schema, ready to be sent as JSON</p>
@@ -645,6 +663,35 @@ mb_456
 None
 </code></pre></div>
 </dd>
+<dt id="adcp.webhooks.generate_webhook_idempotency_key"><code class="name flex">
+<span>def <span class="ident">generate_webhook_idempotency_key</span></span>(<span>) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def generate_webhook_idempotency_key() -&gt; str:
+    &#34;&#34;&#34;Generate a cryptographically random idempotency_key for a webhook event.
+
+    Returns a UUID v4 prefixed with ``whk_`` — matches the example format in
+    ``webhooks.mdx`` and stays within the spec&#39;s length + charset bounds
+    (``^[A-Za-z0-9_.:-]{16,255}$``).
+
+    Publishers MUST generate this once per distinct event and reuse the same
+    value when retrying delivery. Do NOT call this function again on retry —
+    it would mint a fresh UUID and defeat the dedup contract.
+    &#34;&#34;&#34;
+    return f&#34;whk_{uuid.uuid4()}&#34;</code></pre>
+</details>
+<div class="desc"><p>Generate a cryptographically random idempotency_key for a webhook event.</p>
+<p>Returns a UUID v4 prefixed with <code>whk_</code> — matches the example format in
+<code>webhooks.mdx</code> and stays within the spec's length + charset bounds
+(<code>^[A-Za-z0-9_.:-]{16,255}$</code>).</p>
+<p>Publishers MUST generate this once per distinct event and reuse the same
+value when retrying delivery. Do NOT call this function again on retry —
+it would mint a fresh UUID and defeat the dedup contract.</p></div>
+</dd>
 <dt id="adcp.webhooks.get_adcp_signed_headers_for_webhook"><code class="name flex">
 <span>def <span class="ident">get_adcp_signed_headers_for_webhook</span></span>(<span>headers: dict[str, Any],<br>secret: str,<br>timestamp: str | int | None,<br>payload: dict[str, Any] | AdCPBaseModel) ‑> dict[str, typing.Any]</span>
 </code></dt>
@@ -815,9 +862,1814 @@ including a timestamp in the signed message.</p>
 }
 </code></pre></div>
 </dd>
+<dt id="adcp.webhooks.sign_webhook"><code class="name flex">
+<span>def <span class="ident">sign_webhook</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>created: int | None = None,<br>expires_in_seconds: int = 300,<br>nonce: str | None = None,<br>label: str = 'sig1') ‑> <a title="adcp.signing.signer.SignedHeaders" href="signing/signer.html#adcp.signing.signer.SignedHeaders">SignedHeaders</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sign_webhook(
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+    private_key: PrivateKey,
+    key_id: str,
+    alg: str,
+    created: int | None = None,
+    expires_in_seconds: int = DEFAULT_EXPIRES_IN_SECONDS,
+    nonce: str | None = None,
+    label: str = SIG_LABEL_DEFAULT,
+) -&gt; SignedHeaders:
+    &#34;&#34;&#34;Sign an outgoing webhook POST per adcp/webhook-signing/v1.
+
+    ``cover_content_digest=True`` and ``tag=WEBHOOK_TAG`` are pinned. The
+    caller attaches ``SignedHeaders.as_dict()`` to the outgoing HTTP request.
+
+    The ``method`` is normally ``&#34;POST&#34;`` for webhook delivery; passed through
+    unchanged so callers signing a retried ``PUT`` or variant delivery verb
+    are not forced into an extra translation.
+    &#34;&#34;&#34;
+    return sign_request(
+        method=method,
+        url=url,
+        headers=headers,
+        body=body,
+        private_key=private_key,
+        key_id=key_id,
+        alg=alg,
+        cover_content_digest=True,
+        created=created,
+        expires_in_seconds=expires_in_seconds,
+        nonce=nonce,
+        tag=WEBHOOK_TAG,
+        label=label,
+    )</code></pre>
+</details>
+<div class="desc"><p>Sign an outgoing webhook POST per adcp/webhook-signing/v1.</p>
+<p><code>cover_content_digest=True</code> and <code>tag=WEBHOOK_TAG</code> are pinned. The
+caller attaches <code>SignedHeaders.as_dict()</code> to the outgoing HTTP request.</p>
+<p>The <code>method</code> is normally <code>"POST"</code> for webhook delivery; passed through
+unchanged so callers signing a retried <code>PUT</code> or variant delivery verb
+are not forced into an extra translation.</p></div>
+</dd>
+<dt id="adcp.webhooks.verify_webhook_hmac"><code class="name flex">
+<span>def <span class="ident">verify_webhook_hmac</span></span>(<span>*,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.webhooks.LegacyWebhookHmacOptions" href="#adcp.webhooks.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a>) ‑> <a title="adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender" href="signing/webhook_hmac.html#adcp.signing.webhook_hmac.VerifiedLegacyWebhookSender">VerifiedLegacyWebhookSender</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_webhook_hmac(
+    *,
+    headers: Mapping[str, str],
+    body: bytes,
+    options: LegacyWebhookHmacOptions,
+) -&gt; VerifiedLegacyWebhookSender:
+    &#34;&#34;&#34;Verify an HMAC-SHA256-signed webhook body per the legacy scheme.
+
+    Raises :class:`LegacyWebhookHmacError` on any failure. Fires a one-time
+    :class:`DeprecationWarning` — operators SHOULD migrate to 9421 before AdCP
+    4.0 removes the ``authentication`` field.
+
+    ``headers`` can be any ``Mapping[str, str]`` — ``dict``,
+    ``werkzeug.datastructures.EnvironHeaders``, Starlette&#39;s ``Headers``, etc.
+    Keys are case-folded internally.
+    &#34;&#34;&#34;
+    _warn_once()
+
+    header_map = {str(k).lower(): str(v) for k, v in headers.items()}
+    sig_value = header_map.get(_SIGNATURE_HEADER)
+    ts_value = header_map.get(_TIMESTAMP_HEADER)
+    if sig_value is None or ts_value is None:
+        raise LegacyWebhookHmacError(&#34;missing X-AdCP-Signature or X-AdCP-Timestamp header&#34;)
+    if not sig_value.startswith(_HEX_PREFIX):
+        raise LegacyWebhookHmacError(
+            f&#34;signature must start with {_HEX_PREFIX!r}, got {sig_value[:16]!r}&#34;
+        )
+    hex_sig = sig_value[len(_HEX_PREFIX) :]
+
+    try:
+        ts_int = int(ts_value)
+    except ValueError as exc:
+        raise LegacyWebhookHmacError(f&#34;invalid timestamp {ts_value!r}&#34;) from exc
+
+    # Bound on the skew window. Matches the 9421 max window (300s) exactly —
+    # the 9421 pipeline applies DEFAULT_SKEW_SECONDS inside its window check,
+    # so both schemes have the same &#34;skew budget&#34; on the wire. Do NOT add
+    # DEFAULT_SKEW_SECONDS on top; that would double-count and yield a 360s
+    # budget for HMAC vs 300s for 9421.
+    skew = abs(options.now - ts_int)
+    if skew &gt; options.window_seconds:
+        raise LegacyWebhookHmacError(
+            f&#34;timestamp skew {skew:.0f}s exceeds window {options.window_seconds}s&#34;
+        )
+
+    # The sender constructs the message as f&#34;{timestamp}.{json_payload}&#34;
+    # where json_payload is the body bytes as UTF-8. Re-decoding a dict would
+    # re-serialize with potentially different key order and break the
+    # signature — verify against the raw bytes as received.
+    message = f&#34;{ts_value}.&#34;.encode() + body
+    expected = hmac.new(options.secret, message, hashlib.sha256).hexdigest()
+    # Constant-time compare — hmac.compare_digest handles str/str.
+    if not hmac.compare_digest(expected, hex_sig):
+        raise LegacyWebhookHmacError(&#34;signature did not match&#34;)
+
+    return VerifiedLegacyWebhookSender(sender_identity=options.sender_identity)</code></pre>
+</details>
+<div class="desc"><p>Verify an HMAC-SHA256-signed webhook body per the legacy scheme.</p>
+<p>Raises :class:<code><a title="adcp.webhooks.LegacyWebhookHmacError" href="#adcp.webhooks.LegacyWebhookHmacError">LegacyWebhookHmacError</a></code> on any failure. Fires a one-time
+:class:<code>DeprecationWarning</code> — operators SHOULD migrate to 9421 before AdCP
+4.0 removes the <code>authentication</code> field.</p>
+<p><code>headers</code> can be any <code>Mapping[str, str]</code> — <code>dict</code>,
+<code>werkzeug.datastructures.EnvironHeaders</code>, Starlette's <code>Headers</code>, etc.
+Keys are case-folded internally.</p></div>
+</dd>
+<dt id="adcp.webhooks.verify_webhook_signature"><code class="name flex">
+<span>def <span class="ident">verify_webhook_signature</span></span>(<span>*,<br>method: str,<br>url: str,<br>headers: Mapping[str, str],<br>body: bytes,<br>options: <a title="adcp.webhooks.WebhookVerifyOptions" href="#adcp.webhooks.WebhookVerifyOptions">WebhookVerifyOptions</a>) ‑> <a title="adcp.signing.webhook_verifier.VerifiedWebhookSender" href="signing/webhook_verifier.html#adcp.signing.webhook_verifier.VerifiedWebhookSender">VerifiedWebhookSender</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def verify_webhook_signature(
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+    options: WebhookVerifyOptions,
+) -&gt; VerifiedWebhookSender:
+    &#34;&#34;&#34;Verify an incoming signed webhook per the adcp/webhook-signing/v1 profile.
+
+    Raises :class:`SignatureVerificationError` with a ``webhook_signature_*``
+    code on failure. Success returns a :class:`VerifiedWebhookSender` carrying
+    the identity to scope dedup state by.
+    &#34;&#34;&#34;
+    _precheck_webhook_has_required_components(headers)
+
+    request_options = VerifyOptions(
+        now=options.clock(),
+        capability=VerifierCapability(
+            supported=True,
+            covers_content_digest=&#34;required&#34;,
+            required_for=frozenset({&#34;webhook&#34;}),
+        ),
+        operation=&#34;webhook&#34;,
+        jwks_resolver=options.jwks_resolver,
+        replay_store=options.replay_store,
+        revocation_checker=options.revocation_checker,
+        revocation_list=options.revocation_list,
+        max_skew_seconds=options.max_skew_seconds,
+        max_window_seconds=options.max_window_seconds,
+        label=options.label,
+        expected_tag=WEBHOOK_TAG,
+        expected_adcp_use=ADCP_USE_WEBHOOK,
+        allowed_algs=options.allowed_algs,
+        agent_url=options.sender_url,
+    )
+
+    try:
+        signer: VerifiedSigner = verify_request_signature(
+            method=method, url=url, headers=headers, body=body, options=request_options
+        )
+    except SignatureVerificationError as exc:
+        raise _retag_to_webhook(exc) from exc
+
+    return VerifiedWebhookSender(
+        key_id=signer.key_id,
+        alg=signer.alg,
+        label=signer.label,
+        verified_at=signer.verified_at,
+        sender_url=signer.agent_url,
+    )</code></pre>
+</details>
+<div class="desc"><p>Verify an incoming signed webhook per the adcp/webhook-signing/v1 profile.</p>
+<p>Raises :class:<code>SignatureVerificationError</code> with a <code>webhook_signature_*</code>
+code on failure. Success returns a :class:<code><a title="adcp.webhooks.VerifiedWebhookSender" href="#adcp.webhooks.VerifiedWebhookSender">VerifiedWebhookSender</a></code> carrying
+the identity to scope dedup state by.</p></div>
+</dd>
 </dl>
 </section>
 <section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="adcp.webhooks.LegacyHmacFallback"><code class="flex name class">
+<span>class <span class="ident">LegacyHmacFallback</span></span>
+<span>(</span><span>options_for: Callable[[Mapping[str, str]], <a title="adcp.webhooks.LegacyWebhookHmacOptions" href="#adcp.webhooks.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a> | None],<br>only_when_9421_absent: bool = True)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class LegacyHmacFallback:
+    &#34;&#34;&#34;Opt-in policy for accepting HMAC-SHA256 senders during 3.x migration.
+
+    The default behavior of the receiver is to reject any request that fails
+    9421 verification. Pass an instance of this class to ``WebhookReceiverConfig``
+    to accept HMAC-signed webhooks as a fallback.
+
+    :param options_for: callback that returns a populated
+        :class:`LegacyWebhookHmacOptions` given the incoming request headers.
+        Your implementation resolves the sender (from Bearer, hostname, or
+        legacy shared-secret tag) and returns the secret + sender_identity
+        tuple the verifier needs. Return ``None`` to decline the fallback
+        for this request (rejection follows the 9421-only failure path).
+    :param only_when_9421_absent: when ``True`` (default), HMAC fallback only
+        fires when no 9421 headers are present at all. When a request carries
+        9421 headers that FAIL verification, it still rejects — preventing a
+        downgrade attack where a MITM strips the 9421 signature and replaces
+        it with a forged HMAC one it knows the secret for. When ``False``,
+        HMAC is tried on any 9421 failure; only set this for testing or known
+        homogenous sender cohorts.
+    &#34;&#34;&#34;
+
+    options_for: Callable[[Mapping[str, str]], LegacyWebhookHmacOptions | None]
+    only_when_9421_absent: bool = True
+
+    @classmethod
+    def from_shared_secret(
+        cls,
+        *,
+        secret: bytes,
+        sender_identity: str,
+        only_when_9421_absent: bool = True,
+        window_seconds: int = 300,
+    ) -&gt; LegacyHmacFallback:
+        &#34;&#34;&#34;Convenience constructor for the &#34;one secret, one sender&#34; case.
+
+        Covers the common 3.x migration setup where the receiver has exactly
+        one publisher on the legacy scheme and binds them to a known
+        ``sender_identity`` (typically a buyer-defined string). For multi-
+        sender or header-derived-identity setups, construct with an
+        ``options_for`` callback directly.
+        &#34;&#34;&#34;
+        import time as _time
+
+        def _options_for(_headers: Mapping[str, str]) -&gt; LegacyWebhookHmacOptions:
+            return LegacyWebhookHmacOptions(
+                secret=secret,
+                sender_identity=sender_identity,
+                now=_time.time(),
+                window_seconds=window_seconds,
+            )
+
+        return cls(
+            options_for=_options_for,
+            only_when_9421_absent=only_when_9421_absent,
+        )</code></pre>
+</details>
+<div class="desc"><p>Opt-in policy for accepting HMAC-SHA256 senders during 3.x migration.</p>
+<p>The default behavior of the receiver is to reject any request that fails
+9421 verification. Pass an instance of this class to <code><a title="adcp.webhooks.WebhookReceiverConfig" href="#adcp.webhooks.WebhookReceiverConfig">WebhookReceiverConfig</a></code>
+to accept HMAC-signed webhooks as a fallback.</p>
+<p>:param options_for: callback that returns a populated
+:class:<code><a title="adcp.webhooks.LegacyWebhookHmacOptions" href="#adcp.webhooks.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a></code> given the incoming request headers.
+Your implementation resolves the sender (from Bearer, hostname, or
+legacy shared-secret tag) and returns the secret + sender_identity
+tuple the verifier needs. Return <code>None</code> to decline the fallback
+for this request (rejection follows the 9421-only failure path).
+:param only_when_9421_absent: when <code>True</code> (default), HMAC fallback only
+fires when no 9421 headers are present at all. When a request carries
+9421 headers that FAIL verification, it still rejects — preventing a
+downgrade attack where a MITM strips the 9421 signature and replaces
+it with a forged HMAC one it knows the secret for. When <code>False</code>,
+HMAC is tried on any 9421 failure; only set this for testing or known
+homogenous sender cohorts.</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.webhooks.LegacyHmacFallback.from_shared_secret"><code class="name flex">
+<span>def <span class="ident">from_shared_secret</span></span>(<span>*,<br>secret: bytes,<br>sender_identity: str,<br>only_when_9421_absent: bool = True,<br>window_seconds: int = 300) ‑> <a title="adcp.webhook_receiver.LegacyHmacFallback" href="webhook_receiver.html#adcp.webhook_receiver.LegacyHmacFallback">LegacyHmacFallback</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convenience constructor for the "one secret, one sender" case.</p>
+<p>Covers the common 3.x migration setup where the receiver has exactly
+one publisher on the legacy scheme and binds them to a known
+<code>sender_identity</code> (typically a buyer-defined string). For multi-
+sender or header-derived-identity setups, construct with an
+<code>options_for</code> callback directly.</p></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhooks.LegacyHmacFallback.only_when_9421_absent"><code class="name">var <span class="ident">only_when_9421_absent</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.LegacyHmacFallback.options_for"><code class="name">var <span class="ident">options_for</span> : Callable[[Mapping[str, str]], <a title="adcp.signing.webhook_hmac.LegacyWebhookHmacOptions" href="signing/webhook_hmac.html#adcp.signing.webhook_hmac.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a> | None]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.LegacyWebhookHmacError"><code class="flex name class">
+<span>class <span class="ident">LegacyWebhookHmacError</span></span>
+<span>(</span><span>reason: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LegacyWebhookHmacError(Exception):
+    &#34;&#34;&#34;Raised when HMAC-SHA256 legacy verification fails.
+
+    Distinct from :class:`adcp.signing.errors.SignatureVerificationError` so
+    callers can distinguish legacy-path failures from 9421-path failures —
+    operators want to know which scheme fired when diagnosing a 401.
+    &#34;&#34;&#34;
+
+    def __init__(self, reason: str) -&gt; None:
+        super().__init__(reason)
+        self.reason = reason</code></pre>
+</details>
+<div class="desc"><p>Raised when HMAC-SHA256 legacy verification fails.</p>
+<p>Distinct from :class:<code><a title="adcp.signing.errors.SignatureVerificationError" href="signing/errors.html#adcp.signing.errors.SignatureVerificationError">SignatureVerificationError</a></code> so
+callers can distinguish legacy-path failures from 9421-path failures —
+operators want to know which scheme fired when diagnosing a 401.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="adcp.webhooks.LegacyWebhookHmacOptions"><code class="flex name class">
+<span>class <span class="ident">LegacyWebhookHmacOptions</span></span>
+<span>(</span><span>secret: bytes, sender_identity: str, now: float, window_seconds: int = 300)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class LegacyWebhookHmacOptions:
+    &#34;&#34;&#34;Options for the HMAC verifier.
+
+    :param secret_resolver: callable ``(header_map) -&gt; bytes | None`` that
+        returns the shared secret for this incoming request. The receiver is
+        responsible for determining sender identity from headers (Bearer
+        token, IP allowlist, hostname) and looking up the secret bound to
+        that sender. The resolver returns ``None`` when no sender can be
+        authenticated — the verifier then rejects without attempting compare.
+    :param sender_identity: the string used to scope dedup after verification
+        succeeds. In HMAC-legacy, there is no cryptographic sender identity
+        (the secret IS the identity), so the caller provides one — typically
+        derived from the same lookup that produced the secret.
+    :param now: current time, epoch seconds. Defaults fetched at call time.
+    :param window_seconds: accepted skew. Sender timestamp outside ``[now -
+        window, now + window]`` rejects.
+    &#34;&#34;&#34;
+
+    secret: bytes
+    sender_identity: str
+    now: float
+    window_seconds: int = _DEFAULT_WINDOW_SECONDS</code></pre>
+</details>
+<div class="desc"><p>Options for the HMAC verifier.</p>
+<p>:param secret_resolver: callable <code>(header_map) -&gt; bytes | None</code> that
+returns the shared secret for this incoming request. The receiver is
+responsible for determining sender identity from headers (Bearer
+token, IP allowlist, hostname) and looking up the secret bound to
+that sender. The resolver returns <code>None</code> when no sender can be
+authenticated — the verifier then rejects without attempting compare.
+:param sender_identity: the string used to scope dedup after verification
+succeeds. In HMAC-legacy, there is no cryptographic sender identity
+(the secret IS the identity), so the caller provides one — typically
+derived from the same lookup that produced the secret.
+:param now: current time, epoch seconds. Defaults fetched at call time.
+:param window_seconds: accepted skew. Sender timestamp outside <code>[now -
+window, now + window]</code> rejects.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhooks.LegacyWebhookHmacOptions.now"><code class="name">var <span class="ident">now</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.LegacyWebhookHmacOptions.secret"><code class="name">var <span class="ident">secret</span> : bytes</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.LegacyWebhookHmacOptions.sender_identity"><code class="name">var <span class="ident">sender_identity</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.LegacyWebhookHmacOptions.window_seconds"><code class="name">var <span class="ident">window_seconds</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.VerifiedLegacyWebhookSender"><code class="flex name class">
+<span>class <span class="ident">VerifiedLegacyWebhookSender</span></span>
+<span>(</span><span>sender_identity: str)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class VerifiedLegacyWebhookSender:
+    &#34;&#34;&#34;Identity returned by the HMAC verifier on success.
+
+    Shape-compatible with the 9421 ``VerifiedWebhookSender.as_sender_identity``
+    so downstream dedup code treats both the same.
+    &#34;&#34;&#34;
+
+    sender_identity: str
+
+    def as_sender_identity(self) -&gt; str:
+        return self.sender_identity</code></pre>
+</details>
+<div class="desc"><p>Identity returned by the HMAC verifier on success.</p>
+<p>Shape-compatible with the 9421 <code><a title="adcp.webhooks.VerifiedWebhookSender.as_sender_identity" href="#adcp.webhooks.VerifiedWebhookSender.as_sender_identity">VerifiedWebhookSender.as_sender_identity()</a></code>
+so downstream dedup code treats both the same.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhooks.VerifiedLegacyWebhookSender.sender_identity"><code class="name">var <span class="ident">sender_identity</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhooks.VerifiedLegacyWebhookSender.as_sender_identity"><code class="name flex">
+<span>def <span class="ident">as_sender_identity</span></span>(<span>self) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_sender_identity(self) -&gt; str:
+    return self.sender_identity</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.VerifiedSignerLike"><code class="flex name class">
+<span>class <span class="ident">VerifiedSignerLike</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@runtime_checkable
+class VerifiedSignerLike(Protocol):
+    &#34;&#34;&#34;Anything with ``as_sender_identity() -&gt; str``.
+
+    Both :class:`VerifiedWebhookSender` (9421) and :class:`VerifiedLegacyWebhookSender`
+    (HMAC) implement this shape, so the receiver treats both verification
+    paths identically downstream.
+    &#34;&#34;&#34;
+
+    def as_sender_identity(self) -&gt; str: ...</code></pre>
+</details>
+<div class="desc"><p>Anything with <code>as_sender_identity() -&gt; str</code>.</p>
+<p>Both :class:<code><a title="adcp.webhooks.VerifiedWebhookSender" href="#adcp.webhooks.VerifiedWebhookSender">VerifiedWebhookSender</a></code> (9421) and :class:<code><a title="adcp.webhooks.VerifiedLegacyWebhookSender" href="#adcp.webhooks.VerifiedLegacyWebhookSender">VerifiedLegacyWebhookSender</a></code>
+(HMAC) implement this shape, so the receiver treats both verification
+paths identically downstream.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>typing.Protocol</li>
+<li>typing.Generic</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhooks.VerifiedSignerLike.as_sender_identity"><code class="name flex">
+<span>def <span class="ident">as_sender_identity</span></span>(<span>self) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_sender_identity(self) -&gt; str: ...</code></pre>
+</details>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.VerifiedWebhookSender"><code class="flex name class">
+<span>class <span class="ident">VerifiedWebhookSender</span></span>
+<span>(</span><span>key_id: str,<br>alg: str,<br>label: str,<br>verified_at: float,<br>sender_url: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class VerifiedWebhookSender:
+    &#34;&#34;&#34;Returned on successful webhook verification.
+
+    Distinct type from :class:`VerifiedSigner` so a caller that mistakenly
+    passes a request-verified signer into a webhook-scoped dedup store (or the
+    reverse) will fail to type-check. Both carry the same bytes; the type
+    separation is a guardrail, not a data difference.
+    &#34;&#34;&#34;
+
+    key_id: str
+    alg: str
+    label: str
+    verified_at: float
+    sender_url: str | None = None
+
+    def as_sender_identity(self) -&gt; str:
+        &#34;&#34;&#34;Identity string used to scope dedup state.
+
+        Webhook dedup MUST be scoped to the authenticated sender — trusting a
+        payload field for identity is the attack-surface hole the spec&#39;s
+        &#34;Sender requirements&#34; paragraph calls out. The key_id is the
+        cryptographically verified identity; prefer ``sender_url:key_id`` when
+        a sender URL is present to tolerate JWKS reuse across co-deployed
+        senders.
+        &#34;&#34;&#34;
+        if self.sender_url is not None:
+            return f&#34;{self.sender_url}|{self.key_id}&#34;
+        return self.key_id</code></pre>
+</details>
+<div class="desc"><p>Returned on successful webhook verification.</p>
+<p>Distinct type from :class:<code>VerifiedSigner</code> so a caller that mistakenly
+passes a request-verified signer into a webhook-scoped dedup store (or the
+reverse) will fail to type-check. Both carry the same bytes; the type
+separation is a guardrail, not a data difference.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhooks.VerifiedWebhookSender.alg"><code class="name">var <span class="ident">alg</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.VerifiedWebhookSender.key_id"><code class="name">var <span class="ident">key_id</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.VerifiedWebhookSender.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.VerifiedWebhookSender.sender_url"><code class="name">var <span class="ident">sender_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.VerifiedWebhookSender.verified_at"><code class="name">var <span class="ident">verified_at</span> : float</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhooks.VerifiedWebhookSender.as_sender_identity"><code class="name flex">
+<span>def <span class="ident">as_sender_identity</span></span>(<span>self) ‑> str</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def as_sender_identity(self) -&gt; str:
+    &#34;&#34;&#34;Identity string used to scope dedup state.
+
+    Webhook dedup MUST be scoped to the authenticated sender — trusting a
+    payload field for identity is the attack-surface hole the spec&#39;s
+    &#34;Sender requirements&#34; paragraph calls out. The key_id is the
+    cryptographically verified identity; prefer ``sender_url:key_id`` when
+    a sender URL is present to tolerate JWKS reuse across co-deployed
+    senders.
+    &#34;&#34;&#34;
+    if self.sender_url is not None:
+        return f&#34;{self.sender_url}|{self.key_id}&#34;
+    return self.key_id</code></pre>
+</details>
+<div class="desc"><p>Identity string used to scope dedup state.</p>
+<p>Webhook dedup MUST be scoped to the authenticated sender — trusting a
+payload field for identity is the attack-surface hole the spec's
+"Sender requirements" paragraph calls out. The key_id is the
+cryptographically verified identity; prefer <code>sender_url:key_id</code> when
+a sender URL is present to tolerate JWKS reuse across co-deployed
+senders.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.WebhookDeliveryResult"><code class="flex name class">
+<span>class <span class="ident">WebhookDeliveryResult</span></span>
+<span>(</span><span>status_code: int,<br>idempotency_key: str,<br>url: str,<br>response_headers: Mapping[str, str],<br>response_body: bytes,<br>sent_body: bytes = b'',<br>sent_extra_headers: Mapping[str, str] = &lt;factory&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class WebhookDeliveryResult:
+    &#34;&#34;&#34;Outcome of one ``send_*`` call.
+
+    Senders care about: did it land (``ok``), what key was used (for logs
+    and retry), what did the receiver say (``status_code``, ``response_body``).
+
+    The ``sent_body`` and ``sent_extra_headers`` fields capture exactly what
+    was signed and POSTed — the sender&#39;s :meth:`WebhookSender.resend` replays
+    them under a fresh signature (preserving ``idempotency_key`` for dedup)
+    rather than re-serializing from a user-supplied dict, which would drift
+    if any field (``timestamp``, nested ``result``) differs between calls.
+    &#34;&#34;&#34;
+
+    status_code: int
+    idempotency_key: str
+    url: str
+    response_headers: Mapping[str, str]
+    response_body: bytes
+    sent_body: bytes = b&#34;&#34;
+    sent_extra_headers: Mapping[str, str] = field(default_factory=dict)
+
+    @property
+    def ok(self) -&gt; bool:
+        &#34;&#34;&#34;True on 2xx. Note: receivers MUST return 2xx on duplicates too, so
+        a 200 with ``duplicate=true`` in the body is still ``ok``.&#34;&#34;&#34;
+        return 200 &lt;= self.status_code &lt; 300</code></pre>
+</details>
+<div class="desc"><p>Outcome of one <code>send_*</code> call.</p>
+<p>Senders care about: did it land (<code>ok</code>), what key was used (for logs
+and retry), what did the receiver say (<code>status_code</code>, <code>response_body</code>).</p>
+<p>The <code>sent_body</code> and <code>sent_extra_headers</code> fields capture exactly what
+was signed and POSTed — the sender's :meth:<code><a title="adcp.webhooks.WebhookSender.resend" href="#adcp.webhooks.WebhookSender.resend">WebhookSender.resend()</a></code> replays
+them under a fresh signature (preserving <code>idempotency_key</code> for dedup)
+rather than re-serializing from a user-supplied dict, which would drift
+if any field (<code>timestamp</code>, nested <code>result</code>) differs between calls.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookDeliveryResult.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookDeliveryResult.ok"><code class="name">prop <span class="ident">ok</span> : bool</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def ok(self) -&gt; bool:
+    &#34;&#34;&#34;True on 2xx. Note: receivers MUST return 2xx on duplicates too, so
+    a 200 with ``duplicate=true`` in the body is still ``ok``.&#34;&#34;&#34;
+    return 200 &lt;= self.status_code &lt; 300</code></pre>
+</details>
+<div class="desc"><p>True on 2xx. Note: receivers MUST return 2xx on duplicates too, so
+a 200 with <code>duplicate=true</code> in the body is still <code>ok</code>.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookDeliveryResult.response_body"><code class="name">var <span class="ident">response_body</span> : bytes</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookDeliveryResult.response_headers"><code class="name">var <span class="ident">response_headers</span> : Mapping[str, str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookDeliveryResult.sent_body"><code class="name">var <span class="ident">sent_body</span> : bytes</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookDeliveryResult.sent_extra_headers"><code class="name">var <span class="ident">sent_extra_headers</span> : Mapping[str, str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookDeliveryResult.status_code"><code class="name">var <span class="ident">status_code</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookDeliveryResult.url"><code class="name">var <span class="ident">url</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.WebhookOutcome"><code class="flex name class">
+<span>class <span class="ident">WebhookOutcome</span></span>
+<span>(</span><span>rejected: bool = False,<br>rejection_reason: RejectionReason | None = None,<br>response_headers: Mapping[str, str] = &lt;factory&gt;,<br>sender_identity: str | None = None,<br>payload: WebhookPayload | None = None,<br>duplicate: bool = False,<br>idempotency_key: str | None = None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class WebhookOutcome:
+    &#34;&#34;&#34;Result of a single ``receive`` call.
+
+    Exactly one of ``rejected`` or ``payload`` is set. ``duplicate=True`` is
+    compatible with a non-None ``payload`` — the payload parsed fine, the
+    signature verified fine, it&#39;s just a retry the caller should 200 away.
+    &#34;&#34;&#34;
+
+    rejected: bool = False
+    rejection_reason: RejectionReason | None = None
+    response_headers: Mapping[str, str] = field(default_factory=dict)
+    # Populated on successful verify (even when rejected downstream of crypto)
+    sender_identity: str | None = None
+    # Populated on successful verify + parse
+    payload: WebhookPayload | None = None
+    duplicate: bool = False
+    idempotency_key: str | None = None</code></pre>
+</details>
+<div class="desc"><p>Result of a single <code>receive</code> call.</p>
+<p>Exactly one of <code>rejected</code> or <code>payload</code> is set. <code>duplicate=True</code> is
+compatible with a non-None <code>payload</code> — the payload parsed fine, the
+signature verified fine, it's just a retry the caller should 200 away.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookOutcome.duplicate"><code class="name">var <span class="ident">duplicate</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookOutcome.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookOutcome.payload"><code class="name">var <span class="ident">payload</span> : <a title="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload" href="types/generated_poc/core/mcp_webhook_payload.html#adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload">McpWebhookPayload</a> | <a title="adcp.types.generated_poc.brand.revocation_notification.RevocationNotification" href="types/generated_poc/brand/revocation_notification.html#adcp.types.generated_poc.brand.revocation_notification.RevocationNotification">RevocationNotification</a> | <a title="adcp.types.generated_poc.collection.collection_list_changed_webhook.CollectionListChangedWebhook" href="types/generated_poc/collection/collection_list_changed_webhook.html#adcp.types.generated_poc.collection.collection_list_changed_webhook.CollectionListChangedWebhook">CollectionListChangedWebhook</a> | <a title="adcp.types.generated_poc.property.property_list_changed_webhook.PropertyListChangedWebhook" href="types/generated_poc/property/property_list_changed_webhook.html#adcp.types.generated_poc.property.property_list_changed_webhook.PropertyListChangedWebhook">PropertyListChangedWebhook</a> | <a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload" href="types/generated_poc/content_standards/artifact_webhook_payload.html#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload">ArtifactWebhookPayload</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookOutcome.rejected"><code class="name">var <span class="ident">rejected</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookOutcome.rejection_reason"><code class="name">var <span class="ident">rejection_reason</span> : Literal['signature_missing', 'signature_invalid', 'signature_legacy_failed', 'content_type_invalid', 'body_invalid_json', 'payload_invalid', 'idempotency_key_missing', 'idempotency_key_invalid'] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookOutcome.response_headers"><code class="name">var <span class="ident">response_headers</span> : Mapping[str, str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookOutcome.sender_identity"><code class="name">var <span class="ident">sender_identity</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.WebhookReceiver"><code class="flex name class">
+<span>class <span class="ident">WebhookReceiver</span></span>
+<span>(</span><span>config: <a title="adcp.webhooks.WebhookReceiverConfig" href="#adcp.webhooks.WebhookReceiverConfig">WebhookReceiverConfig</a>)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WebhookReceiver:
+    &#34;&#34;&#34;Stateless webhook entry point, one instance per receiver configuration.
+
+    Instance state (``config``) is read-only after construction. Per-request
+    state lives in the :class:`WebhookOutcome` returned from :meth:`receive`.
+    &#34;&#34;&#34;
+
+    def __init__(self, config: WebhookReceiverConfig) -&gt; None:
+        self._config = config
+
+    async def receive(
+        self,
+        *,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        body: bytes,
+    ) -&gt; WebhookOutcome:
+        &#34;&#34;&#34;Verify, dedupe, parse. Returns a :class:`WebhookOutcome`.
+
+        Never raises for sender-caused cryptographic or protocol failures —
+        returns an outcome with ``rejected=True`` and populated
+        ``response_headers`` so the caller can convert to an HTTP response
+        without try/except around every call. Operational failures inside
+        the dedup backend or verify-options factory MAY still raise; wrap
+        the call if you need to 5xx cleanly on internal errors.
+        &#34;&#34;&#34;
+        if not _content_type_is_json(headers):
+            return _reject(&#34;content_type_invalid&#34;, sender_identity=None)
+
+        signer, rejection = await self._verify(method=method, url=url, headers=headers, body=body)
+        if rejection is not None:
+            return rejection
+        assert signer is not None  # verification succeeded
+
+        sender_id = signer.as_sender_identity()
+
+        try:
+            payload_dict = json.loads(body)
+        except json.JSONDecodeError:
+            return _reject(&#34;body_invalid_json&#34;, sender_identity=sender_id)
+        if not isinstance(payload_dict, dict):
+            return _reject(&#34;body_invalid_json&#34;, sender_identity=sender_id)
+
+        idempotency_key = payload_dict.get(&#34;idempotency_key&#34;)
+        if not isinstance(idempotency_key, str) or not idempotency_key:
+            # Spec 3.0-rc: idempotency_key is REQUIRED on every webhook payload.
+            return _reject(&#34;idempotency_key_missing&#34;, sender_identity=sender_id)
+        if not _IDEMPOTENCY_KEY_RE.match(idempotency_key):
+            # Non-conformant format — charset or length out of bounds.
+            return _reject(&#34;idempotency_key_invalid&#34;, sender_identity=sender_id)
+
+        parsed = self._parse(payload_dict)
+        if parsed is None:
+            return _reject(&#34;payload_invalid&#34;, sender_identity=sender_id)
+
+        is_first_seen = await self._config.dedup.check_and_record(
+            sender_id=sender_id, idempotency_key=idempotency_key
+        )
+
+        return WebhookOutcome(
+            sender_identity=sender_id,
+            payload=parsed,
+            duplicate=not is_first_seen,
+            idempotency_key=idempotency_key,
+        )
+
+    async def _verify(
+        self,
+        *,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        body: bytes,
+    ) -&gt; tuple[VerifiedSignerLike | None, WebhookOutcome | None]:
+        &#34;&#34;&#34;Returns (signer, None) on success or (None, rejection_outcome).&#34;&#34;&#34;
+        has_9421 = _has_9421_headers(headers)
+
+        if has_9421:
+            try:
+                signer = verify_webhook_signature(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    body=body,
+                    options=self._config.verify_options,
+                )
+                return signer, None
+            except SignatureVerificationError as exc:
+                # Downgrade defense: when 9421 IS present but fails, do NOT
+                # consult HMAC fallback by default. A MITM that stripped a
+                # valid 9421 signature and replaced it with a forged HMAC one
+                # is exactly what the downgrade guard exists for.
+                fallback = self._config.legacy_hmac
+                allow_hmac = fallback is not None and not fallback.only_when_9421_absent
+                if not allow_hmac:
+                    return None, WebhookOutcome(
+                        rejected=True,
+                        rejection_reason=&#34;signature_invalid&#34;,
+                        response_headers=_www_authenticate_header(exc.code),
+                    )
+                logger.warning(
+                    &#34;9421 webhook verify failed (%s); trying HMAC legacy because &#34;
+                    &#34;legacy_hmac.only_when_9421_absent=False is set&#34;,
+                    exc.code,
+                )
+
+        fallback = self._config.legacy_hmac
+        if fallback is None:
+            # No 9421 headers AND no HMAC fallback configured → spec says 9421
+            # is baseline-required in 3.0, so this is non-conformant.
+            return None, WebhookOutcome(
+                rejected=True,
+                rejection_reason=&#34;signature_missing&#34;,
+                response_headers=_www_authenticate_header(&#34;webhook_signature_required&#34;),
+            )
+
+        hmac_options = fallback.options_for(headers)
+        if hmac_options is None:
+            return None, WebhookOutcome(
+                rejected=True,
+                rejection_reason=&#34;signature_missing&#34;,
+                response_headers=_www_authenticate_header(&#34;webhook_signature_required&#34;),
+            )
+        try:
+            legacy_signer = verify_webhook_hmac(headers=headers, body=body, options=hmac_options)
+            return legacy_signer, None
+        except LegacyWebhookHmacError:
+            return None, WebhookOutcome(
+                rejected=True,
+                rejection_reason=&#34;signature_legacy_failed&#34;,
+                response_headers=_www_authenticate_header(&#34;webhook_signature_invalid&#34;),
+            )
+
+    def _parse(self, payload_dict: dict[str, Any]) -&gt; WebhookPayload | None:
+        model = _MODEL_BY_KIND[self._config.kind]
+        try:
+            return cast(WebhookPayload, model.model_validate(payload_dict))
+        except ValidationError as exc:
+            # Operators need the field-level reason to diagnose sender bugs.
+            # The receiver still returns payload_invalid downstream; this is
+            # just observability.
+            logger.warning(
+                &#34;webhook payload failed %s validation: %s&#34;,
+                self._config.kind,
+                exc.errors(include_url=False),
+            )
+            return None</code></pre>
+</details>
+<div class="desc"><p>Stateless webhook entry point, one instance per receiver configuration.</p>
+<p>Instance state (<code>config</code>) is read-only after construction. Per-request
+state lives in the :class:<code><a title="adcp.webhooks.WebhookOutcome" href="#adcp.webhooks.WebhookOutcome">WebhookOutcome</a></code> returned from :meth:<code>receive</code>.</p></div>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookReceiver.receive"><code class="name flex">
+<span>async def <span class="ident">receive</span></span>(<span>self, *, method: str, url: str, headers: Mapping[str, str], body: bytes) ‑> <a title="adcp.webhook_receiver.WebhookOutcome" href="webhook_receiver.html#adcp.webhook_receiver.WebhookOutcome">WebhookOutcome</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def receive(
+    self,
+    *,
+    method: str,
+    url: str,
+    headers: Mapping[str, str],
+    body: bytes,
+) -&gt; WebhookOutcome:
+    &#34;&#34;&#34;Verify, dedupe, parse. Returns a :class:`WebhookOutcome`.
+
+    Never raises for sender-caused cryptographic or protocol failures —
+    returns an outcome with ``rejected=True`` and populated
+    ``response_headers`` so the caller can convert to an HTTP response
+    without try/except around every call. Operational failures inside
+    the dedup backend or verify-options factory MAY still raise; wrap
+    the call if you need to 5xx cleanly on internal errors.
+    &#34;&#34;&#34;
+    if not _content_type_is_json(headers):
+        return _reject(&#34;content_type_invalid&#34;, sender_identity=None)
+
+    signer, rejection = await self._verify(method=method, url=url, headers=headers, body=body)
+    if rejection is not None:
+        return rejection
+    assert signer is not None  # verification succeeded
+
+    sender_id = signer.as_sender_identity()
+
+    try:
+        payload_dict = json.loads(body)
+    except json.JSONDecodeError:
+        return _reject(&#34;body_invalid_json&#34;, sender_identity=sender_id)
+    if not isinstance(payload_dict, dict):
+        return _reject(&#34;body_invalid_json&#34;, sender_identity=sender_id)
+
+    idempotency_key = payload_dict.get(&#34;idempotency_key&#34;)
+    if not isinstance(idempotency_key, str) or not idempotency_key:
+        # Spec 3.0-rc: idempotency_key is REQUIRED on every webhook payload.
+        return _reject(&#34;idempotency_key_missing&#34;, sender_identity=sender_id)
+    if not _IDEMPOTENCY_KEY_RE.match(idempotency_key):
+        # Non-conformant format — charset or length out of bounds.
+        return _reject(&#34;idempotency_key_invalid&#34;, sender_identity=sender_id)
+
+    parsed = self._parse(payload_dict)
+    if parsed is None:
+        return _reject(&#34;payload_invalid&#34;, sender_identity=sender_id)
+
+    is_first_seen = await self._config.dedup.check_and_record(
+        sender_id=sender_id, idempotency_key=idempotency_key
+    )
+
+    return WebhookOutcome(
+        sender_identity=sender_id,
+        payload=parsed,
+        duplicate=not is_first_seen,
+        idempotency_key=idempotency_key,
+    )</code></pre>
+</details>
+<div class="desc"><p>Verify, dedupe, parse. Returns a :class:<code><a title="adcp.webhooks.WebhookOutcome" href="#adcp.webhooks.WebhookOutcome">WebhookOutcome</a></code>.</p>
+<p>Never raises for sender-caused cryptographic or protocol failures —
+returns an outcome with <code>rejected=True</code> and populated
+<code>response_headers</code> so the caller can convert to an HTTP response
+without try/except around every call. Operational failures inside
+the dedup backend or verify-options factory MAY still raise; wrap
+the call if you need to 5xx cleanly on internal errors.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.WebhookReceiverConfig"><code class="flex name class">
+<span>class <span class="ident">WebhookReceiverConfig</span></span>
+<span>(</span><span>verify_options: <a title="adcp.webhooks.WebhookVerifyOptions" href="#adcp.webhooks.WebhookVerifyOptions">WebhookVerifyOptions</a>,<br>dedup: WebhookDedupStore,<br>legacy_hmac: <a title="adcp.webhooks.LegacyHmacFallback" href="#adcp.webhooks.LegacyHmacFallback">LegacyHmacFallback</a> | None = None,<br>kind: WebhookKind = 'mcp')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True)
+class WebhookReceiverConfig:
+    &#34;&#34;&#34;Configuration bundle.
+
+    :param verify_options: verifier configuration (JWKS, replay store, etc.).
+        A single instance is reused for every request — the verifier stamps
+        ``now`` itself via ``verify_options.clock()``, so there&#39;s no need to
+        refresh a time field per request.
+    :param dedup: webhook-dedup store.
+    :param legacy_hmac: optional HMAC-SHA256 fallback for 3.x migration.
+    :param kind: which webhook payload type to parse into. Default ``&#34;mcp&#34;``
+        (the task-status webhook that dominates most integrations); pass
+        explicitly for list-change / artifact / revocation receivers.
+    &#34;&#34;&#34;
+
+    verify_options: WebhookVerifyOptions
+    dedup: WebhookDedupStore
+    legacy_hmac: LegacyHmacFallback | None = None
+    kind: WebhookKind = &#34;mcp&#34;</code></pre>
+</details>
+<div class="desc"><p>Configuration bundle.</p>
+<p>:param verify_options: verifier configuration (JWKS, replay store, etc.).
+A single instance is reused for every request — the verifier stamps
+<code>now</code> itself via <code>verify_options.clock()</code>, so there's no need to
+refresh a time field per request.
+:param dedup: webhook-dedup store.
+:param legacy_hmac: optional HMAC-SHA256 fallback for 3.x migration.
+:param kind: which webhook payload type to parse into. Default <code>"mcp"</code>
+(the task-status webhook that dominates most integrations); pass
+explicitly for list-change / artifact / revocation receivers.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookReceiverConfig.dedup"><code class="name">var <span class="ident">dedup</span> : <a title="adcp.server.idempotency.webhook_dedup.WebhookDedupStore" href="server/idempotency/webhook_dedup.html#adcp.server.idempotency.webhook_dedup.WebhookDedupStore">WebhookDedupStore</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookReceiverConfig.kind"><code class="name">var <span class="ident">kind</span> : Literal['mcp', 'revocation_notification', 'collection_list_changed', 'property_list_changed', 'artifact']</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookReceiverConfig.legacy_hmac"><code class="name">var <span class="ident">legacy_hmac</span> : <a title="adcp.webhook_receiver.LegacyHmacFallback" href="webhook_receiver.html#adcp.webhook_receiver.LegacyHmacFallback">LegacyHmacFallback</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookReceiverConfig.verify_options"><code class="name">var <span class="ident">verify_options</span> : <a title="adcp.signing.webhook_verifier.WebhookVerifyOptions" href="signing/webhook_verifier.html#adcp.signing.webhook_verifier.WebhookVerifyOptions">WebhookVerifyOptions</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.WebhookSender"><code class="flex name class">
+<span>class <span class="ident">WebhookSender</span></span>
+<span>(</span><span>*,<br>private_key: PrivateKey,<br>key_id: str,<br>alg: str,<br>client: httpx.AsyncClient | None = None,<br>timeout_seconds: float = 10.0)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WebhookSender:
+    &#34;&#34;&#34;Outbound signed-webhook delivery client.
+
+    Owns one webhook-signing private key. Reuses a single :class:`httpx.AsyncClient`
+    across requests for connection pooling — pass your own via ``client=`` if
+    you want to share it with other SDK surfaces.
+
+    Thread/task safety: safe to call concurrent ``send_*`` from many asyncio
+    tasks. The underlying ``httpx.AsyncClient`` manages its own pool.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        *,
+        private_key: PrivateKey,
+        key_id: str,
+        alg: str,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    ) -&gt; None:
+        self._private_key = private_key
+        self._key_id = key_id
+        self._alg = alg
+        self._timeout = timeout_seconds
+        self._client = client
+        self._owns_client = client is None
+
+    @classmethod
+    def from_jwk(
+        cls,
+        jwk: Mapping[str, Any],
+        *,
+        d_field: str = &#34;d&#34;,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+    ) -&gt; WebhookSender:
+        &#34;&#34;&#34;Construct from a JWK that includes the private scalar.
+
+        The JWK MUST have ``adcp_use == &#34;webhook-signing&#34;`` — the sender
+        doesn&#39;t validate this (you&#39;re signing with your own key; validation
+        happens at the receiver), but a key whose adcp_use is wrong will be
+        rejected by every conformant verifier.
+        &#34;&#34;&#34;
+        # Snapshot the mapping once — a live Mapping could otherwise return
+        # different values across the adcp_use / kid / d / alg reads.
+        jwk_snapshot = dict(jwk)
+        if jwk_snapshot.get(&#34;adcp_use&#34;) != &#34;webhook-signing&#34;:
+            raise ValueError(
+                f&#34;WebhookSender requires a JWK with adcp_use=&#39;webhook-signing&#39; &#34;
+                f&#34;(got {jwk_snapshot.get(&#39;adcp_use&#39;)!r}). Webhook-signing and &#34;
+                f&#34;request-signing keys MUST be distinct so a signature from one &#34;
+                f&#34;surface cannot be replayed as the other. Generate a separate &#34;
+                f&#34;key with adcp_use=&#39;webhook-signing&#39; and publish it in your &#34;
+                f&#34;adagents.json alongside your request-signing key. See &#34;
+                f&#34;https://adcontextprotocol.org/docs/building/implementation/security&#34;
+            )
+        alg = jwk_snapshot.get(&#34;alg&#34;)
+        if alg == &#34;EdDSA&#34;:
+            alg = &#34;ed25519&#34;
+        elif alg == &#34;ES256&#34;:
+            alg = &#34;ecdsa-p256-sha256&#34;
+        if alg not in (&#34;ed25519&#34;, &#34;ecdsa-p256-sha256&#34;):
+            raise ValueError(f&#34;unsupported JWK alg {jwk_snapshot.get(&#39;alg&#39;)!r}&#34;)
+        private_key = private_key_from_jwk(jwk_snapshot, d_field=d_field)
+        return cls(
+            private_key=private_key,
+            key_id=str(jwk_snapshot[&#34;kid&#34;]),
+            alg=alg,
+            client=client,
+            timeout_seconds=timeout_seconds,
+        )
+
+    def __repr__(self) -&gt; str:
+        # Explicit repr so no future debug helper or error traceback auto-
+        # renders self.__dict__ and pulls the private key into logs.
+        return f&#34;WebhookSender(key_id={self._key_id!r}, alg={self._alg!r})&#34;
+
+    async def aclose(self) -&gt; None:
+        &#34;&#34;&#34;Close the internal httpx client if we own it.&#34;&#34;&#34;
+        if self._owns_client and self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+    async def __aenter__(self) -&gt; WebhookSender:
+        await self._get_client()
+        return self
+
+    async def __aexit__(self, *args: Any) -&gt; None:
+        await self.aclose()
+
+    async def _get_client(self) -&gt; httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=self._timeout)
+        return self._client
+
+    async def send_mcp(
+        self,
+        *,
+        url: str,
+        task_id: str,
+        status: GeneratedTaskStatus | str,
+        task_type: str | None = None,
+        result: AdcpAsyncResponseData | dict[str, Any] | None = None,
+        timestamp: datetime | None = None,
+        operation_id: str | None = None,
+        message: str | None = None,
+        context_id: str | None = None,
+        domain: str | None = None,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed MCP-style task-status webhook.
+
+        On retry, prefer :meth:`resend` over calling this again — ``resend``
+        replays the exact same bytes, whereas re-invoking ``send_mcp`` with
+        the &#34;same&#34; args would produce a fresh ``timestamp`` and potentially
+        a different serialized body, which the receiver would dedupe but
+        with different observed payload data.
+        &#34;&#34;&#34;
+        payload = create_mcp_webhook_payload(
+            task_id=task_id,
+            status=status,
+            task_type=task_type,
+            result=result,
+            timestamp=timestamp,
+            operation_id=operation_id,
+            message=message,
+            context_id=context_id,
+            domain=domain,
+            idempotency_key=idempotency_key,
+        )
+        return await self.send_raw(
+            url=url,
+            idempotency_key=str(payload[&#34;idempotency_key&#34;]),
+            payload=payload,
+            extra_headers=extra_headers,
+        )
+
+    async def send_revocation_notification(
+        self,
+        *,
+        url: str,
+        rights_id: str,
+        brand_id: str,
+        reason: str,
+        effective_at: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed rights-revocation notification.&#34;&#34;&#34;
+        key = idempotency_key or generate_webhook_idempotency_key()
+        payload: dict[str, Any] = {
+            &#34;idempotency_key&#34;: key,
+            &#34;rights_id&#34;: rights_id,
+            &#34;brand_id&#34;: brand_id,
+            &#34;reason&#34;: reason,
+            &#34;effective_at&#34;: effective_at,
+        }
+        return await self.send_raw(
+            url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_artifact_webhook(
+        self,
+        *,
+        url: str,
+        media_buy_id: str,
+        batch_id: str,
+        timestamp: str,
+        artifacts: list[dict[str, Any]],
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed content-standards artifact webhook.&#34;&#34;&#34;
+        key = idempotency_key or generate_webhook_idempotency_key()
+        payload: dict[str, Any] = {
+            &#34;idempotency_key&#34;: key,
+            &#34;media_buy_id&#34;: media_buy_id,
+            &#34;batch_id&#34;: batch_id,
+            &#34;timestamp&#34;: timestamp,
+            &#34;artifacts&#34;: artifacts,
+        }
+        return await self.send_raw(
+            url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_collection_list_changed(
+        self,
+        *,
+        url: str,
+        list_id: str,
+        resolved_at: str,
+        signature: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed governance collection-list-changed webhook.
+
+        ``signature`` is the payload-level signature field that predates 9421
+        webhook transport signing — it remains required by the schema. The
+        9421 signature this method adds protects the transport envelope.
+        &#34;&#34;&#34;
+        key = idempotency_key or generate_webhook_idempotency_key()
+        payload: dict[str, Any] = {
+            &#34;idempotency_key&#34;: key,
+            &#34;event&#34;: &#34;collection_list_changed&#34;,
+            &#34;list_id&#34;: list_id,
+            &#34;resolved_at&#34;: resolved_at,
+            &#34;signature&#34;: signature,
+        }
+        return await self.send_raw(
+            url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_property_list_changed(
+        self,
+        *,
+        url: str,
+        list_id: str,
+        resolved_at: str,
+        signature: str,
+        idempotency_key: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;POST a signed governance property-list-changed webhook.&#34;&#34;&#34;
+        key = idempotency_key or generate_webhook_idempotency_key()
+        payload: dict[str, Any] = {
+            &#34;idempotency_key&#34;: key,
+            &#34;event&#34;: &#34;property_list_changed&#34;,
+            &#34;list_id&#34;: list_id,
+            &#34;resolved_at&#34;: resolved_at,
+            &#34;signature&#34;: signature,
+        }
+        return await self.send_raw(
+            url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+        )
+
+    async def send_raw(
+        self,
+        *,
+        url: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+        extra_headers: Mapping[str, str] | None = None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;Low-level escape hatch: sign + POST an arbitrary payload.
+
+        The ``idempotency_key`` kwarg is required and is injected into the
+        payload before signing — the visible signature makes the contract
+        impossible to forget, unlike a runtime dict check. If ``payload``
+        already carries an ``idempotency_key``, the kwarg wins so the two
+        cannot disagree.
+        &#34;&#34;&#34;
+        if not isinstance(idempotency_key, str) or not idempotency_key:
+            raise ValueError(&#34;idempotency_key must be a non-empty string&#34;)
+        body_dict = {**payload, &#34;idempotency_key&#34;: idempotency_key}
+        # Byte-exact serialization — this is the ONLY representation that
+        # gets signed AND posted. Do not allow an httpx `json=` path anywhere
+        # in the stack because it would reserialize and break the digest.
+        body = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+        return await self._send_bytes(
+            url=url,
+            body=body,
+            idempotency_key=idempotency_key,
+            extra_headers=extra_headers,
+        )
+
+    async def resend(self, result: WebhookDeliveryResult) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;Replay an earlier delivery under a fresh signature.
+
+        The bytes are identical (same ``idempotency_key``, same payload
+        fields, same serialization) — only the Signature / Signature-Input /
+        Content-Digest headers are regenerated. The receiver dedupes via
+        ``idempotency_key``, so the replayed event is a spec-correct retry
+        that won&#39;t cause double-processing.
+        &#34;&#34;&#34;
+        if not result.sent_body:
+            raise ValueError(
+                &#34;cannot resend: result has no captured sent_body (likely constructed &#34;
+                &#34;externally). Call a send_* method on this sender first.&#34;
+            )
+        return await self._send_bytes(
+            url=result.url,
+            body=result.sent_body,
+            idempotency_key=result.idempotency_key,
+            extra_headers=result.sent_extra_headers or None,
+        )
+
+    async def _send_bytes(
+        self,
+        *,
+        url: str,
+        body: bytes,
+        idempotency_key: str,
+        extra_headers: Mapping[str, str] | None,
+    ) -&gt; WebhookDeliveryResult:
+        &#34;&#34;&#34;Sign + POST a pre-serialized body. Shared by send_raw and resend.&#34;&#34;&#34;
+        base_headers = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+        signed = sign_webhook(
+            method=&#34;POST&#34;,
+            url=url,
+            headers=base_headers,
+            body=body,
+            private_key=self._private_key,
+            key_id=self._key_id,
+            alg=self._alg,
+        )
+        headers: dict[str, str] = {**base_headers, **signed.as_dict()}
+        if extra_headers:
+            # Pre-scan so a bad extra_header doesn&#39;t leave half-merged state.
+            reserved = {&#34;signature&#34;, &#34;signature-input&#34;, &#34;content-digest&#34;, &#34;content-type&#34;}
+            for k in extra_headers:
+                if str(k).lower() in reserved:
+                    raise ValueError(
+                        f&#34;extra_headers may not override signature-binding or &#34;
+                        f&#34;content-type header {k!r}&#34;
+                    )
+            for k, v in extra_headers.items():
+                headers[k] = v
+
+        client = await self._get_client()
+        response = await client.post(url, content=body, headers=headers)
+        return WebhookDeliveryResult(
+            status_code=response.status_code,
+            idempotency_key=idempotency_key,
+            url=url,
+            response_headers=dict(response.headers),
+            response_body=response.content,
+            sent_body=body,
+            sent_extra_headers=dict(extra_headers) if extra_headers else {},
+        )</code></pre>
+</details>
+<div class="desc"><p>Outbound signed-webhook delivery client.</p>
+<p>Owns one webhook-signing private key. Reuses a single :class:<code>httpx.AsyncClient</code>
+across requests for connection pooling — pass your own via <code>client=</code> if
+you want to share it with other SDK surfaces.</p>
+<p>Thread/task safety: safe to call concurrent <code>send_*</code> from many asyncio
+tasks. The underlying <code>httpx.AsyncClient</code> manages its own pool.</p></div>
+<h3>Static methods</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookSender.from_jwk"><code class="name flex">
+<span>def <span class="ident">from_jwk</span></span>(<span>jwk: Mapping[str, Any],<br>*,<br>d_field: str = 'd',<br>client: httpx.AsyncClient | None = None,<br>timeout_seconds: float = 10.0) ‑> <a title="adcp.webhook_sender.WebhookSender" href="webhook_sender.html#adcp.webhook_sender.WebhookSender">WebhookSender</a></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct from a JWK that includes the private scalar.</p>
+<p>The JWK MUST have <code>adcp_use == "webhook-signing"</code> — the sender
+doesn't validate this (you're signing with your own key; validation
+happens at the receiver), but a key whose adcp_use is wrong will be
+rejected by every conformant verifier.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookSender.aclose"><code class="name flex">
+<span>async def <span class="ident">aclose</span></span>(<span>self) ‑> None</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def aclose(self) -&gt; None:
+    &#34;&#34;&#34;Close the internal httpx client if we own it.&#34;&#34;&#34;
+    if self._owns_client and self._client is not None:
+        await self._client.aclose()
+        self._client = None</code></pre>
+</details>
+<div class="desc"><p>Close the internal httpx client if we own it.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookSender.resend"><code class="name flex">
+<span>async def <span class="ident">resend</span></span>(<span>self,<br>result: <a title="adcp.webhooks.WebhookDeliveryResult" href="#adcp.webhooks.WebhookDeliveryResult">WebhookDeliveryResult</a>) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="webhook_sender.html#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def resend(self, result: WebhookDeliveryResult) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;Replay an earlier delivery under a fresh signature.
+
+    The bytes are identical (same ``idempotency_key``, same payload
+    fields, same serialization) — only the Signature / Signature-Input /
+    Content-Digest headers are regenerated. The receiver dedupes via
+    ``idempotency_key``, so the replayed event is a spec-correct retry
+    that won&#39;t cause double-processing.
+    &#34;&#34;&#34;
+    if not result.sent_body:
+        raise ValueError(
+            &#34;cannot resend: result has no captured sent_body (likely constructed &#34;
+            &#34;externally). Call a send_* method on this sender first.&#34;
+        )
+    return await self._send_bytes(
+        url=result.url,
+        body=result.sent_body,
+        idempotency_key=result.idempotency_key,
+        extra_headers=result.sent_extra_headers or None,
+    )</code></pre>
+</details>
+<div class="desc"><p>Replay an earlier delivery under a fresh signature.</p>
+<p>The bytes are identical (same <code>idempotency_key</code>, same payload
+fields, same serialization) — only the Signature / Signature-Input /
+Content-Digest headers are regenerated. The receiver dedupes via
+<code>idempotency_key</code>, so the replayed event is a spec-correct retry
+that won't cause double-processing.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookSender.send_artifact_webhook"><code class="name flex">
+<span>async def <span class="ident">send_artifact_webhook</span></span>(<span>self,<br>*,<br>url: str,<br>media_buy_id: str,<br>batch_id: str,<br>timestamp: str,<br>artifacts: list[dict[str, Any]],<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="webhook_sender.html#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_artifact_webhook(
+    self,
+    *,
+    url: str,
+    media_buy_id: str,
+    batch_id: str,
+    timestamp: str,
+    artifacts: list[dict[str, Any]],
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed content-standards artifact webhook.&#34;&#34;&#34;
+    key = idempotency_key or generate_webhook_idempotency_key()
+    payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: key,
+        &#34;media_buy_id&#34;: media_buy_id,
+        &#34;batch_id&#34;: batch_id,
+        &#34;timestamp&#34;: timestamp,
+        &#34;artifacts&#34;: artifacts,
+    }
+    return await self.send_raw(
+        url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed content-standards artifact webhook.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookSender.send_collection_list_changed"><code class="name flex">
+<span>async def <span class="ident">send_collection_list_changed</span></span>(<span>self,<br>*,<br>url: str,<br>list_id: str,<br>resolved_at: str,<br>signature: str,<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="webhook_sender.html#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_collection_list_changed(
+    self,
+    *,
+    url: str,
+    list_id: str,
+    resolved_at: str,
+    signature: str,
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed governance collection-list-changed webhook.
+
+    ``signature`` is the payload-level signature field that predates 9421
+    webhook transport signing — it remains required by the schema. The
+    9421 signature this method adds protects the transport envelope.
+    &#34;&#34;&#34;
+    key = idempotency_key or generate_webhook_idempotency_key()
+    payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: key,
+        &#34;event&#34;: &#34;collection_list_changed&#34;,
+        &#34;list_id&#34;: list_id,
+        &#34;resolved_at&#34;: resolved_at,
+        &#34;signature&#34;: signature,
+    }
+    return await self.send_raw(
+        url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed governance collection-list-changed webhook.</p>
+<p><code>signature</code> is the payload-level signature field that predates 9421
+webhook transport signing — it remains required by the schema. The
+9421 signature this method adds protects the transport envelope.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookSender.send_mcp"><code class="name flex">
+<span>async def <span class="ident">send_mcp</span></span>(<span>self,<br>*,<br>url: str,<br>task_id: str,<br>status: GeneratedTaskStatus | str,<br>task_type: str | None = None,<br>result: AdcpAsyncResponseData | dict[str, Any] | None = None,<br>timestamp: datetime | None = None,<br>operation_id: str | None = None,<br>message: str | None = None,<br>context_id: str | None = None,<br>domain: str | None = None,<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="webhook_sender.html#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_mcp(
+    self,
+    *,
+    url: str,
+    task_id: str,
+    status: GeneratedTaskStatus | str,
+    task_type: str | None = None,
+    result: AdcpAsyncResponseData | dict[str, Any] | None = None,
+    timestamp: datetime | None = None,
+    operation_id: str | None = None,
+    message: str | None = None,
+    context_id: str | None = None,
+    domain: str | None = None,
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed MCP-style task-status webhook.
+
+    On retry, prefer :meth:`resend` over calling this again — ``resend``
+    replays the exact same bytes, whereas re-invoking ``send_mcp`` with
+    the &#34;same&#34; args would produce a fresh ``timestamp`` and potentially
+    a different serialized body, which the receiver would dedupe but
+    with different observed payload data.
+    &#34;&#34;&#34;
+    payload = create_mcp_webhook_payload(
+        task_id=task_id,
+        status=status,
+        task_type=task_type,
+        result=result,
+        timestamp=timestamp,
+        operation_id=operation_id,
+        message=message,
+        context_id=context_id,
+        domain=domain,
+        idempotency_key=idempotency_key,
+    )
+    return await self.send_raw(
+        url=url,
+        idempotency_key=str(payload[&#34;idempotency_key&#34;]),
+        payload=payload,
+        extra_headers=extra_headers,
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed MCP-style task-status webhook.</p>
+<p>On retry, prefer :meth:<code>resend</code> over calling this again — <code>resend</code>
+replays the exact same bytes, whereas re-invoking <code>send_mcp</code> with
+the "same" args would produce a fresh <code>timestamp</code> and potentially
+a different serialized body, which the receiver would dedupe but
+with different observed payload data.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookSender.send_property_list_changed"><code class="name flex">
+<span>async def <span class="ident">send_property_list_changed</span></span>(<span>self,<br>*,<br>url: str,<br>list_id: str,<br>resolved_at: str,<br>signature: str,<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="webhook_sender.html#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_property_list_changed(
+    self,
+    *,
+    url: str,
+    list_id: str,
+    resolved_at: str,
+    signature: str,
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed governance property-list-changed webhook.&#34;&#34;&#34;
+    key = idempotency_key or generate_webhook_idempotency_key()
+    payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: key,
+        &#34;event&#34;: &#34;property_list_changed&#34;,
+        &#34;list_id&#34;: list_id,
+        &#34;resolved_at&#34;: resolved_at,
+        &#34;signature&#34;: signature,
+    }
+    return await self.send_raw(
+        url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed governance property-list-changed webhook.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookSender.send_raw"><code class="name flex">
+<span>async def <span class="ident">send_raw</span></span>(<span>self,<br>*,<br>url: str,<br>idempotency_key: str,<br>payload: dict[str, Any],<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="webhook_sender.html#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_raw(
+    self,
+    *,
+    url: str,
+    idempotency_key: str,
+    payload: dict[str, Any],
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;Low-level escape hatch: sign + POST an arbitrary payload.
+
+    The ``idempotency_key`` kwarg is required and is injected into the
+    payload before signing — the visible signature makes the contract
+    impossible to forget, unlike a runtime dict check. If ``payload``
+    already carries an ``idempotency_key``, the kwarg wins so the two
+    cannot disagree.
+    &#34;&#34;&#34;
+    if not isinstance(idempotency_key, str) or not idempotency_key:
+        raise ValueError(&#34;idempotency_key must be a non-empty string&#34;)
+    body_dict = {**payload, &#34;idempotency_key&#34;: idempotency_key}
+    # Byte-exact serialization — this is the ONLY representation that
+    # gets signed AND posted. Do not allow an httpx `json=` path anywhere
+    # in the stack because it would reserialize and break the digest.
+    body = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+    return await self._send_bytes(
+        url=url,
+        body=body,
+        idempotency_key=idempotency_key,
+        extra_headers=extra_headers,
+    )</code></pre>
+</details>
+<div class="desc"><p>Low-level escape hatch: sign + POST an arbitrary payload.</p>
+<p>The <code>idempotency_key</code> kwarg is required and is injected into the
+payload before signing — the visible signature makes the contract
+impossible to forget, unlike a runtime dict check. If <code>payload</code>
+already carries an <code>idempotency_key</code>, the kwarg wins so the two
+cannot disagree.</p></div>
+</dd>
+<dt id="adcp.webhooks.WebhookSender.send_revocation_notification"><code class="name flex">
+<span>async def <span class="ident">send_revocation_notification</span></span>(<span>self,<br>*,<br>url: str,<br>rights_id: str,<br>brand_id: str,<br>reason: str,<br>effective_at: str,<br>idempotency_key: str | None = None,<br>extra_headers: Mapping[str, str] | None = None) ‑> <a title="adcp.webhook_sender.WebhookDeliveryResult" href="webhook_sender.html#adcp.webhook_sender.WebhookDeliveryResult">WebhookDeliveryResult</a></span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def send_revocation_notification(
+    self,
+    *,
+    url: str,
+    rights_id: str,
+    brand_id: str,
+    reason: str,
+    effective_at: str,
+    idempotency_key: str | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+) -&gt; WebhookDeliveryResult:
+    &#34;&#34;&#34;POST a signed rights-revocation notification.&#34;&#34;&#34;
+    key = idempotency_key or generate_webhook_idempotency_key()
+    payload: dict[str, Any] = {
+        &#34;idempotency_key&#34;: key,
+        &#34;rights_id&#34;: rights_id,
+        &#34;brand_id&#34;: brand_id,
+        &#34;reason&#34;: reason,
+        &#34;effective_at&#34;: effective_at,
+    }
+    return await self.send_raw(
+        url=url, idempotency_key=key, payload=payload, extra_headers=extra_headers
+    )</code></pre>
+</details>
+<div class="desc"><p>POST a signed rights-revocation notification.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions"><code class="flex name class">
+<span>class <span class="ident">WebhookVerifyOptions</span></span>
+<span>(</span><span>*,<br>jwks_resolver: JwksResolver,<br>replay_store: ReplayStore | None = None,<br>revocation_checker: RevocationChecker | None = None,<br>revocation_list: RevocationList | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>sender_url: str | None = None,<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@dataclass(frozen=True, kw_only=True)
+class WebhookVerifyOptions:
+    &#34;&#34;&#34;Options for the webhook verifier.
+
+    Subset of :class:`VerifyOptions` — several fields are pinned (tag, adcp_use,
+    content-digest policy) because the webhook profile doesn&#39;t leave them as
+    caller choices.
+
+    Unlike the request verifier, there is no ``now`` field — the webhook
+    verifier stamps time-of-check itself, so the same :class:`WebhookVerifyOptions`
+    instance can live for the lifetime of your receiver without a factory
+    closure around it. Override via ``clock=`` for deterministic tests.
+    &#34;&#34;&#34;
+
+    jwks_resolver: JwksResolver
+    replay_store: ReplayStore | None = None
+    revocation_checker: RevocationChecker | None = None
+    revocation_list: RevocationList | None = None
+    max_skew_seconds: int = DEFAULT_SKEW_SECONDS
+    max_window_seconds: int = MAX_WINDOW_SECONDS
+    label: str = SIG_LABEL_DEFAULT
+    allowed_algs: frozenset[str] = ALLOWED_ALGS
+    sender_url: str | None = None
+    clock: Callable[[], float] = time.time</code></pre>
+</details>
+<div class="desc"><p>Options for the webhook verifier.</p>
+<p>Subset of :class:<code>VerifyOptions</code> — several fields are pinned (tag, adcp_use,
+content-digest policy) because the webhook profile doesn't leave them as
+caller choices.</p>
+<p>Unlike the request verifier, there is no <code>now</code> field — the webhook
+verifier stamps time-of-check itself, so the same :class:<code><a title="adcp.webhooks.WebhookVerifyOptions" href="#adcp.webhooks.WebhookVerifyOptions">WebhookVerifyOptions</a></code>
+instance can live for the lifetime of your receiver without a factory
+closure around it. Override via <code>clock=</code> for deterministic tests.</p></div>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookVerifyOptions.allowed_algs"><code class="name">var <span class="ident">allowed_algs</span> : frozenset[str]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions.jwks_resolver"><code class="name">var <span class="ident">jwks_resolver</span> : <a title="adcp.signing.jwks.JwksResolver" href="signing/jwks.html#adcp.signing.jwks.JwksResolver">JwksResolver</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions.label"><code class="name">var <span class="ident">label</span> : str</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions.max_skew_seconds"><code class="name">var <span class="ident">max_skew_seconds</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions.max_window_seconds"><code class="name">var <span class="ident">max_window_seconds</span> : int</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions.replay_store"><code class="name">var <span class="ident">replay_store</span> : <a title="adcp.signing.replay.ReplayStore" href="signing/replay.html#adcp.signing.replay.ReplayStore">ReplayStore</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions.revocation_checker"><code class="name">var <span class="ident">revocation_checker</span> : <a title="adcp.signing.revocation.RevocationChecker" href="signing/revocation.html#adcp.signing.revocation.RevocationChecker">RevocationChecker</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions.revocation_list"><code class="name">var <span class="ident">revocation_list</span> : <a title="adcp.signing.revocation.RevocationList" href="signing/revocation.html#adcp.signing.revocation.RevocationList">RevocationList</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.webhooks.WebhookVerifyOptions.sender_url"><code class="name">var <span class="ident">sender_url</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="adcp.webhooks.WebhookVerifyOptions.clock"><code class="name flex">
+<span>def <span class="ident">clock</span></span>(<span>...) ‑> Callable[[], float]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>time() -&gt; floating point number</p>
+<p>Return the current time in seconds since the Epoch.
+Fractions of a second may be present if the system clock provides them.</p></div>
+</dd>
+</dl>
+</dd>
+</dl>
 </section>
 </article>
 <nav id="sidebar">
@@ -835,7 +2687,128 @@ including a timestamp in the signed message.</p>
 <li><code><a title="adcp.webhooks.create_a2a_webhook_payload" href="#adcp.webhooks.create_a2a_webhook_payload">create_a2a_webhook_payload</a></code></li>
 <li><code><a title="adcp.webhooks.create_mcp_webhook_payload" href="#adcp.webhooks.create_mcp_webhook_payload">create_mcp_webhook_payload</a></code></li>
 <li><code><a title="adcp.webhooks.extract_webhook_result_data" href="#adcp.webhooks.extract_webhook_result_data">extract_webhook_result_data</a></code></li>
+<li><code><a title="adcp.webhooks.generate_webhook_idempotency_key" href="#adcp.webhooks.generate_webhook_idempotency_key">generate_webhook_idempotency_key</a></code></li>
 <li><code><a title="adcp.webhooks.get_adcp_signed_headers_for_webhook" href="#adcp.webhooks.get_adcp_signed_headers_for_webhook">get_adcp_signed_headers_for_webhook</a></code></li>
+<li><code><a title="adcp.webhooks.sign_webhook" href="#adcp.webhooks.sign_webhook">sign_webhook</a></code></li>
+<li><code><a title="adcp.webhooks.verify_webhook_hmac" href="#adcp.webhooks.verify_webhook_hmac">verify_webhook_hmac</a></code></li>
+<li><code><a title="adcp.webhooks.verify_webhook_signature" href="#adcp.webhooks.verify_webhook_signature">verify_webhook_signature</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="adcp.webhooks.LegacyHmacFallback" href="#adcp.webhooks.LegacyHmacFallback">LegacyHmacFallback</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.LegacyHmacFallback.from_shared_secret" href="#adcp.webhooks.LegacyHmacFallback.from_shared_secret">from_shared_secret</a></code></li>
+<li><code><a title="adcp.webhooks.LegacyHmacFallback.only_when_9421_absent" href="#adcp.webhooks.LegacyHmacFallback.only_when_9421_absent">only_when_9421_absent</a></code></li>
+<li><code><a title="adcp.webhooks.LegacyHmacFallback.options_for" href="#adcp.webhooks.LegacyHmacFallback.options_for">options_for</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.LegacyWebhookHmacError" href="#adcp.webhooks.LegacyWebhookHmacError">LegacyWebhookHmacError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.LegacyWebhookHmacOptions" href="#adcp.webhooks.LegacyWebhookHmacOptions">LegacyWebhookHmacOptions</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.LegacyWebhookHmacOptions.now" href="#adcp.webhooks.LegacyWebhookHmacOptions.now">now</a></code></li>
+<li><code><a title="adcp.webhooks.LegacyWebhookHmacOptions.secret" href="#adcp.webhooks.LegacyWebhookHmacOptions.secret">secret</a></code></li>
+<li><code><a title="adcp.webhooks.LegacyWebhookHmacOptions.sender_identity" href="#adcp.webhooks.LegacyWebhookHmacOptions.sender_identity">sender_identity</a></code></li>
+<li><code><a title="adcp.webhooks.LegacyWebhookHmacOptions.window_seconds" href="#adcp.webhooks.LegacyWebhookHmacOptions.window_seconds">window_seconds</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.VerifiedLegacyWebhookSender" href="#adcp.webhooks.VerifiedLegacyWebhookSender">VerifiedLegacyWebhookSender</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.VerifiedLegacyWebhookSender.as_sender_identity" href="#adcp.webhooks.VerifiedLegacyWebhookSender.as_sender_identity">as_sender_identity</a></code></li>
+<li><code><a title="adcp.webhooks.VerifiedLegacyWebhookSender.sender_identity" href="#adcp.webhooks.VerifiedLegacyWebhookSender.sender_identity">sender_identity</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.VerifiedSignerLike" href="#adcp.webhooks.VerifiedSignerLike">VerifiedSignerLike</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.VerifiedSignerLike.as_sender_identity" href="#adcp.webhooks.VerifiedSignerLike.as_sender_identity">as_sender_identity</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.VerifiedWebhookSender" href="#adcp.webhooks.VerifiedWebhookSender">VerifiedWebhookSender</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.webhooks.VerifiedWebhookSender.alg" href="#adcp.webhooks.VerifiedWebhookSender.alg">alg</a></code></li>
+<li><code><a title="adcp.webhooks.VerifiedWebhookSender.as_sender_identity" href="#adcp.webhooks.VerifiedWebhookSender.as_sender_identity">as_sender_identity</a></code></li>
+<li><code><a title="adcp.webhooks.VerifiedWebhookSender.key_id" href="#adcp.webhooks.VerifiedWebhookSender.key_id">key_id</a></code></li>
+<li><code><a title="adcp.webhooks.VerifiedWebhookSender.label" href="#adcp.webhooks.VerifiedWebhookSender.label">label</a></code></li>
+<li><code><a title="adcp.webhooks.VerifiedWebhookSender.sender_url" href="#adcp.webhooks.VerifiedWebhookSender.sender_url">sender_url</a></code></li>
+<li><code><a title="adcp.webhooks.VerifiedWebhookSender.verified_at" href="#adcp.webhooks.VerifiedWebhookSender.verified_at">verified_at</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.WebhookDeliveryResult" href="#adcp.webhooks.WebhookDeliveryResult">WebhookDeliveryResult</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.webhooks.WebhookDeliveryResult.idempotency_key" href="#adcp.webhooks.WebhookDeliveryResult.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookDeliveryResult.ok" href="#adcp.webhooks.WebhookDeliveryResult.ok">ok</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookDeliveryResult.response_body" href="#adcp.webhooks.WebhookDeliveryResult.response_body">response_body</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookDeliveryResult.response_headers" href="#adcp.webhooks.WebhookDeliveryResult.response_headers">response_headers</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookDeliveryResult.sent_body" href="#adcp.webhooks.WebhookDeliveryResult.sent_body">sent_body</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookDeliveryResult.sent_extra_headers" href="#adcp.webhooks.WebhookDeliveryResult.sent_extra_headers">sent_extra_headers</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookDeliveryResult.status_code" href="#adcp.webhooks.WebhookDeliveryResult.status_code">status_code</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookDeliveryResult.url" href="#adcp.webhooks.WebhookDeliveryResult.url">url</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.WebhookOutcome" href="#adcp.webhooks.WebhookOutcome">WebhookOutcome</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.webhooks.WebhookOutcome.duplicate" href="#adcp.webhooks.WebhookOutcome.duplicate">duplicate</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookOutcome.idempotency_key" href="#adcp.webhooks.WebhookOutcome.idempotency_key">idempotency_key</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookOutcome.payload" href="#adcp.webhooks.WebhookOutcome.payload">payload</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookOutcome.rejected" href="#adcp.webhooks.WebhookOutcome.rejected">rejected</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookOutcome.rejection_reason" href="#adcp.webhooks.WebhookOutcome.rejection_reason">rejection_reason</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookOutcome.response_headers" href="#adcp.webhooks.WebhookOutcome.response_headers">response_headers</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookOutcome.sender_identity" href="#adcp.webhooks.WebhookOutcome.sender_identity">sender_identity</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.WebhookReceiver" href="#adcp.webhooks.WebhookReceiver">WebhookReceiver</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.WebhookReceiver.receive" href="#adcp.webhooks.WebhookReceiver.receive">receive</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.WebhookReceiverConfig" href="#adcp.webhooks.WebhookReceiverConfig">WebhookReceiverConfig</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.WebhookReceiverConfig.dedup" href="#adcp.webhooks.WebhookReceiverConfig.dedup">dedup</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookReceiverConfig.kind" href="#adcp.webhooks.WebhookReceiverConfig.kind">kind</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookReceiverConfig.legacy_hmac" href="#adcp.webhooks.WebhookReceiverConfig.legacy_hmac">legacy_hmac</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookReceiverConfig.verify_options" href="#adcp.webhooks.WebhookReceiverConfig.verify_options">verify_options</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.WebhookSender" href="#adcp.webhooks.WebhookSender">WebhookSender</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.webhooks.WebhookSender.aclose" href="#adcp.webhooks.WebhookSender.aclose">aclose</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.from_jwk" href="#adcp.webhooks.WebhookSender.from_jwk">from_jwk</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.resend" href="#adcp.webhooks.WebhookSender.resend">resend</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.send_artifact_webhook" href="#adcp.webhooks.WebhookSender.send_artifact_webhook">send_artifact_webhook</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.send_collection_list_changed" href="#adcp.webhooks.WebhookSender.send_collection_list_changed">send_collection_list_changed</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.send_mcp" href="#adcp.webhooks.WebhookSender.send_mcp">send_mcp</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.send_property_list_changed" href="#adcp.webhooks.WebhookSender.send_property_list_changed">send_property_list_changed</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.send_raw" href="#adcp.webhooks.WebhookSender.send_raw">send_raw</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookSender.send_revocation_notification" href="#adcp.webhooks.WebhookSender.send_revocation_notification">send_revocation_notification</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.webhooks.WebhookVerifyOptions" href="#adcp.webhooks.WebhookVerifyOptions">WebhookVerifyOptions</a></code></h4>
+<ul class="two-column">
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.allowed_algs" href="#adcp.webhooks.WebhookVerifyOptions.allowed_algs">allowed_algs</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.clock" href="#adcp.webhooks.WebhookVerifyOptions.clock">clock</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.jwks_resolver" href="#adcp.webhooks.WebhookVerifyOptions.jwks_resolver">jwks_resolver</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.label" href="#adcp.webhooks.WebhookVerifyOptions.label">label</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.max_skew_seconds" href="#adcp.webhooks.WebhookVerifyOptions.max_skew_seconds">max_skew_seconds</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.max_window_seconds" href="#adcp.webhooks.WebhookVerifyOptions.max_window_seconds">max_window_seconds</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.replay_store" href="#adcp.webhooks.WebhookVerifyOptions.replay_store">replay_store</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.revocation_checker" href="#adcp.webhooks.WebhookVerifyOptions.revocation_checker">revocation_checker</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.revocation_list" href="#adcp.webhooks.WebhookVerifyOptions.revocation_list">revocation_list</a></code></li>
+<li><code><a title="adcp.webhooks.WebhookVerifyOptions.sender_url" href="#adcp.webhooks.WebhookVerifyOptions.sender_url">sender_url</a></code></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

@@ -57,57 +57,66 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class McpWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#34;Sender-generated key stable across retries of the same webhook event. Publishers MUST generate a cryptographically random value (UUID v4 recommended) per distinct event and reuse the same key on every retry of that event. Receivers MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different publishers are independent. This is the canonical dedup field — the (task_id, status, timestamp) tuple is insufficient when a single transition is retried with unchanged timestamp or when two transitions share a timestamp.&#34;,
+            max_length=255,
+            min_length=16,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
+        ),
+    ]
     operation_id: Annotated[
         str | None,
         Field(
-            description=&#39;Client-generated identifier that was embedded in the webhook URL by the buyer. Publishers echo this back in webhook payloads so clients can correlate notifications without parsing URL paths. Typically generated as a unique ID per task invocation.&#39;
+            description=&#34;Client-generated identifier that was embedded in the webhook URL by the buyer. Publishers echo this back in webhook payloads so clients can correlate notifications without parsing URL paths. Typically generated as a unique ID per task invocation.&#34;
         ),
     ] = None
     task_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#39;
+            description=&#34;Unique identifier for this task. Use this to correlate webhook notifications with the original task submission.&#34;
         ),
     ]
     task_type: Annotated[
         task_type_1.TaskType,
         Field(
-            description=&#39;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#39;
+            description=&#34;Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic.&#34;
         ),
     ]
     protocol: Annotated[
         adcp_protocol.AdcpProtocol | None,
         Field(
-            description=&#39;AdCP protocol this task belongs to. Helps classify the operation type at a high level.&#39;
+            description=&#34;AdCP protocol this task belongs to. Helps classify the operation type at a high level.&#34;
         ),
     ] = None
     status: Annotated[
         task_status.TaskStatus,
         Field(
-            description=&#39;Current task status. Webhooks are triggered for status changes after initial submission.&#39;
+            description=&#34;Current task status. Webhooks are triggered for status changes after initial submission.&#34;
         ),
     ]
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;ISO 8601 timestamp when this webhook was generated.&#39;)
+        AwareDatetime, Field(description=&#34;ISO 8601 timestamp when this webhook was generated.&#34;)
     ]
     message: Annotated[
         str | None,
         Field(
-            description=&#39;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#39;
+            description=&#34;Human-readable summary of the current task state. Provides context about what happened and what action may be needed.&#34;
         ),
     ] = None
     context_id: Annotated[
         str | None,
         Field(
-            description=&#39;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#39;
+            description=&#34;Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters.&#34;
         ),
     ] = None
     result: Annotated[
         async_response_data.AdcpAsyncResponseData | None,
         Field(
-            description=&#39;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#39;
+            description=&#34;Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -129,6 +138,10 @@ validated to form a valid model.</p>
 <h3>Class variables</h3>
 <dl>
 <dt id="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.context_id"><code class="name">var <span class="ident">context_id</span> : str | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -199,6 +212,7 @@ validated to form a valid model.</p>
 <h4><code><a title="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload" href="#adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload">McpWebhookPayload</a></code></h4>
 <ul class="two-column">
 <li><code><a title="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.context_id" href="#adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.context_id">context_id</a></code></li>
+<li><code><a title="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.idempotency_key" href="#adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.message" href="#adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.message">message</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.model_config" href="#adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.operation_id" href="#adcp.types.generated_poc.core.mcp_webhook_payload.McpWebhookPayload.operation_id">operation_id</a></code></li>

@@ -56,16 +56,16 @@ el.replaceWith(d);
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Artifact(AdCPBaseModel):
-    artifact: Annotated[artifact_1.Artifact, Field(description=&#39;The content artifact&#39;)]
+    artifact: Annotated[artifact_1.Artifact, Field(description=&#34;The content artifact&#34;)]
     delivered_at: Annotated[
-        AwareDatetime, Field(description=&#39;When the impression was delivered (ISO 8601)&#39;)
+        AwareDatetime, Field(description=&#34;When the impression was delivered (ISO 8601)&#34;)
     ]
     impression_id: Annotated[
         str | None,
-        Field(description=&#39;Optional impression identifier for correlation with delivery reports&#39;),
+        Field(description=&#34;Optional impression identifier for correlation with delivery reports&#34;),
     ] = None
     package_id: Annotated[
-        str | None, Field(description=&#39;Package within the media buy this artifact relates to&#39;)
+        str | None, Field(description=&#34;Package within the media buy this artifact relates to&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -128,25 +128,34 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ArtifactWebhookPayload(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
+    idempotency_key: Annotated[
+        str,
+        Field(
+            description=&#34;Sender-generated key stable across retries of the same webhook event. Sales agents MUST generate a cryptographically random value (UUID v4 recommended) per distinct emission of a batch and reuse the same key on every retry. Recipients MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different sales agents are independent. Distinct from `batch_id`, which identifies the logical batch: `idempotency_key` identifies this specific emission event, so a re-emission of the same `batch_id` (e.g., after a correction) is a different event and MUST carry a fresh `idempotency_key`.&#34;,
+            max_length=255,
+            min_length=16,
+            pattern=&#34;^[A-Za-z0-9_.:-]{16,255}$&#34;,
+        ),
+    ]
     media_buy_id: Annotated[
-        str, Field(description=&#39;Media buy identifier these artifacts belong to&#39;)
+        str, Field(description=&#34;Media buy identifier these artifacts belong to&#34;)
     ]
     batch_id: Annotated[
         str,
         Field(
-            description=&#39;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#39;
+            description=&#34;Unique identifier for this batch of artifacts. Use for deduplication and acknowledgment.&#34;
         ),
     ]
     timestamp: Annotated[
-        AwareDatetime, Field(description=&#39;When this batch was generated (ISO 8601)&#39;)
+        AwareDatetime, Field(description=&#34;When this batch was generated (ISO 8601)&#34;)
     ]
     artifacts: Annotated[
-        list[Artifact], Field(description=&#39;Content artifacts from delivered impressions&#39;)
+        list[Artifact], Field(description=&#34;Content artifacts from delivered impressions&#34;)
     ]
     pagination: Annotated[
-        Pagination | None, Field(description=&#39;Pagination info when batching large artifact sets&#39;)
+        Pagination | None, Field(description=&#34;Pagination info when batching large artifact sets&#34;)
     ] = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -176,6 +185,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.ext"><code class="name">var <span class="ident">ext</span> : <a title="adcp.types.generated_poc.core.ext.ExtensionObject" href="../core/ext.html#adcp.types.generated_poc.core.ext.ExtensionObject">ExtensionObject</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.idempotency_key"><code class="name">var <span class="ident">idempotency_key</span> : str</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -218,13 +231,13 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Pagination(AdCPBaseModel):
     total_artifacts: Annotated[
-        int | None, Field(description=&#39;Total artifacts in the delivery period&#39;)
+        int | None, Field(description=&#34;Total artifacts in the delivery period&#34;)
     ] = None
-    batch_number: Annotated[int | None, Field(description=&#39;Current batch number (1-indexed)&#39;)] = (
+    batch_number: Annotated[int | None, Field(description=&#34;Current batch number (1-indexed)&#34;)] = (
         None
     )
     total_batches: Annotated[
-        int | None, Field(description=&#39;Total batches for this delivery period&#39;)
+        int | None, Field(description=&#34;Total batches for this delivery period&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -303,6 +316,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.artifacts" href="#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.artifacts">artifacts</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.batch_id" href="#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.batch_id">batch_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.ext" href="#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.ext">ext</a></code></li>
+<li><code><a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.idempotency_key" href="#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.idempotency_key">idempotency_key</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.media_buy_id" href="#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.media_buy_id">media_buy_id</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.model_config" href="#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.pagination" href="#adcp.types.generated_poc.content_standards.artifact_webhook_payload.ArtifactWebhookPayload.pagination">pagination</a></code></li>
