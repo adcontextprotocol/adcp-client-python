@@ -231,7 +231,7 @@ validated to form a valid model.</p>
     idempotency: Annotated[
         Idempotency,
         Field(
-            description=&#34;Idempotency semantics for mutating requests. Sellers MUST declare their replay window so buyers can reason about safe retry behavior. Clients MUST NOT assume a default — a seller without this declaration is non-compliant and should be treated as unsafe for retry-sensitive operations.&#34;
+            description=&#34;Idempotency semantics for mutating requests. Sellers MUST declare whether they support replay protection via the supported boolean so buyers can reason about safe retry behavior. Clients MUST NOT assume a default — a seller without this declaration is non-compliant and should be treated as unsafe for retry-sensitive operations.&#34;
         ),
     ]</code></pre>
 </details>
@@ -2622,14 +2622,20 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Idempotency(AdCPBaseModel):
-    replay_ttl_seconds: Annotated[
-        int,
+    supported: Annotated[
+        bool,
         Field(
-            description=&#34;How long the seller retains a canonical response for an idempotency_key. Within this window, a replay with the same key + equivalent canonical payload returns the cached response; a replay with a different canonical payload returns IDEMPOTENCY_CONFLICT; a replay past the window returns IDEMPOTENCY_EXPIRED when the seller can still distinguish &#39;seen and evicted&#39; from &#39;never seen&#39;. Minimum 3600 (1h); recommended 86400 (24h). Maximum 604800 (7 days) — longer windows force buyers to retain secret keys at rest for extended periods and grow the seller&#39;s cache table without bounded benefit.&#34;,
+            description=&#34;Whether this seller honors idempotency_key replay protection on mutating requests. When true, replays within replay_ttl_seconds return the cached response (or IDEMPOTENCY_CONFLICT on payload divergence) and replays past the window return IDEMPOTENCY_EXPIRED. When false, the seller does not deduplicate retries — sending an idempotency_key is a no-op; the seller will NOT return IDEMPOTENCY_CONFLICT or IDEMPOTENCY_EXPIRED and a naive retry WILL double-process. Buyers MUST use natural-key checks (e.g., get_media_buys by buyer_ref) before retrying spend-committing operations. Mirrors the request_signing.supported pattern: a single positive declaration, decoupled from the window detail.&#34;
+        ),
+    ]
+    replay_ttl_seconds: Annotated[
+        int | None,
+        Field(
+            description=&#34;How long the seller retains a canonical response for an idempotency_key. Only meaningful when supported is true. Within this window, a replay with the same key + equivalent canonical payload returns the cached response; a replay with a different canonical payload returns IDEMPOTENCY_CONFLICT; a replay past the window returns IDEMPOTENCY_EXPIRED when the seller can still distinguish &#39;seen and evicted&#39; from &#39;never seen&#39;. Minimum 3600 (1h); recommended 86400 (24h). Maximum 604800 (7 days) — longer windows force buyers to retain secret keys at rest for extended periods and grow the seller&#39;s cache table without bounded benefit.&#34;,
             ge=3600,
             le=604800,
         ),
-    ]</code></pre>
+    ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -2652,7 +2658,11 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.replay_ttl_seconds"><code class="name">var <span class="ident">replay_ttl_seconds</span> : int</code></dt>
+<dt id="adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.replay_ttl_seconds"><code class="name">var <span class="ident">replay_ttl_seconds</span> : int | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.supported"><code class="name">var <span class="ident">supported</span> : bool</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -6595,6 +6605,7 @@ validated to form a valid model.</p>
 <ul class="">
 <li><code><a title="adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.model_config" href="#adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.replay_ttl_seconds" href="#adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.replay_ttl_seconds">replay_ttl_seconds</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.supported" href="#adcp.types.generated_poc.bundled.protocol.get_adcp_capabilities_response.Idempotency.supported">supported</a></code></li>
 </ul>
 </li>
 <li>

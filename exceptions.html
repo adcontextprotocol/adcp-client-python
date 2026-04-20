@@ -991,7 +991,7 @@ risks duplicate execution. Recovery: reconcile state via a read (e.g.
 </dd>
 <dt id="adcp.exceptions.IdempotencyUnsupportedError"><code class="flex name class">
 <span>class <span class="ident">IdempotencyUnsupportedError</span></span>
-<span>(</span><span>agent_id: str | None = None, agent_uri: str | None = None)</span>
+<span>(</span><span>agent_id: str | None = None,<br>agent_uri: str | None = None,<br>reason: str | None = None)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -999,37 +999,40 @@ risks duplicate execution. Recovery: reconcile state via a read (e.g.
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class IdempotencyUnsupportedError(ADCPError):
-    &#34;&#34;&#34;Seller did not declare adcp.idempotency.replay_ttl_seconds in capabilities.
+    &#34;&#34;&#34;Seller does not support idempotency replay protection on mutating requests.
 
-    Per AdCP #2315 sellers MUST declare their replay window; clients MUST NOT
-    assume a default. Raised before the first mutating call when
-    ``strict_idempotency=True`` and the seller&#39;s capabilities response is
-    missing this field.
+    Raised before the first mutating call when ``strict_idempotency=True`` and
+    either the seller&#39;s capabilities response is missing ``adcp.idempotency``,
+    declares ``supported=False``, or declares ``supported=True`` without a
+    ``replay_ttl_seconds`` window. Per AdCP spec, clients MUST NOT assume a
+    default — a seller that does not positively declare support cannot be
+    safely retried.
     &#34;&#34;&#34;
 
     def __init__(
         self,
         agent_id: str | None = None,
         agent_uri: str | None = None,
+        reason: str | None = None,
     ):
-        message = (
-            &#34;Seller did not declare adcp.idempotency.replay_ttl_seconds; &#34;
-            &#34;retry safety for mutating requests cannot be guaranteed.&#34;
-        )
+        detail = reason or &#34;seller did not declare adcp.idempotency support&#34;
+        message = f&#34;{detail}; retry safety for mutating requests cannot be guaranteed.&#34;
         suggestion = (
-            &#34;Recommended: ask the seller to declare replay_ttl_seconds in &#34;
-            &#34;get_adcp_capabilities (AdCP #2315 requirement). To proceed without &#34;
-            &#34;this guarantee — retries may double-charge or duplicate — construct &#34;
-            &#34;ADCPClient with strict_idempotency=False; the caller then owns &#34;
-            &#34;reconciliation on retry.&#34;
+            &#34;Recommended: ask the seller to declare adcp.idempotency.supported=true &#34;
+            &#34;with a replay_ttl_seconds window in get_adcp_capabilities. To proceed &#34;
+            &#34;without this guarantee — retries may double-charge or duplicate — &#34;
+            &#34;construct ADCPClient with strict_idempotency=False; the caller then &#34;
+            &#34;owns reconciliation on retry.&#34;
         )
         super().__init__(message, agent_id, agent_uri, suggestion)</code></pre>
 </details>
-<div class="desc"><p>Seller did not declare adcp.idempotency.replay_ttl_seconds in capabilities.</p>
-<p>Per AdCP #2315 sellers MUST declare their replay window; clients MUST NOT
-assume a default. Raised before the first mutating call when
-<code>strict_idempotency=True</code> and the seller's capabilities response is
-missing this field.</p>
+<div class="desc"><p>Seller does not support idempotency replay protection on mutating requests.</p>
+<p>Raised before the first mutating call when <code>strict_idempotency=True</code> and
+either the seller's capabilities response is missing <code>adcp.idempotency</code>,
+declares <code>supported=False</code>, or declares <code>supported=True</code> without a
+<code>replay_ttl_seconds</code> window. Per AdCP spec, clients MUST NOT assume a
+default — a seller that does not positively declare support cannot be
+safely retried.</p>
 <p>Initialize exception with context.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">

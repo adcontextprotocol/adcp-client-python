@@ -57,10 +57,10 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class Aggregate(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     score: Annotated[
-        float | None, Field(description=&#39;Numeric score (0-100 scale typical, but agent-defined)&#39;)
+        float | None, Field(description=&#34;Numeric score (0-100 scale typical, but agent-defined)&#34;)
     ] = None
     grade: Annotated[
         str | None,
@@ -71,7 +71,7 @@ el.replaceWith(d);
         Field(description=&#34;Human-readable summary (e.g., &#39;85% compliant&#39;, &#39;High quality&#39;)&#34;),
     ] = None
     methodology_url: Annotated[
-        AnyUrl | None, Field(description=&#39;URL explaining how this aggregate was calculated&#39;)
+        AnyUrl | None, Field(description=&#34;URL explaining how this aggregate was calculated&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -134,24 +134,24 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Authorization(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     status: Annotated[
-        Status49,
+        Status50,
         Field(
-            description=&#39;Authorization status: authorized (agent in adagents.json), unauthorized (agent not in adagents.json), unknown (could not fetch or parse adagents.json)&#39;
+            description=&#34;Authorization status: authorized (agent in adagents.json), unauthorized (agent not in adagents.json), unknown (could not fetch or parse adagents.json)&#34;
         ),
     ]
     publisher_domain: Annotated[
-        str | None, Field(description=&#39;The publisher domain where adagents.json was checked&#39;)
+        str | None, Field(description=&#34;The publisher domain where adagents.json was checked&#34;)
     ] = None
     sales_agent_url: Annotated[
-        AnyUrl | None, Field(description=&#39;The sales agent URL that was validated&#39;)
+        AnyUrl | None, Field(description=&#34;The sales agent URL that was validated&#34;)
     ] = None
     violation: Annotated[
         Violation | None,
         Field(
-            description=&#39;Details about the authorization failure (only present for unauthorized status)&#39;
+            description=&#34;Details about the authorization failure (only present for unauthorized status)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -184,7 +184,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Authorization.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49">Status49</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Authorization.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50">Status50</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -215,33 +215,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class AuthorizationSummary(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     records_checked: Annotated[
-        int, Field(description=&#39;Number of records with sales_agent_url provided&#39;)
+        int, Field(description=&#34;Number of records with sales_agent_url provided&#34;)
     ]
     impressions_checked: Annotated[
-        int, Field(description=&#39;Total impressions from records with sales_agent_url&#39;)
+        int, Field(description=&#34;Total impressions from records with sales_agent_url&#34;)
     ]
     authorized_records: Annotated[
-        int, Field(description=&#39;Number of records where sales agent was authorized&#39;)
+        int, Field(description=&#34;Number of records where sales agent was authorized&#34;)
     ]
-    authorized_impressions: Annotated[int, Field(description=&#39;Impressions from authorized records&#39;)]
+    authorized_impressions: Annotated[int, Field(description=&#34;Impressions from authorized records&#34;)]
     unauthorized_records: Annotated[
-        int, Field(description=&#39;Number of records where sales agent was NOT authorized&#39;)
+        int, Field(description=&#34;Number of records where sales agent was NOT authorized&#34;)
     ]
     unauthorized_impressions: Annotated[
-        int, Field(description=&#39;Impressions from unauthorized records&#39;)
+        int, Field(description=&#34;Impressions from unauthorized records&#34;)
     ]
     unknown_records: Annotated[
         int,
         Field(
-            description=&#39;Number of records where authorization could not be determined (adagents.json unavailable)&#39;
+            description=&#34;Number of records where authorization could not be determined (adagents.json unavailable)&#34;
         ),
     ]
     unknown_impressions: Annotated[
         int,
-        Field(description=&#39;Impressions from records where authorization could not be determined&#39;),
+        Field(description=&#34;Impressions from records where authorization could not be determined&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -320,7 +320,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Feature(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     feature_id: Annotated[
         str,
@@ -328,26 +328,26 @@ validated to form a valid model.</p>
             description=&#34;Which feature was evaluated. Data features come from the governance agent&#39;s feature catalog (e.g., &#39;mfa_score&#39;, &#39;carbon_score&#39;). Record-level structural checks use reserved namespaces: &#39;record:list_membership&#39;, &#39;record:excluded&#39;, &#39;delivery:seller_authorization&#39;, &#39;delivery:click_url_presence&#39;. Reserved prefixes: &#39;record:&#39;, &#39;delivery:&#39;.&#34;
         ),
     ]
-    status: Status48
+    status: Status49
     policy_id: Annotated[
         str | None,
         Field(
-            description=&#39;Registry policy ID that triggered this result. Enables programmatic routing by looking up the policy in the registry.&#39;
+            description=&#34;Registry policy ID that triggered this result. Enables programmatic routing by looking up the policy in the registry.&#34;
         ),
     ] = None
     explanation: Annotated[
-        str | None, Field(description=&#39;Directional human-readable explanation of the result.&#39;)
+        str | None, Field(description=&#34;Directional human-readable explanation of the result.&#34;)
     ] = None
     requirement: Annotated[
         Requirement | None,
         Field(
-            description=&#39;The feature requirement that was not met. MAY be present on failed features when the caller authored the requirement (e.g., feature_requirements on a property list). The buyer set these thresholds — echoing them back enables fix-and-retry loops without looking up the list definition.&#39;
+            description=&#34;The feature requirement that was not met. MAY be present on failed features when the caller authored the requirement (e.g., feature_requirements on a property list). The buyer set these thresholds — echoing them back enables fix-and-retry loops without looking up the list definition.&#34;
         ),
     ] = None
     confidence: Annotated[
         float | None,
         Field(
-            description=&#39;Optional evaluator confidence in this result (0-1). Distinguishes certain verdicts from ambiguous ones.&#39;,
+            description=&#34;Optional evaluator confidence in this result (0-1). Distinguishes certain verdicts from ambiguous ones.&#34;,
             ge=0.0,
             le=1.0,
         ),
@@ -394,7 +394,7 @@ validated to form a valid model.</p>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Feature.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48">Status48</a></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Feature.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49">Status49</a></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -421,21 +421,21 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Identifier(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     type: Annotated[
         Type,
         Field(
-            description=&#39;Type of identifier&#39;,
+            description=&#34;Type of identifier&#34;,
             examples=[
-                &#39;domain&#39;,
-                &#39;ios_bundle&#39;,
-                &#39;venue_id&#39;,
-                &#39;apple_podcast_id&#39;,
-                &#39;station_id&#39;,
-                &#39;facility_id&#39;,
+                &#34;domain&#34;,
+                &#34;ios_bundle&#34;,
+                &#34;venue_id&#34;,
+                &#34;apple_podcast_id&#34;,
+                &#34;station_id&#34;,
+                &#34;facility_id&#34;,
             ],
-            title=&#39;Property Identifier Types&#39;,
+            title=&#34;Property Identifier Types&#34;,
         ),
     ]
     value: Annotated[
@@ -497,12 +497,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Requirement(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    min_value: Annotated[float | None, Field(description=&#39;Minimum value that was required&#39;)] = None
-    max_value: Annotated[float | None, Field(description=&#39;Maximum value that was allowed&#39;)] = None
+    min_value: Annotated[float | None, Field(description=&#34;Minimum value that was required&#34;)] = None
+    max_value: Annotated[float | None, Field(description=&#34;Maximum value that was allowed&#34;)] = None
     allowed_values: Annotated[
-        list[Any] | None, Field(description=&#39;Values that would have been acceptable&#39;)
+        list[Any] | None, Field(description=&#34;Values that would have been acceptable&#34;)
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -561,39 +561,39 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Result(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
     identifier: Annotated[
-        Identifier, Field(description=&#39;The identifier that was validated&#39;, title=&#39;Identifier&#39;)
+        Identifier, Field(description=&#34;The identifier that was validated&#34;, title=&#34;Identifier&#34;)
     ]
     record_id: Annotated[
-        str | None, Field(description=&#39;Client-provided ID from the delivery record (if provided)&#39;)
+        str | None, Field(description=&#34;Client-provided ID from the delivery record (if provided)&#34;)
     ] = None
     status: Annotated[
         Status,
         Field(
-            description=&#39;Validation status: compliant (in list), non_compliant (not in list), not_covered (identifier recognized but no data available), unidentified (identifier type not resolvable by this governance agent)&#39;
+            description=&#34;Validation status: compliant (in list), non_compliant (not in list), not_covered (identifier recognized but no data available), unidentified (identifier type not resolvable by this governance agent)&#34;
         ),
     ]
-    impressions: Annotated[int, Field(description=&#39;Number of impressions from this record&#39;, ge=0)]
+    impressions: Annotated[int, Field(description=&#34;Number of impressions from this record&#34;, ge=0)]
     features: Annotated[
         list[Feature] | None,
         Field(
-            description=&#39;Per-feature breakdown for this record. SHOULD include all failed and warning features. MAY include passed features. For property validation the buyer authored the requirement, so the `requirement` that was not met MAY be echoed back on failures — this is contract data, not evaluator IP.&#39;
+            description=&#34;Per-feature breakdown for this record. SHOULD include all failed and warning features. MAY include passed features. For property validation the buyer authored the requirement, so the `requirement` that was not met MAY be echoed back on failures — this is contract data, not evaluator IP.&#34;
         ),
     ] = None
     authorization: Annotated[
         Authorization | None,
         Field(
-            description=&#39;Authorization validation result (only present if sales_agent_url was provided in the delivery record)&#39;,
-            title=&#39;Authorization Result&#39;,
+            description=&#34;Authorization validation result (only present if sales_agent_url was provided in the delivery record)&#34;,
+            title=&#34;Authorization Result&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -668,10 +668,10 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status(Enum):
-    compliant = &#39;compliant&#39;
-    non_compliant = &#39;non_compliant&#39;
-    not_covered = &#39;not_covered&#39;
-    unidentified = &#39;unidentified&#39;</code></pre>
+    compliant = &#34;compliant&#34;
+    non_compliant = &#34;non_compliant&#34;
+    not_covered = &#34;not_covered&#34;
+    unidentified = &#34;unidentified&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -732,80 +732,6 @@ attributes &ndash; see the documentation for details.</p></div>
 </dd>
 </dl>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48"><code class="flex name class">
-<span>class <span class="ident">Status48</span></span>
-<span>(</span><span>*args, **kwds)</span>
-</code></dt>
-<dd>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class Status48(Enum):
-    passed = &#39;passed&#39;
-    failed = &#39;failed&#39;
-    warning = &#39;warning&#39;
-    unevaluated = &#39;unevaluated&#39;</code></pre>
-</details>
-<div class="desc"><p>Create a collection of name/value pairs.</p>
-<p>Example enumeration:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
-...     RED = 1
-...     BLUE = 2
-...     GREEN = 3
-</code></pre>
-<p>Access them by:</p>
-<ul>
-<li>attribute access::</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>value lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
-&lt;Color.RED: 1&gt;
-</code></pre>
-<ul>
-<li>name lookup:</li>
-</ul>
-<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
-&lt;Color.RED: 1&gt;
-</code></pre>
-<p>Enumerations can be iterated over, and know how many members they have:</p>
-<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
-3
-</code></pre>
-<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
-[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
-</code></pre>
-<p>Methods can be added to enumerations, and members can have their own
-attributes &ndash; see the documentation for details.</p></div>
-<h3>Ancestors</h3>
-<ul class="hlist">
-<li>enum.Enum</li>
-</ul>
-<h3>Class variables</h3>
-<dl>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.failed"><code class="name">var <span class="ident">failed</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.passed"><code class="name">var <span class="ident">passed</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.unevaluated"><code class="name">var <span class="ident">unevaluated</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.warning"><code class="name">var <span class="ident">warning</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-</dl>
-</dd>
 <dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49"><code class="flex name class">
 <span>class <span class="ident">Status49</span></span>
 <span>(</span><span>*args, **kwds)</span>
@@ -816,9 +742,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Status49(Enum):
-    authorized = &#39;authorized&#39;
-    unauthorized = &#39;unauthorized&#39;
-    unknown = &#39;unknown&#39;</code></pre>
+    passed = &#34;passed&#34;
+    failed = &#34;failed&#34;
+    warning = &#34;warning&#34;
+    unevaluated = &#34;unevaluated&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -861,15 +788,88 @@ attributes &ndash; see the documentation for details.</p></div>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.authorized"><code class="name">var <span class="ident">authorized</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.failed"><code class="name">var <span class="ident">failed</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unauthorized"><code class="name">var <span class="ident">unauthorized</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.passed"><code class="name">var <span class="ident">passed</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unknown"><code class="name">var <span class="ident">unknown</span></code></dt>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unevaluated"><code class="name">var <span class="ident">unevaluated</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.warning"><code class="name">var <span class="ident">warning</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50"><code class="flex name class">
+<span>class <span class="ident">Status50</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Status50(Enum):
+    authorized = &#34;authorized&#34;
+    unauthorized = &#34;unauthorized&#34;
+    unknown = &#34;unknown&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.authorized"><code class="name">var <span class="ident">authorized</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.unauthorized"><code class="name">var <span class="ident">unauthorized</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.unknown"><code class="name">var <span class="ident">unknown</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -886,32 +886,32 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class Summary(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    total_records: Annotated[int, Field(description=&#39;Total number of records validated&#39;)]
-    total_impressions: Annotated[int, Field(description=&#39;Total impressions across all records&#39;)]
-    compliant_records: Annotated[int, Field(description=&#39;Number of records with compliant status&#39;)]
-    compliant_impressions: Annotated[int, Field(description=&#39;Impressions from compliant records&#39;)]
+    total_records: Annotated[int, Field(description=&#34;Total number of records validated&#34;)]
+    total_impressions: Annotated[int, Field(description=&#34;Total impressions across all records&#34;)]
+    compliant_records: Annotated[int, Field(description=&#34;Number of records with compliant status&#34;)]
+    compliant_impressions: Annotated[int, Field(description=&#34;Impressions from compliant records&#34;)]
     non_compliant_records: Annotated[
-        int, Field(description=&#39;Number of records with non_compliant status&#39;)
+        int, Field(description=&#34;Number of records with non_compliant status&#34;)
     ]
     non_compliant_impressions: Annotated[
-        int, Field(description=&#39;Impressions from non_compliant records&#39;)
+        int, Field(description=&#34;Impressions from non_compliant records&#34;)
     ]
     not_covered_records: Annotated[
         int,
         Field(
-            description=&#39;Number of records where identifier was recognized but no data available&#39;
+            description=&#34;Number of records where identifier was recognized but no data available&#34;
         ),
     ]
     not_covered_impressions: Annotated[
-        int, Field(description=&#39;Impressions from not_covered records&#39;)
+        int, Field(description=&#34;Impressions from not_covered records&#34;)
     ]
     unidentified_records: Annotated[
-        int, Field(description=&#39;Number of records where identifier type was not resolvable&#39;)
+        int, Field(description=&#34;Number of records where identifier type was not resolvable&#34;)
     ]
     unidentified_impressions: Annotated[
-        int, Field(description=&#39;Impressions from unidentified records&#39;)
+        int, Field(description=&#34;Impressions from unidentified records&#34;)
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -997,27 +997,27 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Type(Enum):
-    domain = &#39;domain&#39;
-    subdomain = &#39;subdomain&#39;
-    network_id = &#39;network_id&#39;
-    ios_bundle = &#39;ios_bundle&#39;
-    android_package = &#39;android_package&#39;
-    apple_app_store_id = &#39;apple_app_store_id&#39;
-    google_play_id = &#39;google_play_id&#39;
-    roku_store_id = &#39;roku_store_id&#39;
-    fire_tv_asin = &#39;fire_tv_asin&#39;
-    samsung_app_id = &#39;samsung_app_id&#39;
-    apple_tv_bundle = &#39;apple_tv_bundle&#39;
-    bundle_id = &#39;bundle_id&#39;
-    venue_id = &#39;venue_id&#39;
-    screen_id = &#39;screen_id&#39;
-    openooh_venue_type = &#39;openooh_venue_type&#39;
-    rss_url = &#39;rss_url&#39;
-    apple_podcast_id = &#39;apple_podcast_id&#39;
-    spotify_collection_id = &#39;spotify_collection_id&#39;
-    podcast_guid = &#39;podcast_guid&#39;
-    station_id = &#39;station_id&#39;
-    facility_id = &#39;facility_id&#39;</code></pre>
+    domain = &#34;domain&#34;
+    subdomain = &#34;subdomain&#34;
+    network_id = &#34;network_id&#34;
+    ios_bundle = &#34;ios_bundle&#34;
+    android_package = &#34;android_package&#34;
+    apple_app_store_id = &#34;apple_app_store_id&#34;
+    google_play_id = &#34;google_play_id&#34;
+    roku_store_id = &#34;roku_store_id&#34;
+    fire_tv_asin = &#34;fire_tv_asin&#34;
+    samsung_app_id = &#34;samsung_app_id&#34;
+    apple_tv_bundle = &#34;apple_tv_bundle&#34;
+    bundle_id = &#34;bundle_id&#34;
+    venue_id = &#34;venue_id&#34;
+    screen_id = &#34;screen_id&#34;
+    openooh_venue_type = &#34;openooh_venue_type&#34;
+    rss_url = &#34;rss_url&#34;
+    apple_podcast_id = &#34;apple_podcast_id&#34;
+    spotify_collection_id = &#34;spotify_collection_id&#34;
+    podcast_guid = &#34;podcast_guid&#34;
+    station_id = &#34;station_id&#34;
+    facility_id = &#34;facility_id&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -1157,47 +1157,47 @@ attributes &ndash; see the documentation for details.</p></div>
 </summary>
 <pre><code class="python">class ValidatePropertyDeliveryResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    list_id: Annotated[str, Field(description=&#39;ID of the property list validated against&#39;)]
-    summary: Annotated[Summary, Field(description=&#39;Aggregate validation statistics&#39;)]
+    list_id: Annotated[str, Field(description=&#34;ID of the property list validated against&#34;)]
+    summary: Annotated[Summary, Field(description=&#34;Aggregate validation statistics&#34;)]
     aggregate: Annotated[
         Aggregate | None,
         Field(
-            description=&#39;Optional aggregate measurements computed by the governance agent. Format and meaning are agent-specific.&#39;
+            description=&#34;Optional aggregate measurements computed by the governance agent. Format and meaning are agent-specific.&#34;
         ),
     ] = None
     authorization_summary: Annotated[
         AuthorizationSummary | None,
         Field(
-            description=&#39;Aggregate authorization statistics. Only present if any records included sales_agent_url.&#39;
+            description=&#34;Aggregate authorization statistics. Only present if any records included sales_agent_url.&#34;
         ),
     ] = None
     results: Annotated[
         list[Result],
         Field(
-            description=&#39;Per-record validation results. By default only includes non_compliant and unknown records. Set include_compliant=true to include all records.&#39;
+            description=&#34;Per-record validation results. By default only includes non_compliant and unknown records. Set include_compliant=true to include all records.&#34;
         ),
     ]
     validated_at: Annotated[
-        AwareDatetime, Field(description=&#39;Timestamp when validation was performed&#39;)
+        AwareDatetime, Field(description=&#34;Timestamp when validation was performed&#34;)
     ]
     list_resolved_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp of the property list resolution used for validation&#39;),
+        Field(description=&#34;Timestamp of the property list resolution used for validation&#34;),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -1281,10 +1281,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Violation(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    code: Annotated[str, Field(description=&#39;Machine-readable violation code&#39;)]
-    message: Annotated[str, Field(description=&#39;Human-readable violation description&#39;)]</code></pre>
+    code: Annotated[str, Field(description=&#34;Machine-readable violation code&#34;)]
+    message: Annotated[str, Field(description=&#34;Human-readable violation description&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -1428,20 +1428,20 @@ validated to form a valid model.</p>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48">Status48</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49">Status49</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.failed" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.failed">failed</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.passed" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.passed">passed</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.unevaluated" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.unevaluated">unevaluated</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.warning" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status48.warning">warning</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.failed" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.failed">failed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.passed" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.passed">passed</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unevaluated" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unevaluated">unevaluated</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.warning" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.warning">warning</a></code></li>
 </ul>
 </li>
 <li>
-<h4><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49">Status49</a></code></h4>
+<h4><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50">Status50</a></code></h4>
 <ul class="">
-<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.authorized" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.authorized">authorized</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unauthorized" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unauthorized">unauthorized</a></code></li>
-<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unknown" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status49.unknown">unknown</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.authorized" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.authorized">authorized</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.unauthorized" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.unauthorized">unauthorized</a></code></li>
+<li><code><a title="adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.unknown" href="#adcp.types.generated_poc.bundled.property.validate_property_delivery_response.Status50.unknown">unknown</a></code></li>
 </ul>
 </li>
 <li>

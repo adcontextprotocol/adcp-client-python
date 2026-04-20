@@ -57,28 +57,28 @@ el.replaceWith(d);
 </summary>
 <pre><code class="python">class ActivateSignalResponse3(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     deployments: Annotated[
         list[Deployments | Deployments1],
-        Field(description=&#39;Array of deployment results for each deployment target&#39;),
+        Field(description=&#34;Array of deployment results for each deployment target&#34;),
     ]
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: Annotated[
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -142,12 +142,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivateSignalResponse4(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
         list[Error],
         Field(
-            description=&#39;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#39;,
+            description=&#34;Array of errors explaining why activation failed (e.g., platform connectivity issues, signal definition problems, authentication failures)&#34;,
             min_length=1,
         ),
     ]
@@ -155,14 +155,14 @@ validated to form a valid model.</p>
         dict[str, Any] | None,
         Field(
             description=&#34;Opaque correlation data that is echoed unchanged in responses. Used for internal tracking, UI session IDs, trace IDs, and other caller-specific identifiers that don&#39;t affect protocol behavior. Context data is never parsed by AdCP agents - it&#39;s simply preserved and returned.&#34;,
-            title=&#39;Context Object&#39;,
+            title=&#34;Context Object&#34;,
         ),
     ] = None
     ext: Annotated[
         dict[str, Any] | None,
         Field(
-            description=&#39;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#39;,
-            title=&#39;Extension Object&#39;,
+            description=&#34;Extension object for platform-specific, vendor-namespaced parameters. Extensions are always optional and must be namespaced under a vendor/platform key (e.g., ext.gam, ext.roku). Used for custom capabilities, partner-specific configuration, and features being proposed for standardization.&#34;,
+            title=&#34;Extension Object&#34;,
         ),
     ] = None</code></pre>
 </details>
@@ -222,12 +222,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Literal[&#39;segment_id&#39;], Field(description=&#39;Segment ID based targeting&#39;)]
+    type: Annotated[Literal[&#34;segment_id&#34;], Field(description=&#34;Segment ID based targeting&#34;)]
     segment_id: Annotated[
         str,
-        Field(description=&#39;The platform-specific segment identifier to use in campaign targeting&#39;),
+        Field(description=&#34;The platform-specific segment identifier to use in campaign targeting&#34;),
     ]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -286,11 +286,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
-    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
-    value: Annotated[str, Field(description=&#39;The targeting parameter value&#39;)]</code></pre>
+    type: Annotated[Literal[&#34;key_value&#34;], Field(description=&#34;Key-value pair based targeting&#34;)]
+    key: Annotated[str, Field(description=&#34;The targeting parameter key&#34;)]
+    value: Annotated[str, Field(description=&#34;The targeting parameter value&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -444,34 +444,34 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployments(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     type: Annotated[
-        Literal[&#39;platform&#39;],
-        Field(description=&#39;Discriminator indicating this is a platform-based deployment&#39;),
+        Literal[&#34;platform&#34;],
+        Field(description=&#34;Discriminator indicating this is a platform-based deployment&#34;),
     ]
-    platform: Annotated[str, Field(description=&#39;Platform identifier for DSPs&#39;)]
-    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    platform: Annotated[str, Field(description=&#34;Platform identifier for DSPs&#34;)]
+    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
     ]
     activation_key: Annotated[
         ActivationKey | ActivationKey1 | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;,
+            title=&#34;Activation Key&#34;,
         ),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
             ge=0.0,
         ),
     ] = None
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -546,34 +546,34 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Deployments1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     type: Annotated[
-        Literal[&#39;agent&#39;],
-        Field(description=&#39;Discriminator indicating this is an agent URL-based deployment&#39;),
+        Literal[&#34;agent&#34;],
+        Field(description=&#34;Discriminator indicating this is an agent URL-based deployment&#34;),
     ]
-    agent_url: Annotated[AnyUrl, Field(description=&#39;URL identifying the deployment agent&#39;)]
-    account: Annotated[str | None, Field(description=&#39;Account identifier if applicable&#39;)] = None
+    agent_url: Annotated[AnyUrl, Field(description=&#34;URL identifying the deployment agent&#34;)]
+    account: Annotated[str | None, Field(description=&#34;Account identifier if applicable&#34;)] = None
     is_live: Annotated[
-        bool, Field(description=&#39;Whether signal is currently active on this deployment&#39;)
+        bool, Field(description=&#34;Whether signal is currently active on this deployment&#34;)
     ]
     activation_key: Annotated[
         ActivationKey2 | ActivationKey3 | None,
         Field(
-            description=&#39;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#39;,
-            title=&#39;Activation Key&#39;,
+            description=&#34;The key to use for targeting. Only present if is_live=true AND requester has access to this deployment.&#34;,
+            title=&#34;Activation Key&#34;,
         ),
     ] = None
     estimated_activation_duration_minutes: Annotated[
         float | None,
         Field(
-            description=&#39;Estimated time to activate if not live, or to complete activation if in progress&#39;,
+            description=&#34;Estimated time to activate if not live, or to complete activation if in progress&#34;,
             ge=0.0,
         ),
     ] = None
     deployed_at: Annotated[
         AwareDatetime | None,
-        Field(description=&#39;Timestamp when activation completed (if is_live=true)&#39;),
+        Field(description=&#34;Timestamp when activation completed (if is_live=true)&#34;),
     ] = None</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
@@ -648,37 +648,37 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Error(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     code: Annotated[
         str,
         Field(
-            description=&#39;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#39;,
+            description=&#34;Error code for programmatic handling. Standard codes are defined in error-code.json and enable autonomous agent recovery. Sellers MAY use codes not in the standard vocabulary for platform-specific errors; agents MUST handle unknown codes gracefully by falling back to the recovery classification.&#34;,
             max_length=64,
             min_length=1,
         ),
     ]
-    message: Annotated[str, Field(description=&#39;Human-readable error message&#39;)]
+    message: Annotated[str, Field(description=&#34;Human-readable error message&#34;)]
     field: Annotated[
         str | None,
         Field(description=&#34;Field path associated with the error (e.g., &#39;packages[0].targeting&#39;)&#34;),
     ] = None
-    suggestion: Annotated[str | None, Field(description=&#39;Suggested fix for the error&#39;)] = None
+    suggestion: Annotated[str | None, Field(description=&#34;Suggested fix for the error&#34;)] = None
     retry_after: Annotated[
         float | None,
         Field(
-            description=&#39;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#39;,
+            description=&#34;Seconds to wait before retrying the operation. Sellers MUST return values between 1 and 3600. Clients MUST clamp values outside this range.&#34;,
             ge=1.0,
             le=3600.0,
         ),
     ] = None
     details: Annotated[
-        dict[str, Any] | None, Field(description=&#39;Additional task-specific error details&#39;)
+        dict[str, Any] | None, Field(description=&#34;Additional task-specific error details&#34;)
     ] = None
     recovery: Annotated[
         Recovery | None,
         Field(
-            description=&#39;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#39;
+            description=&#34;Agent recovery classification. transient: retry after delay (rate limit, service unavailable, timeout). correctable: fix the request and resend (invalid field, budget too low, creative rejected). terminal: requires human action (account suspended, payment required, account not found).&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -753,9 +753,9 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Recovery(Enum):
-    transient = &#39;transient&#39;
-    correctable = &#39;correctable&#39;
-    terminal = &#39;terminal&#39;</code></pre>
+    transient = &#34;transient&#34;
+    correctable = &#34;correctable&#34;
+    terminal = &#34;terminal&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>

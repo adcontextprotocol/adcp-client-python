@@ -297,7 +297,8 @@ validated to form a valid model.</p>
     message: Annotated[
         str | None,
         Field(
-            description=&#34;Optional human-readable explanation of why the task is submitted — e.g., &#39;Awaiting IO signature from sales team; typical turnaround 2–4 hours.&#39; Suitable for display to buyer-side humans or agent reasoning.&#34;
+            description=&#34;Optional human-readable explanation of why the task is submitted — e.g., &#39;Awaiting IO signature from sales team; typical turnaround 2–4 hours.&#39; Plain text only. Buyers MUST treat this as untrusted seller input: escape before rendering to HTML UIs, and sanitize or isolate before passing to an LLM prompt context — a hostile seller may inject prompt-injection payloads aimed at the buyer&#39;s agent.&#34;,
+            max_length=2000,
         ),
     ] = None
     errors: Annotated[

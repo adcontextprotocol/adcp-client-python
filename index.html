@@ -2601,12 +2601,15 @@ for ANY property on this domain</li>
         self.simple = SimpleAPI(self)
 
     async def _ensure_idempotency_capability(self) -&gt; None:
-        &#34;&#34;&#34;Verify the seller declared idempotency.replay_ttl_seconds in capabilities.
+        &#34;&#34;&#34;Verify the seller positively declares idempotency support in capabilities.
 
         Called before every mutating request when ``strict_idempotency=True``.
         Fetches capabilities on first invocation; subsequent calls are no-ops
         once the declaration has been observed. Raises
-        ``IdempotencyUnsupportedError`` when the seller is missing the field.
+        ``IdempotencyUnsupportedError`` when ``adcp.idempotency`` is missing,
+        declares ``supported=False`` (seller does not dedupe — naive retry
+        would double-process), or declares ``supported=True`` without a
+        ``replay_ttl_seconds`` window.
 
         Sets ``_idempotency_capability_verified = True`` BEFORE calling
         ``fetch_capabilities`` so any recursive dispatch through the adapter
@@ -2624,14 +2627,31 @@ for ANY property on this domain</li>
             caps = await self.fetch_capabilities()
             adcp_info = getattr(caps, &#34;adcp&#34;, None)
             idempotency_info = getattr(adcp_info, &#34;idempotency&#34;, None) if adcp_info else None
-            ttl = (
-                getattr(idempotency_info, &#34;replay_ttl_seconds&#34;, None) if idempotency_info else None
-            )
 
+            if idempotency_info is None:
+                raise IdempotencyUnsupportedError(
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                    reason=&#34;seller did not declare adcp.idempotency&#34;,
+                )
+
+            supported = getattr(idempotency_info, &#34;supported&#34;, None)
+            if supported is False:
+                raise IdempotencyUnsupportedError(
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                    reason=&#34;seller declared adcp.idempotency.supported=false&#34;,
+                )
+
+            ttl = getattr(idempotency_info, &#34;replay_ttl_seconds&#34;, None)
             if ttl is None:
                 raise IdempotencyUnsupportedError(
                     agent_id=self.agent_config.id,
                     agent_uri=self.agent_config.agent_uri,
+                    reason=(
+                        &#34;seller declared adcp.idempotency.supported=true but omitted &#34;
+                        &#34;replay_ttl_seconds&#34;
+                    ),
                 )
         except Exception:
             self._idempotency_capability_verified = False
@@ -9444,7 +9464,7 @@ sponsored intelligence session.</p>
 <p>TaskResult containing SyncCatalogsResponse</p></div>
 </dd>
 <dt id="adcp.ADCPClient.sync_creatives"><code class="name flex">
-<span>async def <span class="ident">sync_creatives</span></span>(<span>self,<br>request: <a title="adcp.SyncCreativesRequest" href="#adcp.SyncCreativesRequest">SyncCreativesRequest</a>) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[<a title="adcp.SyncCreativesResponse1" href="#adcp.SyncCreativesResponse1">SyncCreativesResponse1</a>, <a title="adcp.SyncCreativesResponse2" href="#adcp.SyncCreativesResponse2">SyncCreativesResponse2</a>]]</span>
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self,<br>request: <a title="adcp.SyncCreativesRequest" href="#adcp.SyncCreativesRequest">SyncCreativesRequest</a>) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[<a title="adcp.SyncCreativesResponse1" href="#adcp.SyncCreativesResponse1">SyncCreativesResponse1</a>, <a title="adcp.SyncCreativesResponse2" href="#adcp.SyncCreativesResponse2">SyncCreativesResponse2</a>, SyncCreativesResponse3]]</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -11906,11 +11926,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
-    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
-    value: Annotated[str, Field(description=&#39;The targeting parameter value&#39;)]</code></pre>
+    type: Annotated[Literal[&#34;key_value&#34;], Field(description=&#34;Key-value pair based targeting&#34;)]
+    key: Annotated[str, Field(description=&#34;The targeting parameter key&#34;)]
+    value: Annotated[str, Field(description=&#34;The targeting parameter value&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -11962,11 +11982,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
-    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
-    value: Annotated[str, Field(description=&#39;The targeting parameter value&#39;)]</code></pre>
+    type: Annotated[Literal[&#34;key_value&#34;], Field(description=&#34;Key-value pair based targeting&#34;)]
+    key: Annotated[str, Field(description=&#34;The targeting parameter key&#34;)]
+    value: Annotated[str, Field(description=&#34;The targeting parameter value&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -17349,33 +17369,33 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CpcvPricingOption(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     pricing_option_id: Annotated[
-        str, Field(description=&#39;Unique identifier for this pricing option within the product&#39;)
+        str, Field(description=&#34;Unique identifier for this pricing option within the product&#34;)
     ]
     pricing_model: Annotated[
-        Literal[&#39;cpcv&#39;], Field(description=&#39;Cost per completed view (100% completion)&#39;)
+        Literal[&#34;cpcv&#34;], Field(description=&#34;Cost per completed view (100% completion)&#34;)
     ]
     currency: Annotated[
         str,
         Field(
-            description=&#39;ISO 4217 currency code&#39;,
-            examples=[&#39;USD&#39;, &#39;EUR&#39;, &#39;GBP&#39;, &#39;JPY&#39;],
-            pattern=&#39;^[A-Z]{3}$&#39;,
+            description=&#34;ISO 4217 currency code&#34;,
+            examples=[&#34;USD&#34;, &#34;EUR&#34;, &#34;GBP&#34;, &#34;JPY&#34;],
+            pattern=&#34;^[A-Z]{3}$&#34;,
         ),
     ]
     fixed_price: Annotated[
         float | None,
         Field(
-            description=&#39;Fixed price per completed view. If present, this is fixed pricing. If absent, auction-based.&#39;,
+            description=&#34;Fixed price per completed view. If present, this is fixed pricing. If absent, auction-based.&#34;,
             ge=0.0,
         ),
     ] = None
     floor_price: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.&#39;,
+            description=&#34;Minimum acceptable bid for auction pricing (mutually exclusive with fixed_price). Bids below this value will be rejected.&#34;,
             ge=0.0,
         ),
     ] = None
@@ -17387,25 +17407,25 @@ validated to form a valid model.</p>
     ] = False
     price_guidance: Annotated[
         price_guidance_1.PriceGuidance | None,
-        Field(description=&#39;Optional pricing guidance for auction-based bidding&#39;),
+        Field(description=&#34;Optional pricing guidance for auction-based bidding&#34;),
     ] = None
     min_spend_per_package: Annotated[
         float | None,
         Field(
-            description=&#39;Minimum spend requirement per package using this pricing option, in the specified currency&#39;,
+            description=&#34;Minimum spend requirement per package using this pricing option, in the specified currency&#34;,
             ge=0.0,
         ),
     ] = None
     price_breakdown: Annotated[
         price_breakdown_1.PriceBreakdown | None,
         Field(
-            description=&#39;Breakdown of how fixed_price was derived from the list (rate card) price. Only meaningful when fixed_price is present.&#39;
+            description=&#34;Breakdown of how fixed_price was derived from the list (rate card) price. Only meaningful when fixed_price is present.&#34;
         ),
     ] = None
     eligible_adjustments: Annotated[
         list[adjustment_kind.PriceAdjustmentKind] | None,
         Field(
-            description=&#39;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#39;
+            description=&#34;Adjustment kinds applicable to this pricing option. Tells buyer agents which adjustments are available before negotiation. When absent, no adjustments are pre-declared — the buyer should check price_breakdown if present.&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -18857,17 +18877,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
+    creative_id: Annotated[str, Field(description=&#34;Creative ID from the request&#34;)]
     account: Annotated[
-        account_1.Account | None, Field(description=&#39;Account that owns this creative&#39;)
+        account_1.Account | None, Field(description=&#34;Account that owns this creative&#34;)
     ] = None
     action: Annotated[
-        creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
+        creative_action.CreativeAction,
+        Field(
+            description=&#34;Action taken for this creative during this sync operation (lifecycle operation, not approval state).&#34;
+        ),
     ]
+    status: Annotated[
+        creative_status.CreativeStatus | None,
+        Field(
+            description=&#34;Advisory review-lifecycle state of the creative after this sync — a UI hint and polling-scheduling signal, NOT a spend-authorization gate. Orthogonal to action — action says what the sync did (created, updated, ...); status says where the creative sits in review. Values come from CreativeStatus only (processing, pending_review, approved, rejected, archived) — never from CreativeAction. Sellers with async review return processing or pending_review; sellers with synchronous review MAY return a terminal value (approved, rejected). Buyers MUST NOT gate downstream spend or package activation on status: approved from this response — a compromised or buggy seller could declare approved while bypassing content-policy review. Reconcile via list_creatives or a signed review webhook before committing spend. Authoritative state is always via list_creatives. MUST be omitted when action is failed or deleted (the creative has no meaningful review state — failure details belong in the errors array; deleted creatives are gone from the library). Omit entirely when the seller has no review lifecycle at all.&#34;
+        ),
+    ] = None
     platform_id: Annotated[
-        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
+        str | None, Field(description=&#34;Platform-specific ID assigned to the creative&#34;)
     ] = None
     changes: Annotated[
         list[str] | None,
@@ -18878,30 +18907,30 @@ validated to form a valid model.</p>
         Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
     ] = None
     warnings: Annotated[
-        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
+        list[str] | None, Field(description=&#34;Non-fatal warnings about this creative&#34;)
     ] = None
     preview_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
+            description=&#34;Preview URL for generative creatives (only present for generative formats)&#34;
         ),
     ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
+            description=&#34;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#34;
         ),
     ] = None
     assigned_to: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#39;
+            description=&#34;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#34;
         ),
     ] = None
     assignment_errors: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], str] | None,
+        dict[Annotated[str, StringConstraints(pattern=r&#34;^[a-zA-Z0-9_-]+$&#34;)], str] | None,
         Field(
-            description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
+            description=&#34;Assignment errors by package ID (only present when assignment failures occurred)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -18963,6 +18992,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.Creative.preview_url"><code class="name">var <span class="ident">preview_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.Creative.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.creative_status.CreativeStatus" href="types/generated_poc/enums/creative_status.html#adcp.types.generated_poc.enums.creative_status.CreativeStatus">CreativeStatus</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -19333,7 +19366,7 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class CreativeManifest(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     format_id: Annotated[
         format_id_1.FormatId,
@@ -19343,7 +19376,7 @@ validated to form a valid model.</p>
     ]
     assets: Annotated[
         dict[
-            Annotated[str, StringConstraints(pattern=r&#39;^[a-z0-9_]+$&#39;)],
+            Annotated[str, StringConstraints(pattern=r&#34;^[a-z0-9_]+$&#34;)],
             image_asset.ImageAsset
             | video_asset.VideoAsset
             | audio_asset.AudioAsset
@@ -19366,19 +19399,19 @@ validated to form a valid model.</p>
     rights: Annotated[
         list[rights_constraint.RightsConstraint] | None,
         Field(
-            description=&#39;Rights constraints attached to this creative. Each entry represents constraints from a single rights holder. A creative may combine multiple rights constraints (e.g., talent likeness + music license). For v1, rights constraints are informational metadata — the buyer/orchestrator manages creative lifecycle against these terms.&#39;
+            description=&#34;Rights constraints attached to this creative. Each entry represents constraints from a single rights holder. A creative may combine multiple rights constraints (e.g., talent likeness + music license). For v1, rights constraints are informational metadata — the buyer/orchestrator manages creative lifecycle against these terms.&#34;
         ),
     ] = None
     industry_identifiers: Annotated[
         list[industry_identifier.IndustryIdentifier] | None,
         Field(
-            description=&#39;Industry-standard identifiers for this specific manifest (e.g., Ad-ID, ISCI, Clearcast clock number). When present, overrides creative-level identifiers. Use when different format versions of the same source creative have distinct Ad-IDs (e.g., the :15 and :30 cuts).&#39;
+            description=&#34;Industry-standard identifiers for this specific manifest (e.g., Ad-ID, ISCI, Clearcast clock number). When present, overrides creative-level identifiers. Use when different format versions of the same source creative have distinct Ad-IDs (e.g., the :15 and :30 cuts).&#34;
         ),
     ] = None
     provenance: Annotated[
         provenance_1.Provenance | None,
         Field(
-            description=&#39;Provenance metadata for this creative manifest. Serves as the default provenance for all assets in this manifest. An asset with its own provenance replaces this object entirely (no field-level merging).&#39;
+            description=&#34;Provenance metadata for this creative manifest. Serves as the default provenance for all assets in this manifest. An asset with its own provenance replaces this object entirely (no field-level merging).&#34;
         ),
     ] = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -20824,43 +20857,45 @@ validated to form a valid model.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class ErrorCode(Enum):
-    INVALID_REQUEST = &#39;INVALID_REQUEST&#39;
-    AUTH_REQUIRED = &#39;AUTH_REQUIRED&#39;
-    RATE_LIMITED = &#39;RATE_LIMITED&#39;
-    SERVICE_UNAVAILABLE = &#39;SERVICE_UNAVAILABLE&#39;
-    POLICY_VIOLATION = &#39;POLICY_VIOLATION&#39;
-    PRODUCT_NOT_FOUND = &#39;PRODUCT_NOT_FOUND&#39;
-    PRODUCT_UNAVAILABLE = &#39;PRODUCT_UNAVAILABLE&#39;
-    PROPOSAL_EXPIRED = &#39;PROPOSAL_EXPIRED&#39;
-    BUDGET_TOO_LOW = &#39;BUDGET_TOO_LOW&#39;
-    CREATIVE_REJECTED = &#39;CREATIVE_REJECTED&#39;
-    UNSUPPORTED_FEATURE = &#39;UNSUPPORTED_FEATURE&#39;
-    AUDIENCE_TOO_SMALL = &#39;AUDIENCE_TOO_SMALL&#39;
-    ACCOUNT_NOT_FOUND = &#39;ACCOUNT_NOT_FOUND&#39;
-    ACCOUNT_SETUP_REQUIRED = &#39;ACCOUNT_SETUP_REQUIRED&#39;
-    ACCOUNT_AMBIGUOUS = &#39;ACCOUNT_AMBIGUOUS&#39;
-    ACCOUNT_PAYMENT_REQUIRED = &#39;ACCOUNT_PAYMENT_REQUIRED&#39;
-    ACCOUNT_SUSPENDED = &#39;ACCOUNT_SUSPENDED&#39;
-    COMPLIANCE_UNSATISFIED = &#39;COMPLIANCE_UNSATISFIED&#39;
-    GOVERNANCE_DENIED = &#39;GOVERNANCE_DENIED&#39;
-    BUDGET_EXHAUSTED = &#39;BUDGET_EXHAUSTED&#39;
-    BUDGET_EXCEEDED = &#39;BUDGET_EXCEEDED&#39;
-    CONFLICT = &#39;CONFLICT&#39;
-    IDEMPOTENCY_CONFLICT = &#39;IDEMPOTENCY_CONFLICT&#39;
-    IDEMPOTENCY_EXPIRED = &#39;IDEMPOTENCY_EXPIRED&#39;
-    CREATIVE_DEADLINE_EXCEEDED = &#39;CREATIVE_DEADLINE_EXCEEDED&#39;
-    INVALID_STATE = &#39;INVALID_STATE&#39;
-    MEDIA_BUY_NOT_FOUND = &#39;MEDIA_BUY_NOT_FOUND&#39;
-    NOT_CANCELLABLE = &#39;NOT_CANCELLABLE&#39;
-    PACKAGE_NOT_FOUND = &#39;PACKAGE_NOT_FOUND&#39;
-    SESSION_NOT_FOUND = &#39;SESSION_NOT_FOUND&#39;
-    SESSION_TERMINATED = &#39;SESSION_TERMINATED&#39;
-    VALIDATION_ERROR = &#39;VALIDATION_ERROR&#39;
-    PRODUCT_EXPIRED = &#39;PRODUCT_EXPIRED&#39;
-    PROPOSAL_NOT_COMMITTED = &#39;PROPOSAL_NOT_COMMITTED&#39;
-    IO_REQUIRED = &#39;IO_REQUIRED&#39;
-    TERMS_REJECTED = &#39;TERMS_REJECTED&#39;
-    VERSION_UNSUPPORTED = &#39;VERSION_UNSUPPORTED&#39;</code></pre>
+    INVALID_REQUEST = &#34;INVALID_REQUEST&#34;
+    AUTH_REQUIRED = &#34;AUTH_REQUIRED&#34;
+    RATE_LIMITED = &#34;RATE_LIMITED&#34;
+    SERVICE_UNAVAILABLE = &#34;SERVICE_UNAVAILABLE&#34;
+    POLICY_VIOLATION = &#34;POLICY_VIOLATION&#34;
+    PRODUCT_NOT_FOUND = &#34;PRODUCT_NOT_FOUND&#34;
+    PRODUCT_UNAVAILABLE = &#34;PRODUCT_UNAVAILABLE&#34;
+    PROPOSAL_EXPIRED = &#34;PROPOSAL_EXPIRED&#34;
+    BUDGET_TOO_LOW = &#34;BUDGET_TOO_LOW&#34;
+    CREATIVE_REJECTED = &#34;CREATIVE_REJECTED&#34;
+    UNSUPPORTED_FEATURE = &#34;UNSUPPORTED_FEATURE&#34;
+    AUDIENCE_TOO_SMALL = &#34;AUDIENCE_TOO_SMALL&#34;
+    ACCOUNT_NOT_FOUND = &#34;ACCOUNT_NOT_FOUND&#34;
+    ACCOUNT_SETUP_REQUIRED = &#34;ACCOUNT_SETUP_REQUIRED&#34;
+    ACCOUNT_AMBIGUOUS = &#34;ACCOUNT_AMBIGUOUS&#34;
+    ACCOUNT_PAYMENT_REQUIRED = &#34;ACCOUNT_PAYMENT_REQUIRED&#34;
+    ACCOUNT_SUSPENDED = &#34;ACCOUNT_SUSPENDED&#34;
+    COMPLIANCE_UNSATISFIED = &#34;COMPLIANCE_UNSATISFIED&#34;
+    GOVERNANCE_DENIED = &#34;GOVERNANCE_DENIED&#34;
+    BUDGET_EXHAUSTED = &#34;BUDGET_EXHAUSTED&#34;
+    BUDGET_EXCEEDED = &#34;BUDGET_EXCEEDED&#34;
+    CONFLICT = &#34;CONFLICT&#34;
+    IDEMPOTENCY_CONFLICT = &#34;IDEMPOTENCY_CONFLICT&#34;
+    IDEMPOTENCY_EXPIRED = &#34;IDEMPOTENCY_EXPIRED&#34;
+    CREATIVE_DEADLINE_EXCEEDED = &#34;CREATIVE_DEADLINE_EXCEEDED&#34;
+    INVALID_STATE = &#34;INVALID_STATE&#34;
+    MEDIA_BUY_NOT_FOUND = &#34;MEDIA_BUY_NOT_FOUND&#34;
+    NOT_CANCELLABLE = &#34;NOT_CANCELLABLE&#34;
+    PACKAGE_NOT_FOUND = &#34;PACKAGE_NOT_FOUND&#34;
+    CREATIVE_NOT_FOUND = &#34;CREATIVE_NOT_FOUND&#34;
+    SIGNAL_NOT_FOUND = &#34;SIGNAL_NOT_FOUND&#34;
+    SESSION_NOT_FOUND = &#34;SESSION_NOT_FOUND&#34;
+    SESSION_TERMINATED = &#34;SESSION_TERMINATED&#34;
+    VALIDATION_ERROR = &#34;VALIDATION_ERROR&#34;
+    PRODUCT_EXPIRED = &#34;PRODUCT_EXPIRED&#34;
+    PROPOSAL_NOT_COMMITTED = &#34;PROPOSAL_NOT_COMMITTED&#34;
+    IO_REQUIRED = &#34;IO_REQUIRED&#34;
+    TERMS_REJECTED = &#34;TERMS_REJECTED&#34;
+    VERSION_UNSUPPORTED = &#34;VERSION_UNSUPPORTED&#34;</code></pre>
 </details>
 <div class="desc"><p>Create a collection of name/value pairs.</p>
 <p>Example enumeration:</p>
@@ -20955,6 +20990,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <dd>
 <div class="desc"></div>
 </dd>
+<dt id="adcp.ErrorCode.CREATIVE_NOT_FOUND"><code class="name">var <span class="ident">CREATIVE_NOT_FOUND</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="adcp.ErrorCode.CREATIVE_REJECTED"><code class="name">var <span class="ident">CREATIVE_REJECTED</span></code></dt>
 <dd>
 <div class="desc"></div>
@@ -21032,6 +21071,10 @@ attributes &ndash; see the documentation for details.</p></div>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.ErrorCode.SESSION_TERMINATED"><code class="name">var <span class="ident">SESSION_TERMINATED</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.ErrorCode.SIGNAL_NOT_FOUND"><code class="name">var <span class="ident">SIGNAL_NOT_FOUND</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -39910,10 +39953,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+        bool | None, Field(description=&#34;Whether this was a dry run (no actual changes made)&#34;)
     ] = None
     creatives: Annotated[
         list[Creative],
@@ -39923,7 +39966,7 @@ validated to form a valid model.</p>
     ]
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -39992,12 +40035,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            description=&#34;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#34;,
             min_length=1,
         ),
     ]
@@ -40395,9 +40438,9 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncPlansResponse(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;forbid&#39;,
+        extra=&#34;forbid&#34;,
     )
-    plans: Annotated[list[Plan], Field(description=&#39;Status for each synced plan.&#39;)]
+    plans: Annotated[list[Plan], Field(description=&#34;Status for each synced plan.&#34;)]
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
 </details>
@@ -40541,7 +40584,7 @@ validated to form a valid model.</p>
 <li>adcp.types.core.TaskResult[Union[SyncAccountsResponse1, SyncAccountsResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[SyncAudiencesResponse1, SyncAudiencesResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[SyncCatalogsResponse1, SyncCatalogsResponse2]]</li>
-<li>adcp.types.core.TaskResult[Union[SyncCreativesResponse1, SyncCreativesResponse2]]</li>
+<li>adcp.types.core.TaskResult[Union[SyncCreativesResponse1, SyncCreativesResponse2, SyncCreativesResponse3]]</li>
 <li>adcp.types.core.TaskResult[Union[SyncEventSourcesResponse1, SyncEventSourcesResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[SyncGovernanceResponse1, SyncGovernanceResponse2]]</li>
 <li>adcp.types.core.TaskResult[Union[UpdateContentStandardsResponse1, UpdateContentStandardsResponse2]]</li>
@@ -44188,6 +44231,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.Creative.model_config" href="#adcp.Creative.model_config">model_config</a></code></li>
 <li><code><a title="adcp.Creative.platform_id" href="#adcp.Creative.platform_id">platform_id</a></code></li>
 <li><code><a title="adcp.Creative.preview_url" href="#adcp.Creative.preview_url">preview_url</a></code></li>
+<li><code><a title="adcp.Creative.status" href="#adcp.Creative.status">status</a></code></li>
 <li><code><a title="adcp.Creative.warnings" href="#adcp.Creative.warnings">warnings</a></code></li>
 </ul>
 </li>
@@ -44442,6 +44486,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.ErrorCode.COMPLIANCE_UNSATISFIED" href="#adcp.ErrorCode.COMPLIANCE_UNSATISFIED">COMPLIANCE_UNSATISFIED</a></code></li>
 <li><code><a title="adcp.ErrorCode.CONFLICT" href="#adcp.ErrorCode.CONFLICT">CONFLICT</a></code></li>
 <li><code><a title="adcp.ErrorCode.CREATIVE_DEADLINE_EXCEEDED" href="#adcp.ErrorCode.CREATIVE_DEADLINE_EXCEEDED">CREATIVE_DEADLINE_EXCEEDED</a></code></li>
+<li><code><a title="adcp.ErrorCode.CREATIVE_NOT_FOUND" href="#adcp.ErrorCode.CREATIVE_NOT_FOUND">CREATIVE_NOT_FOUND</a></code></li>
 <li><code><a title="adcp.ErrorCode.CREATIVE_REJECTED" href="#adcp.ErrorCode.CREATIVE_REJECTED">CREATIVE_REJECTED</a></code></li>
 <li><code><a title="adcp.ErrorCode.GOVERNANCE_DENIED" href="#adcp.ErrorCode.GOVERNANCE_DENIED">GOVERNANCE_DENIED</a></code></li>
 <li><code><a title="adcp.ErrorCode.IDEMPOTENCY_CONFLICT" href="#adcp.ErrorCode.IDEMPOTENCY_CONFLICT">IDEMPOTENCY_CONFLICT</a></code></li>
@@ -44462,6 +44507,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.ErrorCode.SERVICE_UNAVAILABLE" href="#adcp.ErrorCode.SERVICE_UNAVAILABLE">SERVICE_UNAVAILABLE</a></code></li>
 <li><code><a title="adcp.ErrorCode.SESSION_NOT_FOUND" href="#adcp.ErrorCode.SESSION_NOT_FOUND">SESSION_NOT_FOUND</a></code></li>
 <li><code><a title="adcp.ErrorCode.SESSION_TERMINATED" href="#adcp.ErrorCode.SESSION_TERMINATED">SESSION_TERMINATED</a></code></li>
+<li><code><a title="adcp.ErrorCode.SIGNAL_NOT_FOUND" href="#adcp.ErrorCode.SIGNAL_NOT_FOUND">SIGNAL_NOT_FOUND</a></code></li>
 <li><code><a title="adcp.ErrorCode.TERMS_REJECTED" href="#adcp.ErrorCode.TERMS_REJECTED">TERMS_REJECTED</a></code></li>
 <li><code><a title="adcp.ErrorCode.UNSUPPORTED_FEATURE" href="#adcp.ErrorCode.UNSUPPORTED_FEATURE">UNSUPPORTED_FEATURE</a></code></li>
 <li><code><a title="adcp.ErrorCode.VALIDATION_ERROR" href="#adcp.ErrorCode.VALIDATION_ERROR">VALIDATION_ERROR</a></code></li>

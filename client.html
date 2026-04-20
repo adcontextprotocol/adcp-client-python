@@ -146,12 +146,15 @@ el.replaceWith(d);
         self.simple = SimpleAPI(self)
 
     async def _ensure_idempotency_capability(self) -&gt; None:
-        &#34;&#34;&#34;Verify the seller declared idempotency.replay_ttl_seconds in capabilities.
+        &#34;&#34;&#34;Verify the seller positively declares idempotency support in capabilities.
 
         Called before every mutating request when ``strict_idempotency=True``.
         Fetches capabilities on first invocation; subsequent calls are no-ops
         once the declaration has been observed. Raises
-        ``IdempotencyUnsupportedError`` when the seller is missing the field.
+        ``IdempotencyUnsupportedError`` when ``adcp.idempotency`` is missing,
+        declares ``supported=False`` (seller does not dedupe — naive retry
+        would double-process), or declares ``supported=True`` without a
+        ``replay_ttl_seconds`` window.
 
         Sets ``_idempotency_capability_verified = True`` BEFORE calling
         ``fetch_capabilities`` so any recursive dispatch through the adapter
@@ -169,14 +172,31 @@ el.replaceWith(d);
             caps = await self.fetch_capabilities()
             adcp_info = getattr(caps, &#34;adcp&#34;, None)
             idempotency_info = getattr(adcp_info, &#34;idempotency&#34;, None) if adcp_info else None
-            ttl = (
-                getattr(idempotency_info, &#34;replay_ttl_seconds&#34;, None) if idempotency_info else None
-            )
 
+            if idempotency_info is None:
+                raise IdempotencyUnsupportedError(
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                    reason=&#34;seller did not declare adcp.idempotency&#34;,
+                )
+
+            supported = getattr(idempotency_info, &#34;supported&#34;, None)
+            if supported is False:
+                raise IdempotencyUnsupportedError(
+                    agent_id=self.agent_config.id,
+                    agent_uri=self.agent_config.agent_uri,
+                    reason=&#34;seller declared adcp.idempotency.supported=false&#34;,
+                )
+
+            ttl = getattr(idempotency_info, &#34;replay_ttl_seconds&#34;, None)
             if ttl is None:
                 raise IdempotencyUnsupportedError(
                     agent_id=self.agent_config.id,
                     agent_uri=self.agent_config.agent_uri,
+                    reason=(
+                        &#34;seller declared adcp.idempotency.supported=true but omitted &#34;
+                        &#34;replay_ttl_seconds&#34;
+                    ),
                 )
         except Exception:
             self._idempotency_capability_verified = False
@@ -6989,7 +7009,7 @@ sponsored intelligence session.</p>
 <p>TaskResult containing SyncCatalogsResponse</p></div>
 </dd>
 <dt id="adcp.client.ADCPClient.sync_creatives"><code class="name flex">
-<span>async def <span class="ident">sync_creatives</span></span>(<span>self, request: SyncCreativesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncCreativesResponse1, SyncCreativesResponse2]]</span>
+<span>async def <span class="ident">sync_creatives</span></span>(<span>self, request: SyncCreativesRequest) ‑> <a title="adcp.types.core.TaskResult" href="types/core.html#adcp.types.core.TaskResult">TaskResult</a>[Union[SyncCreativesResponse1, SyncCreativesResponse2, SyncCreativesResponse3]]</span>
 </code></dt>
 <dd>
 <details class="source">

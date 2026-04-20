@@ -818,11 +818,11 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class ActivationKey1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    type: Annotated[Literal[&#39;key_value&#39;], Field(description=&#39;Key-value pair based targeting&#39;)]
-    key: Annotated[str, Field(description=&#39;The targeting parameter key&#39;)]
-    value: Annotated[str, Field(description=&#39;The targeting parameter value&#39;)]</code></pre>
+    type: Annotated[Literal[&#34;key_value&#34;], Field(description=&#34;Key-value pair based targeting&#34;)]
+    key: Annotated[str, Field(description=&#34;The targeting parameter key&#34;)]
+    value: Annotated[str, Field(description=&#34;The targeting parameter value&#34;)]</code></pre>
 </details>
 <div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
 <p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
@@ -3425,17 +3425,26 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class Creative(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
-    creative_id: Annotated[str, Field(description=&#39;Creative ID from the request&#39;)]
+    creative_id: Annotated[str, Field(description=&#34;Creative ID from the request&#34;)]
     account: Annotated[
-        account_1.Account | None, Field(description=&#39;Account that owns this creative&#39;)
+        account_1.Account | None, Field(description=&#34;Account that owns this creative&#34;)
     ] = None
     action: Annotated[
-        creative_action.CreativeAction, Field(description=&#39;Action taken for this creative&#39;)
+        creative_action.CreativeAction,
+        Field(
+            description=&#34;Action taken for this creative during this sync operation (lifecycle operation, not approval state).&#34;
+        ),
     ]
+    status: Annotated[
+        creative_status.CreativeStatus | None,
+        Field(
+            description=&#34;Advisory review-lifecycle state of the creative after this sync — a UI hint and polling-scheduling signal, NOT a spend-authorization gate. Orthogonal to action — action says what the sync did (created, updated, ...); status says where the creative sits in review. Values come from CreativeStatus only (processing, pending_review, approved, rejected, archived) — never from CreativeAction. Sellers with async review return processing or pending_review; sellers with synchronous review MAY return a terminal value (approved, rejected). Buyers MUST NOT gate downstream spend or package activation on status: approved from this response — a compromised or buggy seller could declare approved while bypassing content-policy review. Reconcile via list_creatives or a signed review webhook before committing spend. Authoritative state is always via list_creatives. MUST be omitted when action is failed or deleted (the creative has no meaningful review state — failure details belong in the errors array; deleted creatives are gone from the library). Omit entirely when the seller has no review lifecycle at all.&#34;
+        ),
+    ] = None
     platform_id: Annotated[
-        str | None, Field(description=&#39;Platform-specific ID assigned to the creative&#39;)
+        str | None, Field(description=&#34;Platform-specific ID assigned to the creative&#34;)
     ] = None
     changes: Annotated[
         list[str] | None,
@@ -3446,30 +3455,30 @@ validated to form a valid model.</p>
         Field(description=&#34;Validation or processing errors (only present when action=&#39;failed&#39;)&#34;),
     ] = None
     warnings: Annotated[
-        list[str] | None, Field(description=&#39;Non-fatal warnings about this creative&#39;)
+        list[str] | None, Field(description=&#34;Non-fatal warnings about this creative&#34;)
     ] = None
     preview_url: Annotated[
         AnyUrl | None,
         Field(
-            description=&#39;Preview URL for generative creatives (only present for generative formats)&#39;
+            description=&#34;Preview URL for generative creatives (only present for generative formats)&#34;
         ),
     ] = None
     expires_at: Annotated[
         AwareDatetime | None,
         Field(
-            description=&#39;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#39;
+            description=&#34;ISO 8601 timestamp when preview link expires (only present when preview_url exists)&#34;
         ),
     ] = None
     assigned_to: Annotated[
         list[str] | None,
         Field(
-            description=&#39;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#39;
+            description=&#34;Package IDs this creative was successfully assigned to (only present when assignments were requested)&#34;
         ),
     ] = None
     assignment_errors: Annotated[
-        dict[Annotated[str, StringConstraints(pattern=r&#39;^[a-zA-Z0-9_-]+$&#39;)], str] | None,
+        dict[Annotated[str, StringConstraints(pattern=r&#34;^[a-zA-Z0-9_-]+$&#34;)], str] | None,
         Field(
-            description=&#39;Assignment errors by package ID (only present when assignment failures occurred)&#39;
+            description=&#34;Assignment errors by package ID (only present when assignment failures occurred)&#34;
         ),
     ] = None</code></pre>
 </details>
@@ -3531,6 +3540,10 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.types.aliases.Creative.preview_url"><code class="name">var <span class="ident">preview_url</span> : pydantic.networks.AnyUrl | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.types.aliases.Creative.status"><code class="name">var <span class="ident">status</span> : <a title="adcp.types.generated_poc.enums.creative_status.CreativeStatus" href="generated_poc/enums/creative_status.html#adcp.types.generated_poc.enums.creative_status.CreativeStatus">CreativeStatus</a> | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -9283,10 +9296,10 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse1(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     dry_run: Annotated[
-        bool | None, Field(description=&#39;Whether this was a dry run (no actual changes made)&#39;)
+        bool | None, Field(description=&#34;Whether this was a dry run (no actual changes made)&#34;)
     ] = None
     creatives: Annotated[
         list[Creative],
@@ -9296,7 +9309,7 @@ validated to form a valid model.</p>
     ]
     sandbox: Annotated[
         bool | None,
-        Field(description=&#39;When true, this response contains simulated data from sandbox mode.&#39;),
+        Field(description=&#34;When true, this response contains simulated data from sandbox mode.&#34;),
     ] = None
     context: context_1.ContextObject | None = None
     ext: ext_1.ExtensionObject | None = None</code></pre>
@@ -9365,12 +9378,12 @@ validated to form a valid model.</p>
 </summary>
 <pre><code class="python">class SyncCreativesResponse2(AdCPBaseModel):
     model_config = ConfigDict(
-        extra=&#39;allow&#39;,
+        extra=&#34;allow&#34;,
     )
     errors: Annotated[
         list[error.Error],
         Field(
-            description=&#39;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#39;,
+            description=&#34;Operation-level errors that prevented processing any creatives (e.g., authentication failure, service unavailable, invalid request format)&#34;,
             min_length=1,
         ),
     ]
@@ -11088,6 +11101,7 @@ validated to form a valid model.</p>
 <li><code><a title="adcp.types.aliases.Creative.model_config" href="#adcp.types.aliases.Creative.model_config">model_config</a></code></li>
 <li><code><a title="adcp.types.aliases.Creative.platform_id" href="#adcp.types.aliases.Creative.platform_id">platform_id</a></code></li>
 <li><code><a title="adcp.types.aliases.Creative.preview_url" href="#adcp.types.aliases.Creative.preview_url">preview_url</a></code></li>
+<li><code><a title="adcp.types.aliases.Creative.status" href="#adcp.types.aliases.Creative.status">status</a></code></li>
 <li><code><a title="adcp.types.aliases.Creative.warnings" href="#adcp.types.aliases.Creative.warnings">warnings</a></code></li>
 </ul>
 </li>
