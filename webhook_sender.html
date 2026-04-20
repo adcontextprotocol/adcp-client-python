@@ -430,6 +430,12 @@ a 200 with <code>duplicate=true</code> in the body is still <code>ok</code>.</p>
         # gets signed AND posted. Do not allow an httpx `json=` path anywhere
         # in the stack because it would reserialize and break the digest.
         body = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+        if len(body) &gt; _MAX_BODY_BYTES:
+            raise ValueError(
+                f&#34;serialized webhook body is {len(body):,} bytes, over the &#34;
+                f&#34;{_MAX_BODY_BYTES:,}-byte cap. Split into smaller webhooks &#34;
+                &#34;or use batch-reporting endpoints.&#34;
+            )
         return await self._send_bytes(
             url=url,
             body=body,
@@ -772,6 +778,12 @@ with different observed payload data.</p></div>
     # gets signed AND posted. Do not allow an httpx `json=` path anywhere
     # in the stack because it would reserialize and break the digest.
     body = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+    if len(body) &gt; _MAX_BODY_BYTES:
+        raise ValueError(
+            f&#34;serialized webhook body is {len(body):,} bytes, over the &#34;
+            f&#34;{_MAX_BODY_BYTES:,}-byte cap. Split into smaller webhooks &#34;
+            &#34;or use batch-reporting endpoints.&#34;
+        )
     return await self._send_bytes(
         url=url,
         body=body,

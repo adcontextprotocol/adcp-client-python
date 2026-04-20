@@ -233,7 +233,7 @@ senders.</p></div>
 </dd>
 <dt id="adcp.signing.webhook_verifier.WebhookVerifyOptions"><code class="flex name class">
 <span>class <span class="ident">WebhookVerifyOptions</span></span>
-<span>(</span><span>*,<br>jwks_resolver: JwksResolver,<br>replay_store: ReplayStore | None = None,<br>revocation_checker: RevocationChecker | None = None,<br>revocation_list: RevocationList | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>sender_url: str | None = None,<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+<span>(</span><span>*,<br>jwks_resolver: JwksResolver,<br>replay_store: ReplayStore | None = None,<br>revocation_checker: RevocationChecker | None = None,<br>revocation_list: RevocationList | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>allowed_algs: frozenset[str] = frozenset({'ed25519', 'ecdsa-p256-sha256'}),<br>sender_url: str | None = None,<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">

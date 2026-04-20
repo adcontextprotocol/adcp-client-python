@@ -37,11 +37,23 @@ el.replaceWith(d);
 </header>
 <section id="section-intro">
 <p>Webhook creation, signing, and reception for AdCP agents.</p>
-<p>Single front door for both senders (<code><a title="adcp.webhooks.create_mcp_webhook_payload" href="#adcp.webhooks.create_mcp_webhook_payload">create_mcp_webhook_payload()</a></code>,
-<code><a title="adcp.webhooks.sign_webhook" href="#adcp.webhooks.sign_webhook">sign_webhook()</a></code>) and receivers (<code><a title="adcp.webhooks.WebhookReceiver" href="#adcp.webhooks.WebhookReceiver">WebhookReceiver</a></code>). Underlying modules in
+<p>Single front door for both senders and receivers. Underlying modules in
 <code>adcp.signing.webhook_*</code> and <code><a title="adcp.webhook_receiver" href="webhook_receiver.html">adcp.webhook_receiver</a></code> are implementation
 details kept for internal organization — prefer the re-exports here for
 stability.</p>
+<p><strong>Which sender helper to use</strong></p>
+<ul>
+<li>:func:<code><a title="adcp.webhooks.deliver" href="#adcp.webhooks.deliver">deliver()</a></code> — one-shot dispatch for legacy <code>authentication</code> (Bearer
+or HMAC-SHA256). Collapses the sender's 6-step boilerplate into one call
+and signs the exact bytes it POSTs. Deprecated with AdCP 4.0; emits a
+:class:<code>DeprecationWarning</code>.</li>
+<li>:class:<code><a title="adcp.webhooks.WebhookSender" href="#adcp.webhooks.WebhookSender">WebhookSender</a></code> — the AdCP 4.0 default. RFC 9421 signing, shared
+connection pool, byte-identical replay via :meth:<code><a title="adcp.webhooks.WebhookSender.resend" href="#adcp.webhooks.WebhookSender.resend">WebhookSender.resend()</a></code>.
+Use this for any new integration.</li>
+<li>:func:<code><a title="adcp.webhooks.create_mcp_webhook_payload" href="#adcp.webhooks.create_mcp_webhook_payload">create_mcp_webhook_payload()</a></code> / :func:<code><a title="adcp.webhooks.create_a2a_webhook_payload" href="#adcp.webhooks.create_a2a_webhook_payload">create_a2a_webhook_payload()</a></code>
+plus :func:<code><a title="adcp.webhooks.get_adcp_signed_headers_for_webhook" href="#adcp.webhooks.get_adcp_signed_headers_for_webhook">get_adcp_signed_headers_for_webhook()</a></code> — low-level path for
+callers who need full control over serialization, headers, or retry logic.</li>
+</ul>
 </section>
 <section>
 </section>
@@ -436,6 +448,260 @@ attempt; passing None twice mints two keys and defeats dedup.</dd>
 ...     message=&quot;Processing 3 of 10 creatives&quot;
 ... )
 </code></pre></div>
+</dd>
+<dt id="adcp.webhooks.deliver"><code class="name flex">
+<span>async def <span class="ident">deliver</span></span>(<span>config: AdCPBaseModel | Mapping[str, Any],<br>payload: AdCPBaseModel | Task | TaskStatusUpdateEvent | Mapping[str, Any],<br>*,<br>client: httpx.AsyncClient | None = None,<br>extra_headers: Mapping[str, str] | None = None,<br>timeout_seconds: float | None = None,<br>token_field: str | None = None) ‑> httpx.Response</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">async def deliver(
+    config: AdCPBaseModel | Mapping[str, Any],
+    payload: AdCPBaseModel | Task | TaskStatusUpdateEvent | Mapping[str, Any],
+    *,
+    client: httpx.AsyncClient | None = None,
+    extra_headers: Mapping[str, str] | None = None,
+    timeout_seconds: float | None = None,
+    token_field: str | None = None,
+) -&gt; httpx.Response:
+    &#34;&#34;&#34;Dispatch one legacy-auth webhook in a single call.
+
+    Collapses the sender&#39;s six-step boilerplate (build envelope, serialize,
+    sign, merge headers, POST, echo token) into one call so the signer and
+    the wire see the *same bytes*. The serialization-format drift that
+    plagued the hand-rolled path — ``json=`` in httpx re-serializes the dict
+    and breaks ``Content-Digest`` — is structurally impossible here: the
+    helper JSON-serializes once, signs those bytes, and POSTs those bytes
+    via ``content=``.
+
+    This helper is for the **legacy** AdCP 3.x authentication schemes
+    (``Bearer`` / ``HMAC-SHA256``) and emits a :class:`DeprecationWarning`
+    on first use. For 4.0+ integrations use :class:`WebhookSender` (RFC 9421).
+
+    Args:
+        config: A :class:`PushNotificationConfig`, :class:`ReportingWebhook`,
+            or equivalent dict. Must carry ``url`` (``https://`` only) and
+            ``authentication.{schemes, credentials}``.
+        payload: The webhook body. Accepts a Pydantic model (e.g. built via
+            :func:`create_mcp_webhook_payload` / :func:`create_a2a_webhook_payload`),
+            an a2a ``Task`` / ``TaskStatusUpdateEvent``, or a plain dict.
+            Models are dumped with ``mode=&#34;json&#34;, exclude_none=True``.
+        client: Optional shared ``httpx.AsyncClient``. Recommended in
+            production for connection pooling and egress-policy enforcement
+            (a custom ``httpx.BaseTransport`` is the right place to block
+            SSRF to private IPs — the helper validates scheme but cannot
+            see post-DNS resolution without racing TOCTOU).
+        extra_headers: Merged last. May not override any of
+            ``Content-Type``, ``Content-Digest``, ``Content-Length``,
+            ``Host``, ``Authorization``, ``Signature``, ``Signature-Input``,
+            ``X-AdCP-Signature``, or ``X-AdCP-Timestamp``. Auth and
+            signature-binding headers are sender-owned so the signer and
+            the wire cannot disagree.
+        timeout_seconds: Per-request timeout applied only when the helper
+            creates its own client. Raises ``ValueError`` if set alongside
+            ``client=`` — configure the timeout on the shared client instead.
+        token_field: Opt-in field name for echoing ``config.token`` into
+            the payload body (top-level for MCP dicts, under ``metadata``
+            for ``Task`` / ``TaskStatusUpdateEvent``). Default ``None``
+            disables echo; there is no spec-defined field name, so the
+            caller must pick one the receiver agrees to read.
+
+    Returns:
+        The raw ``httpx.Response``. Caller is responsible for
+        ``response.status_code`` inspection and retry scheduling. For retry,
+        pass the *same, unmutated* payload again — serialization is
+        deterministic so retries produce byte-identical bodies (spec-correct
+        receiver dedup via ``idempotency_key``). Mutating the payload dict
+        between attempts breaks byte-identity; callers who need byte-identical
+        HTTP envelopes across retries (including headers) should use
+        :class:`WebhookSender` and :meth:`WebhookSender.resend`. There is
+        intentionally no ``resend()`` here — the retry contract is &#34;call
+        ``deliver`` again with the same inputs&#34;.
+
+    Raises:
+        ValueError: missing ``url``, non-HTTPS URL, control characters in
+            header values, missing / unknown ``authentication`` (use
+            :class:`WebhookSender` for RFC 9421), overriding a reserved
+            header, or setting ``timeout_seconds`` alongside ``client``.
+        DeprecationWarning (fires once): ``authentication`` is a 3.x fallback.
+
+    Security notes:
+        * ``config.url`` is buyer-controlled. The helper enforces HTTPS and
+          rejects control characters but does NOT block private / link-local
+          destinations — wire an egress policy via ``client.transport`` to
+          stop SSRF into your VPC or cloud metadata service.
+        * ``config.token`` sits in the request body, so any receiver that
+          logs bodies retains it indefinitely. Treat the token as a
+          medium-sensitivity correlator, not a long-lived secret.
+        * At ``httpx`` DEBUG log level, ``Authorization`` and
+          ``X-AdCP-Signature`` appear in logs — gate DEBUG in production.
+    &#34;&#34;&#34;
+    if client is not None and timeout_seconds is not None:
+        raise ValueError(
+            &#34;timeout_seconds cannot be set when client= is provided; &#34;
+            &#34;configure the timeout on your shared httpx.AsyncClient instead.&#34;
+        )
+
+    url, token, auth_scheme, credentials = _extract_config_fields(config)
+
+    if auth_scheme is None:
+        raise ValueError(
+            &#34;config.authentication is required for deliver(). &#34;
+            &#34;For RFC 9421 signing (the AdCP 4.0 default), use &#34;
+            &#34;adcp.webhooks.WebhookSender — no helper for unsigned webhooks &#34;
+            &#34;is provided because the spec requires signing.&#34;
+        )
+    if auth_scheme not in (&#34;Bearer&#34;, &#34;HMAC-SHA256&#34;):
+        raise ValueError(
+            f&#34;unknown authentication scheme {auth_scheme!r}; &#34;
+            &#34;supported legacy schemes are &#39;Bearer&#39; and &#39;HMAC-SHA256&#39;. &#34;
+            &#34;For RFC 9421 use adcp.webhooks.WebhookSender.&#34;
+        )
+
+    _warn_auth_deprecation_once()
+
+    body_dict = _payload_to_dict(payload)
+    if token is not None and token_field is not None:
+        _validate_header_value(&#34;config.token&#34;, token)
+        _inject_push_token(body_dict, token, payload, token_field)
+
+    body_bytes = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+    if len(body_bytes) &gt; _MAX_BODY_BYTES:
+        raise ValueError(
+            f&#34;serialized webhook body is {len(body_bytes):,} bytes, over the &#34;
+            f&#34;{_MAX_BODY_BYTES:,}-byte cap. Split into smaller webhooks or use &#34;
+            &#34;the batch-reporting endpoints — most receivers reject bodies over &#34;
+            &#34;10MB at the reverse proxy anyway.&#34;
+        )
+
+    headers: dict[str, str] = {&#34;Content-Type&#34;: &#34;application/json&#34;}
+
+    if auth_scheme == &#34;Bearer&#34;:
+        if not credentials:
+            raise ValueError(
+                &#34;config.authentication.schemes=[&#39;Bearer&#39;] requires &#34;
+                &#34;authentication.credentials (min 32 characters — token &#34;
+                &#34;exchanged out-of-band with the receiver).&#34;
+            )
+        _validate_header_value(&#34;authentication.credentials&#34;, credentials)
+        headers[&#34;Authorization&#34;] = f&#34;Bearer {credentials}&#34;
+    else:  # HMAC-SHA256
+        if not credentials:
+            raise ValueError(
+                &#34;config.authentication.schemes=[&#39;HMAC-SHA256&#39;] requires &#34;
+                &#34;authentication.credentials (min 32 characters — shared &#34;
+                &#34;secret exchanged out-of-band with the receiver).&#34;
+            )
+        _validate_header_value(&#34;authentication.credentials&#34;, credentials)
+        get_adcp_signed_headers_for_webhook(
+            headers,
+            secret=credentials,
+            timestamp=str(int(time.time())),
+            payload=body_dict,
+        )
+
+    if extra_headers:
+        if len(extra_headers) &gt; _MAX_EXTRA_HEADERS:
+            raise ValueError(
+                f&#34;extra_headers has {len(extra_headers)} entries; &#34;
+                f&#34;helper caps at {_MAX_EXTRA_HEADERS}. Pass only the custom &#34;
+                &#34;headers you actually need (trace IDs, correlation IDs).&#34;
+            )
+        for key in extra_headers:
+            normalized = str(key).lower()
+            if normalized in _RESERVED_HEADERS or normalized.startswith(&#34;:&#34;):
+                raise ValueError(_reserved_header_message(normalized, key))
+        for key, value in extra_headers.items():
+            _validate_header_value(f&#34;extra_headers[{key!r}]&#34;, value)
+            headers[key] = value
+
+    owns_client = client is None
+    effective_timeout = timeout_seconds if timeout_seconds is not None else _DEFAULT_TIMEOUT_SECONDS
+    http_client = client or httpx.AsyncClient(timeout=effective_timeout)
+    try:
+        return await http_client.post(url, content=body_bytes, headers=headers)
+    finally:
+        if owns_client:
+            await http_client.aclose()</code></pre>
+</details>
+<div class="desc"><p>Dispatch one legacy-auth webhook in a single call.</p>
+<p>Collapses the sender's six-step boilerplate (build envelope, serialize,
+sign, merge headers, POST, echo token) into one call so the signer and
+the wire see the <em>same bytes</em>. The serialization-format drift that
+plagued the hand-rolled path — <code>json=</code> in httpx re-serializes the dict
+and breaks <code>Content-Digest</code> — is structurally impossible here: the
+helper JSON-serializes once, signs those bytes, and POSTs those bytes
+via <code>content=</code>.</p>
+<p>This helper is for the <strong>legacy</strong> AdCP 3.x authentication schemes
+(<code>Bearer</code> / <code>HMAC-SHA256</code>) and emits a :class:<code>DeprecationWarning</code>
+on first use. For 4.0+ integrations use :class:<code><a title="adcp.webhooks.WebhookSender" href="#adcp.webhooks.WebhookSender">WebhookSender</a></code> (RFC 9421).</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>config</code></strong></dt>
+<dd>A :class:<code>PushNotificationConfig</code>, :class:<code>ReportingWebhook</code>,
+or equivalent dict. Must carry <code>url</code> (<code>https://</code> only) and
+<code>authentication.{schemes, credentials}</code>.</dd>
+<dt><strong><code>payload</code></strong></dt>
+<dd>The webhook body. Accepts a Pydantic model (e.g. built via
+:func:<code><a title="adcp.webhooks.create_mcp_webhook_payload" href="#adcp.webhooks.create_mcp_webhook_payload">create_mcp_webhook_payload()</a></code> / :func:<code><a title="adcp.webhooks.create_a2a_webhook_payload" href="#adcp.webhooks.create_a2a_webhook_payload">create_a2a_webhook_payload()</a></code>),
+an a2a <code>Task</code> / <code>TaskStatusUpdateEvent</code>, or a plain dict.
+Models are dumped with <code>mode="json", exclude_none=True</code>.</dd>
+<dt><strong><code>client</code></strong></dt>
+<dd>Optional shared <code>httpx.AsyncClient</code>. Recommended in
+production for connection pooling and egress-policy enforcement
+(a custom <code>httpx.BaseTransport</code> is the right place to block
+SSRF to private IPs — the helper validates scheme but cannot
+see post-DNS resolution without racing TOCTOU).</dd>
+<dt><strong><code>extra_headers</code></strong></dt>
+<dd>Merged last. May not override any of
+<code>Content-Type</code>, <code>Content-Digest</code>, <code>Content-Length</code>,
+<code>Host</code>, <code>Authorization</code>, <code>Signature</code>, <code>Signature-Input</code>,
+<code>X-AdCP-Signature</code>, or <code>X-AdCP-Timestamp</code>. Auth and
+signature-binding headers are sender-owned so the signer and
+the wire cannot disagree.</dd>
+<dt><strong><code>timeout_seconds</code></strong></dt>
+<dd>Per-request timeout applied only when the helper
+creates its own client. Raises <code>ValueError</code> if set alongside
+<code>client=</code> — configure the timeout on the shared client instead.</dd>
+<dt><strong><code>token_field</code></strong></dt>
+<dd>Opt-in field name for echoing <code>config.token</code> into
+the payload body (top-level for MCP dicts, under <code>metadata</code>
+for <code>Task</code> / <code>TaskStatusUpdateEvent</code>). Default <code>None</code>
+disables echo; there is no spec-defined field name, so the
+caller must pick one the receiver agrees to read.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The raw <code>httpx.Response</code>. Caller is responsible for
+<code>response.status_code</code> inspection and retry scheduling. For retry,
+pass the <em>same, unmutated</em> payload again — serialization is
+deterministic so retries produce byte-identical bodies (spec-correct
+receiver dedup via <code>idempotency_key</code>). Mutating the payload dict
+between attempts breaks byte-identity; callers who need byte-identical
+HTTP envelopes across retries (including headers) should use
+:class:<code><a title="adcp.webhooks.WebhookSender" href="#adcp.webhooks.WebhookSender">WebhookSender</a></code> and :meth:<code><a title="adcp.webhooks.WebhookSender.resend" href="#adcp.webhooks.WebhookSender.resend">WebhookSender.resend()</a></code>. There is
+intentionally no <code>resend()</code> here — the retry contract is "call
+<code><a title="adcp.webhooks.deliver" href="#adcp.webhooks.deliver">deliver()</a></code> again with the same inputs".</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd>missing <code>url</code>, non-HTTPS URL, control characters in
+header values, missing / unknown <code>authentication</code> (use
+:class:<code><a title="adcp.webhooks.WebhookSender" href="#adcp.webhooks.WebhookSender">WebhookSender</a></code> for RFC 9421), overriding a reserved
+header, or setting <code>timeout_seconds</code> alongside <code>client</code>.</dd>
+</dl>
+<p>DeprecationWarning (fires once): <code>authentication</code> is a 3.x fallback.
+Security notes:
+* <code>config.url</code> is buyer-controlled. The helper enforces HTTPS and
+rejects control characters but does NOT block private / link-local
+destinations — wire an egress policy via <code>client.transport</code> to
+stop SSRF into your VPC or cloud metadata service.
+* <code>config.token</code> sits in the request body, so any receiver that
+logs bodies retains it indefinitely. Treat the token as a
+medium-sensitivity correlator, not a long-lived secret.
+* At <code>httpx</code> DEBUG log level, <code>Authorization</code> and
+<code>X-AdCP-Signature</code> appear in logs — gate DEBUG in production.</p></div>
 </dd>
 <dt id="adcp.webhooks.extract_webhook_result_data"><code class="name flex">
 <span>def <span class="ident">extract_webhook_result_data</span></span>(<span>webhook_payload: dict[str, Any]) ‑> <a title="adcp.types.generated_poc.core.async_response_data.AdcpAsyncResponseData" href="types/generated_poc/core/async_response_data.html#adcp.types.generated_poc.core.async_response_data.AdcpAsyncResponseData">AdcpAsyncResponseData</a> | None</span>
@@ -2184,6 +2450,12 @@ explicitly for list-change / artifact / revocation receivers.</p></div>
         # gets signed AND posted. Do not allow an httpx `json=` path anywhere
         # in the stack because it would reserialize and break the digest.
         body = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+        if len(body) &gt; _MAX_BODY_BYTES:
+            raise ValueError(
+                f&#34;serialized webhook body is {len(body):,} bytes, over the &#34;
+                f&#34;{_MAX_BODY_BYTES:,}-byte cap. Split into smaller webhooks &#34;
+                &#34;or use batch-reporting endpoints.&#34;
+            )
         return await self._send_bytes(
             url=url,
             body=body,
@@ -2526,6 +2798,12 @@ with different observed payload data.</p></div>
     # gets signed AND posted. Do not allow an httpx `json=` path anywhere
     # in the stack because it would reserialize and break the digest.
     body = json.dumps(body_dict).encode(&#34;utf-8&#34;)
+    if len(body) &gt; _MAX_BODY_BYTES:
+        raise ValueError(
+            f&#34;serialized webhook body is {len(body):,} bytes, over the &#34;
+            f&#34;{_MAX_BODY_BYTES:,}-byte cap. Split into smaller webhooks &#34;
+            &#34;or use batch-reporting endpoints.&#34;
+        )
     return await self._send_bytes(
         url=url,
         body=body,
@@ -2578,7 +2856,7 @@ cannot disagree.</p></div>
 </dd>
 <dt id="adcp.webhooks.WebhookVerifyOptions"><code class="flex name class">
 <span>class <span class="ident">WebhookVerifyOptions</span></span>
-<span>(</span><span>*,<br>jwks_resolver: JwksResolver,<br>replay_store: ReplayStore | None = None,<br>revocation_checker: RevocationChecker | None = None,<br>revocation_list: RevocationList | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>allowed_algs: frozenset[str] = frozenset({'ecdsa-p256-sha256', 'ed25519'}),<br>sender_url: str | None = None,<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
+<span>(</span><span>*,<br>jwks_resolver: JwksResolver,<br>replay_store: ReplayStore | None = None,<br>revocation_checker: RevocationChecker | None = None,<br>revocation_list: RevocationList | None = None,<br>max_skew_seconds: int = 60,<br>max_window_seconds: int = 300,<br>label: str = 'sig1',<br>allowed_algs: frozenset[str] = frozenset({'ed25519', 'ecdsa-p256-sha256'}),<br>sender_url: str | None = None,<br>clock: Callable[[], float] = &lt;built-in function time&gt;)</span>
 </code></dt>
 <dd>
 <details class="source">
@@ -2686,6 +2964,7 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <ul class="">
 <li><code><a title="adcp.webhooks.create_a2a_webhook_payload" href="#adcp.webhooks.create_a2a_webhook_payload">create_a2a_webhook_payload</a></code></li>
 <li><code><a title="adcp.webhooks.create_mcp_webhook_payload" href="#adcp.webhooks.create_mcp_webhook_payload">create_mcp_webhook_payload</a></code></li>
+<li><code><a title="adcp.webhooks.deliver" href="#adcp.webhooks.deliver">deliver</a></code></li>
 <li><code><a title="adcp.webhooks.extract_webhook_result_data" href="#adcp.webhooks.extract_webhook_result_data">extract_webhook_result_data</a></code></li>
 <li><code><a title="adcp.webhooks.generate_webhook_idempotency_key" href="#adcp.webhooks.generate_webhook_idempotency_key">generate_webhook_idempotency_key</a></code></li>
 <li><code><a title="adcp.webhooks.get_adcp_signed_headers_for_webhook" href="#adcp.webhooks.get_adcp_signed_headers_for_webhook">get_adcp_signed_headers_for_webhook</a></code></li>
