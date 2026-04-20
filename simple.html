@@ -106,7 +106,7 @@ print(products.products)</p>
         For full control over error handling, use client.get_products() instead.
 
         Args:
-            **kwargs: Arguments for GetProductsRequest (brief, brand_manifest, etc.)
+            **kwargs: Arguments for GetProductsRequest (brief, brand, etc.)
 
         Returns:
             GetProductsResponse directly (no TaskResult wrapper)
@@ -362,7 +362,7 @@ print(products.products)</p>
 
         Example:
             media_buy = await client.simple.create_media_buy(
-                brand_manifest=brand,
+                brand=brand,
                 packages=[package_request],
                 publisher_properties=properties
             )
@@ -719,7 +719,7 @@ print(f"Built creative: {creative.assets[0].url}")</p></div>
 
     Example:
         media_buy = await client.simple.create_media_buy(
-            brand_manifest=brand,
+            brand=brand,
             packages=[package_request],
             publisher_properties=properties
         )
@@ -750,7 +750,7 @@ print(f"Built creative: {creative.assets[0].url}")</p></div>
 </dl>
 <h2 id="example">Example</h2>
 <p>media_buy = await client.simple.create_media_buy(
-brand_manifest=brand,
+brand=brand,
 packages=[package_request],
 publisher_properties=properties
 )
@@ -872,7 +872,7 @@ print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
     For full control over error handling, use client.get_products() instead.
 
     Args:
-        **kwargs: Arguments for GetProductsRequest (brief, brand_manifest, etc.)
+        **kwargs: Arguments for GetProductsRequest (brief, brand, etc.)
 
     Returns:
         GetProductsResponse directly (no TaskResult wrapper)
@@ -906,7 +906,7 @@ print(f"Created media buy: {media_buy.media_buy_id}")</p></div>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>**kwargs</code></strong></dt>
-<dd>Arguments for GetProductsRequest (brief, brand_manifest, etc.)</dd>
+<dd>Arguments for GetProductsRequest (brief, brand, etc.)</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>GetProductsResponse directly (no TaskResult wrapper)</p>

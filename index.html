@@ -3515,7 +3515,7 @@ for ANY property on this domain</li>
 
         Args:
             request: Media buy creation parameters including:
-                - brand_manifest: Advertiser brand information and creative assets
+                - brand: Brand reference; resolved from brand.json or the registry at execution
                 - packages: List of package requests specifying desired inventory
                 - publisher_properties: Target properties for ad placement
                 - budget: Optional budget constraints
@@ -3529,12 +3529,12 @@ for ANY property on this domain</li>
                 - Additional platform-specific metadata
 
         Example:
-            &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+            &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest, BrandReference
             &gt;&gt;&gt; client = ADCPClient(agent_config)
             &gt;&gt;&gt; request = CreateMediaBuyRequest(
-            ...     brand_manifest=brand,
+            ...     brand=BrandReference(domain=&#34;acme.com&#34;),
             ...     packages=[package_request],
-            ...     publisher_properties=properties
+            ...     publisher_properties=properties,
             ... )
             &gt;&gt;&gt; result = await client.create_media_buy(request)
             &gt;&gt;&gt; if result.success:
@@ -6862,7 +6862,7 @@ language policy and optional calibration exemplars.</p>
 
     Args:
         request: Media buy creation parameters including:
-            - brand_manifest: Advertiser brand information and creative assets
+            - brand: Brand reference; resolved from brand.json or the registry at execution
             - packages: List of package requests specifying desired inventory
             - publisher_properties: Target properties for ad placement
             - budget: Optional budget constraints
@@ -6876,12 +6876,12 @@ language policy and optional calibration exemplars.</p>
             - Additional platform-specific metadata
 
     Example:
-        &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+        &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest, BrandReference
         &gt;&gt;&gt; client = ADCPClient(agent_config)
         &gt;&gt;&gt; request = CreateMediaBuyRequest(
-        ...     brand_manifest=brand,
+        ...     brand=BrandReference(domain=&#34;acme.com&#34;),
         ...     packages=[package_request],
-        ...     publisher_properties=properties
+        ...     publisher_properties=properties,
         ... )
         &gt;&gt;&gt; result = await client.create_media_buy(request)
         &gt;&gt;&gt; if result.success:
@@ -6922,7 +6922,7 @@ media_buy_id that tracks this reservation and can be used for updates.</p>
 <dl>
 <dt><strong><code>request</code></strong></dt>
 <dd>Media buy creation parameters including:
-- brand_manifest: Advertiser brand information and creative assets
+- brand: Brand reference; resolved from brand.json or the registry at execution
 - packages: List of package requests specifying desired inventory
 - publisher_properties: Target properties for ad placement
 - budget: Optional budget constraints
@@ -6935,12 +6935,12 @@ media_buy_id that tracks this reservation and can be used for updates.</p>
 - packages: Confirmed package details
 - Additional platform-specific metadata</p>
 <h2 id="example">Example</h2>
-<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest, BrandReference
 &gt;&gt;&gt; client = ADCPClient(agent_config)
 &gt;&gt;&gt; request = CreateMediaBuyRequest(
-...     brand_manifest=brand,
+...     brand=BrandReference(domain=&quot;acme.com&quot;),
 ...     packages=[package_request],
-...     publisher_properties=properties
+...     publisher_properties=properties,
 ... )
 &gt;&gt;&gt; result = await client.create_media_buy(request)
 &gt;&gt;&gt; if result.success:
@@ -12379,6 +12379,465 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.AdvertiserIndustry"><code class="flex name class">
+<span>class <span class="ident">AdvertiserIndustry</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AdvertiserIndustry(Enum):
+    automotive = &#39;automotive&#39;
+    automotive_electric_vehicles = &#39;automotive.electric_vehicles&#39;
+    automotive_parts_accessories = &#39;automotive.parts_accessories&#39;
+    automotive_luxury = &#39;automotive.luxury&#39;
+    beauty_cosmetics = &#39;beauty_cosmetics&#39;
+    beauty_cosmetics_skincare = &#39;beauty_cosmetics.skincare&#39;
+    beauty_cosmetics_fragrance = &#39;beauty_cosmetics.fragrance&#39;
+    beauty_cosmetics_haircare = &#39;beauty_cosmetics.haircare&#39;
+    cannabis = &#39;cannabis&#39;
+    cpg = &#39;cpg&#39;
+    cpg_personal_care = &#39;cpg.personal_care&#39;
+    cpg_household = &#39;cpg.household&#39;
+    dating = &#39;dating&#39;
+    education = &#39;education&#39;
+    education_higher_education = &#39;education.higher_education&#39;
+    education_online_learning = &#39;education.online_learning&#39;
+    education_k12 = &#39;education.k12&#39;
+    energy_utilities = &#39;energy_utilities&#39;
+    energy_utilities_renewable = &#39;energy_utilities.renewable&#39;
+    fashion_apparel = &#39;fashion_apparel&#39;
+    fashion_apparel_luxury = &#39;fashion_apparel.luxury&#39;
+    fashion_apparel_sportswear = &#39;fashion_apparel.sportswear&#39;
+    finance = &#39;finance&#39;
+    finance_banking = &#39;finance.banking&#39;
+    finance_insurance = &#39;finance.insurance&#39;
+    finance_investment = &#39;finance.investment&#39;
+    finance_cryptocurrency = &#39;finance.cryptocurrency&#39;
+    food_beverage = &#39;food_beverage&#39;
+    food_beverage_alcohol = &#39;food_beverage.alcohol&#39;
+    food_beverage_restaurants = &#39;food_beverage.restaurants&#39;
+    food_beverage_packaged_goods = &#39;food_beverage.packaged_goods&#39;
+    gambling_betting = &#39;gambling_betting&#39;
+    gambling_betting_sports_betting = &#39;gambling_betting.sports_betting&#39;
+    gambling_betting_casino = &#39;gambling_betting.casino&#39;
+    gaming = &#39;gaming&#39;
+    gaming_mobile = &#39;gaming.mobile&#39;
+    gaming_console_pc = &#39;gaming.console_pc&#39;
+    gaming_esports = &#39;gaming.esports&#39;
+    government_nonprofit = &#39;government_nonprofit&#39;
+    government_nonprofit_political = &#39;government_nonprofit.political&#39;
+    government_nonprofit_charity = &#39;government_nonprofit.charity&#39;
+    healthcare = &#39;healthcare&#39;
+    healthcare_pharmaceutical = &#39;healthcare.pharmaceutical&#39;
+    healthcare_medical_devices = &#39;healthcare.medical_devices&#39;
+    healthcare_wellness = &#39;healthcare.wellness&#39;
+    home_garden = &#39;home_garden&#39;
+    home_garden_furniture = &#39;home_garden.furniture&#39;
+    home_garden_home_improvement = &#39;home_garden.home_improvement&#39;
+    media_entertainment = &#39;media_entertainment&#39;
+    media_entertainment_podcasts = &#39;media_entertainment.podcasts&#39;
+    media_entertainment_music = &#39;media_entertainment.music&#39;
+    media_entertainment_film_tv = &#39;media_entertainment.film_tv&#39;
+    media_entertainment_publishing = &#39;media_entertainment.publishing&#39;
+    media_entertainment_live_events = &#39;media_entertainment.live_events&#39;
+    pets = &#39;pets&#39;
+    professional_services = &#39;professional_services&#39;
+    professional_services_legal = &#39;professional_services.legal&#39;
+    professional_services_consulting = &#39;professional_services.consulting&#39;
+    real_estate = &#39;real_estate&#39;
+    real_estate_residential = &#39;real_estate.residential&#39;
+    real_estate_commercial = &#39;real_estate.commercial&#39;
+    recruitment_hr = &#39;recruitment_hr&#39;
+    retail = &#39;retail&#39;
+    retail_ecommerce = &#39;retail.ecommerce&#39;
+    retail_department_stores = &#39;retail.department_stores&#39;
+    sports_fitness = &#39;sports_fitness&#39;
+    sports_fitness_equipment = &#39;sports_fitness.equipment&#39;
+    sports_fitness_teams_leagues = &#39;sports_fitness.teams_leagues&#39;
+    technology = &#39;technology&#39;
+    technology_software = &#39;technology.software&#39;
+    technology_hardware = &#39;technology.hardware&#39;
+    technology_ai_ml = &#39;technology.ai_ml&#39;
+    telecom = &#39;telecom&#39;
+    telecom_mobile_carriers = &#39;telecom.mobile_carriers&#39;
+    telecom_internet_providers = &#39;telecom.internet_providers&#39;
+    transportation_logistics = &#39;transportation_logistics&#39;
+    travel_hospitality = &#39;travel_hospitality&#39;
+    travel_hospitality_airlines = &#39;travel_hospitality.airlines&#39;
+    travel_hospitality_hotels = &#39;travel_hospitality.hotels&#39;
+    travel_hospitality_cruise = &#39;travel_hospitality.cruise&#39;
+    travel_hospitality_tourism = &#39;travel_hospitality.tourism&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.AdvertiserIndustry.automotive"><code class="name">var <span class="ident">automotive</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.automotive_electric_vehicles"><code class="name">var <span class="ident">automotive_electric_vehicles</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.automotive_luxury"><code class="name">var <span class="ident">automotive_luxury</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.automotive_parts_accessories"><code class="name">var <span class="ident">automotive_parts_accessories</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.beauty_cosmetics"><code class="name">var <span class="ident">beauty_cosmetics</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.beauty_cosmetics_fragrance"><code class="name">var <span class="ident">beauty_cosmetics_fragrance</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.beauty_cosmetics_haircare"><code class="name">var <span class="ident">beauty_cosmetics_haircare</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.beauty_cosmetics_skincare"><code class="name">var <span class="ident">beauty_cosmetics_skincare</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.cannabis"><code class="name">var <span class="ident">cannabis</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.cpg"><code class="name">var <span class="ident">cpg</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.cpg_household"><code class="name">var <span class="ident">cpg_household</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.cpg_personal_care"><code class="name">var <span class="ident">cpg_personal_care</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.dating"><code class="name">var <span class="ident">dating</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.education"><code class="name">var <span class="ident">education</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.education_higher_education"><code class="name">var <span class="ident">education_higher_education</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.education_k12"><code class="name">var <span class="ident">education_k12</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.education_online_learning"><code class="name">var <span class="ident">education_online_learning</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.energy_utilities"><code class="name">var <span class="ident">energy_utilities</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.energy_utilities_renewable"><code class="name">var <span class="ident">energy_utilities_renewable</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.fashion_apparel"><code class="name">var <span class="ident">fashion_apparel</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.fashion_apparel_luxury"><code class="name">var <span class="ident">fashion_apparel_luxury</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.fashion_apparel_sportswear"><code class="name">var <span class="ident">fashion_apparel_sportswear</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.finance"><code class="name">var <span class="ident">finance</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.finance_banking"><code class="name">var <span class="ident">finance_banking</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.finance_cryptocurrency"><code class="name">var <span class="ident">finance_cryptocurrency</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.finance_insurance"><code class="name">var <span class="ident">finance_insurance</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.finance_investment"><code class="name">var <span class="ident">finance_investment</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.food_beverage"><code class="name">var <span class="ident">food_beverage</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.food_beverage_alcohol"><code class="name">var <span class="ident">food_beverage_alcohol</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.food_beverage_packaged_goods"><code class="name">var <span class="ident">food_beverage_packaged_goods</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.food_beverage_restaurants"><code class="name">var <span class="ident">food_beverage_restaurants</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.gambling_betting"><code class="name">var <span class="ident">gambling_betting</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.gambling_betting_casino"><code class="name">var <span class="ident">gambling_betting_casino</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.gambling_betting_sports_betting"><code class="name">var <span class="ident">gambling_betting_sports_betting</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.gaming"><code class="name">var <span class="ident">gaming</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.gaming_console_pc"><code class="name">var <span class="ident">gaming_console_pc</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.gaming_esports"><code class="name">var <span class="ident">gaming_esports</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.gaming_mobile"><code class="name">var <span class="ident">gaming_mobile</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.government_nonprofit"><code class="name">var <span class="ident">government_nonprofit</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.government_nonprofit_charity"><code class="name">var <span class="ident">government_nonprofit_charity</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.government_nonprofit_political"><code class="name">var <span class="ident">government_nonprofit_political</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.healthcare"><code class="name">var <span class="ident">healthcare</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.healthcare_medical_devices"><code class="name">var <span class="ident">healthcare_medical_devices</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.healthcare_pharmaceutical"><code class="name">var <span class="ident">healthcare_pharmaceutical</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.healthcare_wellness"><code class="name">var <span class="ident">healthcare_wellness</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.home_garden"><code class="name">var <span class="ident">home_garden</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.home_garden_furniture"><code class="name">var <span class="ident">home_garden_furniture</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.home_garden_home_improvement"><code class="name">var <span class="ident">home_garden_home_improvement</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.media_entertainment"><code class="name">var <span class="ident">media_entertainment</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.media_entertainment_film_tv"><code class="name">var <span class="ident">media_entertainment_film_tv</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.media_entertainment_live_events"><code class="name">var <span class="ident">media_entertainment_live_events</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.media_entertainment_music"><code class="name">var <span class="ident">media_entertainment_music</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.media_entertainment_podcasts"><code class="name">var <span class="ident">media_entertainment_podcasts</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.media_entertainment_publishing"><code class="name">var <span class="ident">media_entertainment_publishing</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.pets"><code class="name">var <span class="ident">pets</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.professional_services"><code class="name">var <span class="ident">professional_services</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.professional_services_consulting"><code class="name">var <span class="ident">professional_services_consulting</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.professional_services_legal"><code class="name">var <span class="ident">professional_services_legal</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.real_estate"><code class="name">var <span class="ident">real_estate</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.real_estate_commercial"><code class="name">var <span class="ident">real_estate_commercial</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.real_estate_residential"><code class="name">var <span class="ident">real_estate_residential</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.recruitment_hr"><code class="name">var <span class="ident">recruitment_hr</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.retail"><code class="name">var <span class="ident">retail</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.retail_department_stores"><code class="name">var <span class="ident">retail_department_stores</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.retail_ecommerce"><code class="name">var <span class="ident">retail_ecommerce</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.sports_fitness"><code class="name">var <span class="ident">sports_fitness</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.sports_fitness_equipment"><code class="name">var <span class="ident">sports_fitness_equipment</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.sports_fitness_teams_leagues"><code class="name">var <span class="ident">sports_fitness_teams_leagues</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.technology"><code class="name">var <span class="ident">technology</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.technology_ai_ml"><code class="name">var <span class="ident">technology_ai_ml</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.technology_hardware"><code class="name">var <span class="ident">technology_hardware</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.technology_software"><code class="name">var <span class="ident">technology_software</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.telecom"><code class="name">var <span class="ident">telecom</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.telecom_internet_providers"><code class="name">var <span class="ident">telecom_internet_providers</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.telecom_mobile_carriers"><code class="name">var <span class="ident">telecom_mobile_carriers</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.transportation_logistics"><code class="name">var <span class="ident">transportation_logistics</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.travel_hospitality"><code class="name">var <span class="ident">travel_hospitality</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.travel_hospitality_airlines"><code class="name">var <span class="ident">travel_hospitality_airlines</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.travel_hospitality_cruise"><code class="name">var <span class="ident">travel_hospitality_cruise</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.travel_hospitality_hotels"><code class="name">var <span class="ident">travel_hospitality_hotels</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.AdvertiserIndustry.travel_hospitality_tourism"><code class="name">var <span class="ident">travel_hospitality_tourism</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.AgentCapabilities"><code class="flex name class">
 <span>class <span class="ident">AgentCapabilities</span></span>
 <span>(</span><span>**data: Any)</span>
@@ -14430,6 +14889,75 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.BrandRegistryItem.verified"><code class="name">var <span class="ident">verified</span> : bool</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
+<dt id="adcp.BrandSource"><code class="flex name class">
+<span>class <span class="ident">BrandSource</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BrandSource(Enum):
+    brand_json = &#34;brand_json&#34;
+    community = &#34;community&#34;
+    enriched = &#34;enriched&#34;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.BrandSource.brand_json"><code class="name">var <span class="ident">brand_json</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.BrandSource.community"><code class="name">var <span class="ident">community</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.BrandSource.enriched"><code class="name">var <span class="ident">enriched</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -27276,6 +27804,80 @@ validated to form a valid model.</p>
 </li>
 </ul>
 </dd>
+<dt id="adcp.KellerType"><code class="flex name class">
+<span>class <span class="ident">KellerType</span></span>
+<span>(</span><span>*args, **kwds)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class KellerType(Enum):
+    master = &#39;master&#39;
+    sub_brand = &#39;sub_brand&#39;
+    endorsed = &#39;endorsed&#39;
+    independent = &#39;independent&#39;</code></pre>
+</details>
+<div class="desc"><p>Create a collection of name/value pairs.</p>
+<p>Example enumeration:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; class Color(Enum):
+...     RED = 1
+...     BLUE = 2
+...     GREEN = 3
+</code></pre>
+<p>Access them by:</p>
+<ul>
+<li>attribute access::</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color.RED
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>value lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color(1)
+&lt;Color.RED: 1&gt;
+</code></pre>
+<ul>
+<li>name lookup:</li>
+</ul>
+<pre><code class="language-python-repl">&gt;&gt;&gt; Color['RED']
+&lt;Color.RED: 1&gt;
+</code></pre>
+<p>Enumerations can be iterated over, and know how many members they have:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; len(Color)
+3
+</code></pre>
+<pre><code class="language-python-repl">&gt;&gt;&gt; list(Color)
+[&lt;Color.RED: 1&gt;, &lt;Color.BLUE: 2&gt;, &lt;Color.GREEN: 3&gt;]
+</code></pre>
+<p>Methods can be added to enumerations, and members can have their own
+attributes &ndash; see the documentation for details.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.KellerType.endorsed"><code class="name">var <span class="ident">endorsed</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.KellerType.independent"><code class="name">var <span class="ident">independent</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.KellerType.master"><code class="name">var <span class="ident">master</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.KellerType.sub_brand"><code class="name">var <span class="ident">sub_brand</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+</dd>
 <dt id="adcp.LegacyHmacFallback"><code class="flex name class">
 <span>class <span class="ident">LegacyHmacFallback</span></span>
 <span>(</span><span>options_for: Callable[[Mapping[str, str]], LegacyWebhookHmacOptions | None],<br>only_when_9421_absent: bool = True)</span>
@@ -38318,20 +38920,7 @@ validated to form a valid model.</p>
     house_name: str | None = None
     brand_agent_url: str | None = None
     brand: dict[str, Any] | None = None
-    brand_manifest: dict[str, Any] | None = None
-    source: str
-
-    @model_validator(mode=&#34;before&#34;)
-    @classmethod
-    def _normalize_brand_fields(cls, data: Any) -&gt; Any:
-        &#34;&#34;&#34;Cross-populate brand and brand_manifest so both names are always accessible.&#34;&#34;&#34;
-        if isinstance(data, dict):
-            data = dict(data)
-            if &#34;brand&#34; in data and &#34;brand_manifest&#34; not in data:
-                data[&#34;brand_manifest&#34;] = data[&#34;brand&#34;]
-            elif &#34;brand_manifest&#34; in data and &#34;brand&#34; not in data:
-                data[&#34;brand&#34;] = data[&#34;brand_manifest&#34;]
-        return data</code></pre>
+    source: str</code></pre>
 </details>
 <div class="desc"><p>Brand identity resolved from the AdCP registry.</p>
 <p>Create a new model by parsing and validating input data from keyword arguments.</p>
@@ -38349,10 +38938,6 @@ validated to form a valid model.</p>
 <div class="desc"></div>
 </dd>
 <dt id="adcp.ResolvedBrand.brand_agent_url"><code class="name">var <span class="ident">brand_agent_url</span> : str | None</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
-<dt id="adcp.ResolvedBrand.brand_manifest"><code class="name">var <span class="ident">brand_manifest</span> : dict[str, typing.Any] | None</code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -40863,6 +41448,382 @@ validated to form a valid model.</p>
 <dt id="adcp.SyncPlansResponse.plans"><code class="name">var <span class="ident">plans</span> : list[<a title="adcp.types.generated_poc.governance.sync_plans_response.Plan" href="types/generated_poc/governance/sync_plans_response.html#adcp.types.generated_poc.governance.sync_plans_response.Plan">Plan</a>]</code></dt>
 <dd>
 <div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></b></code>:
+<ul class="hlist">
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump">model_dump</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_dump_json" href="types/base.html#adcp.types.base.AdCPBaseModel.model_dump_json">model_dump_json</a></code></li>
+<li><code><a title="adcp.types.base.AdCPBaseModel.model_summary" href="types/base.html#adcp.types.base.AdCPBaseModel.model_summary">model_summary</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="adcp.TargetingOverlay"><code class="flex name class">
+<span>class <span class="ident">TargetingOverlay</span></span>
+<span>(</span><span>**data: Any)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TargetingOverlay(AdCPBaseModel):
+    model_config = ConfigDict(
+        extra=&#39;allow&#39;,
+    )
+    geo_countries: Annotated[
+        list[GeoCountry] | None,
+        Field(
+            description=&#34;Restrict delivery to specific countries. ISO 3166-1 alpha-2 codes (e.g., &#39;US&#39;, &#39;GB&#39;, &#39;DE&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    geo_countries_exclude: Annotated[
+        list[GeoCountriesExcludeItem] | None,
+        Field(
+            description=&#34;Exclude specific countries from delivery. ISO 3166-1 alpha-2 codes (e.g., &#39;US&#39;, &#39;GB&#39;, &#39;DE&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    geo_regions: Annotated[
+        list[GeoRegion] | None,
+        Field(
+            description=&#34;Restrict delivery to specific regions/states. ISO 3166-2 subdivision codes (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    geo_regions_exclude: Annotated[
+        list[GeoRegionsExcludeItem] | None,
+        Field(
+            description=&#34;Exclude specific regions/states from delivery. ISO 3166-2 subdivision codes (e.g., &#39;US-CA&#39;, &#39;GB-SCT&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    geo_metros: Annotated[
+        list[GeoMetro] | None,
+        Field(
+            description=&#39;Restrict delivery to specific metro areas. Each entry specifies the classification system and target values. Seller must declare supported systems in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    geo_metros_exclude: Annotated[
+        list[GeoMetrosExcludeItem] | None,
+        Field(
+            description=&#39;Exclude specific metro areas from delivery. Each entry specifies the classification system and excluded values. Seller must declare supported systems in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    geo_postal_areas: Annotated[
+        list[GeoPostalArea] | None,
+        Field(
+            description=&#39;Restrict delivery to specific postal areas. Each entry specifies the postal system and target values. Seller must declare supported systems in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    geo_postal_areas_exclude: Annotated[
+        list[GeoPostalAreasExcludeItem] | None,
+        Field(
+            description=&#39;Exclude specific postal areas from delivery. Each entry specifies the postal system and excluded values. Seller must declare supported systems in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    daypart_targets: Annotated[
+        list[daypart_target.DaypartTarget] | None,
+        Field(
+            description=&#39;Restrict delivery to specific time windows. Each entry specifies days of week and an hour range.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    axe_include_segment: Annotated[
+        str | None,
+        Field(
+            deprecated=True,
+            description=&#39;Deprecated: Use TMP provider fields instead. AXE segment ID to include for targeting.&#39;,
+        ),
+    ] = None
+    axe_exclude_segment: Annotated[
+        str | None,
+        Field(
+            deprecated=True,
+            description=&#39;Deprecated: Use TMP provider fields instead. AXE segment ID to exclude from targeting.&#39;,
+        ),
+    ] = None
+    audience_include: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Restrict delivery to members of these first-party CRM audiences. Only users present in the uploaded lists are eligible. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Not for lookalike expansion — express that intent in the campaign brief. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    audience_exclude: Annotated[
+        list[str] | None,
+        Field(
+            description=&#39;Suppress delivery to members of these first-party CRM audiences. Matched users are excluded regardless of other targeting. References audience_id values from sync_audiences on the same seller account — audience IDs are not portable across sellers. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    frequency_cap: frequency_cap_1.FrequencyCap | None = None
+    property_list: Annotated[
+        property_list_ref.PropertyListReference | None,
+        Field(
+            description=&#34;Reference to a property list for targeting specific properties within this product. The package runs on the intersection of the product&#39;s publisher_properties and this list. Sellers SHOULD return a validation error if the product has property_targeting_allowed: false.&#34;
+        ),
+    ] = None
+    collection_list: Annotated[
+        collection_list_ref.CollectionListReference | None,
+        Field(
+            description=&#39;Reference to a collection list for including specific collections (programs, shows) within this product. The package runs on the intersection of matched collections and this list. Use for inclusion-based collection targeting. Seller must declare support in get_adcp_capabilities.&#39;
+        ),
+    ] = None
+    collection_list_exclude: Annotated[
+        collection_list_ref.CollectionListReference | None,
+        Field(
+            description=&#34;Reference to a collection list for excluding specific collections (programs, shows) from this product. Matched collections must not carry the buyer&#39;s ads. Use for brand safety do-not-air lists. Seller must declare support in get_adcp_capabilities.&#34;
+        ),
+    ] = None
+    age_restriction: Annotated[
+        AgeRestriction | None,
+        Field(
+            description=&#39;Age restriction for compliance. Use for legal requirements (alcohol, gambling), not audience targeting.&#39;
+        ),
+    ] = None
+    device_platform: Annotated[
+        list[device_platform_1.DevicePlatform] | None,
+        Field(
+            description=&#39;Restrict to specific platforms. Use for technical compatibility (app only works on iOS). Values from Sec-CH-UA-Platform standard, extended for CTV.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    device_type: Annotated[
+        list[device_type_1.DeviceType] | None,
+        Field(
+            description=&#39;Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    device_type_exclude: Annotated[
+        list[device_type_1.DeviceType] | None,
+        Field(
+            description=&#39;Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).&#39;,
+            min_length=1,
+        ),
+    ] = None
+    store_catchments: Annotated[
+        list[StoreCatchment] | None,
+        Field(
+            description=&#39;Target users within store catchment areas from a synced store catalog. Each entry references a store-type catalog and optionally narrows to specific stores or catchment zones.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    geo_proximity: Annotated[
+        list[GeoProximity | GeoProximity18 | GeoProximity19] | None,
+        Field(
+            description=&#39;Target users within travel time, distance, or a custom boundary around arbitrary geographic points. Multiple entries use OR semantics — a user within range of any listed point is eligible. For campaigns targeting 10+ locations, consider using store_catchments with a location catalog instead. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    language: Annotated[
+        list[LanguageItem] | None,
+        Field(
+            description=&#34;Restrict to users with specific language preferences. ISO 639-1 codes (e.g., &#39;en&#39;, &#39;es&#39;, &#39;fr&#39;).&#34;,
+            min_length=1,
+        ),
+    ] = None
+    keyword_targets: Annotated[
+        list[KeywordTarget] | None,
+        Field(
+            description=&#39;Keyword targeting for search and retail media platforms. Restricts delivery to queries matching the specified keywords. Each keyword is identified by the tuple (keyword, match_type) — the same keyword string with different match types are distinct targets. Sellers SHOULD reject duplicate (keyword, match_type) pairs within a single request. Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None
+    negative_keywords: Annotated[
+        list[NegativeKeyword] | None,
+        Field(
+            description=&#39;Keywords to exclude from delivery. Queries matching these keywords will not trigger the ad. Each negative keyword is identified by the tuple (keyword, match_type). Seller must declare support in get_adcp_capabilities.&#39;,
+            min_length=1,
+        ),
+    ] = None</code></pre>
+</details>
+<div class="desc"><p>Base model for AdCP types with spec-compliant serialization.</p>
+<p>Defaults to <code>extra='ignore'</code> so that unknown fields from newer spec
+versions are silently dropped rather than causing validation errors.
+Generated types whose schemas set <code>additionalProperties: true</code>
+override this with <code>extra='allow'</code> in their own <code>model_config</code>.
+Consumers who want strict validation can override with <code>extra='forbid'</code>.</p>
+<p>Create a new model by parsing and validating input data from keyword arguments.</p>
+<p>Raises [<code>ValidationError</code>][pydantic_core.ValidationError] if the input data cannot be
+validated to form a valid model.</p>
+<p><code>self</code> is explicitly positional-only to allow <code>self</code> as a field name.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="adcp.types.base.AdCPBaseModel" href="types/base.html#adcp.types.base.AdCPBaseModel">AdCPBaseModel</a></li>
+<li>pydantic.main.BaseModel</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="adcp.TargetingOverlay.age_restriction"><code class="name">var <span class="ident">age_restriction</span> : <a title="adcp.types.generated_poc.core.targeting.AgeRestriction" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.AgeRestriction">AgeRestriction</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.audience_exclude"><code class="name">var <span class="ident">audience_exclude</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.audience_include"><code class="name">var <span class="ident">audience_include</span> : list[str] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.collection_list"><code class="name">var <span class="ident">collection_list</span> : <a title="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference" href="types/generated_poc/core/collection_list_ref.html#adcp.types.generated_poc.core.collection_list_ref.CollectionListReference">CollectionListReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.collection_list_exclude"><code class="name">var <span class="ident">collection_list_exclude</span> : <a title="adcp.types.generated_poc.core.collection_list_ref.CollectionListReference" href="types/generated_poc/core/collection_list_ref.html#adcp.types.generated_poc.core.collection_list_ref.CollectionListReference">CollectionListReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.daypart_targets"><code class="name">var <span class="ident">daypart_targets</span> : list[<a title="adcp.types.generated_poc.core.daypart_target.DaypartTarget" href="types/generated_poc/core/daypart_target.html#adcp.types.generated_poc.core.daypart_target.DaypartTarget">DaypartTarget</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.device_platform"><code class="name">var <span class="ident">device_platform</span> : list[<a title="adcp.types.generated_poc.enums.device_platform.DevicePlatform" href="types/generated_poc/enums/device_platform.html#adcp.types.generated_poc.enums.device_platform.DevicePlatform">DevicePlatform</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.device_type"><code class="name">var <span class="ident">device_type</span> : list[<a title="adcp.types.generated_poc.enums.device_type.DeviceType" href="types/generated_poc/enums/device_type.html#adcp.types.generated_poc.enums.device_type.DeviceType">DeviceType</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.device_type_exclude"><code class="name">var <span class="ident">device_type_exclude</span> : list[<a title="adcp.types.generated_poc.enums.device_type.DeviceType" href="types/generated_poc/enums/device_type.html#adcp.types.generated_poc.enums.device_type.DeviceType">DeviceType</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.frequency_cap"><code class="name">var <span class="ident">frequency_cap</span> : <a title="adcp.types.generated_poc.core.frequency_cap.FrequencyCap" href="types/generated_poc/core/frequency_cap.html#adcp.types.generated_poc.core.frequency_cap.FrequencyCap">FrequencyCap</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_countries"><code class="name">var <span class="ident">geo_countries</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoCountry" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoCountry">GeoCountry</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_countries_exclude"><code class="name">var <span class="ident">geo_countries_exclude</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoCountriesExcludeItem" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoCountriesExcludeItem">GeoCountriesExcludeItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_metros"><code class="name">var <span class="ident">geo_metros</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoMetro" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoMetro">GeoMetro</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_metros_exclude"><code class="name">var <span class="ident">geo_metros_exclude</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoMetrosExcludeItem" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoMetrosExcludeItem">GeoMetrosExcludeItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_postal_areas"><code class="name">var <span class="ident">geo_postal_areas</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoPostalArea" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoPostalArea">GeoPostalArea</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_postal_areas_exclude"><code class="name">var <span class="ident">geo_postal_areas_exclude</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoPostalAreasExcludeItem" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoPostalAreasExcludeItem">GeoPostalAreasExcludeItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_proximity"><code class="name">var <span class="ident">geo_proximity</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoProximity" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoProximity">GeoProximity</a> | <a title="adcp.types.generated_poc.core.targeting.GeoProximity18" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoProximity18">GeoProximity18</a> | <a title="adcp.types.generated_poc.core.targeting.GeoProximity19" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoProximity19">GeoProximity19</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_regions"><code class="name">var <span class="ident">geo_regions</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoRegion" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoRegion">GeoRegion</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.geo_regions_exclude"><code class="name">var <span class="ident">geo_regions_exclude</span> : list[<a title="adcp.types.generated_poc.core.targeting.GeoRegionsExcludeItem" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.GeoRegionsExcludeItem">GeoRegionsExcludeItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.keyword_targets"><code class="name">var <span class="ident">keyword_targets</span> : list[<a title="adcp.types.generated_poc.core.targeting.KeywordTarget" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.KeywordTarget">KeywordTarget</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.language"><code class="name">var <span class="ident">language</span> : list[<a title="adcp.types.generated_poc.core.targeting.LanguageItem" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.LanguageItem">LanguageItem</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.model_config"><code class="name">var <span class="ident">model_config</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.negative_keywords"><code class="name">var <span class="ident">negative_keywords</span> : list[<a title="adcp.types.generated_poc.core.targeting.NegativeKeyword" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.NegativeKeyword">NegativeKeyword</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.property_list"><code class="name">var <span class="ident">property_list</span> : <a title="adcp.types.generated_poc.core.property_list_ref.PropertyListReference" href="types/generated_poc/core/property_list_ref.html#adcp.types.generated_poc.core.property_list_ref.PropertyListReference">PropertyListReference</a> | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="adcp.TargetingOverlay.store_catchments"><code class="name">var <span class="ident">store_catchments</span> : list[<a title="adcp.types.generated_poc.core.targeting.StoreCatchment" href="types/generated_poc/core/targeting.html#adcp.types.generated_poc.core.targeting.StoreCatchment">StoreCatchment</a>] | None</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="adcp.TargetingOverlay.axe_exclude_segment"><code class="name">var <span class="ident">axe_exclude_segment</span> : str | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
+</dd>
+<dt id="adcp.TargetingOverlay.axe_include_segment"><code class="name">var <span class="ident">axe_include_segment</span> : str | None</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def __get__(self, obj: BaseModel | None, obj_type: type[BaseModel] | None = None) -&gt; Any:
+    if obj is None:
+        if self.wrapped_property is not None:
+            return self.wrapped_property.__get__(None, obj_type)
+        raise AttributeError(self.field_name)
+
+    warnings.warn(self.msg, DeprecationWarning, stacklevel=2)
+
+    if self.wrapped_property is not None:
+        return self.wrapped_property.__get__(obj, obj_type)
+    return obj.__dict__[self.field_name]</code></pre>
+</details>
+<div class="desc"><p>Read-only data descriptor used to emit a runtime deprecation warning before accessing a deprecated field.</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>msg</code></strong></dt>
+<dd>The deprecation message to be emitted.</dd>
+<dt><strong><code>wrapped_property</code></strong></dt>
+<dd>The property instance if the deprecated field is a computed field, or <code>None</code>.</dd>
+<dt><strong><code>field_name</code></strong></dt>
+<dd>The name of the field being deprecated.</dd>
+</dl></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -44502,6 +45463,92 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <h4><code><a title="adcp.AdagentsValidationError" href="#adcp.AdagentsValidationError">AdagentsValidationError</a></code></h4>
 </li>
 <li>
+<h4><code><a title="adcp.AdvertiserIndustry" href="#adcp.AdvertiserIndustry">AdvertiserIndustry</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.AdvertiserIndustry.automotive" href="#adcp.AdvertiserIndustry.automotive">automotive</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.automotive_electric_vehicles" href="#adcp.AdvertiserIndustry.automotive_electric_vehicles">automotive_electric_vehicles</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.automotive_luxury" href="#adcp.AdvertiserIndustry.automotive_luxury">automotive_luxury</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.automotive_parts_accessories" href="#adcp.AdvertiserIndustry.automotive_parts_accessories">automotive_parts_accessories</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.beauty_cosmetics" href="#adcp.AdvertiserIndustry.beauty_cosmetics">beauty_cosmetics</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.beauty_cosmetics_fragrance" href="#adcp.AdvertiserIndustry.beauty_cosmetics_fragrance">beauty_cosmetics_fragrance</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.beauty_cosmetics_haircare" href="#adcp.AdvertiserIndustry.beauty_cosmetics_haircare">beauty_cosmetics_haircare</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.beauty_cosmetics_skincare" href="#adcp.AdvertiserIndustry.beauty_cosmetics_skincare">beauty_cosmetics_skincare</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.cannabis" href="#adcp.AdvertiserIndustry.cannabis">cannabis</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.cpg" href="#adcp.AdvertiserIndustry.cpg">cpg</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.cpg_household" href="#adcp.AdvertiserIndustry.cpg_household">cpg_household</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.cpg_personal_care" href="#adcp.AdvertiserIndustry.cpg_personal_care">cpg_personal_care</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.dating" href="#adcp.AdvertiserIndustry.dating">dating</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.education" href="#adcp.AdvertiserIndustry.education">education</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.education_higher_education" href="#adcp.AdvertiserIndustry.education_higher_education">education_higher_education</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.education_k12" href="#adcp.AdvertiserIndustry.education_k12">education_k12</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.education_online_learning" href="#adcp.AdvertiserIndustry.education_online_learning">education_online_learning</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.energy_utilities" href="#adcp.AdvertiserIndustry.energy_utilities">energy_utilities</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.energy_utilities_renewable" href="#adcp.AdvertiserIndustry.energy_utilities_renewable">energy_utilities_renewable</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.fashion_apparel" href="#adcp.AdvertiserIndustry.fashion_apparel">fashion_apparel</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.fashion_apparel_luxury" href="#adcp.AdvertiserIndustry.fashion_apparel_luxury">fashion_apparel_luxury</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.fashion_apparel_sportswear" href="#adcp.AdvertiserIndustry.fashion_apparel_sportswear">fashion_apparel_sportswear</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.finance" href="#adcp.AdvertiserIndustry.finance">finance</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.finance_banking" href="#adcp.AdvertiserIndustry.finance_banking">finance_banking</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.finance_cryptocurrency" href="#adcp.AdvertiserIndustry.finance_cryptocurrency">finance_cryptocurrency</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.finance_insurance" href="#adcp.AdvertiserIndustry.finance_insurance">finance_insurance</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.finance_investment" href="#adcp.AdvertiserIndustry.finance_investment">finance_investment</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.food_beverage" href="#adcp.AdvertiserIndustry.food_beverage">food_beverage</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.food_beverage_alcohol" href="#adcp.AdvertiserIndustry.food_beverage_alcohol">food_beverage_alcohol</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.food_beverage_packaged_goods" href="#adcp.AdvertiserIndustry.food_beverage_packaged_goods">food_beverage_packaged_goods</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.food_beverage_restaurants" href="#adcp.AdvertiserIndustry.food_beverage_restaurants">food_beverage_restaurants</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.gambling_betting" href="#adcp.AdvertiserIndustry.gambling_betting">gambling_betting</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.gambling_betting_casino" href="#adcp.AdvertiserIndustry.gambling_betting_casino">gambling_betting_casino</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.gambling_betting_sports_betting" href="#adcp.AdvertiserIndustry.gambling_betting_sports_betting">gambling_betting_sports_betting</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.gaming" href="#adcp.AdvertiserIndustry.gaming">gaming</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.gaming_console_pc" href="#adcp.AdvertiserIndustry.gaming_console_pc">gaming_console_pc</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.gaming_esports" href="#adcp.AdvertiserIndustry.gaming_esports">gaming_esports</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.gaming_mobile" href="#adcp.AdvertiserIndustry.gaming_mobile">gaming_mobile</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.government_nonprofit" href="#adcp.AdvertiserIndustry.government_nonprofit">government_nonprofit</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.government_nonprofit_charity" href="#adcp.AdvertiserIndustry.government_nonprofit_charity">government_nonprofit_charity</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.government_nonprofit_political" href="#adcp.AdvertiserIndustry.government_nonprofit_political">government_nonprofit_political</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.healthcare" href="#adcp.AdvertiserIndustry.healthcare">healthcare</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.healthcare_medical_devices" href="#adcp.AdvertiserIndustry.healthcare_medical_devices">healthcare_medical_devices</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.healthcare_pharmaceutical" href="#adcp.AdvertiserIndustry.healthcare_pharmaceutical">healthcare_pharmaceutical</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.healthcare_wellness" href="#adcp.AdvertiserIndustry.healthcare_wellness">healthcare_wellness</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.home_garden" href="#adcp.AdvertiserIndustry.home_garden">home_garden</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.home_garden_furniture" href="#adcp.AdvertiserIndustry.home_garden_furniture">home_garden_furniture</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.home_garden_home_improvement" href="#adcp.AdvertiserIndustry.home_garden_home_improvement">home_garden_home_improvement</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.media_entertainment" href="#adcp.AdvertiserIndustry.media_entertainment">media_entertainment</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.media_entertainment_film_tv" href="#adcp.AdvertiserIndustry.media_entertainment_film_tv">media_entertainment_film_tv</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.media_entertainment_live_events" href="#adcp.AdvertiserIndustry.media_entertainment_live_events">media_entertainment_live_events</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.media_entertainment_music" href="#adcp.AdvertiserIndustry.media_entertainment_music">media_entertainment_music</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.media_entertainment_podcasts" href="#adcp.AdvertiserIndustry.media_entertainment_podcasts">media_entertainment_podcasts</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.media_entertainment_publishing" href="#adcp.AdvertiserIndustry.media_entertainment_publishing">media_entertainment_publishing</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.pets" href="#adcp.AdvertiserIndustry.pets">pets</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.professional_services" href="#adcp.AdvertiserIndustry.professional_services">professional_services</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.professional_services_consulting" href="#adcp.AdvertiserIndustry.professional_services_consulting">professional_services_consulting</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.professional_services_legal" href="#adcp.AdvertiserIndustry.professional_services_legal">professional_services_legal</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.real_estate" href="#adcp.AdvertiserIndustry.real_estate">real_estate</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.real_estate_commercial" href="#adcp.AdvertiserIndustry.real_estate_commercial">real_estate_commercial</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.real_estate_residential" href="#adcp.AdvertiserIndustry.real_estate_residential">real_estate_residential</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.recruitment_hr" href="#adcp.AdvertiserIndustry.recruitment_hr">recruitment_hr</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.retail" href="#adcp.AdvertiserIndustry.retail">retail</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.retail_department_stores" href="#adcp.AdvertiserIndustry.retail_department_stores">retail_department_stores</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.retail_ecommerce" href="#adcp.AdvertiserIndustry.retail_ecommerce">retail_ecommerce</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.sports_fitness" href="#adcp.AdvertiserIndustry.sports_fitness">sports_fitness</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.sports_fitness_equipment" href="#adcp.AdvertiserIndustry.sports_fitness_equipment">sports_fitness_equipment</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.sports_fitness_teams_leagues" href="#adcp.AdvertiserIndustry.sports_fitness_teams_leagues">sports_fitness_teams_leagues</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.technology" href="#adcp.AdvertiserIndustry.technology">technology</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.technology_ai_ml" href="#adcp.AdvertiserIndustry.technology_ai_ml">technology_ai_ml</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.technology_hardware" href="#adcp.AdvertiserIndustry.technology_hardware">technology_hardware</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.technology_software" href="#adcp.AdvertiserIndustry.technology_software">technology_software</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.telecom" href="#adcp.AdvertiserIndustry.telecom">telecom</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.telecom_internet_providers" href="#adcp.AdvertiserIndustry.telecom_internet_providers">telecom_internet_providers</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.telecom_mobile_carriers" href="#adcp.AdvertiserIndustry.telecom_mobile_carriers">telecom_mobile_carriers</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.transportation_logistics" href="#adcp.AdvertiserIndustry.transportation_logistics">transportation_logistics</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.travel_hospitality" href="#adcp.AdvertiserIndustry.travel_hospitality">travel_hospitality</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.travel_hospitality_airlines" href="#adcp.AdvertiserIndustry.travel_hospitality_airlines">travel_hospitality_airlines</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.travel_hospitality_cruise" href="#adcp.AdvertiserIndustry.travel_hospitality_cruise">travel_hospitality_cruise</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.travel_hospitality_hotels" href="#adcp.AdvertiserIndustry.travel_hospitality_hotels">travel_hospitality_hotels</a></code></li>
+<li><code><a title="adcp.AdvertiserIndustry.travel_hospitality_tourism" href="#adcp.AdvertiserIndustry.travel_hospitality_tourism">travel_hospitality_tourism</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.AgentCapabilities" href="#adcp.AgentCapabilities">AgentCapabilities</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.AgentCapabilities.creative_capabilities" href="#adcp.AgentCapabilities.creative_capabilities">creative_capabilities</a></code></li>
@@ -44760,6 +45807,14 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <li><code><a title="adcp.BrandRegistryItem.model_config" href="#adcp.BrandRegistryItem.model_config">model_config</a></code></li>
 <li><code><a title="adcp.BrandRegistryItem.source" href="#adcp.BrandRegistryItem.source">source</a></code></li>
 <li><code><a title="adcp.BrandRegistryItem.verified" href="#adcp.BrandRegistryItem.verified">verified</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.BrandSource" href="#adcp.BrandSource">BrandSource</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.BrandSource.brand_json" href="#adcp.BrandSource.brand_json">brand_json</a></code></li>
+<li><code><a title="adcp.BrandSource.community" href="#adcp.BrandSource.community">community</a></code></li>
+<li><code><a title="adcp.BrandSource.enriched" href="#adcp.BrandSource.enriched">enriched</a></code></li>
 </ul>
 </li>
 <li>
@@ -46337,6 +47392,15 @@ Fractions of a second may be present if the system clock provides them.</p></div
 </ul>
 </li>
 <li>
+<h4><code><a title="adcp.KellerType" href="#adcp.KellerType">KellerType</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.KellerType.endorsed" href="#adcp.KellerType.endorsed">endorsed</a></code></li>
+<li><code><a title="adcp.KellerType.independent" href="#adcp.KellerType.independent">independent</a></code></li>
+<li><code><a title="adcp.KellerType.master" href="#adcp.KellerType.master">master</a></code></li>
+<li><code><a title="adcp.KellerType.sub_brand" href="#adcp.KellerType.sub_brand">sub_brand</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="adcp.LegacyHmacFallback" href="#adcp.LegacyHmacFallback">LegacyHmacFallback</a></code></h4>
 <ul class="">
 <li><code><a title="adcp.LegacyHmacFallback.from_shared_secret" href="#adcp.LegacyHmacFallback.from_shared_secret">from_shared_secret</a></code></li>
@@ -47347,7 +48411,6 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <ul class="two-column">
 <li><code><a title="adcp.ResolvedBrand.brand" href="#adcp.ResolvedBrand.brand">brand</a></code></li>
 <li><code><a title="adcp.ResolvedBrand.brand_agent_url" href="#adcp.ResolvedBrand.brand_agent_url">brand_agent_url</a></code></li>
-<li><code><a title="adcp.ResolvedBrand.brand_manifest" href="#adcp.ResolvedBrand.brand_manifest">brand_manifest</a></code></li>
 <li><code><a title="adcp.ResolvedBrand.brand_name" href="#adcp.ResolvedBrand.brand_name">brand_name</a></code></li>
 <li><code><a title="adcp.ResolvedBrand.canonical_domain" href="#adcp.ResolvedBrand.canonical_domain">canonical_domain</a></code></li>
 <li><code><a title="adcp.ResolvedBrand.canonical_id" href="#adcp.ResolvedBrand.canonical_id">canonical_id</a></code></li>
@@ -47679,6 +48742,38 @@ Fractions of a second may be present if the system clock provides them.</p></div
 <li><code><a title="adcp.SyncPlansResponse.ext" href="#adcp.SyncPlansResponse.ext">ext</a></code></li>
 <li><code><a title="adcp.SyncPlansResponse.model_config" href="#adcp.SyncPlansResponse.model_config">model_config</a></code></li>
 <li><code><a title="adcp.SyncPlansResponse.plans" href="#adcp.SyncPlansResponse.plans">plans</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="adcp.TargetingOverlay" href="#adcp.TargetingOverlay">TargetingOverlay</a></code></h4>
+<ul class="">
+<li><code><a title="adcp.TargetingOverlay.age_restriction" href="#adcp.TargetingOverlay.age_restriction">age_restriction</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.audience_exclude" href="#adcp.TargetingOverlay.audience_exclude">audience_exclude</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.audience_include" href="#adcp.TargetingOverlay.audience_include">audience_include</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.axe_exclude_segment" href="#adcp.TargetingOverlay.axe_exclude_segment">axe_exclude_segment</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.axe_include_segment" href="#adcp.TargetingOverlay.axe_include_segment">axe_include_segment</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.collection_list" href="#adcp.TargetingOverlay.collection_list">collection_list</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.collection_list_exclude" href="#adcp.TargetingOverlay.collection_list_exclude">collection_list_exclude</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.daypart_targets" href="#adcp.TargetingOverlay.daypart_targets">daypart_targets</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.device_platform" href="#adcp.TargetingOverlay.device_platform">device_platform</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.device_type" href="#adcp.TargetingOverlay.device_type">device_type</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.device_type_exclude" href="#adcp.TargetingOverlay.device_type_exclude">device_type_exclude</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.frequency_cap" href="#adcp.TargetingOverlay.frequency_cap">frequency_cap</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_countries" href="#adcp.TargetingOverlay.geo_countries">geo_countries</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_countries_exclude" href="#adcp.TargetingOverlay.geo_countries_exclude">geo_countries_exclude</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_metros" href="#adcp.TargetingOverlay.geo_metros">geo_metros</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_metros_exclude" href="#adcp.TargetingOverlay.geo_metros_exclude">geo_metros_exclude</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_postal_areas" href="#adcp.TargetingOverlay.geo_postal_areas">geo_postal_areas</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_postal_areas_exclude" href="#adcp.TargetingOverlay.geo_postal_areas_exclude">geo_postal_areas_exclude</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_proximity" href="#adcp.TargetingOverlay.geo_proximity">geo_proximity</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_regions" href="#adcp.TargetingOverlay.geo_regions">geo_regions</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.geo_regions_exclude" href="#adcp.TargetingOverlay.geo_regions_exclude">geo_regions_exclude</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.keyword_targets" href="#adcp.TargetingOverlay.keyword_targets">keyword_targets</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.language" href="#adcp.TargetingOverlay.language">language</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.model_config" href="#adcp.TargetingOverlay.model_config">model_config</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.negative_keywords" href="#adcp.TargetingOverlay.negative_keywords">negative_keywords</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.property_list" href="#adcp.TargetingOverlay.property_list">property_list</a></code></li>
+<li><code><a title="adcp.TargetingOverlay.store_catchments" href="#adcp.TargetingOverlay.store_catchments">store_catchments</a></code></li>
 </ul>
 </li>
 <li>

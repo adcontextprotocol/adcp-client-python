@@ -935,7 +935,7 @@ el.replaceWith(d);
 
         Args:
             request: Media buy creation parameters including:
-                - brand_manifest: Advertiser brand information and creative assets
+                - brand: Brand reference; resolved from brand.json or the registry at execution
                 - packages: List of package requests specifying desired inventory
                 - publisher_properties: Target properties for ad placement
                 - budget: Optional budget constraints
@@ -949,12 +949,12 @@ el.replaceWith(d);
                 - Additional platform-specific metadata
 
         Example:
-            &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+            &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest, BrandReference
             &gt;&gt;&gt; client = ADCPClient(agent_config)
             &gt;&gt;&gt; request = CreateMediaBuyRequest(
-            ...     brand_manifest=brand,
+            ...     brand=BrandReference(domain=&#34;acme.com&#34;),
             ...     packages=[package_request],
-            ...     publisher_properties=properties
+            ...     publisher_properties=properties,
             ... )
             &gt;&gt;&gt; result = await client.create_media_buy(request)
             &gt;&gt;&gt; if result.success:
@@ -4282,7 +4282,7 @@ language policy and optional calibration exemplars.</p>
 
     Args:
         request: Media buy creation parameters including:
-            - brand_manifest: Advertiser brand information and creative assets
+            - brand: Brand reference; resolved from brand.json or the registry at execution
             - packages: List of package requests specifying desired inventory
             - publisher_properties: Target properties for ad placement
             - budget: Optional budget constraints
@@ -4296,12 +4296,12 @@ language policy and optional calibration exemplars.</p>
             - Additional platform-specific metadata
 
     Example:
-        &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+        &gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest, BrandReference
         &gt;&gt;&gt; client = ADCPClient(agent_config)
         &gt;&gt;&gt; request = CreateMediaBuyRequest(
-        ...     brand_manifest=brand,
+        ...     brand=BrandReference(domain=&#34;acme.com&#34;),
         ...     packages=[package_request],
-        ...     publisher_properties=properties
+        ...     publisher_properties=properties,
         ... )
         &gt;&gt;&gt; result = await client.create_media_buy(request)
         &gt;&gt;&gt; if result.success:
@@ -4342,7 +4342,7 @@ media_buy_id that tracks this reservation and can be used for updates.</p>
 <dl>
 <dt><strong><code>request</code></strong></dt>
 <dd>Media buy creation parameters including:
-- brand_manifest: Advertiser brand information and creative assets
+- brand: Brand reference; resolved from brand.json or the registry at execution
 - packages: List of package requests specifying desired inventory
 - publisher_properties: Target properties for ad placement
 - budget: Optional budget constraints
@@ -4355,12 +4355,12 @@ media_buy_id that tracks this reservation and can be used for updates.</p>
 - packages: Confirmed package details
 - Additional platform-specific metadata</p>
 <h2 id="example">Example</h2>
-<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest
+<pre><code class="language-python-repl">&gt;&gt;&gt; from adcp import ADCPClient, CreateMediaBuyRequest, BrandReference
 &gt;&gt;&gt; client = ADCPClient(agent_config)
 &gt;&gt;&gt; request = CreateMediaBuyRequest(
-...     brand_manifest=brand,
+...     brand=BrandReference(domain=&quot;acme.com&quot;),
 ...     packages=[package_request],
-...     publisher_properties=properties
+...     publisher_properties=properties,
 ... )
 &gt;&gt;&gt; result = await client.create_media_buy(request)
 &gt;&gt;&gt; if result.success:

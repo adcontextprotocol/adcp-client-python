@@ -112,8 +112,7 @@ params = normalize_request(params, task_name="create_media_buy")
     # Package-level transforms (deep copy the packages list)
     if &#34;packages&#34; in result and isinstance(result[&#34;packages&#34;], list):
         result[&#34;packages&#34;] = [
-            dict(pkg) if isinstance(pkg, dict) else pkg
-            for pkg in result[&#34;packages&#34;]
+            dict(pkg) if isinstance(pkg, dict) else pkg for pkg in result[&#34;packages&#34;]
         ]
         _normalize_packages(result)
 
@@ -234,9 +233,12 @@ copied if package-level transforms apply).</p></div>
     if proto == &#34;mcp&#34;:
         return _to_mcp(code, message, suggestion=suggestion)
     return _to_a2a(
-        code, message,
-        recovery=recovery, suggestion=suggestion,
-        details=details, errors=errors,
+        code,
+        message,
+        recovery=recovery,
+        suggestion=suggestion,
+        details=details,
+        errors=errors,
     )</code></pre>
 </details>
 <div class="desc"><p>Translate an AdCP error to a protocol SDK error type.</p>
