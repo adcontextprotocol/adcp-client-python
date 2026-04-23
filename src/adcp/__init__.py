@@ -27,7 +27,7 @@ from adcp.capabilities import (  # noqa: F401
     build_synthetic_capabilities,
     validate_capabilities,
 )
-from adcp.client import ADCPClient, ADCPMultiAgentClient
+from adcp.client import ADCPClient, ADCPMultiAgentClient, Checkpoint
 from adcp.exceptions import (  # noqa: F401
     AdagentsNotFoundError,
     AdagentsTimeoutError,
@@ -566,6 +566,7 @@ __all__ = [
     # Client classes
     "ADCPClient",
     "ADCPMultiAgentClient",
+    "Checkpoint",
     "RegistryClient",
     "PropertyRegistry",
     "RegistrySync",

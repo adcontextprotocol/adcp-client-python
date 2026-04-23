@@ -523,7 +523,7 @@ class A2AAdapter(ProtocolAdapter):
         """Process a Task response from A2A into our TaskResult format."""
         task_state = task.status.state
 
-        if task_state == "completed":
+        if task_state == TaskState.completed:
             # Extract the result from the artifacts array
             result_data = self._extract_result_from_task(task)
 
@@ -542,7 +542,7 @@ class A2AAdapter(ProtocolAdapter):
                 },
                 debug_info=debug_info,
             )
-        elif task_state == "failed":
+        elif task_state == TaskState.failed:
             # Protocol-level failure - extract error message from TextPart
             error_msg = self._extract_text_from_task(task) or "Task failed"
             return TaskResult[Any](
