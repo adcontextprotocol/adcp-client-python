@@ -33,11 +33,20 @@ quoting only.
 
 ## Four outcomes
 
+Default: **execute when the outcome is clear.** Ship work, don't
+narrate it. Flag only for genuine ambiguity or breaking changes.
+
 1. **Clarify** — ask 1–3 concrete questions
-2. **Flag for human review** — synthesis + ask for `@bokelley`
-3. **Execute PR** — experts agree, scope small, draft PR
+2. **Flag for human review** — experts formed an opinion but the
+   change is breaking, architectural, security-sensitive, or
+   experts disagreed. Synthesis + ask for `@bokelley`.
+3. **Execute PR** — experts agree, change is **non-breaking**.
+   Draft PR. No scope cap, no classification gate, no author gate.
 4. **Defer** — post-cycle / blocked — label-only (short ack for
    NONE / FIRST_TIME authors)
+
+**When in doubt: Execute.** Draft PRs are reversible; unshipped
+good changes rarely get revisited.
 
 ## Concurrency check — first thing
 
@@ -172,21 +181,46 @@ Apply only when the issue text names a target version, a linked PR
 is milestoned, or a version-shaped label is present. Otherwise omit.
 Never create new milestones.
 
-## PR criteria — all must be true
+## Non-breaking vs. breaking — the central question
 
-- Outcome is Execute after expert consultation
-- Classification is Bug or Usage where a doc fix suffices
-- Not RFC / epic / tracking / child-of-open-parent / deferred
+**Non-breaking — Execute:**
+
+- New optional params / methods / handler methods / Pydantic fields
+  (optional with default)
+- New examples, docstrings, doc pages
+- New tests for existing behavior
+- Typo / link / import-path fixes
+- Clarifying wording, error-message improvements
+
+**Breaking — Flag:**
+
+- Removing or renaming public symbols (ADCPClient, ADCPHandler
+  methods, exported types)
+- Changing function signatures (new required params, changed types)
+- Changing Pydantic field requirements (optional → required)
+- Changing default values
+- Changing error classes or raising different exceptions
+- Dep version bumps, especially for the pinned ones (`a2a-sdk`,
+  `httpcore`, `datamodel-code-generator`)
+
+## PR criteria — execute when outcome is clear
+
+All must be true:
+
+- Experts converge
+- Change is **non-breaking** (definition above)
 - Not security-sensitive (always Flag)
-- Scope small: 1–2 files, <150 lines
-- Success testable with `pytest`
+- Not RFC / epic / tracking / child-of-open-parent / deferred
 - Duplicate + open-PR checks clean
-- No bumps to pinned deps without explicit issue authorization
-  (especially `a2a-sdk`, `httpcore`, `datamodel-code-generator` —
-  the pins have comments explaining why)
+- Success testable with `pytest`
+- No bumps to pinned deps (`a2a-sdk`, `httpcore`,
+  `datamodel-code-generator`) without explicit issue authorization
 - No edits to generated code under `src/adcp/generated/` (if present)
 
-Author association is NOT a gate.
+**Scope NOT a gate.** **Author NOT a gate.** CODEOWNERS + human
+review gate merge.
+
+**When in doubt: Execute.**
 
 ## PR constraints
 
