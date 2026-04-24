@@ -29,8 +29,11 @@ import httpx
 import pytest
 import uvicorn
 
+from adcp.protocols.a2a import A2AAdapter
 from adcp.server import ADCPHandler
 from adcp.server.a2a_server import create_a2a_server
+from adcp.types.core import AgentConfig, Protocol, TaskStatus
+from adcp.validation.client_hooks import ValidationHookConfig
 
 pytestmark = pytest.mark.skipif(
     sys.version_info < (3, 11),
@@ -192,3 +195,65 @@ async def test_unknown_method_returns_method_not_found():
     # JSON-RPC 2.0 reserves -32601 for Method Not Found; the a2a-sdk
     # uses this code for unknown method names.
     assert body["error"].get("code") == -32601, body
+
+
+@pytest.mark.asyncio
+async def test_v10_client_pinned_to_v03_against_dual_server():
+    """Reverse-direction guard: our 1.0-based Python client, pinned to
+    ``force_a2a_version="0.3"``, must successfully round-trip against
+    the dual-advertising server's 0.3 JSON-RPC interface.
+
+    Existing ``test_v03_message_send_gets_v03_task_response`` covers
+    0.3 client → 1.0 server by hand-crafting the JSON-RPC envelope.
+    This test covers the other direction: a production-shape ADCP
+    caller picking the 0.3 transport via the public ``force_a2a_version``
+    pin, exercising :func:`_filter_card_to_version` and
+    :class:`~a2a.client.ClientFactory` transport negotiation end-to-end.
+
+    Proves:
+
+    - The card filter keeps only the 0.3 ``AgentInterface`` when a
+      dual-advertising peer is pinned.
+    - ``ClientFactory`` selects a 0.3-compatible transport and
+      ``_send_and_aggregate`` drains the resulting ``StreamResponse``.
+    - ``a2a_protocol_versions`` still reports both advertised versions
+      (the filter is applied after the card is cached, not before).
+    """
+    async with _running_server() as base_url:
+        config = AgentConfig(id="wire-compat-test", agent_uri=base_url, protocol=Protocol.A2A)
+        adapter = A2AAdapter(config, force_a2a_version="0.3")
+        # Skip schema validation — the ``_EchoHandler`` response is a
+        # minimal ``{"products": []}`` stub. Validation noise here would
+        # distract from the wire-compat assertion this test exists for.
+        adapter.configure_validation(ValidationHookConfig(requests="off", responses="off"))
+
+        try:
+            result = await adapter.get_products({"buying_mode": "wholesale"})
+        finally:
+            await adapter.close()
+
+    assert result.success, f"expected success, got status={result.status!r} error={result.error!r}"
+    assert result.status == TaskStatus.COMPLETED, result.status
+    assert result.data == {"products": []}, result.data
+    # Card cache retains the unfiltered advertisement so callers can
+    # still probe what the peer supports before pinning.
+    assert adapter.a2a_protocol_versions == ["0.3", "1.0"], adapter.a2a_protocol_versions
+
+
+@pytest.mark.asyncio
+async def test_v10_client_pinned_to_unadvertised_version_raises():
+    """``force_a2a_version`` must fail loudly when the peer advertises
+    no matching interface, rather than falling through to a silent
+    transport-negotiation error deep in the a2a-sdk. Guards the
+    user-visible error path in :meth:`A2AAdapter._get_a2a_client`."""
+    from adcp.exceptions import ADCPConnectionError
+
+    async with _running_server() as base_url:
+        config = AgentConfig(id="wire-compat-test", agent_uri=base_url, protocol=Protocol.A2A)
+        adapter = A2AAdapter(config, force_a2a_version="9.9")
+
+        try:
+            with pytest.raises(ADCPConnectionError, match="does not advertise"):
+                await adapter.get_products({"buying_mode": "wholesale"})
+        finally:
+            await adapter.close()
