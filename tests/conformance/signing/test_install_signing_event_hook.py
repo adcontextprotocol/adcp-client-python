@@ -230,6 +230,92 @@ async def test_supports_sync_capability_provider() -> None:
     assert "Signature" in request.headers
 
 
+@pytest.mark.asyncio
+async def test_mock_capability_provider_does_not_get_awaited() -> None:
+    """Regression for the `hasattr(result, "__await__")` footgun.
+
+    `unittest.mock.Mock` synthesizes any attribute access, so a sync
+    Mock that returns a RequestSigning would be detected as awaitable
+    by `hasattr(__await__)` and crash. `inspect.isawaitable` correctly
+    treats it as sync.
+    """
+    from unittest.mock import Mock
+
+    capability = _capability(required=["create_media_buy"])
+    provider = Mock(return_value=capability)
+
+    body = b'{"plan_id":"p1"}'
+    request = httpx.Request(
+        method="POST",
+        url="https://seller.example.com/adcp/create_media_buy",
+        headers={"Content-Type": "application/json"},
+        content=body,
+    )
+
+    client = httpx.AsyncClient()
+    install_signing_event_hook(client, signing=_config(), capability_provider=provider)
+    [hook] = client.event_hooks["request"]
+
+    with signing_operation("create_media_buy"):
+        await hook(request)
+
+    provider.assert_called_once()
+    assert "Signature" in request.headers
+
+
+@pytest.mark.asyncio
+async def test_capability_provider_returning_none_skips_signing() -> None:
+    """Provider returns None ⇒ seller doesn't sign ⇒ skip every operation."""
+
+    def provider() -> RequestSigning | None:
+        return None
+
+    request = httpx.Request(
+        method="POST",
+        url="https://seller.example.com/adcp/create_media_buy",
+        headers={"Content-Type": "application/json"},
+        content=b"{}",
+    )
+
+    client = httpx.AsyncClient()
+    install_signing_event_hook(client, signing=_config(), capability_provider=provider)
+    [hook] = client.event_hooks["request"]
+
+    with signing_operation("create_media_buy"):
+        await hook(request)
+
+    assert "Signature" not in request.headers
+
+
+@pytest.mark.asyncio
+async def test_forbidden_covers_content_digest_omits_digest_coverage() -> None:
+    """Capability with covers_content_digest='forbidden' ⇒ signature must NOT cover content-digest."""
+    body = b'{"plan_id":"p1"}'
+    request = httpx.Request(
+        method="POST",
+        url="https://seller.example.com/adcp/create_media_buy",
+        headers={"Content-Type": "application/json"},
+        content=body,
+    )
+
+    capability = _capability(
+        required=["create_media_buy"],
+        covers=CoversContentDigest.forbidden,
+    )
+
+    client = httpx.AsyncClient()
+    install_signing_event_hook(client, signing=_config(), seller_capability=capability)
+    [hook] = client.event_hooks["request"]
+
+    with signing_operation("create_media_buy"):
+        await hook(request)
+
+    assert "Signature" in request.headers
+    sig_input = request.headers["Signature-Input"]
+    # The covered-components list lives between parens before the `;` params block.
+    assert "content-digest" not in sig_input.lower(), sig_input
+
+
 def test_requires_exactly_one_of_capability_or_provider() -> None:
     config = _config()
     client = httpx.AsyncClient()

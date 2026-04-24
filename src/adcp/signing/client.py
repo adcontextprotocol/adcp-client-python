@@ -48,6 +48,7 @@ work plus capability prefetching, and you should not double-install.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
@@ -142,10 +143,14 @@ def install_signing_event_hook(
         else:
             assert capability_provider is not None
             result = capability_provider()
-            if hasattr(result, "__await__"):
-                capability = await result  # type: ignore[misc]
+            # `inspect.isawaitable` covers coroutines, futures, and any
+            # `__await__`-defining object — and unlike `hasattr(result,
+            # "__await__")` it doesn't treat a Mock() as awaitable just
+            # because Mock synthesizes any attribute access.
+            if inspect.isawaitable(result):
+                capability = await result
             else:
-                capability = result  # type: ignore[assignment]
+                capability = result
 
         decision = operation_needs_signing(capability, operation)
         if decision == "skip":
