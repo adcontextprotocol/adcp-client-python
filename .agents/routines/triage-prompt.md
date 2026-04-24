@@ -61,10 +61,10 @@ If > 0, skip — another session beat you to it.
 ## Manual nudge — overrides the already-engaged check
 
 If the event context contains a `MANUAL NUDGE:` line, a repo member
-explicitly requested triage via `@claude-triage`. **Skip the
+explicitly requested triage via `/triage`. **Skip the
 already-engaged check** and proceed with full triage.
 
-Modifiers: `@claude-triage execute` / `clarify` / `defer` bias the
+Modifiers: `/triage execute` / `clarify` / `defer` bias the
 outcome. No modifier = standard logic.
 
 ## Already-engaged check — before any expert work
