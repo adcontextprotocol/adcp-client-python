@@ -99,6 +99,11 @@ from adcp.signing.canonical import (
     canonicalize_target_uri,
     parse_signature_input_header,
 )
+from adcp.signing.client import (
+    CapabilityProvider,
+    install_signing_event_hook,
+    signing_operation,
+)
 from adcp.signing.constants import (
     DEFAULT_EXPIRES_IN_SECONDS,
     DEFAULT_SKEW_SECONDS,
@@ -245,6 +250,7 @@ __all__ = [
     "AsyncRevocationListFetcher",
     "CachingJwksResolver",
     "CachingRevocationChecker",
+    "CapabilityProvider",
     "DEFAULT_EXPIRES_IN_SECONDS",
     "DEFAULT_GRACE_MULTIPLIER",
     "DEFAULT_SKEW_SECONDS",
@@ -318,6 +324,7 @@ __all__ = [
     "extract_signature_bytes",
     "format_signature_header",
     "generate_signing_keypair",
+    "install_signing_event_hook",
     "load_private_key_pem",
     "operation_needs_signing",
     "parse_signature_input_header",
@@ -326,6 +333,7 @@ __all__ = [
     "resolve_and_validate_host",
     "sign_request",
     "sign_signature_base",
+    "signing_operation",
     "unauthorized_response_headers",
     "validate_jwks_uri",
     "verify_detached_jws",

@@ -1091,6 +1091,43 @@ signed = sign_request(
 httpx.post(url, content=body, headers={**headers, **signed.as_dict()})
 ```
 
+### Auto-sign on `ADCPClient`
+
+The high-level client wires the signing event hook for you when you pass a `SigningConfig`:
+
+```python
+from adcp.client import ADCPClient
+from adcp.signing import SigningConfig, load_private_key_pem
+
+signing = SigningConfig(
+    private_key=load_private_key_pem(open("signing-key.pem", "rb").read()),
+    key_id="my-agent-2026",
+)
+
+client = ADCPClient(agent_config, signing=signing)
+# Outbound calls are signed automatically per the seller's request_signing capability.
+```
+
+### Auto-sign on raw httpx (no ADCPClient)
+
+For adapters that integrate against a seller via raw `httpx`, install the same hook on your own client:
+
+```python
+import httpx
+from adcp.signing import SigningConfig, install_signing_event_hook, signing_operation
+
+client = httpx.AsyncClient()
+install_signing_event_hook(
+    client,
+    signing=signing,
+    seller_capability=seller_caps.request_signing,
+)
+
+async with client:
+    with signing_operation("create_media_buy"):
+        resp = await client.post("https://seller.example.com/mcp", json=payload)
+```
+
 ### Verify incoming requests (FastAPI)
 
 ```python
@@ -1116,6 +1153,9 @@ async def create_media_buy(request: Request):
         operation="create_media_buy",
         jwks_resolver=jwks,
     )
+    # `replay_store` defaults to a fresh InMemoryReplayStore when omitted.
+    # Wire an explicit shared store (PgReplayStore via [pg] extra, or your
+    # own ReplayStore Protocol implementation) for multi-replica deployments.
     try:
         signer = await verify_starlette_request(request, options=options)
     except SignatureVerificationError as exc:
@@ -1129,6 +1169,10 @@ async def create_media_buy(request: Request):
 ```
 
 Flask has an equivalent synchronous helper `verify_flask_request`.
+
+### Migration & rollout
+
+Rolling signing out against an existing integration is a staged exercise — bootstrap, then advance each operation through `supported_for` → `warn_for` → `required_for`. See [`docs/request-signing-migration.md`](docs/request-signing-migration.md) for the full walkthrough including key rotation, common pitfalls, and a pre-enforcement checklist.
 
 ### Conformance
 

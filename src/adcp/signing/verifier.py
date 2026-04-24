@@ -55,7 +55,7 @@ from adcp.signing.errors import (
     SignatureVerificationError,
 )
 from adcp.signing.jwks import JwksResolver
-from adcp.signing.replay import ReplayStore
+from adcp.signing.replay import InMemoryReplayStore, ReplayStore
 from adcp.signing.revocation import RevocationChecker, RevocationList
 
 CoversDigestPolicy = Literal["required", "forbidden", "either"]
@@ -99,11 +99,29 @@ class VerifierCapability:
 
 @dataclass(frozen=True, kw_only=True)
 class VerifyOptions:
+    """Options bag passed to ``verify_request_signature``.
+
+    ``replay_store`` defaults to a fresh :class:`InMemoryReplayStore` so the
+    verifier always enforces nonce uniqueness on every request — defaulting
+    to ``None`` would silently disable replay protection for callers who
+    forget to wire a store, the exact security regression the AdCP profile's
+    step 12 exists to prevent. Wire an explicit shared store (Redis, Postgres,
+    etc.) for multi-replica deployments where replay state must be
+    coordinated across processes; pass ``replay_store=None`` if you genuinely
+    need to bypass the check (uncommon — typically only short-lived
+    integration tests).
+
+    ``revocation_checker`` and ``revocation_list`` remain optional —
+    most agents don't track key revocations at runtime, and the verifier
+    correctly skips the check when both are absent. Wire one when you
+    publish a revocation list or expose an admin tool for emergency rotation.
+    """
+
     now: float
     capability: VerifierCapability
     operation: str
     jwks_resolver: JwksResolver
-    replay_store: ReplayStore | None = None
+    replay_store: ReplayStore | None = field(default_factory=InMemoryReplayStore)
     revocation_checker: RevocationChecker | None = None
     revocation_list: RevocationList | None = None
     max_skew_seconds: int = DEFAULT_SKEW_SECONDS
