@@ -58,7 +58,18 @@ gh api repos/adcontextprotocol/adcp-client-python/issues/<N>/comments \
 
 If > 0, skip — another session beat you to it.
 
+## Manual nudge — overrides the already-engaged check
+
+If the event context contains a `MANUAL NUDGE:` line, a repo member
+explicitly requested triage via `/claude-triage`. **Skip the
+already-engaged check** and proceed with full triage.
+
+Modifiers: `/claude-triage execute` / `clarify` / `defer` bias the
+outcome. No modifier = standard logic.
+
 ## Already-engaged check — before any expert work
+
+(Skip if the event is a MANUAL NUDGE — see above.)
 
 Silent-defer (apply `claude-triaged`, no comment) if any of these:
 
