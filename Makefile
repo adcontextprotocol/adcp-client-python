@@ -46,8 +46,8 @@ regenerate-registry: ## Regenerate registry types from OpenAPI spec
 	$(PYTHON) scripts/generate_registry_types.py
 	@echo "✓ Registry types regenerated"
 
-regenerate-schemas: ## Download latest schemas and regenerate models
-	@echo "Downloading latest schemas..."
+regenerate-schemas: ## Download latest schemas and skills from bundle, then regenerate models
+	@echo "Downloading latest schemas and skills..."
 	$(PYTHON) scripts/sync_schemas.py
 	@echo "Fixing schema references..."
 	$(PYTHON) scripts/fix_schema_refs.py
@@ -109,7 +109,7 @@ full-check: pre-push ## Alias for pre-push (full check before committing)
 
 check-schema-drift: ## Check if schemas are out of sync with upstream
 	@echo "Checking for schema drift..."
-	@$(PYTHON) scripts/sync_schemas.py
+	@$(PYTHON) scripts/sync_schemas.py --no-skills
 	@$(PYTHON) scripts/fix_schema_refs.py
 	@$(PYTHON) scripts/generate_types.py
 	@if git diff --exit-code src/adcp/types/_generated.py schemas/cache/; then \

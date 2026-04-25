@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""
-Sync AdCP JSON schemas from the authoritative protocol bundle.
+"""Sync AdCP JSON schemas and agent skills from the authoritative protocol bundle.
 
 Downloads a single gzipped tarball at
 https://adcontextprotocol.org/protocol/{version}.tgz, verifies the bundle
 against its SHA-256 sidecar, and extracts the `schemas/` tree into
-`schemas/cache/`. Replaces the prior per-file sync.
+`schemas/cache/` and protocol-managed skills into `skills/`. Replaces the
+prior per-file sync.
 
 Pinned releases additionally ship Sigstore keyless sidecars (`.tgz.sig` +
 `.tgz.crt`). When present, this script shells out to `cosign verify-blob`
@@ -17,13 +17,16 @@ The target version comes from `src/adcp/ADCP_VERSION`. If that version's
 bundle is not published, sync falls back to `latest.tgz` (the dev snapshot).
 
 Usage:
-    python scripts/sync_schemas.py
+    python scripts/sync_schemas.py              # sync schemas + skills
+    python scripts/sync_schemas.py --no-skills  # schemas only (e.g. drift checks)
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -36,6 +39,7 @@ from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).parent.parent
 CACHE_DIR = REPO_ROOT / "schemas" / "cache"
+SKILLS_DIR = REPO_ROOT / "skills"
 VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 BUNDLE_BASE_URL = "https://adcontextprotocol.org/protocol"
 USER_AGENT = "adcp-python-sdk/3.0"
@@ -163,35 +167,122 @@ def verify_cosign_signature(
         )
 
 
-def replace_cache_from_bundle(tgz_bytes: bytes, effective_version: str) -> int:
+def _extract_bundle(
+    tgz_bytes: bytes, effective_version: str
+) -> tuple[Path, tempfile.TemporaryDirectory[str]]:
+    """Extract the bundle to a temporary directory and return the bundle root.
+
+    The caller is responsible for closing the returned TemporaryDirectory.
+    Use as a context manager: ``with tmpdir: ...``
+    """
+    tmpdir: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory()
+    try:
+        with tarfile.open(fileobj=io.BytesIO(tgz_bytes), mode="r:gz") as tf:
+            tf.extractall(tmpdir.name, filter="data")
+    except Exception:
+        tmpdir.cleanup()
+        raise
+    bundle_root = Path(tmpdir.name) / f"adcp-{effective_version}"
+    return bundle_root, tmpdir
+
+
+def replace_cache_from_bundle(bundle_root: Path) -> int:
     """Extract the bundle's `schemas/` tree into CACHE_DIR, replacing its contents.
 
     Returns the number of files written.
     """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        with tarfile.open(fileobj=io.BytesIO(tgz_bytes), mode="r:gz") as tf:
-            tf.extractall(tmpdir, filter="data")
+    schemas_src = bundle_root / "schemas"
+    if not schemas_src.is_dir():
+        raise RuntimeError(
+            f"Bundle missing expected directory: {bundle_root.name}/schemas/"
+        )
 
-        bundle_root = Path(tmpdir) / f"adcp-{effective_version}"
-        schemas_src = bundle_root / "schemas"
-        if not schemas_src.is_dir():
-            raise RuntimeError(
-                f"Bundle missing expected directory: adcp-{effective_version}/schemas/"
-            )
+    if CACHE_DIR.exists():
+        shutil.rmtree(CACHE_DIR)
+    CACHE_DIR.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(schemas_src, CACHE_DIR)
 
-        if CACHE_DIR.exists():
-            shutil.rmtree(CACHE_DIR)
-        CACHE_DIR.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(schemas_src, CACHE_DIR)
+    return sum(1 for _ in CACHE_DIR.rglob("*") if _.is_file())
 
-        return sum(1 for _ in CACHE_DIR.rglob("*") if _.is_file())
+
+def sync_skills_from_bundle(bundle_root: Path, skills_dir: Path) -> int:
+    """Sync protocol-managed skills from the bundle into skills_dir.
+
+    Reads manifest.json to enumerate canonical skills, then copies each
+    skill directory, excluding nested schemas/ subdirs (the SDK already has
+    those in schemas/cache/). SDK-local skills not in the manifest are left
+    untouched. Previous versions are snapshotted as <name>.previous siblings.
+
+    Returns the number of skill files written.
+    """
+    manifest_path = bundle_root / "manifest.json"
+    if not manifest_path.exists():
+        print("  ! No manifest.json in bundle — skipping skill sync")
+        return 0
+
+    manifest = json.loads(manifest_path.read_text())
+    skill_names = manifest.get("contents", {}).get("skills", [])
+    if not isinstance(skill_names, list) or not skill_names:
+        print("  ! No skills listed in bundle manifest — skipping skill sync")
+        return 0
+
+    skills_dir.mkdir(parents=True, exist_ok=True)
+    resolved_skills_dir = skills_dir.resolve()
+    count = 0
+
+    for name in skill_names:
+        if not isinstance(name, str):
+            print(f"  ! Skipping non-string skill entry: {name!r}")
+            continue
+
+        dst = skills_dir / name
+        prev = skills_dir / f"{name}.previous"
+        # Guard against path traversal via malicious skill names (e.g. "../evil").
+        # Check before src.is_dir() so bad names fail loudly rather than silently.
+        if dst.resolve().parent != resolved_skills_dir:
+            raise RuntimeError(f"Unsafe skill name rejected: {name!r}")
+        if prev.resolve().parent != resolved_skills_dir:
+            raise RuntimeError(f"Unsafe skill name rejected: {name!r}")
+
+        src = bundle_root / "skills" / name
+        if not src.is_dir():
+            print(f"  ! Skill directory missing in bundle: skills/{name}/ — skipping")
+            continue
+
+        if dst.exists():
+            if prev.is_dir():
+                shutil.rmtree(prev)
+            elif prev.exists():
+                prev.unlink()
+            shutil.copytree(dst, prev)
+            shutil.rmtree(dst)
+
+        # Copy the skill tree, excluding embedded schemas/ subdirs —
+        # those duplicate the canonical schemas/cache/ tree the SDK already has.
+        shutil.copytree(src, dst, ignore=shutil.ignore_patterns("schemas"))
+        count += sum(1 for _ in dst.rglob("*") if _.is_file())
+
+    return count
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Sync AdCP schemas and skills from the protocol bundle."
+    )
+    parser.add_argument(
+        "--no-skills",
+        action="store_true",
+        help="Skip skill sync (useful for schema-only drift checks).",
+    )
+    args = parser.parse_args()
+
     target_version = get_target_adcp_version()
-    print(f"Syncing AdCP schema bundle from {BUNDLE_BASE_URL}...")
+    print(f"Syncing AdCP protocol bundle from {BUNDLE_BASE_URL}...")
     print(f"Target version: {target_version}")
-    print(f"Cache directory: {CACHE_DIR}\n")
+    print(f"Schema cache: {CACHE_DIR}")
+    if not args.no_skills:
+        print(f"Skills dir:   {SKILLS_DIR}")
+    print()
 
     try:
         print(f"Fetching {target_version}.tgz + checksum...")
@@ -239,14 +330,33 @@ def main() -> None:
             )
 
     try:
-        file_count = replace_cache_from_bundle(tgz_bytes, effective_version)
+        bundle_root, tmpdir = _extract_bundle(tgz_bytes, effective_version)
     except (tarfile.TarError, RuntimeError) as exc:
         print(f"\n✗ Failed to extract bundle: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"\n✓ Successfully synced {file_count} schema files")
+    with tmpdir:
+        try:
+            schema_count = replace_cache_from_bundle(bundle_root)
+        except (OSError, shutil.Error, RuntimeError) as exc:
+            print(f"\n✗ Failed to extract schemas: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+        skill_count = 0
+        if not args.no_skills:
+            try:
+                skill_count = sync_skills_from_bundle(bundle_root, SKILLS_DIR)
+            except (OSError, shutil.Error, RuntimeError) as exc:
+                print(f"\n✗ Failed to sync skills: {exc}", file=sys.stderr)
+                sys.exit(1)
+
+    print(f"\n✓ Successfully synced {schema_count} schema files")
+    if not args.no_skills:
+        print(f"✓ Successfully synced {skill_count} skill files")
     print(f"  Effective version: adcp-{effective_version}")
-    print(f"  Location: {CACHE_DIR}")
+    print(f"  Schema location:  {CACHE_DIR}")
+    if not args.no_skills:
+        print(f"  Skills location:  {SKILLS_DIR}")
 
 
 if __name__ == "__main__":

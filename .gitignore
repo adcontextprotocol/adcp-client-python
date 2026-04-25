@@ -156,6 +156,11 @@ uv.lock
 # Temporary schema processing directory
 .schema_temp/
 
+# Skill snapshot directories written by scripts/sync_schemas.py when a
+# tarball-managed skill is updated. These are local working copies for
+# diffing; they should not be committed.
+skills/*.previous
+
 # RegistrySync cursor file (written by FileCursorStore)
 .adcp-sync-cursor.json
 
