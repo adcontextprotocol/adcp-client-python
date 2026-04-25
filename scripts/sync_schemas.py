@@ -220,14 +220,13 @@ def sync_skills_from_bundle(bundle_root: Path, skills_dir: Path) -> int:
         print("  ! No manifest.json in bundle — skipping skill sync")
         return 0
 
-    manifest = json.loads(manifest_path.read_text())
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     skill_names = manifest.get("contents", {}).get("skills", [])
     if not isinstance(skill_names, list) or not skill_names:
         print("  ! No skills listed in bundle manifest — skipping skill sync")
         return 0
 
     skills_dir.mkdir(parents=True, exist_ok=True)
-    resolved_skills_dir = skills_dir.resolve()
     count = 0
 
     for name in skill_names:
@@ -235,13 +234,9 @@ def sync_skills_from_bundle(bundle_root: Path, skills_dir: Path) -> int:
             print(f"  ! Skipping non-string skill entry: {name!r}")
             continue
 
-        dst = skills_dir / name
-        prev = skills_dir / f"{name}.previous"
-        # Guard against path traversal via malicious skill names (e.g. "../evil").
-        # Check before src.is_dir() so bad names fail loudly rather than silently.
-        if dst.resolve().parent != resolved_skills_dir:
-            raise RuntimeError(f"Unsafe skill name rejected: {name!r}")
-        if prev.resolve().parent != resolved_skills_dir:
+        # Guard against path traversal: reject names containing "/" or that
+        # resolve to a different basename (e.g. "good/../evil" or "../evil").
+        if "/" in name or name != Path(name).name:
             raise RuntimeError(f"Unsafe skill name rejected: {name!r}")
 
         src = bundle_root / "skills" / name
@@ -249,6 +244,8 @@ def sync_skills_from_bundle(bundle_root: Path, skills_dir: Path) -> int:
             print(f"  ! Skill directory missing in bundle: skills/{name}/ — skipping")
             continue
 
+        dst = skills_dir / name
+        prev = skills_dir / f"{name}.previous"
         if dst.exists():
             if prev.is_dir():
                 shutil.rmtree(prev)

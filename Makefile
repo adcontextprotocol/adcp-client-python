@@ -1,4 +1,4 @@
-.PHONY: help format lint typecheck test regenerate-schemas pre-push ci-local clean install-dev
+.PHONY: help format lint typecheck test regenerate-schemas pre-push ci-local clean install-dev check-schema-drift
 
 # Detect Python and use venv if available
 PYTHON := $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
