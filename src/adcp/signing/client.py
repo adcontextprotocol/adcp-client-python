@@ -138,6 +138,7 @@ def install_signing_event_hook(
         if operation is None or operation == "get_adcp_capabilities":
             return
 
+        capability: RequestSigning | None
         if seller_capability is not None:
             capability = seller_capability
         else:
