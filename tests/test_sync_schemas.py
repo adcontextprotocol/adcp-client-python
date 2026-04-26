@@ -354,8 +354,14 @@ class TestSyncSkillsFromBundle:
 
 
 class TestBundleBaseUrl:
-    def test_default_value(self) -> None:
-        assert _mod.BUNDLE_BASE_URL == "https://adcontextprotocol.org/protocol"
+    def test_default_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Fresh load with env var absent — guards against shell having ADCP_BASE_URL set.
+        monkeypatch.delenv("ADCP_BASE_URL", raising=False)
+        fresh_spec = importlib.util.spec_from_file_location("sync_schemas_default", _SCRIPT)
+        assert fresh_spec is not None and fresh_spec.loader is not None
+        fresh_mod = importlib.util.module_from_spec(fresh_spec)
+        fresh_spec.loader.exec_module(fresh_mod)  # type: ignore[union-attr]
+        assert fresh_mod.BUNDLE_BASE_URL == "https://adcontextprotocol.org/protocol"
 
     def test_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Fresh module load with ADCP_BASE_URL set to verify override is applied.

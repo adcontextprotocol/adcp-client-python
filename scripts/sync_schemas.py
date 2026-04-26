@@ -282,7 +282,7 @@ def main() -> None:
 
     target_version = get_target_adcp_version()
     if "ADCP_BASE_URL" in os.environ:
-        print(f"  [ADCP_BASE_URL override] Base: {_ADCP_BASE}")
+        print(f"  ! ADCP_BASE_URL override active: {_ADCP_BASE}")
     print(f"Syncing AdCP protocol bundle from {BUNDLE_BASE_URL}...")
     print(f"Target version: {target_version}")
     print(f"Schema cache: {CACHE_DIR}")
