@@ -16,6 +16,12 @@ signing) fall back to checksum-only trust per the upstream client contract.
 The target version comes from `src/adcp/ADCP_VERSION`. If that version's
 bundle is not published, sync falls back to `latest.tgz` (the dev snapshot).
 
+Environment variables:
+  ADCP_BASE_URL       Override the protocol host (default: https://adcontextprotocol.org).
+                      Set to point at a fixture CDN for cross-SDK CI or pre-release testing.
+                      Trailing slashes are stripped automatically. Do NOT include "/protocol".
+  ADCP_SKIP_SIGNATURE Set to "1" to skip Sigstore verification and trust the SHA-256 only.
+
 Usage:
     python scripts/sync_schemas.py              # sync schemas + skills
     python scripts/sync_schemas.py --no-skills  # schemas only (e.g. drift checks)
@@ -41,7 +47,8 @@ REPO_ROOT = Path(__file__).parent.parent
 CACHE_DIR = REPO_ROOT / "schemas" / "cache"
 SKILLS_DIR = REPO_ROOT / "skills"
 VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
-BUNDLE_BASE_URL = "https://adcontextprotocol.org/protocol"
+_ADCP_BASE = os.environ.get("ADCP_BASE_URL", "https://adcontextprotocol.org").rstrip("/")
+BUNDLE_BASE_URL = _ADCP_BASE + "/protocol"
 USER_AGENT = "adcp-python-sdk/3.0"
 
 # Sigstore keyless verification identity. Must match the upstream release
@@ -274,6 +281,8 @@ def main() -> None:
     args = parser.parse_args()
 
     target_version = get_target_adcp_version()
+    if "ADCP_BASE_URL" in os.environ:
+        print(f"  [ADCP_BASE_URL override] Base: {_ADCP_BASE}")
     print(f"Syncing AdCP protocol bundle from {BUNDLE_BASE_URL}...")
     print(f"Target version: {target_version}")
     print(f"Schema cache: {CACHE_DIR}")

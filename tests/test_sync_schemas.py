@@ -346,3 +346,32 @@ class TestSyncSkillsFromBundle:
             assert (skills_dir / "adcp-brand" / "SKILL.md").exists()
             assert (skills_dir / "adcp-creative" / "SKILL.md").exists()
             assert (skills_dir / "call-adcp-agent" / "SKILL.md").exists()
+
+
+# ---------------------------------------------------------------------------
+# BUNDLE_BASE_URL env override (ADCP_BASE_URL)
+# ---------------------------------------------------------------------------
+
+
+class TestBundleBaseUrl:
+    def test_default_value(self) -> None:
+        assert _mod.BUNDLE_BASE_URL == "https://adcontextprotocol.org/protocol"
+
+    def test_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Fresh module load with ADCP_BASE_URL set to verify override is applied.
+        monkeypatch.setenv("ADCP_BASE_URL", "https://fixture.example.com")
+        fresh_spec = importlib.util.spec_from_file_location("sync_schemas_fresh", _SCRIPT)
+        assert fresh_spec is not None and fresh_spec.loader is not None
+        fresh_mod = importlib.util.module_from_spec(fresh_spec)
+        fresh_spec.loader.exec_module(fresh_mod)  # type: ignore[union-attr]
+        assert fresh_mod.BUNDLE_BASE_URL == "https://fixture.example.com/protocol"
+
+    def test_env_override_strips_trailing_slash(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Trailing slash on ADCP_BASE_URL must not produce "//protocol".
+        monkeypatch.setenv("ADCP_BASE_URL", "https://fixture.example.com/")
+        fresh_spec = importlib.util.spec_from_file_location("sync_schemas_fresh2", _SCRIPT)
+        assert fresh_spec is not None and fresh_spec.loader is not None
+        fresh_mod = importlib.util.module_from_spec(fresh_spec)
+        fresh_spec.loader.exec_module(fresh_mod)  # type: ignore[union-attr]
+        assert fresh_mod.BUNDLE_BASE_URL == "https://fixture.example.com/protocol"
+        assert "//protocol" not in fresh_mod.BUNDLE_BASE_URL
