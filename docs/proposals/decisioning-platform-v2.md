@@ -616,6 +616,15 @@ BASE_CONFIG = ConfigDict(
 
 **Production strictness asymmetry vs TS.** Python in default mode is **stricter** than TS (Zod's default `.strip()` is closer to `'ignore'`). A request accepted by Python's default is accepted by TS in any mode; the asymmetry is one-directional and safe. Cross-language test suites (`tests/test_wire_parity.py`) run Python in `permissive` mode against TS-produced golden files to avoid spurious failures; production buyers see the strict behavior.
 
+**Operator runbook (must ship in the SKILL).** Production logs will fill with `INVALID_REQUEST` rejections during AdCP spec-rev rollouts as buyers update to schemas with new fields the deployed framework version doesn't know. The runbook for an oncall operator seeing that spike:
+
+1. **Confirm the spike is field-shape-related.** Filter logs for `code: INVALID_REQUEST` with messages mentioning extra/unknown fields. If the spike is a different code (`BUDGET_TOO_LOW`, `POLICY_VIOLATION`, etc.), this is not the right runbook.
+2. **Identify the spec-rev rollout.** Check `@adcp/spec` release notes for the timeframe; cross-check with buyer-side announcements. If a new minor spec version shipped recently and adds optional fields, this is the cause.
+3. **Flip the gate.** Set `ADCP_FORWARD_COMPAT=permissive` (or `serve(strict_wire_validation=False)`) on the deployment. The framework will start ignoring extras within minutes (or on next deploy if the var is read at boot — confirm the deployment reads it at boot vs per-request).
+4. **Plan the framework upgrade.** Permissive mode is a temporary bridge. Schedule an upgrade to the framework version that knows the new fields; flip back to strict afterward so you're not silently dropping fields buyers care about.
+
+This runbook lives in the SKILL alongside the configuration reference; alert rules on the deployment should fire on `INVALID_REQUEST` rate exceeding a baseline so the oncall sees the spike before buyers escalate.
+
 **Performance note:** Pydantic v2's Rust-backed validator is fast (~1µs per typical model). The per-request validation cost is negligible compared to the network and database round-trips dispatch already pays. No micro-optimization needed.
 
 ### Status-change bus
@@ -686,7 +695,7 @@ Each `DecisioningAdcpServer` owns a `StatusChangeBus` accessible as `server.stat
 | Impl | Durability | When to use |
 |---|---|---|
 | `InMemoryStatusChangeBus` | In-process; subscribers see events fire-and-forget. Crashes lose the event. | Dev, tests, single-process deployments where event delivery is best-effort and audit isn't compliance-relevant. **Default.** |
-| `DbBackedStatusChangeBus(engine, table='adcp_status_change_events')` | Writes the event to a dedicated table inside the dispatching transaction; subscribers read via outbox/poll, optionally with `LISTEN/NOTIFY` on Postgres. | Adopters where status transitions are audit-relevant (compliance reporting, billing trails, regulated markets). **Recommended for production.** |
+| `DbBackedStatusChangeBus(engine, table='adcp_status_change_events')` | Writes the event to a dedicated table inside the dispatching transaction; subscribers read via **outbox-poll** (default — works on every supported dialect: Postgres, MySQL, SQLite). Postgres deployments can opt into `LISTEN/NOTIFY` for sub-second wake-up via `DbBackedStatusChangeBus(engine, notify=True)`. | Adopters where status transitions are audit-relevant (compliance reporting, billing trails, regulated markets). **Recommended for production.** |
 
 ```python
 # Wire the durable bus alongside an existing SQLA stack:
@@ -774,6 +783,8 @@ CREATE INDEX adcp_idempotency_keys_expires_at ON adcp_idempotency_keys (expires_
 | `account_id` | `Account.id` returned by `AccountStore.resolve` (singleton mode synthesizes per-principal — see § *From Innovid training-agent*) | Lowercased + stripped of leading/trailing whitespace before insertion. |
 | `tool_name` | The dispatched tool (e.g., `create_media_buy`) | Replay-across-tools is rejected — the same key on a different tool is a fresh request that races the cache as a normal mutating call. |
 | `body_hash` | `sha256(canonical_json(arguments))` where `canonical_json` is RFC 8785 JCS (sort keys, no whitespace, normalize numbers) | Reusing the same key with a different body returns `INVALID_REQUEST` with `recovery='terminal'` (matches TS spec-conforming behavior — "same key, different body" MUST NOT silently replay the cached response). |
+
+**JCS canonicalization is non-trivial.** Pydantic v2's serializer doesn't emit JCS natively; the framework ships a `canonical_json()` helper built on a vetted JCS library (currently `rfc8785` on PyPI; pin a version floor) and adds a wire-parity test (`tests/test_jcs_parity.py`) that runs the same payload through Python and TypeScript and asserts byte-equal hashes. Number normalization is the failure mode worth flagging — `1.0` vs `1`, scientific notation, integer-vs-float, NaN/Infinity rejection all have to match between ports, and the test catches drift before adopters do. Budget ~3-4 days of careful implementation for this slice; it's not visible from the surface API but is load-bearing for cross-language idempotency.
 
 **TTL:** `expires_at = created_at + retention_ttl`; first-write wall-clock, NOT bumped on hit. Cache returns the originally-stored response until expiry.
 
@@ -1533,7 +1544,13 @@ serve(factory=lambda ctx: registry.resolve_by_host(ctx.host).server, ...)
 
 **Things the migration does NOT eliminate.** Salesagent has many consumers of `g.tenant` outside the AdCP wire surface — admin UI, audit logs, OAuth callbacks, internal cron jobs. These don't go away. The migration adds a `g.tenant`-shim that reads from `ctx.account.metadata` for AdCP request handlers; non-AdCP routes continue using Flask's request context as before.
 
-**Estimated total effort:** 2-3 months calendar time for the full salesagent. Smaller adopters with fewer tools and a single tenant can finish in 2-3 weeks.
+**Estimated total effort:**
+
+- **Framework build (this RFC):** ~18-21 weeks focused engineering, accounting for A2A delivery (~1 week), `DbBackedStatusChangeBus` outbox-poll + optional Postgres `LISTEN/NOTIFY` (~3 days), JCS canonicalization + `tests/test_jcs_parity.py` (~3-4 days), `JwksFixture` (~2 days), `examples/hello_seller.py` + `MaybeAsync`/`SalesResult` aliases (small). Calendar: ~5-6 months with one engineer + AI assistance.
+- **Salesagent migration:** ~8-12 weeks calendar after framework lands. Stage 2 (per-specialism conversion) is the long pole; Stage 1 + 3 + 4 are 1-2 weeks each.
+- **Total runway from PR #290 merge to "salesagent on v6.0 in production":** ~6-8 months.
+
+Smaller adopters with fewer tools and a single tenant can finish their migration in 2-3 weeks once the framework ships.
 
 ### From Innovid training-agent
 
@@ -1675,7 +1692,9 @@ For v6.0, ship the wire-spec-conformant subset (hybrid handoff on `create_media_
 
 **Alternative path if adcp#3392 stalls.** The framework can ship hybrid handoff on the other 4 tools by emitting a `tasks/submit` task-router envelope (already valid per `async-response-data.json`) instead of inlining the `Submitted` arm in each tool's response. The buyer pattern-match is identical (`status === 'submitted'`); only the JSON envelope shape differs. This is an SDK-side projection, not a wire-protocol change, and it lets v6.1 ship hybrid handoff on schedule even if spec consolidation is late. Document the projection clearly so buyers reading the SDK don't think the wire shape changed.
 
-**Adopter impact.** Salesagent's `update_media_buy` re-approval flow needs HITL today. Until #3392 lands, the workaround is to return `UpdateMediaBuySuccess` synchronously with the `status` field **omitted** (the schema description at `update-media-buy-response.json` says `status` is "Present when the update changes the media buy's status" — leaving it absent on in-flight re-approval is in-spec), then drive the lifecycle via `publish_status_change` + buyer-side polling on `getMediaBuy`. Less ergonomic than a `TaskHandoff`, but spec-valid.
+**Adopter impact.** Salesagent's `update_media_buy` re-approval flow needs HITL today. Until #3392 lands, the workaround is to return `UpdateMediaBuySuccess` synchronously with the `status` field **omitted** (the schema description at `update-media-buy-response.json` says `status` is "Present when the update changes the media buy's status" — leaving it absent on in-flight re-approval is in-spec), then drive the lifecycle via `publish_status_change`. Less ergonomic than a `TaskHandoff`, but spec-valid.
+
+**Buyer-side polling visibility cost.** While a re-approval is in-flight against an active media buy, a buyer polling `getMediaBuy` sees `status: 'active'` — there is no wire-level signal that an update is pending. Lifecycle visibility is push-only via status-change subscriptions. Buyers subscribed to status changes get the full progression; buyers who only poll see no diff until the update completes. This is a regression for poll-only buyers and a one-line cost worth surfacing to the salesagent migration: platforms whose existing re-approval surface set `status: 'pending_approval'` on the resource itself were giving polling buyers a signal that v6.0 cannot preserve until #3392 lands.
 
 `status='pending_approval'` is **not valid** on `update-media-buy-response`: `MediaBuyStatus` enum is `[pending_creatives, pending_start, active, paused, completed, rejected, canceled]` (`pending_approval` belongs to `Account.status`, not `MediaBuy.status`). Adopters porting from earlier drafts that emitted `pending_approval` here MUST drop the field instead.
 
@@ -1847,11 +1866,12 @@ The Python port MUST pass equivalents of these TypeScript test files. Wire-shape
 | `test/server-decisioning-tenant-registry.test.js` | `tests/test_tenant_registry.py` | Subdomain + path-prefix routing; `'pending'` health gate; JWKS fetch timeout; admin-API auth contract; query-string stripping |
 | `test/server-decisioning-identity-graph.test.js` | `tests/test_audience_sync.py` | Sync ack + multi-stage `publish_status_change`; rich-internal-stage → wire-flat-status collapse; `effective_match_rate` field; rejection without status-change events |
 | `test/server-decisioning-postgres-task-registry.test.js` | `tests/test_postgres_task_registry.py` | Status validated at the Python boundary against `task-status.json` (no DB CHECK — spec evolution doesn't require migration); composite PK `(account_id, task_id)` enforces tenant isolation at DB layer; `progress` JSONB transitions; 4 MB result/error cap; `has_webhook` + `transport` + `operation_id` fields. Runs against the two v6.0 impls (in-memory, SqlAlchemy) via parameterized fixture; asyncpg fixture added when impl ships in v6.1. |
-| `test/server-decisioning-task-webhooks.test.js` | `tests/test_webhooks.py` | RFC 9421 signed delivery with locked covered-fields list; SSRF guard rejections (50+ surfaces incl. port allowlist + IPv6 zone IDs + DNS-resolved private ranges); pin-and-bind defeats DNS rebinding (validate-time IP ≠ delivery-time IP scenario); TLS SNI preserved on rewrite; redirects rejected; multi-record getaddrinfo all-or-none rejection; `WebhookTransport` Protocol gate on operator override; failed-task error envelope; `task_type` closed-enum gate; `operation_id` echoed back; idempotency-key matches spec regex (not UUIDv4-assumed) |
+| `test/server-decisioning-task-webhooks.test.js` (MCP arm) | `tests/test_webhooks_mcp.py` | MCP `WebhookPayload` envelope shape; RFC 9421 signed delivery with locked covered-fields list; SSRF guard rejections (50+ surfaces incl. port allowlist + IPv6 zone IDs + DNS-resolved private ranges); pin-and-bind defeats DNS rebinding (validate-time IP ≠ delivery-time IP scenario); TLS SNI preserved on rewrite; redirects rejected; multi-record getaddrinfo all-or-none rejection; `WebhookTransport` Protocol gate on operator override; failed-task error envelope; `task_type` closed-enum gate; `operation_id` echoed back; idempotency-key matches spec regex (not UUIDv4-assumed) |
+| `test/server-decisioning-task-webhooks.test.js` (A2A arm) | `tests/test_webhooks_a2a.py` | A2A `Task` + `TaskStatusUpdateEvent` envelope; AdCP payload nested at `status.message.parts[].data`; same RFC 9421 signing path as MCP arm; same SSRF + pin-and-bind transport reused; `transport='a2a'` recorded on `TaskRecord` selects `A2aTaskDelivery` impl |
+| (new) | `tests/test_jcs_parity.py` | RFC 8785 JCS canonicalization byte-equal between Python and TypeScript on a corpus of payloads exercising number normalization (`1.0` vs `1`, scientific notation, integer-vs-float boundary), key ordering, nested objects, unicode escapes, and NaN/Infinity rejection. Cross-language idempotency keying depends on this hash matching exactly. |
 | `test/server-decisioning-status-changes.test.js` | `tests/test_status_changes.py` | Per-server bus isolation; cross-server publish does NOT leak (regression test for the deleted module-level singleton); thread-safe subscriber list under sync-handler concurrency; 10-value resource-type enum + `'x-'` forward-compat; tenant scoping via `TenantRegistry.publish_status_change` validates `event.account_id` belongs to `tenant_id` before forwarding (cross-tenant leak regression); `DbBackedStatusChangeBus` durability test |
 | `test/server-decisioning-validate-platform.test.js` | `tests/test_validate_platform.py` | "Claimed X; missing Y" diagnostic; specialism-method coverage matrix; runtime check at server boot; rejects `'singleton'` resolution under `TenantRegistry` with >1 tenant |
 | `test/server-decisioning-idempotency.test.js` | `tests/test_idempotency.py` | Replay on duplicate `(idempotency_key, account_id, tool_name, body_hash)` tuple; same key + different body returns `INVALID_REQUEST` (not silent-replay); expiry honors `expires_at`; payload cap rejection; vacuum cleanup deletes expired rows; singleton-mode keys scope per-principal (buyer-to-buyer leak regression) |
-| (new) | `tests/test_a2a_delivery.py` | A2A `TaskStatusUpdateEvent` carries the same AdCP payload as `WebhookPayload` for an MCP buyer of the same tenant; `transport='a2a'` selects `A2aTaskDelivery` impl; RFC 9421 signing path shared between MCP and A2A delivery |
 | (new) | `tests/test_wire_parity.py` | TS-produced golden files load + deep-equal against Python responses for the same logical inputs. Field ordering, null-vs-omitted, datetime serialization (ISO 8601 with `Z` suffix), float precision. Catches drift between ports before it reaches buyers. |
 
 ## Decision summary
