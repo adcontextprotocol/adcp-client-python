@@ -141,7 +141,15 @@ def adcp_error(
 # Actions are operations available via update_media_buy for each status.
 # Public constant — servers can inspect, test against, or extend this.
 MEDIA_BUY_STATE_MACHINE: dict[str, list[str]] = {
-    "pending_activation": [
+    "pending_creatives": [
+        "cancel",
+        "update_budget",
+        "update_dates",
+        "update_packages",
+        "add_packages",
+        "sync_creatives",
+    ],
+    "pending_start": [
         "cancel",
         "update_budget",
         "update_dates",
@@ -164,7 +172,18 @@ MEDIA_BUY_STATE_MACHINE: dict[str, list[str]] = {
 
 
 def valid_actions_for_status(status: str) -> list[str]:
-    """Get valid buyer actions for a media buy status."""
+    """Get valid buyer actions for a media buy status.
+
+    Returns the list of ``update_media_buy`` actions available to a buyer for
+    the given status string. Returns ``[]`` for terminal statuses and for any
+    unrecognized status string.
+
+    Valid statuses per ``enums/media-buy-status.json``:
+    ``pending_creatives``, ``pending_start``, ``active``, ``paused``,
+    ``completed``, ``rejected``, ``canceled``.
+
+    Inspect or extend :data:`MEDIA_BUY_STATE_MACHINE` to add custom actions.
+    """
     return list(MEDIA_BUY_STATE_MACHINE.get(status, []))
 
 

@@ -168,7 +168,7 @@ class MySeller(ADCPHandler):
 Sellers emit webhooks to notify buyers asynchronously. AdCP 3.0 uses RFC 9421 HTTP Message Signatures — use `adcp.webhooks.WebhookSender` (one-call helper) or `sign_webhook` for lower-level control.
 
 **When to emit:**
-- Async-approval media buy transitions (`pending_activation` → `active`, or `→ rejected`)
+- Async-approval media buy transitions (`pending_creatives` → `pending_start` → `active`, or `→ rejected`)
 - Artifact-ready notifications after long-running operations
 - Delivery reports the buyer subscribed to via `reporting_webhook` on `create_media_buy`
 

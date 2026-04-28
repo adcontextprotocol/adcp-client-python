@@ -85,10 +85,15 @@ class TestValidActionsForStatus:
         for status in ("completed", "rejected", "canceled"):
             assert valid_actions_for_status(status) == []
 
-    def test_pending_activation_allows_cancel(self) -> None:
-        actions = valid_actions_for_status("pending_activation")
+    def test_pending_start_allows_cancel(self) -> None:
+        actions = valid_actions_for_status("pending_start")
         assert "cancel" in actions
         assert "update_packages" in actions
+
+    def test_pending_creatives_allows_sync_creatives(self) -> None:
+        actions = valid_actions_for_status("pending_creatives")
+        assert "sync_creatives" in actions
+        assert "cancel" in actions
 
     def test_unknown_status_empty(self) -> None:
         assert valid_actions_for_status("nonexistent") == []
