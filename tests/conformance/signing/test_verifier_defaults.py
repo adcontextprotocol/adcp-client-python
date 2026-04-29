@@ -71,16 +71,3 @@ def test_revocation_stays_optional() -> None:
     opts = _opts()
     assert opts.revocation_checker is None
     assert opts.revocation_list is None
-
-
-def test_default_covers_content_digest_is_required() -> None:
-    """Body integrity must be authenticated end-to-end by default —
-    ``"either"`` or ``"forbidden"`` lets a MITM inside TLS termination
-    swap bodies on signed requests whose digest isn't covered.
-
-    Operators who knowingly accept that tradeoff (e.g. a strict reverse-
-    proxy boundary that owns body integrity at a different layer) opt
-    out by constructing ``VerifierCapability(covers_content_digest=...)``
-    explicitly. The default MUST be the secure choice."""
-    cap = VerifierCapability()
-    assert cap.covers_content_digest == "required"

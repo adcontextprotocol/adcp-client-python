@@ -84,10 +84,6 @@ class WebhookVerifyOptions:
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     sender_url: str | None = None
     clock: Callable[[], float] = time.time
-    # Multi-tenant deployments pass tenant_id so a JWKS resolver shared
-    # across tenants refuses keys outside the active tenant's published
-    # JWKS — same semantics as VerifyOptions.tenant_id.
-    tenant_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -156,7 +152,6 @@ def verify_webhook_signature(
         expected_adcp_use=ADCP_USE_WEBHOOK,
         allowed_algs=options.allowed_algs,
         agent_url=options.sender_url,
-        tenant_id=options.tenant_id,
     )
 
     try:

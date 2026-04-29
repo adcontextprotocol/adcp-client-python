@@ -183,8 +183,7 @@ async def test_averify_jws_rejects_wrong_typ() -> None:
 
 
 async def test_as_async_resolver_wraps_sync_resolver() -> None:
-    def sync_resolver(keyid: str, *, tenant_id: str | None = None) -> dict[str, Any] | None:
-        del tenant_id
+    def sync_resolver(keyid: str) -> dict[str, Any] | None:
         return {"kid": keyid} if keyid == "x" else None
 
     async_resolver: AsyncJwksResolver = as_async_resolver(sync_resolver)

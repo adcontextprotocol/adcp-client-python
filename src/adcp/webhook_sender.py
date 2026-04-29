@@ -133,6 +133,8 @@ class WebhookSender:
         d_field: str = "d",
         client: httpx.AsyncClient | None = None,
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        allow_private_destinations: bool = False,
+        allowed_destination_ports: frozenset[int] | None = None,
     ) -> WebhookSender:
         """Construct from a JWK that includes the private scalar.
 
@@ -140,6 +142,9 @@ class WebhookSender:
         doesn't validate this (you're signing with your own key; validation
         happens at the receiver), but a key whose adcp_use is wrong will be
         rejected by every conformant verifier.
+
+        ``allow_private_destinations`` and ``allowed_destination_ports``
+        forward to :meth:`__init__` — see that signature for semantics.
         """
         # Snapshot the mapping once — a live Mapping could otherwise return
         # different values across the adcp_use / kid / d / alg reads.
@@ -168,6 +173,8 @@ class WebhookSender:
             alg=alg,
             client=client,
             timeout_seconds=timeout_seconds,
+            allow_private_destinations=allow_private_destinations,
+            allowed_destination_ports=allowed_destination_ports,
         )
 
     @classmethod
@@ -180,6 +187,8 @@ class WebhookSender:
         passphrase: bytes | None = None,
         client: httpx.AsyncClient | None = None,
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        allow_private_destinations: bool = False,
+        allowed_destination_ports: frozenset[int] | None = None,
     ) -> WebhookSender:
         """Load a private key from a PEM file and bind it as a webhook sender.
 
@@ -199,6 +208,8 @@ class WebhookSender:
             client: Optional pre-built :class:`httpx.AsyncClient` to share
                 across the SDK; the sender owns its own client when omitted.
             timeout_seconds: Per-request timeout for the owned client.
+            allow_private_destinations: Forwarded to :meth:`__init__`.
+            allowed_destination_ports: Forwarded to :meth:`__init__`.
 
         Raises:
             ValueError: ``alg`` is not ed25519 / es256, or the PEM contains
@@ -244,6 +255,8 @@ class WebhookSender:
             alg=alg,
             client=client,
             timeout_seconds=timeout_seconds,
+            allow_private_destinations=allow_private_destinations,
+            allowed_destination_ports=allowed_destination_ports,
         )
 
     def __repr__(self) -> str:
@@ -534,8 +547,14 @@ class WebhookSender:
                 response = await client.post(url, content=body, headers=headers)
         else:
             # Operator-supplied client — they own the SSRF guarantees on
-            # their transport (proxy allowlist, mTLS, etc.).
-            assert self._client is not None  # narrowing for mypy
+            # their transport (proxy allowlist, mTLS, etc.). Reachable as
+            # None after aclose(); a runtime check beats an assert that
+            # python -O strips to silently NoneType.post().
+            if self._client is None:
+                raise RuntimeError(
+                    "WebhookSender's operator-supplied client was already "
+                    "closed. Construct a new sender or pass a fresh client."
+                )
             response = await self._client.post(url, content=body, headers=headers)
 
         return WebhookDeliveryResult(

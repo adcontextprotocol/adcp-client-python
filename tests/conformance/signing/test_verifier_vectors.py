@@ -37,8 +37,7 @@ def _build_jwks_resolver(vector: dict):
     else:
         entries = {kid: KEYS_BY_KID[kid] for kid in vector.get("jwks_ref", [])}
 
-    def resolve(keyid: str, *, tenant_id: str | None = None) -> dict | None:
-        del tenant_id  # vectors are single-tenant
+    def resolve(keyid: str) -> dict | None:
         return entries.get(keyid)
 
     return resolve

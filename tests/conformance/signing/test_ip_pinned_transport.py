@@ -95,13 +95,8 @@ def test_resolve_returns_tuple_of_host_ip_port() -> None:
 
 def test_resolve_defaults_http_port_80() -> None:
     # Even though we normally refuse non-https elsewhere, the helper
-    # itself is scheme-agnostic for the port default. Port 80 is outside
-    # the production allowlist {443, 8443}; pass an empty set to disable
-    # the port check so this test exercises the default-port logic only.
-    host, _ip, port = resolve_and_validate_host(
-        "http://example.com/jwks",
-        allowed_ports=frozenset(),
-    )
+    # itself is scheme-agnostic for the port default.
+    host, _ip, port = resolve_and_validate_host("http://example.com/jwks")
     assert host == "example.com"
     assert port == 80
 

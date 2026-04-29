@@ -420,16 +420,20 @@ async def test_owned_client_rejects_loopback_destination() -> None:
 
 
 @pytest.mark.asyncio
-async def test_owned_client_rejects_disallowed_port() -> None:
-    """Default sender rejects ports outside the {443, 8443} allowlist —
-    a buyer can't smuggle traffic to internal Redis / SMTP / Memcached
-    on a public IP via a webhook URL on a non-standard port."""
+async def test_owned_client_rejects_disallowed_port_when_hardening_configured() -> None:
+    """Operators opt in to the port-allowlist hardening posture by passing
+    ``allowed_destination_ports=DEFAULT_ALLOWED_PORTS`` (or a custom set).
+    The sender then rejects buyer URLs on ports outside the set, closing
+    the smuggle vector to internal Redis/SMTP/Memcached on the same
+    routable IP. Without the kwarg, AdCP-spec-compliant ports like
+    :9443/:4443 still pass."""
     from unittest.mock import patch
 
-    from adcp.signing import SSRFValidationError
+    from adcp.signing import DEFAULT_ALLOWED_PORTS, SSRFValidationError
 
     sender = WebhookSender.from_jwk(
         {**WEBHOOK_JWK, "d": WEBHOOK_JWK["_private_d_for_test_only"]},
+        allowed_destination_ports=DEFAULT_ALLOWED_PORTS,
     )
     # Mock DNS so we don't hit a live host; the port check fires before
     # resolution even runs (in resolve_and_validate_host).

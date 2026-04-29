@@ -157,6 +157,7 @@ from adcp.signing.ip_pinned_transport import (
     build_ip_pinned_transport,
 )
 from adcp.signing.jwks import (
+    DEFAULT_ALLOWED_PORTS,
     AsyncCachingJwksResolver,
     AsyncJwksFetcher,
     AsyncJwksResolver,
@@ -251,6 +252,7 @@ __all__ = [
     "CachingJwksResolver",
     "CachingRevocationChecker",
     "CapabilityProvider",
+    "DEFAULT_ALLOWED_PORTS",
     "DEFAULT_EXPIRES_IN_SECONDS",
     "DEFAULT_GRACE_MULTIPLIER",
     "DEFAULT_SKEW_SECONDS",
