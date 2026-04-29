@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 if TYPE_CHECKING:
     import httpx
+    from mcp import ClientSession
 
 from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver
 from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
@@ -644,13 +645,13 @@ class ADCPClient:
     @classmethod
     def from_mcp_client(
         cls,
-        client: Any,
+        client: ClientSession,
         *,
         agent_id: str | None = None,
         validation: ValidationHookConfig | None = None,
-        strict_idempotency: bool = False,
-        validate_features: bool = False,
         capabilities_ttl: float = 3600.0,
+        validate_features: bool = False,
+        strict_idempotency: bool = False,
     ) -> ADCPClient:
         """Create an ADCPClient wrapping a pre-connected MCP ClientSession.
 
@@ -676,6 +677,7 @@ class ADCPClient:
                     ClientSession(c_read, c_write)
                 )
                 await session.initialize()
+                # close() is a no-op on injected sessions; no stack.enter_async_context needed.
                 adcp_client = ADCPClient.from_mcp_client(session, agent_id="test-seller")
                 result = await adcp_client.get_products(GetProductsRequest(...))
 
