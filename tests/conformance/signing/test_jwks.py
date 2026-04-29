@@ -54,7 +54,14 @@ def test_ssrf_allow_private_override() -> None:
         "adcp.signing.jwks.socket.getaddrinfo",
         return_value=[(2, 1, 6, "", ("127.0.0.1", 0))],
     ):
-        validate_jwks_uri("http://localhost:8080/jwks.json", allow_private=True)
+        # Test names "allow_private" — the port allowlist is independent;
+        # use the test-only escape hatch (empty allowed_ports) so the IP-range
+        # override is what's actually being exercised.
+        validate_jwks_uri(
+            "http://localhost:8080/jwks.json",
+            allow_private=True,
+            allowed_ports=frozenset(),
+        )
 
 
 def test_ssrf_metadata_ip_blocked_even_with_allow_private() -> None:
@@ -97,6 +104,124 @@ def test_ssrf_caps_resolved_address_scan() -> None:
     ):
         # Must pass: the validator stops scanning before the internal IP.
         validate_jwks_uri("https://example.com/jwks.json")
+
+
+# ---- Port allowlist ----
+#
+# Even when the resolved IP is public, buyers MUST NOT smuggle traffic to
+# arbitrary ports — :25 (SMTP relay), :6379 (Redis), :11211 (Memcached), etc.
+# The default allowlist permits {443, 8443} only.
+
+
+@pytest.mark.parametrize(
+    "uri,port",
+    [
+        ("https://example.com:25/jwks.json", 25),  # SMTP
+        ("https://example.com:6379/jwks.json", 6379),  # Redis
+        ("https://example.com:11211/jwks.json", 11211),  # Memcached
+        ("https://example.com:8080/jwks.json", 8080),  # generic HTTP-alt
+        ("http://example.com:80/jwks.json", 80),  # plain HTTP — even on the canonical port
+    ],
+)
+def test_ssrf_rejects_disallowed_ports(uri: str, port: int) -> None:
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[(2, 1, 6, "", ("93.184.216.34", 0))],
+    ):
+        with pytest.raises(SSRFValidationError, match=f"port {port} not allowed"):
+            validate_jwks_uri(uri)
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "https://example.com/jwks.json",  # implicit :443
+        "https://example.com:443/jwks.json",
+        "https://example.com:8443/jwks.json",
+    ],
+)
+def test_ssrf_allows_default_ports(uri: str) -> None:
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[(2, 1, 6, "", ("93.184.216.34", 0))],
+    ):
+        validate_jwks_uri(uri)
+
+
+def test_ssrf_allowed_ports_override() -> None:
+    """Adopters with trusted on-prem deployments can permit non-standard ports."""
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[(2, 1, 6, "", ("93.184.216.34", 0))],
+    ):
+        validate_jwks_uri(
+            "https://example.com:9000/jwks.json",
+            allowed_ports=frozenset({443, 9000}),
+        )
+
+
+def test_ssrf_allowed_ports_empty_disables_check() -> None:
+    """Empty frozenset is the test-only escape hatch (any port permitted)."""
+    with patch(
+        "adcp.signing.jwks.socket.getaddrinfo",
+        return_value=[(2, 1, 6, "", ("93.184.216.34", 0))],
+    ):
+        validate_jwks_uri(
+            "https://example.com:25/jwks.json",
+            allowed_ports=frozenset(),
+        )
+
+
+# ---- Tenant-scoped JWKS resolution ----
+#
+# Multi-tenant deployments pass tenant_id so a resolver instance shared across
+# tenants can refuse keys outside the active tenant's published JWKS. The
+# in-tree resolvers (Static, Caching) are single-tenant by construction and
+# accept the kwarg as a pass-through; tenant-scoping resolvers wrap them.
+
+
+def test_static_resolver_accepts_tenant_id_kwarg() -> None:
+    """Existing single-tenant impls accept the tenant_id kwarg without
+    enforcing it — tenant scoping is a wrapper concern."""
+    jwk = {"kid": "key-1", "kty": "OKP", "crv": "Ed25519", "x": "..."}
+    resolver = StaticJwksResolver({"keys": [jwk]})
+    # Single-tenant: kwarg is ignored, lookup still succeeds.
+    assert resolver("key-1") == jwk
+    assert resolver("key-1", tenant_id="tenant-a") == jwk
+    assert resolver("key-1", tenant_id="tenant-b") == jwk
+    assert resolver("missing", tenant_id="tenant-a") is None
+
+
+def test_tenant_scoping_wrapper_pattern() -> None:
+    """Reference pattern: a tenant-scoping wrapper composes single-tenant
+    resolvers and enforces ``(tenant_id, key_id)`` semantics by routing.
+    Adopters wire one of these in ``VerifyOptions.jwks_resolver`` for
+    multi-tenant deployments."""
+    tenant_a = StaticJwksResolver(
+        {"keys": [{"kid": "key-a", "kty": "OKP", "crv": "Ed25519", "x": "a"}]}
+    )
+    tenant_b = StaticJwksResolver(
+        {"keys": [{"kid": "key-b", "kty": "OKP", "crv": "Ed25519", "x": "b"}]}
+    )
+
+    def tenant_scoped(keyid: str, *, tenant_id: str | None = None) -> dict[str, Any] | None:
+        if tenant_id == "tenant-a":
+            return tenant_a(keyid)
+        if tenant_id == "tenant-b":
+            return tenant_b(keyid)
+        return None  # unknown tenant rejects all keys
+
+    # Cross-tenant key confusion is closed: tenant A's key_id presented
+    # to tenant B's transport returns None, the verifier raises
+    # REQUEST_SIGNATURE_KEY_UNKNOWN, signature verification fails closed.
+    assert tenant_scoped("key-a", tenant_id="tenant-a") is not None
+    assert tenant_scoped("key-a", tenant_id="tenant-b") is None
+    assert tenant_scoped("key-b", tenant_id="tenant-b") is not None
+    assert tenant_scoped("key-b", tenant_id="tenant-a") is None
+    # Unknown tenant rejects everything.
+    assert tenant_scoped("key-a", tenant_id="unknown") is None
+    # No tenant_id → unknown.
+    assert tenant_scoped("key-a") is None
 
 
 # ---- CachingJwksResolver ----

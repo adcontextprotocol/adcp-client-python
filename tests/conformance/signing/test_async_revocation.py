@@ -176,16 +176,15 @@ async def test_averify_jws_rejects_wrong_typ() -> None:
     token = b64_header + "." + b64_payload + "." + b64url_encode(signature)
 
     with pytest.raises(JwsMalformedError, match="typ"):
-        await averify_jws_document(
-            token, jwks_resolver=resolver, expected_typ=REVOCATION_LIST_TYP
-        )
+        await averify_jws_document(token, jwks_resolver=resolver, expected_typ=REVOCATION_LIST_TYP)
 
 
 # -- as_async_resolver --------------------------------------------------
 
 
 async def test_as_async_resolver_wraps_sync_resolver() -> None:
-    def sync_resolver(keyid: str) -> dict[str, Any] | None:
+    def sync_resolver(keyid: str, *, tenant_id: str | None = None) -> dict[str, Any] | None:
+        del tenant_id
         return {"kid": keyid} if keyid == "x" else None
 
     async_resolver: AsyncJwksResolver = as_async_resolver(sync_resolver)
@@ -282,12 +281,12 @@ async def test_async_replay_older_list_rejected() -> None:
         revoked_kids=[],
     )
     fetcher = _ScriptedAsyncFetcher()
-    fetcher.enqueue(FetchResult(
-        body=_sign_compact(newer, private=private), etag='"v2"', not_modified=False
-    ))
-    fetcher.enqueue(FetchResult(
-        body=_sign_compact(older, private=private), etag='"v1"', not_modified=False
-    ))
+    fetcher.enqueue(
+        FetchResult(body=_sign_compact(newer, private=private), etag='"v2"', not_modified=False)
+    )
+    fetcher.enqueue(
+        FetchResult(body=_sign_compact(older, private=private), etag='"v1"', not_modified=False)
+    )
 
     wall_clock, mono_clock, advance = _controllable_clock(
         datetime(2026, 4, 18, 14, 15, tzinfo=timezone.utc)
@@ -349,9 +348,7 @@ async def test_async_aprime_fails_fast() -> None:
 
 async def test_async_is_jti_revoked() -> None:
     private, resolver = _operator_key_and_resolver()
-    token = _sign_compact(
-        _make_payload(revoked_jtis=["jti-abc"]), private=private
-    )
+    token = _sign_compact(_make_payload(revoked_jtis=["jti-abc"]), private=private)
     fetcher = _ScriptedAsyncFetcher()
     fetcher.enqueue(FetchResult(body=token, etag=None, not_modified=False))
 
@@ -414,9 +411,7 @@ async def test_async_lock_serializes_first_fetch_under_concurrency() -> None:
         wall_clock=wall_clock,
         clock=mono_clock,
     )
-    results = await asyncio.gather(
-        checker("rev"), checker("rev"), checker("rev"), checker("rev")
-    )
+    results = await asyncio.gather(checker("rev"), checker("rev"), checker("rev"), checker("rev"))
     assert all(r is True for r in results)
     assert fetch_count[0] == 1
 
@@ -506,9 +501,7 @@ def _asgi_async_fetcher(app: Starlette) -> Any:
             headers["If-Modified-Since"] = if_modified_since
 
         async with httpx.AsyncClient(transport=transport, base_url=ISSUER) as client:
-            response = await client.get(
-                "/.well-known/governance-revocations.json", headers=headers
-            )
+            response = await client.get("/.well-known/governance-revocations.json", headers=headers)
         if response.status_code == 304:
             return FetchResult(
                 body="",

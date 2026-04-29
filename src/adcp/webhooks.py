@@ -107,8 +107,12 @@ def create_mcp_webhook_payload(
         task_type: Optionally type of AdCP operation (e.g., "get_products", "create_media_buy")
         timestamp: When the webhook was generated (defaults to current UTC time)
         result: Task-specific payload (AdCP response data)
-        operation_id: Publisher-defined operation identifier (deprecated from payload,
-            should be in URL routing, but included for backward compatibility)
+        operation_id: Client-generated identifier the buyer embedded in the
+            webhook URL when registering push-notification config. Publishers
+            MUST echo this back in the payload so buyers correlate notifications
+            without parsing URL paths (per ``mcp-webhook-payload.json``).
+            Senders extracting the value from the URL path on emission populate
+            this field; callers constructing payloads directly pass it through.
         message: Human-readable summary of task state
         context_id: Session/conversation identifier
         domain: AdCP domain this task belongs to

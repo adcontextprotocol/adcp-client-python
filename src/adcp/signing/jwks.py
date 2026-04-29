@@ -53,6 +53,14 @@ BLOCKED_METADATA_IPS: frozenset[str] = frozenset(
     }
 )
 
+# Allowed destination ports for SSRF-validated outbound HTTP. Buyers supplying
+# webhook URLs on non-standard ports can otherwise smuggle traffic to internal
+# services bound to the same routable IP — :25 (SMTP relay), :6379 (Redis),
+# :11211 (Memcached), etc. The validator rejects these even when the IP itself
+# is public. Tests override via the ``allowed_ports`` parameter on
+# :func:`resolve_and_validate_host`.
+DEFAULT_ALLOWED_PORTS: frozenset[int] = frozenset({443, 8443})
+
 # Upper bound on the number of resolved addresses examined per validation call.
 # A malicious DNS server can return thousands of records as a mild amplification
 # vector against the validator's inner loop.
@@ -84,9 +92,17 @@ class JwksResolver(Protocol):
     :class:`CachingJwksResolver` (fetches + caches from a URI).
 
     Async callers use :class:`AsyncJwksResolver` instead.
+
+    ``tenant_id`` is optional; multi-tenant deployments pass it so a
+    resolver instance shared across tenants can refuse keys outside the
+    active tenant's published JWKS. Single-tenant deployments leave it
+    unset; resolvers that don't enforce tenant scoping ignore it.
+    Cross-tenant key confusion (a buyer signing for tenant B who knows
+    tenant A's ``key_id`` presenting to A's transport) is closed at the
+    resolver layer, not the verifier.
     """
 
-    def __call__(self, keyid: str) -> dict[str, Any] | None: ...
+    def __call__(self, keyid: str, *, tenant_id: str | None = None) -> dict[str, Any] | None: ...
 
 
 class AsyncJwksResolver(Protocol):
@@ -99,25 +115,35 @@ class AsyncJwksResolver(Protocol):
     it in a thin async callable — there's no async work, just a dict
     lookup — but typically you'll just use the static one directly where
     an :class:`AsyncJwksResolver` is expected via :func:`as_async`.
+
+    ``tenant_id`` semantics match :class:`JwksResolver`.
     """
 
-    async def __call__(self, keyid: str) -> dict[str, Any] | None: ...
+    async def __call__(
+        self, keyid: str, *, tenant_id: str | None = None
+    ) -> dict[str, Any] | None: ...
 
 
-def validate_jwks_uri(uri: str, *, allow_private: bool = False) -> None:
-    """Raise SSRFValidationError if `uri` resolves to a blocked IP or has a bad scheme.
+def validate_jwks_uri(
+    uri: str,
+    *,
+    allow_private: bool = False,
+    allowed_ports: frozenset[int] | None = None,
+) -> None:
+    """Raise SSRFValidationError on blocked IP, bad scheme, or disallowed port.
 
-    This is kept as a standalone no-return helper for callers that only
-    want validation — :func:`resolve_and_validate_host` returns the
-    accepted IP when the caller needs it for IP-pinned connects.
+    Standalone no-return helper for callers that only want validation —
+    :func:`resolve_and_validate_host` returns the accepted IP when the
+    caller needs it for IP-pinned connects.
     """
-    resolve_and_validate_host(uri, allow_private=allow_private)
+    resolve_and_validate_host(uri, allow_private=allow_private, allowed_ports=allowed_ports)
 
 
 def resolve_and_validate_host(
     uri: str,
     *,
     allow_private: bool = False,
+    allowed_ports: frozenset[int] | None = None,
 ) -> tuple[str, str, int]:
     """Resolve the URI's hostname once and return ``(hostname, ip, port)``.
 
@@ -138,6 +164,12 @@ def resolve_and_validate_host(
     allow_private:
         Skip the reserved-range check. For tests only; cloud-metadata
         IPs remain blocked unconditionally.
+    allowed_ports:
+        Override the default destination port allowlist. Pass an empty
+        frozenset to disable the check entirely (tests only); pass a
+        custom set to permit non-standard ports for trusted on-prem
+        deployments. ``None`` (default) uses :data:`DEFAULT_ALLOWED_PORTS`
+        (`{443, 8443}`).
 
     Returns
     -------
@@ -148,8 +180,8 @@ def resolve_and_validate_host(
     Raises
     ------
     SSRFValidationError
-        Scheme is not ``http``/``https``, the hostname doesn't resolve,
-        or every resolved IP is in a blocked range.
+        Scheme is not ``http``/``https``, port is not in the allowlist,
+        the hostname doesn't resolve, or every resolved IP is in a blocked range.
     """
     parts = urlsplit(uri)
     if parts.scheme not in ("http", "https"):
@@ -177,6 +209,12 @@ def resolve_and_validate_host(
     except (UnicodeError, UnicodeEncodeError) as exc:
         raise SSRFValidationError(f"URI host {host!r} is not IDNA-valid: {exc}") from exc
     port = parts.port if parts.port is not None else (443 if parts.scheme == "https" else 80)
+    effective_allowed_ports = DEFAULT_ALLOWED_PORTS if allowed_ports is None else allowed_ports
+    if effective_allowed_ports and port not in effective_allowed_ports:
+        raise SSRFValidationError(
+            f"port {port} not allowed for SSRF-validated fetch "
+            f"(allowed: {sorted(effective_allowed_ports)})"
+        )
 
     try:
         infos = socket.getaddrinfo(host, None)
@@ -291,7 +329,13 @@ class CachingJwksResolver:
         self._last_attempt: float | None = None
         self._primed = False
 
-    def __call__(self, keyid: str) -> dict[str, Any] | None:
+    def __call__(self, keyid: str, *, tenant_id: str | None = None) -> dict[str, Any] | None:
+        # tenant_id ignored — this resolver is bound to a single jwks_uri
+        # at construction. Multi-tenant deployments wire one resolver per
+        # tenant and route by tenant_id externally; a tenant-scoping
+        # resolver wrapper that checks tenant_id against a registry can
+        # compose this resolver internally.
+        del tenant_id
         if keyid in self._cache:
             return self._cache[keyid]
         now = self._clock()
@@ -327,7 +371,9 @@ class StaticJwksResolver:
     def __init__(self, jwks: dict[str, Any]) -> None:
         self._keys = {jwk["kid"]: jwk for jwk in jwks.get("keys", []) if "kid" in jwk}
 
-    def __call__(self, keyid: str) -> dict[str, Any] | None:
+    def __call__(self, keyid: str, *, tenant_id: str | None = None) -> dict[str, Any] | None:
+        # tenant_id ignored — single-tenant by construction.
+        del tenant_id
         return self._keys.get(keyid)
 
 
@@ -402,7 +448,9 @@ class AsyncCachingJwksResolver:
         # across ``asyncio.run`` boundaries.
         self._lock: asyncio.Lock = asyncio.Lock()
 
-    async def __call__(self, keyid: str) -> dict[str, Any] | None:
+    async def __call__(self, keyid: str, *, tenant_id: str | None = None) -> dict[str, Any] | None:
+        # tenant_id ignored — see CachingJwksResolver.__call__.
+        del tenant_id
         if keyid in self._cache:
             return self._cache[keyid]
         now = self._clock()
@@ -449,8 +497,8 @@ def as_async_resolver(resolver: JwksResolver) -> AsyncJwksResolver:
     work (just a dict lookup); the wrapper is a shape adapter.
     """
 
-    async def resolve(keyid: str) -> dict[str, Any] | None:
-        return resolver(keyid)
+    async def resolve(keyid: str, *, tenant_id: str | None = None) -> dict[str, Any] | None:
+        return resolver(keyid, tenant_id=tenant_id)
 
     return resolve
 
@@ -461,6 +509,7 @@ __all__ = [
     "AsyncJwksFetcher",
     "AsyncJwksResolver",
     "CachingJwksResolver",
+    "DEFAULT_ALLOWED_PORTS",
     "DEFAULT_JWKS_COOLDOWN_SECONDS",
     "DEFAULT_JWKS_TIMEOUT_SECONDS",
     "JwksFetcher",

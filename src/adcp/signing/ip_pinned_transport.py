@@ -289,13 +289,17 @@ def build_ip_pinned_transport(
     uri: str,
     *,
     allow_private: bool = False,
+    allowed_ports: frozenset[int] | None = None,
     verify: bool = True,
 ) -> IpPinnedTransport:
     """Resolve ``uri`` once and return a transport pinned to the validated IP.
 
     Raises :class:`SSRFValidationError` if the URI's scheme isn't
-    ``http``/``https``, the host doesn't resolve, or every resolved
-    IP is in a blocked range.
+    ``http``/``https``, the port is not in the allowlist, the host
+    doesn't resolve, or every resolved IP is in a blocked range.
+
+    ``allowed_ports`` defaults to
+    :data:`adcp.signing.jwks.DEFAULT_ALLOWED_PORTS` (`{443, 8443}`).
 
     Typical use inside a fetcher::
 
@@ -303,7 +307,11 @@ def build_ip_pinned_transport(
         with httpx.Client(transport=transport, timeout=10.0) as client:
             response = client.get(uri)
     """
-    hostname, resolved_ip, _port = resolve_and_validate_host(uri, allow_private=allow_private)
+    hostname, resolved_ip, _port = resolve_and_validate_host(
+        uri,
+        allow_private=allow_private,
+        allowed_ports=allowed_ports,
+    )
     return IpPinnedTransport(hostname=hostname, resolved_ip=resolved_ip, verify=verify)
 
 
@@ -311,6 +319,7 @@ def build_async_ip_pinned_transport(
     uri: str,
     *,
     allow_private: bool = False,
+    allowed_ports: frozenset[int] | None = None,
     verify: bool = True,
 ) -> AsyncIpPinnedTransport:
     """Build an :class:`AsyncIpPinnedTransport` for ``uri``.
@@ -318,8 +327,15 @@ def build_async_ip_pinned_transport(
     Resolve + validate run synchronously (``socket.getaddrinfo``); this
     function itself is not awaitable. The returned transport plugs
     into :class:`httpx.AsyncClient`.
+
+    ``allowed_ports`` defaults to
+    :data:`adcp.signing.jwks.DEFAULT_ALLOWED_PORTS` (`{443, 8443}`).
     """
-    hostname, resolved_ip, _port = resolve_and_validate_host(uri, allow_private=allow_private)
+    hostname, resolved_ip, _port = resolve_and_validate_host(
+        uri,
+        allow_private=allow_private,
+        allowed_ports=allowed_ports,
+    )
     return AsyncIpPinnedTransport(hostname=hostname, resolved_ip=resolved_ip, verify=verify)
 
 
@@ -327,6 +343,7 @@ def abuild_ip_pinned_transport(
     uri: str,
     *,
     allow_private: bool = False,
+    allowed_ports: frozenset[int] | None = None,
     verify: bool = True,
 ) -> AsyncIpPinnedTransport:
     """Deprecated alias for :func:`build_async_ip_pinned_transport`.
@@ -343,4 +360,9 @@ def abuild_ip_pinned_transport(
         DeprecationWarning,
         stacklevel=2,
     )
-    return build_async_ip_pinned_transport(uri, allow_private=allow_private, verify=verify)
+    return build_async_ip_pinned_transport(
+        uri,
+        allow_private=allow_private,
+        allowed_ports=allowed_ports,
+        verify=verify,
+    )

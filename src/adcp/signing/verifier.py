@@ -131,6 +131,11 @@ class VerifyOptions:
     expected_adcp_use: str = ADCP_USE_REQUEST
     allowed_algs: frozenset[str] = ALLOWED_ALGS
     agent_url: str | None = None
+    # Multi-tenant deployments pass tenant_id so a JWKS resolver shared
+    # across tenants refuses keys outside the active tenant's published
+    # JWKS. Single-tenant deployments leave it None; resolvers that
+    # don't enforce tenant scoping ignore it. See JwksResolver Protocol.
+    tenant_id: str | None = None
 
 
 def verify_request_signature(
@@ -219,7 +224,7 @@ def verify_request_signature(
             message=f"nonce exceeds {_MAX_PARAM_LEN} bytes",
         )
 
-    jwk = options.jwks_resolver(keyid)
+    jwk = options.jwks_resolver(keyid, tenant_id=options.tenant_id)
     if jwk is None:
         raise SignatureVerificationError(
             REQUEST_SIGNATURE_KEY_UNKNOWN,

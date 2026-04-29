@@ -44,6 +44,7 @@ from adcp.signing.crypto import (
     load_private_key_pem,
     private_key_from_jwk,
 )
+from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
 from adcp.signing.webhook_signer import sign_webhook
 from adcp.types import GeneratedTaskStatus
 from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
@@ -112,6 +113,8 @@ class WebhookSender:
         alg: str,
         client: httpx.AsyncClient | None = None,
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        allow_private_destinations: bool = False,
+        allowed_destination_ports: frozenset[int] | None = None,
     ) -> None:
         self._private_key = private_key
         self._key_id = key_id
@@ -119,6 +122,8 @@ class WebhookSender:
         self._timeout = timeout_seconds
         self._client = client
         self._owns_client = client is None
+        self._allow_private_destinations = allow_private_destinations
+        self._allowed_destination_ports = allowed_destination_ports
 
     @classmethod
     def from_jwk(
@@ -471,7 +476,23 @@ class WebhookSender:
         idempotency_key: str,
         extra_headers: Mapping[str, str] | None,
     ) -> WebhookDeliveryResult:
-        """Sign + POST a pre-serialized body. Shared by send_raw and resend."""
+        """Sign + POST a pre-serialized body through an SSRF-validated transport.
+
+        When the sender owns its httpx client (the default — ``client=None``
+        was passed to ``__init__``), every delivery builds a per-request
+        :class:`adcp.signing.ip_pinned_transport.AsyncIpPinnedTransport`
+        that resolves the destination, runs the full SSRF range check
+        (loopback / RFC 1918 / link-local / CGNAT / IPv6 ULA / multicast /
+        cloud metadata), enforces the port allowlist, and pins the
+        connection to the validated IP. This closes the DNS-rebinding
+        TOCTOU between validate and connect.
+
+        When the operator supplied their own client
+        (``WebhookSender(client=...)`` — typically a vetted egress proxy
+        with mTLS to a known buyer set, or an ASGI transport for testing),
+        the sender trusts the operator's transport completely. Pin-and-bind
+        is skipped; the operator's transport owns SSRF.
+        """
         base_headers = {"Content-Type": "application/json"}
         signed = sign_webhook(
             method="POST",
@@ -495,8 +516,28 @@ class WebhookSender:
             for k, v in extra_headers.items():
                 headers[k] = v
 
-        client = await self._get_client()
-        response = await client.post(url, content=body, headers=headers)
+        if self._owns_client:
+            # Per-request pinned transport. Building one client per delivery
+            # is the security-correct choice: keeping a pinned transport
+            # alive across deliveries to the same hostname would defeat the
+            # rebinding defense (the IP would be frozen at first delivery).
+            transport = build_async_ip_pinned_transport(
+                url,
+                allow_private=self._allow_private_destinations,
+                allowed_ports=self._allowed_destination_ports,
+            )
+            async with httpx.AsyncClient(
+                transport=transport,
+                timeout=self._timeout,
+                follow_redirects=False,
+            ) as client:
+                response = await client.post(url, content=body, headers=headers)
+        else:
+            # Operator-supplied client — they own the SSRF guarantees on
+            # their transport (proxy allowlist, mTLS, etc.).
+            assert self._client is not None  # narrowing for mypy
+            response = await self._client.post(url, content=body, headers=headers)
+
         return WebhookDeliveryResult(
             status_code=response.status_code,
             idempotency_key=idempotency_key,
