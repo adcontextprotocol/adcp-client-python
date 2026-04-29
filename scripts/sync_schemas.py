@@ -48,6 +48,15 @@ CACHE_DIR = REPO_ROOT / "schemas" / "cache"
 SKILLS_DIR = REPO_ROOT / "skills"
 VERSION_FILE = REPO_ROOT / "src" / "adcp" / "ADCP_VERSION"
 _ADCP_BASE = os.environ.get("ADCP_BASE_URL", "https://adcontextprotocol.org").rstrip("/")
+# Reject overrides ending in /protocol — appending our own /protocol below
+# would silently produce //protocol and 404 against any sensible CDN. Fail
+# loud at module import so the typo surfaces immediately.
+if _ADCP_BASE.endswith("/protocol"):
+    raise ValueError(
+        f"ADCP_BASE_URL={_ADCP_BASE!r} ends with '/protocol'. The script "
+        "appends '/protocol' itself — pass only the protocol host "
+        "(e.g. https://adcontextprotocol.org)."
+    )
 BUNDLE_BASE_URL = _ADCP_BASE + "/protocol"
 USER_AGENT = "adcp-python-sdk/3.0"
 
@@ -125,9 +134,7 @@ def fetch_signature_sidecars(version: str) -> tuple[bytes | None, bytes | None]:
     return sig, crt
 
 
-def verify_cosign_signature(
-    tgz_bytes: bytes, sig_bytes: bytes, crt_bytes: bytes
-) -> None:
+def verify_cosign_signature(tgz_bytes: bytes, sig_bytes: bytes, crt_bytes: bytes) -> None:
     """Verify the bundle with `cosign verify-blob`.
 
     Raises RuntimeError if cosign is not installed or verification fails.
@@ -200,9 +207,7 @@ def replace_cache_from_bundle(bundle_root: Path) -> int:
     """
     schemas_src = bundle_root / "schemas"
     if not schemas_src.is_dir():
-        raise RuntimeError(
-            f"Bundle missing expected directory: {bundle_root.name}/schemas/"
-        )
+        raise RuntimeError(f"Bundle missing expected directory: {bundle_root.name}/schemas/")
 
     if CACHE_DIR.exists():
         shutil.rmtree(CACHE_DIR)
@@ -292,9 +297,7 @@ def main() -> None:
 
     try:
         print(f"Fetching {target_version}.tgz + checksum...")
-        tgz_bytes, expected_sha, effective_version = fetch_bundle_with_fallback(
-            target_version
-        )
+        tgz_bytes, expected_sha, effective_version = fetch_bundle_with_fallback(target_version)
     except (HTTPError, URLError) as exc:
         print(f"\n✗ Failed to download bundle: {exc}", file=sys.stderr)
         sys.exit(1)
@@ -320,10 +323,7 @@ def main() -> None:
             sys.exit(1)
 
         if sig_bytes is None or crt_bytes is None:
-            print(
-                f"  ! No Sigstore sidecars for adcp-{effective_version} "
-                "(checksum-only trust)"
-            )
+            print(f"  ! No Sigstore sidecars for adcp-{effective_version} " "(checksum-only trust)")
         else:
             try:
                 verify_cosign_signature(tgz_bytes, sig_bytes, crt_bytes)

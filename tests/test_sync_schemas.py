@@ -124,9 +124,7 @@ class TestSyncSkillsFromBundle:
             assert result == 0
         assert "No manifest.json" in capsys.readouterr().out
 
-    def test_empty_skills_list_returns_zero(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_empty_skills_list_returns_zero(self, capsys: pytest.CaptureFixture[str]) -> None:
         with tempfile.TemporaryDirectory() as tmp_str:
             tmp = Path(tmp_str)
             bundle_root = _make_bundle(tmp, manifest_skills=[])
@@ -179,15 +177,11 @@ class TestSyncSkillsFromBundle:
             existing.mkdir()
             (existing / "SKILL.md").write_text("# Old Brand")
 
-            bundle_root = _make_bundle(
-                tmp, skills={"adcp-brand": {"SKILL.md": "# New Brand"}}
-            )
+            bundle_root = _make_bundle(tmp, skills={"adcp-brand": {"SKILL.md": "# New Brand"}})
             sync_skills_from_bundle(bundle_root, skills_dir)
 
             assert (skills_dir / "adcp-brand" / "SKILL.md").read_text() == "# New Brand"
-            assert (skills_dir / "adcp-brand.previous" / "SKILL.md").read_text() == (
-                "# Old Brand"
-            )
+            assert (skills_dir / "adcp-brand.previous" / "SKILL.md").read_text() == ("# Old Brand")
 
     def test_previous_snapshot_replaced_on_second_update(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_str:
@@ -204,14 +198,10 @@ class TestSyncSkillsFromBundle:
             existing.mkdir()
             (existing / "SKILL.md").write_text("# Old Brand")
 
-            bundle_root = _make_bundle(
-                tmp, skills={"adcp-brand": {"SKILL.md": "# New Brand"}}
-            )
+            bundle_root = _make_bundle(tmp, skills={"adcp-brand": {"SKILL.md": "# New Brand"}})
             sync_skills_from_bundle(bundle_root, skills_dir)
 
-            assert (skills_dir / "adcp-brand.previous" / "SKILL.md").read_text() == (
-                "# Old Brand"
-            )
+            assert (skills_dir / "adcp-brand.previous" / "SKILL.md").read_text() == ("# Old Brand")
 
     def test_local_only_skill_untouched(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_str:
@@ -263,9 +253,7 @@ class TestSyncSkillsFromBundle:
             with pytest.raises(RuntimeError, match="Unsafe skill name rejected"):
                 sync_skills_from_bundle(bundle_root, skills_dir)
 
-    def test_non_string_name_skipped(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_non_string_name_skipped(self, capsys: pytest.CaptureFixture[str]) -> None:
         with tempfile.TemporaryDirectory() as tmp_str:
             tmp = Path(tmp_str)
             bundle_root = _make_bundle(
@@ -280,9 +268,7 @@ class TestSyncSkillsFromBundle:
             assert count == 1  # only the valid string entry is synced
         assert "Skipping non-string" in capsys.readouterr().out
 
-    def test_missing_bundle_skill_dir_skipped(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_missing_bundle_skill_dir_skipped(self, capsys: pytest.CaptureFixture[str]) -> None:
         with tempfile.TemporaryDirectory() as tmp_str:
             tmp = Path(tmp_str)
             # Manifest lists a skill that has no corresponding directory in the bundle
@@ -322,9 +308,7 @@ class TestSyncSkillsFromBundle:
             sync_skills_from_bundle(bundle_root, skills_dir)
 
             # dst must not be touched when src is absent
-            assert (skills_dir / "adcp-brand" / "SKILL.md").read_text() == (
-                "# Existing Brand"
-            )
+            assert (skills_dir / "adcp-brand" / "SKILL.md").read_text() == ("# Existing Brand")
         assert "missing in bundle" in capsys.readouterr().out
 
     def test_multiple_skills_synced(self) -> None:
@@ -381,3 +365,27 @@ class TestBundleBaseUrl:
         fresh_spec.loader.exec_module(fresh_mod)  # type: ignore[union-attr]
         assert fresh_mod.BUNDLE_BASE_URL == "https://fixture.example.com/protocol"
         assert "//protocol" not in fresh_mod.BUNDLE_BASE_URL
+
+    def test_env_override_rejects_protocol_suffix(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Override ending in /protocol would double-append. Fail loud at
+        # import rather than silently 404-ing later.
+        monkeypatch.setenv("ADCP_BASE_URL", "https://fixture.example.com/protocol")
+        fresh_spec = importlib.util.spec_from_file_location("sync_schemas_protocol_suffix", _SCRIPT)
+        assert fresh_spec is not None and fresh_spec.loader is not None
+        fresh_mod = importlib.util.module_from_spec(fresh_spec)
+        with pytest.raises(ValueError, match="ends with '/protocol'"):
+            fresh_spec.loader.exec_module(fresh_mod)  # type: ignore[union-attr]
+
+    def test_env_override_rejects_protocol_suffix_with_trailing_slash(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Same guard, but with a trailing slash on the override — rstrip
+        # runs first, so the /protocol still trips the check.
+        monkeypatch.setenv("ADCP_BASE_URL", "https://fixture.example.com/protocol/")
+        fresh_spec = importlib.util.spec_from_file_location(
+            "sync_schemas_protocol_trailing", _SCRIPT
+        )
+        assert fresh_spec is not None and fresh_spec.loader is not None
+        fresh_mod = importlib.util.module_from_spec(fresh_spec)
+        with pytest.raises(ValueError, match="ends with '/protocol'"):
+            fresh_spec.loader.exec_module(fresh_mod)  # type: ignore[union-attr]
