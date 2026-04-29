@@ -20,6 +20,7 @@ from adcp import ADCPClient, ADCPMultiAgentClient, get_adcp_spec_version
 from adcp._version import (
     ADCP_MAJOR_VERSION,
     COMPATIBLE_ADCP_VERSIONS,
+    normalize_to_release_precision,
     parse_adcp_major_version,
     resolve_adcp_version,
 )
@@ -70,13 +71,55 @@ def test_parse_adcp_major_version_rejects_garbage(bad_version: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_default_returns_packaged_version() -> None:
-    assert resolve_adcp_version(None) == get_adcp_spec_version()
+def test_resolve_default_returns_normalized_packaged_version() -> None:
+    """Default pin is the packaged ADCP_VERSION, normalized to release-precision."""
+    assert resolve_adcp_version(None) == normalize_to_release_precision(get_adcp_spec_version())
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1", "3.0.0", "3.0.1", "3.1-beta"])
-def test_resolve_same_major_accepted(version: str) -> None:
-    assert resolve_adcp_version(version) == version
+@pytest.mark.parametrize(
+    "version,expected",
+    [
+        ("3.0", "3.0"),
+        ("3.1", "3.1"),
+        ("3.0.0", "3.0"),  # normalized — patch stripped
+        ("3.0.1", "3.0"),  # normalized — patch stripped
+        ("3.1-beta", "3.1-beta"),
+        ("3.1.0-rc.1", "3.1-rc.1"),  # normalized — patch stripped, pre-release kept
+    ],
+)
+def test_resolve_same_major_normalized(version: str, expected: str) -> None:
+    """All same-major pins resolve to release-precision per the spec wire rule."""
+    assert resolve_adcp_version(version) == expected
+
+
+# ---------------------------------------------------------------------------
+# normalize_to_release_precision
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "input,expected",
+    [
+        ("3.0", "3.0"),
+        ("3.1", "3.1"),
+        ("3.0.0", "3.0"),
+        ("3.0.1", "3.0"),
+        ("3.1-beta", "3.1-beta"),
+        ("3.1.0-beta", "3.1-beta"),
+        ("3.1.0-rc.1", "3.1-rc.1"),
+        ("3.1.2-beta.5", "3.1-beta.5"),
+        ("10.20.30", "10.20"),
+    ],
+)
+def test_normalize_strips_patch_keeps_prerelease(input: str, expected: str) -> None:
+    assert normalize_to_release_precision(input) == expected
+
+
+def test_normalize_rejects_garbage() -> None:
+    import pytest as _pytest
+
+    with _pytest.raises(ValueError):
+        normalize_to_release_precision("banana")
 
 
 @pytest.mark.parametrize("version", ["4.0", "2.0", "5.1", "1.0.0"])
@@ -111,15 +154,24 @@ def _agent_config() -> AgentConfig:
     )
 
 
-def test_adcp_client_default_uses_packaged_version() -> None:
+def test_adcp_client_default_uses_normalized_packaged_version() -> None:
     client = ADCPClient(_agent_config())
-    assert client.get_adcp_version() == get_adcp_spec_version()
+    assert client.get_adcp_version() == normalize_to_release_precision(get_adcp_spec_version())
 
 
-@pytest.mark.parametrize("version", ["3.0", "3.1", "3.1-beta"])
-def test_adcp_client_explicit_pin_accepted(version: str) -> None:
+@pytest.mark.parametrize(
+    "version,expected",
+    [
+        ("3.0", "3.0"),
+        ("3.1", "3.1"),
+        ("3.1-beta", "3.1-beta"),
+        ("3.0.0", "3.0"),  # patch input → release stored
+        ("3.0.1", "3.0"),
+    ],
+)
+def test_adcp_client_pin_normalized(version: str, expected: str) -> None:
     client = ADCPClient(_agent_config(), adcp_version=version)
-    assert client.get_adcp_version() == version
+    assert client.get_adcp_version() == expected
 
 
 def test_adcp_client_cross_major_rejected() -> None:
@@ -139,7 +191,7 @@ def test_adcp_client_unparseable_rejected() -> None:
 
 def test_multi_agent_default_uses_packaged_version() -> None:
     multi = ADCPMultiAgentClient(agents=[_agent_config()])
-    assert multi.get_adcp_version() == get_adcp_spec_version()
+    assert multi.get_adcp_version() == normalize_to_release_precision(get_adcp_spec_version())
 
 
 def test_multi_agent_pin_forwards_to_per_agent() -> None:
@@ -160,7 +212,7 @@ def test_multi_agent_cross_major_rejected() -> None:
 
 def test_server_builder_default_uses_packaged_version() -> None:
     builder = ADCPServerBuilder("my-seller")
-    assert builder.get_adcp_version() == get_adcp_spec_version()
+    assert builder.get_adcp_version() == normalize_to_release_precision(get_adcp_spec_version())
 
 
 @pytest.mark.parametrize("version", ["3.0", "3.1"])

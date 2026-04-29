@@ -56,12 +56,13 @@ def test_envelope_enricher_passes_through_non_dict() -> None:
 
 
 def test_envelope_enricher_uses_default_when_pin_omitted() -> None:
-    """Default pin = packaged ADCP_VERSION."""
+    """Default pin = packaged ADCP_VERSION, normalized to release-precision."""
     from adcp import get_adcp_spec_version
+    from adcp._version import normalize_to_release_precision
 
     client = ADCPClient(_agent_config())
     enriched = client.adapter._enrich_outgoing_params({})
-    assert enriched["adcp_version"] == get_adcp_spec_version()
+    assert enriched["adcp_version"] == normalize_to_release_precision(get_adcp_spec_version())
 
 
 # ---------------------------------------------------------------------------
@@ -129,8 +130,9 @@ def test_server_builder_auto_capabilities_emits_pin() -> None:
 
 
 def test_server_builder_auto_capabilities_uses_default_pin() -> None:
-    """No explicit pin → packaged ADCP_VERSION drives the response."""
+    """No explicit pin → packaged ADCP_VERSION (normalized) drives the response."""
     from adcp import get_adcp_spec_version
+    from adcp._version import normalize_to_release_precision
 
     builder = ADCPServerBuilder("my-seller")
 
@@ -140,4 +142,4 @@ def test_server_builder_auto_capabilities_uses_default_pin() -> None:
 
     handler = builder.build_handler()
     response = asyncio.run(handler.get_adcp_capabilities({}, None))
-    assert response["adcp_version"] == get_adcp_spec_version()
+    assert response["adcp_version"] == normalize_to_release_precision(get_adcp_spec_version())

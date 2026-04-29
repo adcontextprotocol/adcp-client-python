@@ -44,6 +44,37 @@ ADCP_MAJOR_VERSION: int = 3
 _VERSION_RE: re.Pattern[str] = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?(?:-[a-zA-Z0-9.-]+)?$")
 
 
+def normalize_to_release_precision(version: str) -> str:
+    """Strip the patch component from a semver string for wire emission.
+
+    Per the AdCP version-negotiation spec
+    (`core/version-envelope.json`), wire values for ``adcp_version``
+    are release-precision only. SDKs that read full-semver values
+    from bundle metadata (``ADCP_VERSION`` file, ``published_version``,
+    etc.) MUST normalize before emitting on the wire — meta-field
+    values are not valid wire values.
+
+    Examples:
+
+    - ``"3.0"``       → ``"3.0"`` (already release-precision)
+    - ``"3.0.0"``     → ``"3.0"``
+    - ``"3.0.1"``     → ``"3.0"``
+    - ``"3.1-beta"``  → ``"3.1-beta"``
+    - ``"3.1.0-beta"`` → ``"3.1-beta"``
+    - ``"3.1.0-rc.1"`` → ``"3.1-rc.1"``
+
+    Raises :class:`ValueError` on unparseable strings.
+    """
+    match = _VERSION_RE.match(version)
+    if match is None:
+        raise ValueError(f"adcp_version {version!r} is not a valid semver-shaped string.")
+    major, release = match.group(1), match.group(2)
+    # Pre-release tag is whatever comes after the optional patch.
+    suffix_start = match.end(3) if match.group(3) is not None else match.end(2)
+    pre_release = version[suffix_start:]  # includes leading "-" or ""
+    return f"{major}.{release}{pre_release}"
+
+
 def parse_adcp_major_version(version: str) -> int:
     """Extract the major component from a release- or patch-precision version string.
 
@@ -77,35 +108,34 @@ def _read_packaged_version() -> str:
 def resolve_adcp_version(pin: str | None) -> str:
     """Validate and resolve a constructor-supplied ``adcp_version`` pin.
 
-    - ``None`` → returns the packaged ``ADCP_VERSION`` (SDK default).
-    - Same-major pin → returned as-is. Release- and patch-precision
-      both accepted; the SDK does not normalize the string at this
-      layer (callers see what they passed).
+    - ``None`` → reads the packaged ``ADCP_VERSION`` file (SDK default).
+    - Same-major pin → accepted.
     - Cross-major pin → raises :class:`ConfigurationError`.
     - Unparseable string → raises :class:`ConfigurationError`.
 
-    The cross-major fence is the only construction-time fail. Within
-    the same major, release-level pins are accepted optimistically —
-    Stage 3 (per-instance schema/validator selection) is what
-    actually validates that the pinned release exists in the SDK's
-    schema cache. Until Stage 3 lands, the pin is plumbing only.
+    All resolved pins are normalized to release-precision before being
+    returned, per the spec's wire-value rule
+    (``core/version-envelope.json``). Patch-precision inputs like
+    ``"3.0.1"`` are accepted (the ``ADCP_VERSION`` file ships in this
+    shape today) but stored and emitted as ``"3.0"``. ``get_adcp_version()``
+    therefore returns release-precision regardless of what the caller
+    passed; this is intentional — wire values are the canonical form.
     """
     # Imported here to avoid a circular import at module load time.
     from adcp.exceptions import ConfigurationError
 
-    if pin is None:
-        return _read_packaged_version()
+    raw = pin if pin is not None else _read_packaged_version()
 
     try:
-        major = parse_adcp_major_version(pin)
+        major = parse_adcp_major_version(raw)
     except ValueError as exc:
         raise ConfigurationError(str(exc)) from exc
 
     if major != ADCP_MAJOR_VERSION:
         raise ConfigurationError(
-            f"adcp_version={pin!r} targets major {major}, but this SDK speaks "
+            f"adcp_version={raw!r} targets major {major}, but this SDK speaks "
             f"AdCP {ADCP_MAJOR_VERSION}.x. Install the SDK major that targets "
             f"AdCP {major}.x — cross-major pinning is not supported."
         )
 
-    return pin
+    return normalize_to_release_precision(raw)
