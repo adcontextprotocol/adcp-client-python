@@ -24,6 +24,7 @@ from collections.abc import Callable, Iterable
 from typing import Any
 
 from adcp.server.base import ADCPHandler, ToolContext
+from adcp.server.test_controller import SCENARIOS as _CONTROLLER_SCENARIOS
 from adcp.validation.client_hooks import ValidationHookConfig
 
 logger = logging.getLogger(__name__)
@@ -842,22 +843,11 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "account": {"type": "object"},
                 "scenario": {
                     "type": "string",
-                    "enum": [
-                        "list_scenarios",
-                        "force_creative_status",
-                        "force_account_status",
-                        "force_media_buy_status",
-                        "force_create_media_buy_arm",
-                        "force_task_completion",
-                        "force_session_status",
-                        "simulate_delivery",
-                        "simulate_budget_spend",
-                        "seed_product",
-                        "seed_pricing_option",
-                        "seed_creative",
-                        "seed_plan",
-                        "seed_media_buy",
-                    ],
+                    # Derived from test_controller.SCENARIOS so the static stub
+                    # matches the dispatcher; the Pydantic-generated path also
+                    # carries the new names because #292 ships them in the
+                    # comply-test-controller-request schema.
+                    "enum": ["list_scenarios"] + _CONTROLLER_SCENARIOS,
                 },
                 "params": {"type": "object"},
                 "account": {"type": "object"},

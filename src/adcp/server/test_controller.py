@@ -389,34 +389,23 @@ def _controller_error(error: str, detail: str, current_state: str | None = None)
     return resp
 
 
-def _accepts_context_kwarg(method: Any) -> bool:
-    """True when ``method``'s signature accepts ``context=`` by keyword.
+def _accepts_kwarg(method: Any, name: str) -> bool:
+    """True when ``method``'s signature accepts ``name`` as a keyword argument.
 
-    TestControllerStore subclasses written against the original API
-    (pre-#227) don't declare ``context``; passing it would raise
-    ``TypeError`` at the call site. Signature inspection keeps the
-    dispatcher backward-compatible while letting stores opt in to
-    header-driven context by simply adding ``context=None`` to their
-    override.
+    Used by the dispatcher to decide whether to pass optional kwargs
+    (``context``, ``account``) to store methods. Methods that don't
+    declare the kwarg keep working unchanged; methods that do get the
+    value threaded in.
 
     Counts as an opt-in:
 
-    - ``*, context: ...`` — keyword-only (the documented recipe).
-    - ``context: ...`` as a regular positional-or-keyword parameter.
-    - ``**kwargs`` — accepts any keyword, including ``context``.
+    - ``*, name: ...`` — keyword-only (the documented recipe).
+    - ``name: ...`` as a regular positional-or-keyword parameter.
+    - ``**kwargs`` — accepts any keyword.
 
     Does **not** count:
 
-    - ``context`` as positional-only (before ``/``) — passing by
-      keyword raises ``TypeError``.
-    - ``context`` as ``*args`` (it's never a variadic positional).
-
-    Caveat: ``inspect.signature`` follows ``__wrapped__`` set by
-    ``@functools.wraps``. A decorator that wraps a legacy store method
-    and exposes the legacy signature will look "not opted in" even if
-    the wrapper itself would accept ``context``. This matches the
-    behavior callers expect — the wrapped callable signature is the
-    authoritative contract.
+    - ``name`` as positional-only (before ``/``).
     """
     try:
         sig = inspect.signature(method)
@@ -429,9 +418,14 @@ def _accepts_context_kwarg(method: Any) -> bool:
     for param in sig.parameters.values():
         if param.kind == inspect.Parameter.VAR_KEYWORD:
             return True
-        if param.name == "context" and param.kind in allowed:
+        if param.name == name and param.kind in allowed:
             return True
     return False
+
+
+def _accepts_context_kwarg(method: Any) -> bool:
+    """True when ``method``'s signature accepts ``context=`` by keyword."""
+    return _accepts_kwarg(method, "context")
 
 
 async def _handle_test_controller(
@@ -474,6 +468,9 @@ async def _handle_test_controller(
     extra: dict[str, Any] = {}
     if context is not None and _accepts_context_kwarg(method):
         extra["context"] = context
+    account = params.get("account")
+    if account is not None and _accepts_kwarg(method, "account"):
+        extra["account"] = account
 
     try:
         if scenario == "force_creative_status":
@@ -532,16 +529,17 @@ async def _handle_test_controller(
             if arm == "input-required":
                 task_id = None
             message = scenario_params.get("message")
-            if message is not None and len(str(message)) > _MAX_MESSAGE:
+            if message is not None and (
+                not isinstance(message, str) or len(message) > _MAX_MESSAGE
+            ):
                 return _controller_error(
                     "INVALID_PARAMS",
-                    f"message must be at most {_MAX_MESSAGE} characters",
+                    f"message must be a string of at most {_MAX_MESSAGE} characters",
                 )
             result = await method(
                 arm=arm,
                 task_id=task_id,
                 message=message,
-                account=params.get("account"),
                 **extra,
             )
         elif scenario == "force_task_completion":
@@ -572,7 +570,6 @@ async def _handle_test_controller(
             result = await method(
                 task_id=task_id,
                 result=result_value,
-                account=params.get("account"),
                 **extra,
             )
         elif scenario == "simulate_delivery":
