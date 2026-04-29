@@ -316,7 +316,7 @@ def serve(
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
-    stateless_http: bool = True,
+    streaming_responses: bool = False,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -379,14 +379,17 @@ def serve(
             development. Container deployments (Fly.io, k8s, Cloud Run)
             require ``"0.0.0.0"`` so the process listens on the
             container's external interface.
-        stateless_http: When ``True`` (default), sets FastMCP's
-            ``stateless_http`` and ``json_response`` flags for the
-            streamable-http transport. The AdCP storyboard runner expects
-            synchronous JSON responses; the default streaming-SSE mode
-            closes the ASGI response without completing, causing the
-            runner to report ``overall_status: "unreachable"``. Set to
-            ``False`` only if your client explicitly requires SSE
-            streaming (MCP transports only).
+        streaming_responses: When ``False`` (default), the streamable-http
+            transport returns one ``application/json`` response per
+            request. AdCP tools today don't emit progress events, and
+            FastMCP's SSE-internal streaming default has an upstream bug
+            that drops the ASGI response without completing — making the
+            storyboard runner report ``overall_status: "unreachable"``.
+            Set to ``True`` only if your tools genuinely emit progress
+            notifications and your clients consume the SSE stream
+            (MCP transports only). Note: the legacy ``transport="sse"``
+            is a separate (deprecated) MCP transport, unrelated to this
+            flag.
 
     Security:
         This function does NOT configure authentication. In production,
@@ -452,7 +455,7 @@ def serve(
             middleware=middleware,
             advertise_all=advertise_all,
             max_request_size=max_request_size,
-            stateless_http=stateless_http,
+            streaming_responses=streaming_responses,
         )
     else:
         valid = ", ".join(sorted(("a2a", "streamable-http", "sse", "stdio")))
@@ -549,7 +552,7 @@ def _serve_mcp(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
-    stateless_http: bool = True,
+    streaming_responses: bool = False,
 ) -> None:
     """Start an MCP server."""
     mcp = create_mcp_server(
@@ -562,7 +565,7 @@ def _serve_mcp(
         context_factory=context_factory,
         middleware=middleware,
         advertise_all=advertise_all,
-        stateless_http=stateless_http,
+        streaming_responses=streaming_responses,
     )
 
     if test_controller is not None:
@@ -672,7 +675,7 @@ def create_mcp_server(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
-    stateless_http: bool = True,
+    streaming_responses: bool = False,
 ) -> Any:
     """Create a FastMCP server from an ADCP handler without starting it.
 
@@ -719,13 +722,14 @@ def create_mcp_server(
         host: Network interface to bind to. Defaults to the ``ADCP_HOST``
             environment variable, then ``"0.0.0.0"`` (all interfaces).
             Use ``"127.0.0.1"`` for local-only development.
-        stateless_http: When ``True`` (default), sets FastMCP's
-            ``stateless_http`` and ``json_response`` flags before the
-            server starts. Required for the AdCP storyboard runner to
-            connect; the streaming-SSE default causes
-            ``ASGI callable returned without completing response``.
-            Set to ``False`` only if your client explicitly requires
-            SSE streaming.
+        streaming_responses: When ``False`` (default), the streamable-http
+            transport returns one ``application/json`` response per
+            request — the right shape for AdCP tools today (none of which
+            emit progress events). The FastMCP SSE-internal streaming
+            default also has an upstream bug that drops the ASGI response
+            without completing, blocking the storyboard runner. Set to
+            ``True`` only if your tools genuinely emit progress
+            notifications and your clients consume the SSE stream.
 
     Returns:
         A configured FastMCP server instance. Call ``mcp.run()`` to start,
@@ -781,7 +785,10 @@ def create_mcp_server(
     resolved_host = host if host is not None else (os.environ.get("ADCP_HOST") or "0.0.0.0")
     mcp = FastMCP(name, instructions=instructions, port=resolved_port)
     mcp.settings.host = resolved_host
-    if stateless_http:
+    if not streaming_responses:
+        # FastMCP's SSE-internal default has an upstream bug; switching to
+        # stateless JSON-response mode is also semantically correct for
+        # AdCP tools, which return one complete envelope per request.
         mcp.settings.stateless_http = True
         mcp.settings.json_response = True
     _register_handler_tools(
