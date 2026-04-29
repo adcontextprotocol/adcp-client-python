@@ -39,12 +39,17 @@
                 "description": "Which delivery record was evaluated"
               },
               "verdict": {
+                "title": "Binary Verdict",
+                "description": "Strictly two-outcome evaluation result used for overall record-level verdicts in content standards tasks. For per-feature breakdowns that include warning and unevaluated states, see feature-check-status.",
                 "type": "string",
                 "enum": [
                   "pass",
                   "fail"
                 ],
-                "description": "Overall pass/fail verdict for this record"
+                "enumDescriptions": {
+                  "pass": "The evaluated record meets all applicable content standards",
+                  "fail": "The evaluated record failed one or more content standard checks"
+                }
               },
               "features": {
                 "type": "array",
@@ -57,13 +62,21 @@
                       "description": "Which feature was evaluated. Data features come from the content-standards feature catalog (e.g., 'brand_safety', 'brand_suitability', 'image_dpi'). Record-level structural checks use reserved namespaces: 'record:malformed_artifact', 'delivery:authorization'. Reserved prefixes: 'record:', 'delivery:'."
                     },
                     "status": {
+                      "title": "Feature Check Status",
+                      "description": "Per-feature evaluation outcome in content standards checks. For the two-outcome overall record verdict, see binary-verdict.",
                       "type": "string",
                       "enum": [
                         "passed",
                         "failed",
                         "warning",
                         "unevaluated"
-                      ]
+                      ],
+                      "enumDescriptions": {
+                        "passed": "Feature met the applicable content standard",
+                        "failed": "Feature did not meet the applicable content standard",
+                        "warning": "Feature is within tolerance but approaching a threshold \u2014 informational, not blocking",
+                        "unevaluated": "Feature was not assessed in this evaluation run (e.g., required data not present)"
+                      }
                     },
                     "policy_id": {
                       "type": "string",
@@ -188,7 +201,7 @@
     }
   ],
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.524Z",
+    "generatedAt": "2026-04-28T12:32:22.868Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

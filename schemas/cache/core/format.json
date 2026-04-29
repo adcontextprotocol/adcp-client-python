@@ -73,7 +73,7 @@
   "properties": {
     "format_id": {
       "$ref": "format-id.json",
-      "description": "Structured format identifier with agent URL and format name"
+      "description": "This format's own identifier \u2014 a structured object {agent_url, id}, not a string. See /schemas/core/format-id.json for the full shape."
     },
     "name": {
       "type": "string",
@@ -211,6 +211,7 @@
       "items": {
         "oneOf": [
           {
+            "title": "IndividualImageAsset",
             "description": "Image asset",
             "allOf": [
               {
@@ -230,6 +231,7 @@
             }
           },
           {
+            "title": "IndividualVideoAsset",
             "description": "Video asset",
             "allOf": [
               {
@@ -249,6 +251,7 @@
             }
           },
           {
+            "title": "IndividualAudioAsset",
             "description": "Audio asset",
             "allOf": [
               {
@@ -268,6 +271,7 @@
             }
           },
           {
+            "title": "IndividualTextAsset",
             "description": "Text asset",
             "allOf": [
               {
@@ -287,6 +291,7 @@
             }
           },
           {
+            "title": "IndividualMarkdownAsset",
             "description": "Markdown asset",
             "allOf": [
               {
@@ -306,6 +311,7 @@
             }
           },
           {
+            "title": "IndividualHtmlAsset",
             "description": "HTML asset",
             "allOf": [
               {
@@ -325,6 +331,7 @@
             }
           },
           {
+            "title": "IndividualCssAsset",
             "description": "CSS asset",
             "allOf": [
               {
@@ -344,6 +351,7 @@
             }
           },
           {
+            "title": "IndividualJavaScriptAsset",
             "description": "JavaScript asset",
             "allOf": [
               {
@@ -363,6 +371,7 @@
             }
           },
           {
+            "title": "IndividualVastAsset",
             "description": "VAST asset",
             "allOf": [
               {
@@ -382,6 +391,7 @@
             }
           },
           {
+            "title": "IndividualDaastAsset",
             "description": "DAAST asset",
             "allOf": [
               {
@@ -401,6 +411,7 @@
             }
           },
           {
+            "title": "IndividualUrlAsset",
             "description": "URL asset",
             "allOf": [
               {
@@ -420,6 +431,7 @@
             }
           },
           {
+            "title": "IndividualWebhookAsset",
             "description": "Webhook asset",
             "allOf": [
               {
@@ -439,6 +451,7 @@
             }
           },
           {
+            "title": "IndividualBriefAsset",
             "description": "Brief asset",
             "allOf": [
               {
@@ -455,6 +468,7 @@
             }
           },
           {
+            "title": "IndividualCatalogAsset",
             "description": "Catalog asset",
             "allOf": [
               {
@@ -474,6 +488,7 @@
             }
           },
           {
+            "title": "RepeatableGroupAsset",
             "description": "Repeatable asset group (for carousels, slideshows, playlists, etc.)",
             "type": "object",
             "properties": {
@@ -515,6 +530,7 @@
                 "items": {
                   "oneOf": [
                     {
+                      "title": "GroupImageAsset",
                       "description": "Image asset in group",
                       "allOf": [
                         {
@@ -531,6 +547,7 @@
                       }
                     },
                     {
+                      "title": "GroupVideoAsset",
                       "description": "Video asset in group",
                       "allOf": [
                         {
@@ -547,6 +564,7 @@
                       }
                     },
                     {
+                      "title": "GroupAudioAsset",
                       "description": "Audio asset in group",
                       "allOf": [
                         {
@@ -563,6 +581,7 @@
                       }
                     },
                     {
+                      "title": "GroupTextAsset",
                       "description": "Text asset in group",
                       "allOf": [
                         {
@@ -579,6 +598,7 @@
                       }
                     },
                     {
+                      "title": "GroupMarkdownAsset",
                       "description": "Markdown asset in group",
                       "allOf": [
                         {
@@ -595,6 +615,7 @@
                       }
                     },
                     {
+                      "title": "GroupHtmlAsset",
                       "description": "HTML asset in group",
                       "allOf": [
                         {
@@ -611,6 +632,7 @@
                       }
                     },
                     {
+                      "title": "GroupCssAsset",
                       "description": "CSS asset in group",
                       "allOf": [
                         {
@@ -627,6 +649,7 @@
                       }
                     },
                     {
+                      "title": "GroupJavaScriptAsset",
                       "description": "JavaScript asset in group",
                       "allOf": [
                         {
@@ -643,6 +666,7 @@
                       }
                     },
                     {
+                      "title": "GroupVastAsset",
                       "description": "VAST asset in group",
                       "allOf": [
                         {
@@ -659,6 +683,7 @@
                       }
                     },
                     {
+                      "title": "GroupDaastAsset",
                       "description": "DAAST asset in group",
                       "allOf": [
                         {
@@ -675,6 +700,7 @@
                       }
                     },
                     {
+                      "title": "GroupUrlAsset",
                       "description": "URL asset in group",
                       "allOf": [
                         {
@@ -691,6 +717,7 @@
                       }
                     },
                     {
+                      "title": "GroupWebhookAsset",
                       "description": "Webhook asset in group",
                       "allOf": [
                         {

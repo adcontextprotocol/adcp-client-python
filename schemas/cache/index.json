@@ -3,12 +3,12 @@
   "title": "AdCP Schema Registry",
   "version": "1.0.0",
   "description": "Registry of all AdCP JSON schemas for validation and discovery",
-  "adcp_version": "3.0.0",
+  "adcp_version": "3.0.1",
   "versioning": {
-    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.0.0. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest release: /schemas/v3/ \u2192 /schemas/3.0.0/."
+    "note": "AdCP uses build-time versioning. This directory contains schemas for AdCP 3.0.1. Full semantic versions are available at /schemas/{version}/ (e.g., /schemas/2.5.0/). Major version aliases point to the latest release: /schemas/v3/ \u2192 /schemas/3.0.1/."
   },
-  "lastUpdated": "2026-04-22",
-  "baseUrl": "/schemas/3.0.0",
+  "lastUpdated": "2026-04-28",
+  "baseUrl": "/schemas/3.0.1",
   "schemas": {
     "core": {
       "description": "Core data models used throughout AdCP",
@@ -332,6 +332,10 @@
         "brand-ref": {
           "$ref": "core/brand-ref.json",
           "description": "Reference to a brand via house domain + brand_id (like publisher + property_id)"
+        },
+        "seller-agent-ref": {
+          "$ref": "core/seller-agent-ref.json",
+          "description": "Reference to a seller agent by its adagents.json-declared URL. Used on TMP AvailablePackage and echoed on Offer."
         },
         "signal-id": {
           "$ref": "core/signal-id.json",

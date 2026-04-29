@@ -106,12 +106,19 @@
           "type": "array",
           "description": "Billing models this seller supports. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. The buyer must pass one of these values in sync_accounts.",
           "items": {
+            "title": "Billing Party",
+            "description": "Which party the seller invoices for an account. Determines the billing entity and invoicing flow.",
             "type": "string",
             "enum": [
               "operator",
               "agent",
               "advertiser"
-            ]
+            ],
+            "enumDescriptions": {
+              "operator": "Seller invoices the operator \u2014 agency or brand buying direct",
+              "agent": "Agent consolidates billing across brands and is invoiced by the seller",
+              "advertiser": "Seller invoices the advertiser directly, even when a different operator places orders on their behalf"
+            }
           },
           "minItems": 1
         },
@@ -399,12 +406,7 @@
                       "type": "array",
                       "description": "Match types this seller supports for keyword targets. Sellers must reject goals with unsupported match types.",
                       "items": {
-                        "type": "string",
-                        "enum": [
-                          "broad",
-                          "phrase",
-                          "exact"
-                        ]
+                        "$ref": "#/$defs/MatchType"
                       },
                       "minItems": 1
                     }
@@ -421,12 +423,7 @@
                       "type": "array",
                       "description": "Match types this seller supports for negative keywords. Sellers must reject goals with unsupported match types.",
                       "items": {
-                        "type": "string",
-                        "enum": [
-                          "broad",
-                          "phrase",
-                          "exact"
-                        ]
+                        "$ref": "#/$defs/MatchType"
                       },
                       "minItems": 1
                     }
@@ -503,33 +500,7 @@
               "type": "array",
               "description": "Universal ID types accepted for audience matching (MAIDs, RampID, UID2, etc.). MAID support varies significantly by platform \u2014 check this field before sending uids with type: maid.",
               "items": {
-                "title": "UID Type",
-                "description": "Type of user identifier. Used in audience sync, event logging, and TMP identity match requests to tell the receiver which identity graph to resolve against.",
-                "type": "string",
-                "enum": [
-                  "rampid",
-                  "rampid_derived",
-                  "id5",
-                  "uid2",
-                  "euid",
-                  "pairid",
-                  "maid",
-                  "hashed_email",
-                  "publisher_first_party",
-                  "other"
-                ],
-                "enumDescriptions": {
-                  "rampid": "LiveRamp RampID maintained form (XY, 32 bytes on the wire)",
-                  "rampid_derived": "LiveRamp RampID derived form (Xi, 48 bytes on the wire)",
-                  "id5": "ID5 universal ID",
-                  "uid2": "Unified ID 2.0",
-                  "euid": "European Unified ID",
-                  "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
-                  "maid": "Mobile Advertising ID (IDFA/GAID)",
-                  "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous \u2014 unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
-                  "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
-                  "other": "Other universal ID type (specify in ext)"
-                }
+                "$ref": "#/$defs/UIDType"
               },
               "minItems": 1
             },
@@ -572,69 +543,7 @@
               "type": "array",
               "description": "Event types this seller can track and attribute. If omitted, all standard event types are supported.",
               "items": {
-                "title": "Event Type",
-                "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
-                "type": "string",
-                "enum": [
-                  "page_view",
-                  "view_content",
-                  "select_content",
-                  "select_item",
-                  "search",
-                  "share",
-                  "add_to_cart",
-                  "remove_from_cart",
-                  "viewed_cart",
-                  "add_to_wishlist",
-                  "initiate_checkout",
-                  "add_payment_info",
-                  "purchase",
-                  "refund",
-                  "lead",
-                  "qualify_lead",
-                  "close_convert_lead",
-                  "disqualify_lead",
-                  "complete_registration",
-                  "subscribe",
-                  "start_trial",
-                  "app_install",
-                  "app_launch",
-                  "contact",
-                  "schedule",
-                  "donate",
-                  "submit_application",
-                  "custom"
-                ],
-                "enumDescriptions": {
-                  "page_view": "User viewed a page",
-                  "view_content": "User viewed specific content (product, article, etc.)",
-                  "select_content": "User selected or clicked on content (article, video, etc.)",
-                  "select_item": "User selected a specific product or item from a list",
-                  "search": "User performed a search",
-                  "share": "User shared content via social or messaging",
-                  "add_to_cart": "User added an item to cart",
-                  "remove_from_cart": "User removed an item from cart",
-                  "viewed_cart": "User viewed their shopping cart",
-                  "add_to_wishlist": "User added an item to a wishlist",
-                  "initiate_checkout": "User started checkout process",
-                  "add_payment_info": "User added payment information",
-                  "purchase": "User completed a purchase",
-                  "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                  "lead": "User expressed interest (form submission, signup, etc.)",
-                  "qualify_lead": "Lead qualified by sales or scoring criteria",
-                  "close_convert_lead": "Lead converted to a customer or closed deal",
-                  "disqualify_lead": "Lead disqualified or marked as not viable",
-                  "complete_registration": "User completed account registration",
-                  "subscribe": "User subscribed to a service or newsletter",
-                  "start_trial": "User started a free trial",
-                  "app_install": "User installed an application",
-                  "app_launch": "User launched an application",
-                  "contact": "User initiated contact (call, message, etc.)",
-                  "schedule": "User scheduled an appointment or event",
-                  "donate": "User made a donation",
-                  "submit_application": "User submitted an application (loan, job, etc.)",
-                  "custom": "Custom event type (specify in custom_event_name)"
-                }
+                "$ref": "#/$defs/EventType"
               },
               "minItems": 1
             },
@@ -642,33 +551,7 @@
               "type": "array",
               "description": "Universal ID types accepted for user matching",
               "items": {
-                "title": "UID Type",
-                "description": "Type of user identifier. Used in audience sync, event logging, and TMP identity match requests to tell the receiver which identity graph to resolve against.",
-                "type": "string",
-                "enum": [
-                  "rampid",
-                  "rampid_derived",
-                  "id5",
-                  "uid2",
-                  "euid",
-                  "pairid",
-                  "maid",
-                  "hashed_email",
-                  "publisher_first_party",
-                  "other"
-                ],
-                "enumDescriptions": {
-                  "rampid": "LiveRamp RampID maintained form (XY, 32 bytes on the wire)",
-                  "rampid_derived": "LiveRamp RampID derived form (Xi, 48 bytes on the wire)",
-                  "id5": "ID5 universal ID",
-                  "uid2": "Unified ID 2.0",
-                  "euid": "European Unified ID",
-                  "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
-                  "maid": "Mobile Advertising ID (IDFA/GAID)",
-                  "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous \u2014 unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
-                  "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
-                  "other": "Other universal ID type (specify in ext)"
-                }
+                "$ref": "#/$defs/UIDType"
               },
               "minItems": 1
             },
@@ -723,69 +606,7 @@
                 "type": "object",
                 "properties": {
                   "event_type": {
-                    "title": "Event Type",
-                    "description": "Event type this window applies to, or omit for default window",
-                    "type": "string",
-                    "enum": [
-                      "page_view",
-                      "view_content",
-                      "select_content",
-                      "select_item",
-                      "search",
-                      "share",
-                      "add_to_cart",
-                      "remove_from_cart",
-                      "viewed_cart",
-                      "add_to_wishlist",
-                      "initiate_checkout",
-                      "add_payment_info",
-                      "purchase",
-                      "refund",
-                      "lead",
-                      "qualify_lead",
-                      "close_convert_lead",
-                      "disqualify_lead",
-                      "complete_registration",
-                      "subscribe",
-                      "start_trial",
-                      "app_install",
-                      "app_launch",
-                      "contact",
-                      "schedule",
-                      "donate",
-                      "submit_application",
-                      "custom"
-                    ],
-                    "enumDescriptions": {
-                      "page_view": "User viewed a page",
-                      "view_content": "User viewed specific content (product, article, etc.)",
-                      "select_content": "User selected or clicked on content (article, video, etc.)",
-                      "select_item": "User selected a specific product or item from a list",
-                      "search": "User performed a search",
-                      "share": "User shared content via social or messaging",
-                      "add_to_cart": "User added an item to cart",
-                      "remove_from_cart": "User removed an item from cart",
-                      "viewed_cart": "User viewed their shopping cart",
-                      "add_to_wishlist": "User added an item to a wishlist",
-                      "initiate_checkout": "User started checkout process",
-                      "add_payment_info": "User added payment information",
-                      "purchase": "User completed a purchase",
-                      "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                      "lead": "User expressed interest (form submission, signup, etc.)",
-                      "qualify_lead": "Lead qualified by sales or scoring criteria",
-                      "close_convert_lead": "Lead converted to a customer or closed deal",
-                      "disqualify_lead": "Lead disqualified or marked as not viable",
-                      "complete_registration": "User completed account registration",
-                      "subscribe": "User subscribed to a service or newsletter",
-                      "start_trial": "User started a free trial",
-                      "app_install": "User installed an application",
-                      "app_launch": "User launched an application",
-                      "contact": "User initiated contact (call, message, etc.)",
-                      "schedule": "User scheduled an appointment or event",
-                      "donate": "User made a donation",
-                      "submit_application": "User submitted an application (loan, job, etc.)",
-                      "custom": "Custom event type (specify in custom_event_name)"
-                    }
+                    "$ref": "#/$defs/EventType"
                   },
                   "post_click": {
                     "type": "array",
@@ -875,53 +696,7 @@
               "type": "array",
               "description": "Channels for which the seller can provide content artifacts. Helps buyers understand which parts of a mixed-channel buy will have content standards coverage.",
               "items": {
-                "title": "Media Channel",
-                "description": "Standardized advertising media channels describing how buyers allocate budget. Channels are planning abstractions, not technical substrates. See the Media Channel Taxonomy specification for detailed definitions.",
-                "type": "string",
-                "enum": [
-                  "display",
-                  "olv",
-                  "social",
-                  "search",
-                  "ctv",
-                  "linear_tv",
-                  "radio",
-                  "streaming_audio",
-                  "podcast",
-                  "dooh",
-                  "ooh",
-                  "print",
-                  "cinema",
-                  "email",
-                  "gaming",
-                  "retail_media",
-                  "influencer",
-                  "affiliate",
-                  "product_placement",
-                  "sponsored_intelligence"
-                ],
-                "enumDescriptions": {
-                  "display": "Digital display advertising (banners, native, rich media) across web and app",
-                  "olv": "Online video advertising outside CTV (pre-roll, outstream, in-app video)",
-                  "social": "Social media platforms (Facebook, Instagram, TikTok, LinkedIn, etc.)",
-                  "search": "Search engine advertising and search networks",
-                  "ctv": "Connected TV and streaming on television screens",
-                  "linear_tv": "Traditional broadcast and cable television",
-                  "radio": "Traditional AM/FM radio broadcast",
-                  "streaming_audio": "Digital audio streaming services (Spotify, Pandora, etc.)",
-                  "podcast": "Podcast advertising (host-read or dynamically inserted)",
-                  "dooh": "Digital out-of-home screens in public spaces",
-                  "ooh": "Classic out-of-home (physical billboards, transit, etc.)",
-                  "print": "Newspapers, magazines, and other print publications",
-                  "cinema": "Movie theater advertising",
-                  "email": "Email advertising and sponsored newsletter content",
-                  "gaming": "In-game advertising across platforms",
-                  "retail_media": "Retail media networks and commerce marketplaces (Amazon, Walmart, Instacart)",
-                  "influencer": "Creator and influencer marketing partnerships",
-                  "affiliate": "Affiliate networks, comparison sites, and performance-based partnerships",
-                  "product_placement": "Product placement, branded content, and sponsorship integrations",
-                  "sponsored_intelligence": "Sponsored Intelligence \u2014 advertising within AI assistants, AI search, and generative AI experiences via the reversed data flow"
-                }
+                "$ref": "#/$defs/MediaChannel"
               },
               "minItems": 1
             },
@@ -948,53 +723,7 @@
               "type": "array",
               "description": "Primary advertising channels in this portfolio",
               "items": {
-                "title": "Media Channel",
-                "description": "Standardized advertising media channels describing how buyers allocate budget. Channels are planning abstractions, not technical substrates. See the Media Channel Taxonomy specification for detailed definitions.",
-                "type": "string",
-                "enum": [
-                  "display",
-                  "olv",
-                  "social",
-                  "search",
-                  "ctv",
-                  "linear_tv",
-                  "radio",
-                  "streaming_audio",
-                  "podcast",
-                  "dooh",
-                  "ooh",
-                  "print",
-                  "cinema",
-                  "email",
-                  "gaming",
-                  "retail_media",
-                  "influencer",
-                  "affiliate",
-                  "product_placement",
-                  "sponsored_intelligence"
-                ],
-                "enumDescriptions": {
-                  "display": "Digital display advertising (banners, native, rich media) across web and app",
-                  "olv": "Online video advertising outside CTV (pre-roll, outstream, in-app video)",
-                  "social": "Social media platforms (Facebook, Instagram, TikTok, LinkedIn, etc.)",
-                  "search": "Search engine advertising and search networks",
-                  "ctv": "Connected TV and streaming on television screens",
-                  "linear_tv": "Traditional broadcast and cable television",
-                  "radio": "Traditional AM/FM radio broadcast",
-                  "streaming_audio": "Digital audio streaming services (Spotify, Pandora, etc.)",
-                  "podcast": "Podcast advertising (host-read or dynamically inserted)",
-                  "dooh": "Digital out-of-home screens in public spaces",
-                  "ooh": "Classic out-of-home (physical billboards, transit, etc.)",
-                  "print": "Newspapers, magazines, and other print publications",
-                  "cinema": "Movie theater advertising",
-                  "email": "Email advertising and sponsored newsletter content",
-                  "gaming": "In-game advertising across platforms",
-                  "retail_media": "Retail media networks and commerce marketplaces (Amazon, Walmart, Instacart)",
-                  "influencer": "Creator and influencer marketing partnerships",
-                  "affiliate": "Affiliate networks, comparison sites, and performance-based partnerships",
-                  "product_placement": "Product placement, branded content, and sponsorship integrations",
-                  "sponsored_intelligence": "Sponsored Intelligence \u2014 advertising within AI assistants, AI search, and generative AI experiences via the reversed data flow"
-                }
+                "$ref": "#/$defs/MediaChannel"
               }
             },
             "primary_countries": {
@@ -1679,11 +1408,15 @@
     },
     "specialisms": {
       "type": "array",
-      "description": "Optional \u2014 specialized compliance claims this agent supports. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols \u2014 the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements \u2014 the AAO Verified badge enumerates which specialisms were demonstrably passed.",
+      "description": "Optional \u2014 specialized compliance claims this agent supports. Values MUST be kebab-case enum IDs (e.g., 'creative-generative', 'sales-non-guaranteed'). An agent that implements a specialism's tools but omits its ID from this array will receive 'No applicable tracks found' from the compliance runner \u2014 tracks for that specialism are not evaluated even if every tool works. Omitting the field means the agent declares no specialism claims (it still passes the universal + domain-baseline storyboards implied by supported_protocols). Each specialism maps to a storyboard bundle at /compliance/{version}/specialisms/{id}/ that the AAO compliance runner executes to verify the claim. Each specialism rolls up to one of the protocols in supported_protocols \u2014 the runner rejects a specialism claim whose parent protocol is missing. Only list specialisms your agent actually implements \u2014 the AAO Verified badge enumerates which specialisms were demonstrably passed.",
       "items": {
         "title": "AdCP Specialism",
         "description": "Specialized capability claims an agent can make. Each specialism maps to a compliance storyboard bundle published at /compliance/{version}/specialisms/{id}/. An agent asserts specialisms it supports in get_adcp_capabilities; the AAO compliance runner executes the matching storyboards to verify the claim.",
         "type": "string",
+        "x-deprecated-enum-values": [
+          "signed-requests"
+        ],
+        "x-deprecated-enum-values-doc": "Enum values listed here are retained for backward compatibility but their corresponding storyboard has been relocated or removed. Build-time parity checks (scripts/build-compliance.cjs verifyEnumParity) skip filesystem-backing enforcement for these values. Targeted for removal in a future major version.",
         "enum": [
           "audience-sync",
           "brand-rights",
@@ -1726,7 +1459,7 @@
           "sales-social": "Social media advertising platform with self-service flows",
           "signal-marketplace": "Marketplace signal agent reselling third-party data",
           "signal-owned": "Owned signal agent exposing first-party segments",
-          "signed-requests": "Agent verifies RFC 9421 transport-layer request signatures per the AdCP request-signing profile. Graded by exercising 29 conformance vectors (21 negative + 8 positive) against the agent's live verifier."
+          "signed-requests": "DEPRECATED in 3.1 \u2014 reclassified to /compliance/{version}/universal/signed-requests.yaml. Advertise request_signing.supported: true in get_adcp_capabilities; this enum value is retained until 4.0 for backward compat but is no longer needed. See https://github.com/adcontextprotocol/adcp/issues/3075 (reclassification) and https://github.com/adcontextprotocol/adcp/issues/3078 (4.0 enum removal)."
         }
       },
       "uniqueItems": true
@@ -1828,8 +1561,168 @@
     "supported_protocols"
   ],
   "additionalProperties": true,
+  "$defs": {
+    "MatchType": {
+      "title": "Match Type",
+      "description": "Keyword targeting match type. broad: ads may serve on queries semantically related to the keyword. phrase: ads serve when the query contains the keyword phrase. exact: ads serve only when the query matches the keyword exactly.",
+      "type": "string",
+      "enum": [
+        "broad",
+        "phrase",
+        "exact"
+      ],
+      "enumDescriptions": {
+        "broad": "Ads may serve on queries semantically related to the keyword",
+        "phrase": "Ads serve when the query contains the keyword phrase in order",
+        "exact": "Ads serve only when the query matches the keyword exactly"
+      }
+    },
+    "UIDType": {
+      "title": "UID Type",
+      "description": "Type of user identifier. Used in audience sync, event logging, and TMP identity match requests to tell the receiver which identity graph to resolve against.",
+      "type": "string",
+      "enum": [
+        "rampid",
+        "rampid_derived",
+        "id5",
+        "uid2",
+        "euid",
+        "pairid",
+        "maid",
+        "hashed_email",
+        "publisher_first_party",
+        "other"
+      ],
+      "enumDescriptions": {
+        "rampid": "LiveRamp RampID maintained form (XY, 32 bytes on the wire)",
+        "rampid_derived": "LiveRamp RampID derived form (Xi, 48 bytes on the wire)",
+        "id5": "ID5 universal ID",
+        "uid2": "Unified ID 2.0",
+        "euid": "European Unified ID",
+        "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
+        "maid": "Mobile Advertising ID (IDFA/GAID)",
+        "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous \u2014 unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
+        "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
+        "other": "Other universal ID type (specify in ext)"
+      }
+    },
+    "EventType": {
+      "title": "Event Type",
+      "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
+      "type": "string",
+      "enum": [
+        "page_view",
+        "view_content",
+        "select_content",
+        "select_item",
+        "search",
+        "share",
+        "add_to_cart",
+        "remove_from_cart",
+        "viewed_cart",
+        "add_to_wishlist",
+        "initiate_checkout",
+        "add_payment_info",
+        "purchase",
+        "refund",
+        "lead",
+        "qualify_lead",
+        "close_convert_lead",
+        "disqualify_lead",
+        "complete_registration",
+        "subscribe",
+        "start_trial",
+        "app_install",
+        "app_launch",
+        "contact",
+        "schedule",
+        "donate",
+        "submit_application",
+        "custom"
+      ],
+      "enumDescriptions": {
+        "page_view": "User viewed a page",
+        "view_content": "User viewed specific content (product, article, etc.)",
+        "select_content": "User selected or clicked on content (article, video, etc.)",
+        "select_item": "User selected a specific product or item from a list",
+        "search": "User performed a search",
+        "share": "User shared content via social or messaging",
+        "add_to_cart": "User added an item to cart",
+        "remove_from_cart": "User removed an item from cart",
+        "viewed_cart": "User viewed their shopping cart",
+        "add_to_wishlist": "User added an item to a wishlist",
+        "initiate_checkout": "User started checkout process",
+        "add_payment_info": "User added payment information",
+        "purchase": "User completed a purchase",
+        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
+        "lead": "User expressed interest (form submission, signup, etc.)",
+        "qualify_lead": "Lead qualified by sales or scoring criteria",
+        "close_convert_lead": "Lead converted to a customer or closed deal",
+        "disqualify_lead": "Lead disqualified or marked as not viable",
+        "complete_registration": "User completed account registration",
+        "subscribe": "User subscribed to a service or newsletter",
+        "start_trial": "User started a free trial",
+        "app_install": "User installed an application",
+        "app_launch": "User launched an application",
+        "contact": "User initiated contact (call, message, etc.)",
+        "schedule": "User scheduled an appointment or event",
+        "donate": "User made a donation",
+        "submit_application": "User submitted an application (loan, job, etc.)",
+        "custom": "Custom event type (specify in custom_event_name)"
+      }
+    },
+    "MediaChannel": {
+      "title": "Media Channel",
+      "description": "Standardized advertising media channels describing how buyers allocate budget. Channels are planning abstractions, not technical substrates. See the Media Channel Taxonomy specification for detailed definitions.",
+      "type": "string",
+      "enum": [
+        "display",
+        "olv",
+        "social",
+        "search",
+        "ctv",
+        "linear_tv",
+        "radio",
+        "streaming_audio",
+        "podcast",
+        "dooh",
+        "ooh",
+        "print",
+        "cinema",
+        "email",
+        "gaming",
+        "retail_media",
+        "influencer",
+        "affiliate",
+        "product_placement",
+        "sponsored_intelligence"
+      ],
+      "enumDescriptions": {
+        "display": "Digital display advertising (banners, native, rich media) across web and app",
+        "olv": "Online video advertising outside CTV (pre-roll, outstream, in-app video)",
+        "social": "Social media platforms (Facebook, Instagram, TikTok, LinkedIn, etc.)",
+        "search": "Search engine advertising and search networks",
+        "ctv": "Connected TV and streaming on television screens",
+        "linear_tv": "Traditional broadcast and cable television",
+        "radio": "Traditional AM/FM radio broadcast",
+        "streaming_audio": "Digital audio streaming services (Spotify, Pandora, etc.)",
+        "podcast": "Podcast advertising (host-read or dynamically inserted)",
+        "dooh": "Digital out-of-home screens in public spaces",
+        "ooh": "Classic out-of-home (physical billboards, transit, etc.)",
+        "print": "Newspapers, magazines, and other print publications",
+        "cinema": "Movie theater advertising",
+        "email": "Email advertising and sponsored newsletter content",
+        "gaming": "In-game advertising across platforms",
+        "retail_media": "Retail media networks and commerce marketplaces (Amazon, Walmart, Instacart)",
+        "influencer": "Creator and influencer marketing partnerships",
+        "affiliate": "Affiliate networks, comparison sites, and performance-based partnerships",
+        "product_placement": "Product placement, branded content, and sponsorship integrations",
+        "sponsored_intelligence": "Sponsored Intelligence \u2014 advertising within AI assistants, AI search, and generative AI experiences via the reversed data flow"
+      }
+    }
+  },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.687Z",
+    "generatedAt": "2026-04-28T12:32:23.044Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

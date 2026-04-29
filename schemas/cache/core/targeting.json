@@ -316,12 +316,7 @@
                 "description": "Travel time limit."
               },
               "unit": {
-                "type": "string",
-                "enum": [
-                  "min",
-                  "hr"
-                ],
-                "description": "Time unit."
+                "$ref": "../enums/travel-time-unit.json"
               }
             },
             "required": [
@@ -470,13 +465,7 @@
             "description": "The keyword to target"
           },
           "match_type": {
-            "type": "string",
-            "enum": [
-              "broad",
-              "phrase",
-              "exact"
-            ],
-            "description": "Match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly"
+            "$ref": "../enums/match-type.json"
           },
           "bid_price": {
             "type": "number",
@@ -504,13 +493,7 @@
             "description": "The keyword to exclude"
           },
           "match_type": {
-            "type": "string",
-            "enum": [
-              "broad",
-              "phrase",
-              "exact"
-            ],
-            "description": "Match type for exclusion"
+            "$ref": "../enums/match-type.json"
           }
         },
         "required": [

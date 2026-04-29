@@ -21,6 +21,8 @@
               "force_creative_status",
               "force_account_status",
               "force_media_buy_status",
+              "force_create_media_buy_arm",
+              "force_task_completion",
               "force_session_status",
               "simulate_delivery",
               "simulate_budget_spend",
@@ -28,7 +30,8 @@
               "seed_pricing_option",
               "seed_creative",
               "seed_plan",
-              "seed_media_buy"
+              "seed_media_buy",
+              "seed_creative_format"
             ]
           },
           "description": "Scenarios this seller has implemented. Runners and sellers MUST accept unknown scenario strings (open-for-extension) \u2014 new scenarios may be added in additive minor bumps."
@@ -60,6 +63,11 @@
           {
             "required": [
               "simulated"
+            ]
+          },
+          {
+            "required": [
+              "forced"
             ]
           }
         ]
@@ -115,6 +123,11 @@
             "required": [
               "simulated"
             ]
+          },
+          {
+            "required": [
+              "forced"
+            ]
           }
         ]
       }
@@ -168,6 +181,139 @@
           {
             "required": [
               "previous_state"
+            ]
+          },
+          {
+            "required": [
+              "forced"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "ForcedDirectiveSuccess",
+      "description": "A force_create_media_buy_arm directive was registered. The directive shapes the next create_media_buy call from this caller's authenticated sandbox account into the requested arm, then is consumed. No entity transitioned \u2014 there is no media buy yet \u2014 so this branch carries 'forced' rather than previous_state/current_state.",
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "const": true
+        },
+        "forced": {
+          "type": "object",
+          "description": "Echo of the registered directive. The next create_media_buy call from this sandbox account will return the named arm.",
+          "properties": {
+            "arm": {
+              "type": "string",
+              "enum": [
+                "submitted",
+                "input-required"
+              ],
+              "description": "Arm the seller will emit on the next create_media_buy response."
+            },
+            "task_id": {
+              "type": "string",
+              "maxLength": 128,
+              "description": "Echo of the registered task_id. Present only when arm is 'submitted' (the arm that emits a task envelope).",
+              "x-entity": "task"
+            }
+          },
+          "required": [
+            "arm"
+          ],
+          "additionalProperties": false
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable acknowledgement."
+        },
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        }
+      },
+      "required": [
+        "success",
+        "forced"
+      ],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "error"
+            ]
+          },
+          {
+            "required": [
+              "scenarios"
+            ]
+          },
+          {
+            "required": [
+              "previous_state"
+            ]
+          },
+          {
+            "required": [
+              "simulated"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "SeedSuccess",
+      "description": "A seed_* scenario successfully pre-populated a fixture in the seller's test state",
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "const": true
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable acknowledgement."
+        },
+        "context": {
+          "$ref": "../core/context.json"
+        },
+        "ext": {
+          "$ref": "../core/ext.json"
+        }
+      },
+      "required": [
+        "success"
+      ],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "error"
+            ]
+          },
+          {
+            "required": [
+              "scenarios"
+            ]
+          },
+          {
+            "required": [
+              "previous_state"
+            ]
+          },
+          {
+            "required": [
+              "simulated"
+            ]
+          },
+          {
+            "required": [
+              "forced"
             ]
           }
         ]
@@ -234,6 +380,11 @@
             "required": [
               "previous_state"
             ]
+          },
+          {
+            "required": [
+              "forced"
+            ]
           }
         ]
       }
@@ -299,6 +450,17 @@
           }
         },
         "message": "Budget for mb-789 set to 95% consumed ($950.00 of $1000.00)"
+      }
+    },
+    {
+      "description": "force_create_media_buy_arm directive registered",
+      "data": {
+        "success": true,
+        "forced": {
+          "arm": "submitted",
+          "task_id": "task_async_signed_io_q2"
+        },
+        "message": "Next create_media_buy call from this sandbox account will return the submitted arm with task_id task_async_signed_io_q2"
       }
     },
     {

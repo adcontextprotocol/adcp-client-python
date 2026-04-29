@@ -831,7 +831,7 @@
           "type": "string",
           "format": "uri",
           "pattern": "^https://",
-          "description": "Brand agent MCP endpoint URL"
+          "description": "Brand agent MCP endpoint URL. Callers comparing this URL against another value (e.g., resolving 'is this the brand's declared agent?' against a discovery cache) MUST canonicalize both sides per the AdCP URL canonicalization rules, not byte-equality. See docs/reference/url-canonicalization."
         },
         "id": {
           "type": "string",
@@ -853,7 +853,7 @@
           "type": "string",
           "format": "uri",
           "pattern": "^https://",
-          "description": "Rights agent MCP endpoint URL"
+          "description": "Rights agent MCP endpoint URL. Callers comparing this URL against another value (e.g., matching against a brand's declared rights endpoint) MUST canonicalize both sides per the AdCP URL canonicalization rules, not byte-equality. See docs/reference/url-canonicalization."
         },
         "id": {
           "type": "string",
@@ -904,7 +904,7 @@
           "type": "string",
           "format": "uri",
           "pattern": "^https://",
-          "description": "Agent endpoint URL (MCP or A2A)"
+          "description": "Agent endpoint URL (MCP or A2A). Callers comparing a brand's declared agent URL against another value (e.g., resolving 'is this the agent that signed this artifact?' or matching against a discovery cache) MUST canonicalize both sides per the AdCP URL canonicalization rules, not byte-equality. See docs/reference/url-canonicalization."
         },
         "id": {
           "type": "string",
@@ -2032,16 +2032,16 @@
   ],
   "examples": [
     {
-      "$schema": "/schemas/3.0.0/brand.json",
+      "$schema": "/schemas/3.0.1/brand.json",
       "authoritative_location": "https://adcontextprotocol.org/brand/abc123/brand.json"
     },
     {
-      "$schema": "/schemas/3.0.0/brand.json",
+      "$schema": "/schemas/3.0.1/brand.json",
       "house": "nikeinc.com",
       "note": "Redirect to house domain for full brand portfolio"
     },
     {
-      "$schema": "/schemas/3.0.0/brand.json",
+      "$schema": "/schemas/3.0.1/brand.json",
       "version": "1.0",
       "agents": [
         {
@@ -2052,7 +2052,7 @@
       ]
     },
     {
-      "$schema": "/schemas/3.0.0/brand.json",
+      "$schema": "/schemas/3.0.1/brand.json",
       "version": "1.0",
       "house": {
         "domain": "pg.com",
@@ -2358,7 +2358,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.0/brand.json",
+      "$schema": "/schemas/3.0.1/brand.json",
       "version": "1.0",
       "house": {
         "domain": "nikeinc.com",
@@ -2527,7 +2527,7 @@
       "last_updated": "2026-01-15T10:00:00Z"
     },
     {
-      "$schema": "/schemas/3.0.0/brand.json",
+      "$schema": "/schemas/3.0.1/brand.json",
       "version": "1.0",
       "house": {
         "domain": "mediavine.com",

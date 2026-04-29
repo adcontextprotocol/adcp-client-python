@@ -11,13 +11,7 @@
       "x-entity": "governance_check"
     },
     "status": {
-      "type": "string",
-      "enum": [
-        "approved",
-        "denied",
-        "conditions"
-      ],
-      "description": "Governance decision. 'approved': proceed as planned. 'denied': do not proceed. 'conditions': approved if the caller accepts the listed conditions, then re-calls check_governance with the adjusted parameters."
+      "$ref": "../enums/governance-decision.json"
     },
     "plan_id": {
       "type": "string",
@@ -126,7 +120,11 @@
       "items": {
         "type": "string"
       },
-      "description": "Registry policy IDs evaluated during this check."
+      "description": "Policy IDs evaluated during this check. Includes registry policy IDs (resolved via the policy registry) and any inline `policy_id`s declared in the plan's `custom_policies`."
+    },
+    "mode": {
+      "$ref": "../enums/governance-mode.json",
+      "description": "Governance enforcement mode active when this check was evaluated. Allows counterparties, regulators, and auditors to distinguish whether a finding blocked execution (enforce) or was logged silently (audit)."
     },
     "governance_context": {
       "type": "string",

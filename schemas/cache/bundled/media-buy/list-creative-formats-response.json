@@ -13,15 +13,15 @@
         "type": "object",
         "properties": {
           "format_id": {
-            "title": "Format ID",
-            "description": "Structured format identifier with agent URL and format name",
+            "title": "Format Reference (Structured Object)",
+            "description": "This format's own identifier \u2014 a structured object {agent_url, id}, not a string. See /schemas/core/format-id.json for the full shape.",
             "x-entity": "creative_format",
             "type": "object",
             "properties": {
               "agent_url": {
                 "type": "string",
                 "format": "uri",
-                "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
               },
               "id": {
                 "type": "string",
@@ -134,17 +134,7 @@
                       "description": "Maximum height for responsive renders"
                     },
                     "unit": {
-                      "title": "Dimension Unit",
-                      "description": "Unit of measurement for width/height values. Defaults to 'px' when absent. Print formats use 'inches' or 'cm'.",
-                      "type": "string",
-                      "enum": [
-                        "px",
-                        "dp",
-                        "inches",
-                        "cm",
-                        "mm",
-                        "pt"
-                      ]
+                      "$ref": "#/$defs/DimensionUnit"
                     },
                     "responsive": {
                       "type": "object",
@@ -209,6 +199,7 @@
             "items": {
               "oneOf": [
                 {
+                  "title": "IndividualImageAsset",
                   "description": "Image asset",
                   "allOf": [
                     {
@@ -248,17 +239,7 @@
                           "description": "Maximum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height."
                         },
                         "unit": {
-                          "title": "Dimension Unit",
-                          "description": "Unit of measurement for width/height values. Defaults to 'px' when absent. Print formats use 'inches' or 'cm'.",
-                          "type": "string",
-                          "enum": [
-                            "px",
-                            "dp",
-                            "inches",
-                            "cm",
-                            "mm",
-                            "pt"
-                          ]
+                          "$ref": "#/$defs/DimensionUnit"
                         },
                         "aspect_ratio": {
                           "type": "string",
@@ -383,6 +364,7 @@
                   }
                 },
                 {
+                  "title": "IndividualVideoAsset",
                   "description": "Video asset",
                   "allOf": [
                     {
@@ -493,28 +475,13 @@
                           "description": "Whether the video must include an audio track"
                         },
                         "frame_rate_type": {
-                          "type": "string",
-                          "enum": [
-                            "constant",
-                            "variable"
-                          ],
-                          "description": "Required frame rate type. Broadcast and SSAI require constant frame rate for seamless splicing."
+                          "$ref": "#/$defs/FrameRateType"
                         },
                         "scan_type": {
-                          "type": "string",
-                          "enum": [
-                            "progressive",
-                            "interlaced"
-                          ],
-                          "description": "Required scan type. Modern delivery requires progressive scan."
+                          "$ref": "#/$defs/ScanType"
                         },
                         "gop_type": {
-                          "type": "string",
-                          "enum": [
-                            "closed",
-                            "open"
-                          ],
-                          "description": "Required GOP structure. SSAI and broadcast require closed GOPs for clean splice points."
+                          "$ref": "#/$defs/GOPType"
                         },
                         "min_gop_interval_seconds": {
                           "type": "number",
@@ -527,12 +494,7 @@
                           "description": "Maximum keyframe interval in seconds. SSAI typically requires 1-2 second intervals."
                         },
                         "moov_atom_position": {
-                          "type": "string",
-                          "enum": [
-                            "start",
-                            "end"
-                          ],
-                          "description": "Required moov atom position in MP4 container. 'start' enables progressive download without buffering the entire file."
+                          "$ref": "#/$defs/MoovAtomPosition"
                         },
                         "audio_codecs": {
                           "type": "array",
@@ -562,13 +524,7 @@
                         "audio_channels": {
                           "type": "array",
                           "items": {
-                            "type": "string",
-                            "enum": [
-                              "mono",
-                              "stereo",
-                              "5.1",
-                              "7.1"
-                            ]
+                            "$ref": "#/$defs/AudioChannelLayout"
                           },
                           "description": "Accepted audio channel configurations"
                         },
@@ -591,6 +547,7 @@
                   }
                 },
                 {
+                  "title": "IndividualAudioAsset",
                   "description": "Audio asset",
                   "allOf": [
                     {
@@ -673,6 +630,7 @@
                   }
                 },
                 {
+                  "title": "IndividualTextAsset",
                   "description": "Text asset",
                   "allOf": [
                     {
@@ -728,6 +686,7 @@
                   }
                 },
                 {
+                  "title": "IndividualMarkdownAsset",
                   "description": "Markdown asset",
                   "allOf": [
                     {
@@ -757,6 +716,7 @@
                   }
                 },
                 {
+                  "title": "IndividualHtmlAsset",
                   "description": "HTML asset",
                   "allOf": [
                     {
@@ -809,6 +769,7 @@
                   }
                 },
                 {
+                  "title": "IndividualCssAsset",
                   "description": "CSS asset",
                   "allOf": [
                     {
@@ -838,6 +799,7 @@
                   }
                 },
                 {
+                  "title": "IndividualJavaScriptAsset",
                   "description": "JavaScript asset",
                   "allOf": [
                     {
@@ -892,6 +854,7 @@
                   }
                 },
                 {
+                  "title": "IndividualVastAsset",
                   "description": "VAST asset",
                   "allOf": [
                     {
@@ -927,6 +890,7 @@
                   }
                 },
                 {
+                  "title": "IndividualDaastAsset",
                   "description": "DAAST asset",
                   "allOf": [
                     {
@@ -958,6 +922,7 @@
                   }
                 },
                 {
+                  "title": "IndividualUrlAsset",
                   "description": "URL asset",
                   "allOf": [
                     {
@@ -1022,6 +987,7 @@
                   }
                 },
                 {
+                  "title": "IndividualWebhookAsset",
                   "description": "Webhook asset",
                   "allOf": [
                     {
@@ -1057,6 +1023,7 @@
                   }
                 },
                 {
+                  "title": "IndividualBriefAsset",
                   "description": "Brief asset",
                   "allOf": [
                     {
@@ -1073,6 +1040,7 @@
                   }
                 },
                 {
+                  "title": "IndividualCatalogAsset",
                   "description": "Catalog asset",
                   "allOf": [
                     {
@@ -1231,17 +1199,7 @@
                                         "description": "Maximum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height."
                                       },
                                       "unit": {
-                                        "title": "Dimension Unit",
-                                        "description": "Unit of measurement for width/height values. Defaults to 'px' when absent. Print formats use 'inches' or 'cm'.",
-                                        "type": "string",
-                                        "enum": [
-                                          "px",
-                                          "dp",
-                                          "inches",
-                                          "cm",
-                                          "mm",
-                                          "pt"
-                                        ]
+                                        "$ref": "#/$defs/DimensionUnit"
                                       },
                                       "aspect_ratio": {
                                         "type": "string",
@@ -1460,28 +1418,13 @@
                                         "description": "Whether the video must include an audio track"
                                       },
                                       "frame_rate_type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "constant",
-                                          "variable"
-                                        ],
-                                        "description": "Required frame rate type. Broadcast and SSAI require constant frame rate for seamless splicing."
+                                        "$ref": "#/$defs/FrameRateType"
                                       },
                                       "scan_type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "progressive",
-                                          "interlaced"
-                                        ],
-                                        "description": "Required scan type. Modern delivery requires progressive scan."
+                                        "$ref": "#/$defs/ScanType"
                                       },
                                       "gop_type": {
-                                        "type": "string",
-                                        "enum": [
-                                          "closed",
-                                          "open"
-                                        ],
-                                        "description": "Required GOP structure. SSAI and broadcast require closed GOPs for clean splice points."
+                                        "$ref": "#/$defs/GOPType"
                                       },
                                       "min_gop_interval_seconds": {
                                         "type": "number",
@@ -1494,12 +1437,7 @@
                                         "description": "Maximum keyframe interval in seconds. SSAI typically requires 1-2 second intervals."
                                       },
                                       "moov_atom_position": {
-                                        "type": "string",
-                                        "enum": [
-                                          "start",
-                                          "end"
-                                        ],
-                                        "description": "Required moov atom position in MP4 container. 'start' enables progressive download without buffering the entire file."
+                                        "$ref": "#/$defs/MoovAtomPosition"
                                       },
                                       "audio_codecs": {
                                         "type": "array",
@@ -1529,13 +1467,7 @@
                                       "audio_channels": {
                                         "type": "array",
                                         "items": {
-                                          "type": "string",
-                                          "enum": [
-                                            "mono",
-                                            "stereo",
-                                            "5.1",
-                                            "7.1"
-                                          ]
+                                          "$ref": "#/$defs/AudioChannelLayout"
                                         },
                                         "description": "Accepted audio channel configurations"
                                       },
@@ -2033,6 +1965,7 @@
                   }
                 },
                 {
+                  "title": "RepeatableGroupAsset",
                   "description": "Repeatable asset group (for carousels, slideshows, playlists, etc.)",
                   "type": "object",
                   "properties": {
@@ -2074,6 +2007,7 @@
                       "items": {
                         "oneOf": [
                           {
+                            "title": "GroupImageAsset",
                             "description": "Image asset in group",
                             "allOf": [
                               {
@@ -2110,17 +2044,7 @@
                                     "description": "Maximum height. Interpretation depends on unit (default: pixels). For exact dimensions, set min_height = max_height."
                                   },
                                   "unit": {
-                                    "title": "Dimension Unit",
-                                    "description": "Unit of measurement for width/height values. Defaults to 'px' when absent. Print formats use 'inches' or 'cm'.",
-                                    "type": "string",
-                                    "enum": [
-                                      "px",
-                                      "dp",
-                                      "inches",
-                                      "cm",
-                                      "mm",
-                                      "pt"
-                                    ]
+                                    "$ref": "#/$defs/DimensionUnit"
                                   },
                                   "aspect_ratio": {
                                     "type": "string",
@@ -2245,6 +2169,7 @@
                             }
                           },
                           {
+                            "title": "GroupVideoAsset",
                             "description": "Video asset in group",
                             "allOf": [
                               {
@@ -2352,28 +2277,13 @@
                                     "description": "Whether the video must include an audio track"
                                   },
                                   "frame_rate_type": {
-                                    "type": "string",
-                                    "enum": [
-                                      "constant",
-                                      "variable"
-                                    ],
-                                    "description": "Required frame rate type. Broadcast and SSAI require constant frame rate for seamless splicing."
+                                    "$ref": "#/$defs/FrameRateType"
                                   },
                                   "scan_type": {
-                                    "type": "string",
-                                    "enum": [
-                                      "progressive",
-                                      "interlaced"
-                                    ],
-                                    "description": "Required scan type. Modern delivery requires progressive scan."
+                                    "$ref": "#/$defs/ScanType"
                                   },
                                   "gop_type": {
-                                    "type": "string",
-                                    "enum": [
-                                      "closed",
-                                      "open"
-                                    ],
-                                    "description": "Required GOP structure. SSAI and broadcast require closed GOPs for clean splice points."
+                                    "$ref": "#/$defs/GOPType"
                                   },
                                   "min_gop_interval_seconds": {
                                     "type": "number",
@@ -2386,12 +2296,7 @@
                                     "description": "Maximum keyframe interval in seconds. SSAI typically requires 1-2 second intervals."
                                   },
                                   "moov_atom_position": {
-                                    "type": "string",
-                                    "enum": [
-                                      "start",
-                                      "end"
-                                    ],
-                                    "description": "Required moov atom position in MP4 container. 'start' enables progressive download without buffering the entire file."
+                                    "$ref": "#/$defs/MoovAtomPosition"
                                   },
                                   "audio_codecs": {
                                     "type": "array",
@@ -2421,13 +2326,7 @@
                                   "audio_channels": {
                                     "type": "array",
                                     "items": {
-                                      "type": "string",
-                                      "enum": [
-                                        "mono",
-                                        "stereo",
-                                        "5.1",
-                                        "7.1"
-                                      ]
+                                      "$ref": "#/$defs/AudioChannelLayout"
                                     },
                                     "description": "Accepted audio channel configurations"
                                   },
@@ -2450,6 +2349,7 @@
                             }
                           },
                           {
+                            "title": "GroupAudioAsset",
                             "description": "Audio asset in group",
                             "allOf": [
                               {
@@ -2529,6 +2429,7 @@
                             }
                           },
                           {
+                            "title": "GroupTextAsset",
                             "description": "Text asset in group",
                             "allOf": [
                               {
@@ -2581,6 +2482,7 @@
                             }
                           },
                           {
+                            "title": "GroupMarkdownAsset",
                             "description": "Markdown asset in group",
                             "allOf": [
                               {
@@ -2607,6 +2509,7 @@
                             }
                           },
                           {
+                            "title": "GroupHtmlAsset",
                             "description": "HTML asset in group",
                             "allOf": [
                               {
@@ -2656,6 +2559,7 @@
                             }
                           },
                           {
+                            "title": "GroupCssAsset",
                             "description": "CSS asset in group",
                             "allOf": [
                               {
@@ -2682,6 +2586,7 @@
                             }
                           },
                           {
+                            "title": "GroupJavaScriptAsset",
                             "description": "JavaScript asset in group",
                             "allOf": [
                               {
@@ -2733,6 +2638,7 @@
                             }
                           },
                           {
+                            "title": "GroupVastAsset",
                             "description": "VAST asset in group",
                             "allOf": [
                               {
@@ -2765,6 +2671,7 @@
                             }
                           },
                           {
+                            "title": "GroupDaastAsset",
                             "description": "DAAST asset in group",
                             "allOf": [
                               {
@@ -2793,6 +2700,7 @@
                             }
                           },
                           {
+                            "title": "GroupUrlAsset",
                             "description": "URL asset in group",
                             "allOf": [
                               {
@@ -2854,6 +2762,7 @@
                             }
                           },
                           {
+                            "title": "GroupWebhookAsset",
                             "description": "Webhook asset in group",
                             "allOf": [
                               {
@@ -3069,15 +2978,15 @@
             "type": "array",
             "description": "Array of format IDs this format accepts as input creative manifests. When present, indicates this format can take existing creatives in these formats as input. Omit for formats that work from raw assets (images, text, etc.) rather than existing creatives.",
             "items": {
-              "title": "Format ID",
-              "description": "Structured format identifier with agent URL and format name. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants.",
+              "title": "Format Reference (Structured Object)",
+              "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
               "x-entity": "creative_format",
               "type": "object",
               "properties": {
                 "agent_url": {
                   "type": "string",
                   "format": "uri",
-                  "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                  "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
                 },
                 "id": {
                   "type": "string",
@@ -3119,15 +3028,15 @@
             "type": "array",
             "description": "Array of format IDs that this format can produce as output. When present, indicates this format can build creatives in these output formats (e.g., a multi-publisher template format might produce standard display formats across many publishers). Omit for formats that produce a single fixed output (the format itself).",
             "items": {
-              "title": "Format ID",
-              "description": "Structured format identifier with agent URL and format name. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants.",
+              "title": "Format Reference (Structured Object)",
+              "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
               "x-entity": "creative_format",
               "type": "object",
               "properties": {
                 "agent_url": {
                   "type": "string",
                   "format": "uri",
-                  "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                  "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
                 },
                 "id": {
                   "type": "string",
@@ -3170,7 +3079,7 @@
             "description": "Optional standard visual card (300x400px) for displaying this format in user interfaces. Can be rendered via preview_creative or pre-generated.",
             "properties": {
               "format_id": {
-                "title": "Format ID",
+                "title": "Format Reference (Structured Object)",
                 "description": "Creative format defining the card layout (typically format_card_standard)",
                 "x-entity": "creative_format",
                 "type": "object",
@@ -3178,7 +3087,7 @@
                   "agent_url": {
                     "type": "string",
                     "format": "uri",
-                    "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                    "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
                   },
                   "id": {
                     "type": "string",
@@ -3259,19 +3168,7 @@
             "type": "array",
             "description": "Disclosure positions this format can render. Buyers use this to determine whether a format can satisfy their compliance requirements before submitting a creative. When omitted, the format makes no disclosure rendering guarantees \u2014 creative agents SHOULD treat this as incompatible with briefs that require specific disclosure positions. Values correspond to positions on creative-brief.json required_disclosures.",
             "items": {
-              "title": "Disclosure Position",
-              "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-              "type": "string",
-              "enum": [
-                "prominent",
-                "footer",
-                "audio",
-                "subtitle",
-                "overlay",
-                "end_card",
-                "pre_roll",
-                "companion"
-              ]
+              "$ref": "#/$defs/DisclosurePosition"
             },
             "minItems": 1,
             "uniqueItems": true
@@ -3283,19 +3180,7 @@
               "type": "object",
               "properties": {
                 "position": {
-                  "title": "Disclosure Position",
-                  "description": "The disclosure position",
-                  "type": "string",
-                  "enum": [
-                    "prominent",
-                    "footer",
-                    "audio",
-                    "subtitle",
-                    "overlay",
-                    "end_card",
-                    "pre_roll",
-                    "companion"
-                  ]
+                  "$ref": "#/$defs/DisclosurePosition"
                 },
                 "persistence": {
                   "type": "array",
@@ -3332,7 +3217,7 @@
             "description": "Optional detailed card with carousel and full specifications. Provides rich format documentation similar to ad spec pages.",
             "properties": {
               "format_id": {
-                "title": "Format ID",
+                "title": "Format Reference (Structured Object)",
                 "description": "Creative format defining the detailed card layout (typically format_card_detailed)",
                 "x-entity": "creative_format",
                 "type": "object",
@@ -3340,7 +3225,7 @@
                   "agent_url": {
                     "type": "string",
                     "format": "uri",
-                    "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                    "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
                   },
                   "id": {
                     "type": "string",
@@ -4032,6 +3917,97 @@
         "asset_type",
         "required"
       ]
+    },
+    "DimensionUnit": {
+      "title": "Dimension Unit",
+      "description": "Unit of measurement for width/height values. Defaults to 'px' when absent. Print formats use 'inches' or 'cm'.",
+      "type": "string",
+      "enum": [
+        "px",
+        "dp",
+        "inches",
+        "cm",
+        "mm",
+        "pt"
+      ]
+    },
+    "FrameRateType": {
+      "title": "Frame Rate Type",
+      "description": "Required frame rate type. Broadcast and SSAI require constant frame rate for seamless splicing.",
+      "type": "string",
+      "enum": [
+        "constant",
+        "variable"
+      ],
+      "enumDescriptions": {
+        "constant": "Constant frame rate (CFR) \u2014 each frame occupies an identical time interval",
+        "variable": "Variable frame rate (VFR) \u2014 frame intervals may differ"
+      }
+    },
+    "ScanType": {
+      "title": "Scan Type",
+      "description": "Required scan type. Modern delivery requires progressive scan.",
+      "type": "string",
+      "enum": [
+        "progressive",
+        "interlaced"
+      ],
+      "enumDescriptions": {
+        "progressive": "All lines of each frame are drawn in sequence",
+        "interlaced": "Alternating lines drawn in two passes per frame (legacy broadcast)"
+      }
+    },
+    "GOPType": {
+      "title": "GOP Type",
+      "description": "Required GOP structure. SSAI and broadcast require closed GOPs for clean splice points.",
+      "type": "string",
+      "enum": [
+        "closed",
+        "open"
+      ],
+      "enumDescriptions": {
+        "closed": "Each GOP is independently decodable \u2014 required for SSAI and broadcast splicing",
+        "open": "GOPs may reference frames from adjacent GOPs \u2014 not suitable for splicing"
+      }
+    },
+    "MoovAtomPosition": {
+      "title": "Moov Atom Position",
+      "description": "Required moov atom position in MP4 container. 'start' enables progressive download without buffering the entire file.",
+      "type": "string",
+      "enum": [
+        "start",
+        "end"
+      ],
+      "enumDescriptions": {
+        "start": "moov atom at beginning of file \u2014 enables progressive download and streaming delivery",
+        "end": "moov atom at end of file \u2014 requires full download before playback can begin"
+      }
+    },
+    "AudioChannelLayout": {
+      "title": "Audio Channel Layout",
+      "description": "Audio channel configuration for audio and video assets",
+      "type": "string",
+      "enum": [
+        "mono",
+        "stereo",
+        "5.1",
+        "7.1"
+      ]
+    },
+    "DisclosurePosition": {
+      "title": "Disclosure Position",
+      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
+      "type": "string",
+      "enum": [
+        "prominent",
+        "footer",
+        "audio",
+        "subtitle",
+        "overlay",
+        "end_card",
+        "pre_roll",
+        "companion"
+      ]
     }
   },
   "definitions": {
@@ -4097,7 +4073,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.646Z",
+    "generatedAt": "2026-04-28T12:32:23.000Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

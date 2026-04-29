@@ -19,15 +19,15 @@
       "type": "array",
       "description": "Array of format IDs that will be used for this package - must be supported by the product. If omitted, defaults to all formats supported by the product.",
       "items": {
-        "title": "Format ID",
-        "description": "Structured format identifier with agent URL and format name. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants.",
+        "title": "Format Reference (Structured Object)",
+        "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
         "x-entity": "creative_format",
         "type": "object",
         "properties": {
           "agent_url": {
             "type": "string",
             "format": "uri",
-            "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+            "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
           },
           "id": {
             "type": "string",
@@ -137,24 +137,7 @@
             "description": "Human-readable name for this catalog (e.g., 'Summer Products 2025', 'Amsterdam Store Locations')."
           },
           "type": {
-            "title": "Catalog Type",
-            "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' \u2014 each with an industry-specific item schema.",
-            "type": "string",
-            "enum": [
-              "offering",
-              "product",
-              "inventory",
-              "store",
-              "promotion",
-              "hotel",
-              "flight",
-              "job",
-              "vehicle",
-              "real_estate",
-              "education",
-              "destination",
-              "app"
-            ]
+            "$ref": "#/$defs/CatalogType"
           },
           "url": {
             "type": "string",
@@ -162,27 +145,10 @@
             "description": "URL to an external catalog feed. The platform fetches and resolves items from this URL. For offering-type catalogs, the feed contains an array of Offering objects. For other types, the feed format is determined by feed_format. When omitted with type 'product', the platform uses its synced copy of the brand's product catalog."
           },
           "feed_format": {
-            "title": "Feed Format",
-            "description": "Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.",
-            "type": "string",
-            "enum": [
-              "google_merchant_center",
-              "facebook_catalog",
-              "shopify",
-              "linkedin_jobs",
-              "custom"
-            ]
+            "$ref": "#/$defs/FeedFormat"
           },
           "update_frequency": {
-            "title": "Update Frequency",
-            "description": "How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.",
-            "type": "string",
-            "enum": [
-              "realtime",
-              "hourly",
-              "daily",
-              "weekly"
-            ]
+            "$ref": "#/$defs/UpdateFrequency"
           },
           "items": {
             "type": "array",
@@ -229,91 +195,13 @@
             "type": "array",
             "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items \u2014 e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
             "items": {
-              "title": "Event Type",
-              "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
-              "type": "string",
-              "enum": [
-                "page_view",
-                "view_content",
-                "select_content",
-                "select_item",
-                "search",
-                "share",
-                "add_to_cart",
-                "remove_from_cart",
-                "viewed_cart",
-                "add_to_wishlist",
-                "initiate_checkout",
-                "add_payment_info",
-                "purchase",
-                "refund",
-                "lead",
-                "qualify_lead",
-                "close_convert_lead",
-                "disqualify_lead",
-                "complete_registration",
-                "subscribe",
-                "start_trial",
-                "app_install",
-                "app_launch",
-                "contact",
-                "schedule",
-                "donate",
-                "submit_application",
-                "custom"
-              ],
-              "enumDescriptions": {
-                "page_view": "User viewed a page",
-                "view_content": "User viewed specific content (product, article, etc.)",
-                "select_content": "User selected or clicked on content (article, video, etc.)",
-                "select_item": "User selected a specific product or item from a list",
-                "search": "User performed a search",
-                "share": "User shared content via social or messaging",
-                "add_to_cart": "User added an item to cart",
-                "remove_from_cart": "User removed an item from cart",
-                "viewed_cart": "User viewed their shopping cart",
-                "add_to_wishlist": "User added an item to a wishlist",
-                "initiate_checkout": "User started checkout process",
-                "add_payment_info": "User added payment information",
-                "purchase": "User completed a purchase",
-                "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                "lead": "User expressed interest (form submission, signup, etc.)",
-                "qualify_lead": "Lead qualified by sales or scoring criteria",
-                "close_convert_lead": "Lead converted to a customer or closed deal",
-                "disqualify_lead": "Lead disqualified or marked as not viable",
-                "complete_registration": "User completed account registration",
-                "subscribe": "User subscribed to a service or newsletter",
-                "start_trial": "User started a free trial",
-                "app_install": "User installed an application",
-                "app_launch": "User launched an application",
-                "contact": "User initiated contact (call, message, etc.)",
-                "schedule": "User scheduled an appointment or event",
-                "donate": "User made a donation",
-                "submit_application": "User submitted an application (loan, job, etc.)",
-                "custom": "Custom event type (specify in custom_event_name)"
-              }
+              "$ref": "#/$defs/EventType"
             },
             "minItems": 1,
             "uniqueItems": true
           },
           "content_id_type": {
-            "title": "Content ID Type",
-            "description": "Identifier type that the event's content_ids field should be matched against for items in this catalog. For example, 'gtin' means content_ids values are Global Trade Item Numbers, 'sku' means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum.",
-            "type": "string",
-            "enum": [
-              "sku",
-              "gtin",
-              "offering_id",
-              "job_id",
-              "hotel_id",
-              "flight_id",
-              "vehicle_id",
-              "listing_id",
-              "store_id",
-              "program_id",
-              "destination_id",
-              "app_id"
-            ]
+            "$ref": "#/$defs/ContentIDType"
           },
           "feed_field_mappings": {
             "type": "array",
@@ -628,25 +516,7 @@
               "reach_unit": {
                 "allOf": [
                   {
-                    "title": "Reach Unit",
-                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                    "type": "string",
-                    "enum": [
-                      "individuals",
-                      "households",
-                      "devices",
-                      "accounts",
-                      "cookies",
-                      "custom"
-                    ],
-                    "enumDescriptions": {
-                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                      "households": "Unique households or TV homes.",
-                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                      "cookies": "Unique browser cookies.",
-                      "custom": "Publisher-defined reach unit. Describe in ext."
-                    }
+                    "$ref": "#/$defs/ReachUnit"
                   }
                 ],
                 "description": "Unit for reach measurement. Required when metric is 'reach'. Must be a value declared in the product's metric_optimization.supported_reach_units."
@@ -798,69 +668,7 @@
                       "description": "Event source to include (must be configured on this account via sync_event_sources)"
                     },
                     "event_type": {
-                      "title": "Event Type",
-                      "description": "Event type to include from this source (e.g., purchase, lead, app_install, refund)",
-                      "type": "string",
-                      "enum": [
-                        "page_view",
-                        "view_content",
-                        "select_content",
-                        "select_item",
-                        "search",
-                        "share",
-                        "add_to_cart",
-                        "remove_from_cart",
-                        "viewed_cart",
-                        "add_to_wishlist",
-                        "initiate_checkout",
-                        "add_payment_info",
-                        "purchase",
-                        "refund",
-                        "lead",
-                        "qualify_lead",
-                        "close_convert_lead",
-                        "disqualify_lead",
-                        "complete_registration",
-                        "subscribe",
-                        "start_trial",
-                        "app_install",
-                        "app_launch",
-                        "contact",
-                        "schedule",
-                        "donate",
-                        "submit_application",
-                        "custom"
-                      ],
-                      "enumDescriptions": {
-                        "page_view": "User viewed a page",
-                        "view_content": "User viewed specific content (product, article, etc.)",
-                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                        "select_item": "User selected a specific product or item from a list",
-                        "search": "User performed a search",
-                        "share": "User shared content via social or messaging",
-                        "add_to_cart": "User added an item to cart",
-                        "remove_from_cart": "User removed an item from cart",
-                        "viewed_cart": "User viewed their shopping cart",
-                        "add_to_wishlist": "User added an item to a wishlist",
-                        "initiate_checkout": "User started checkout process",
-                        "add_payment_info": "User added payment information",
-                        "purchase": "User completed a purchase",
-                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                        "lead": "User expressed interest (form submission, signup, etc.)",
-                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                        "complete_registration": "User completed account registration",
-                        "subscribe": "User subscribed to a service or newsletter",
-                        "start_trial": "User started a free trial",
-                        "app_install": "User installed an application",
-                        "app_launch": "User launched an application",
-                        "contact": "User initiated contact (call, message, etc.)",
-                        "schedule": "User scheduled an appointment or event",
-                        "donate": "User made a donation",
-                        "submit_application": "User submitted an application (loan, job, etc.)",
-                        "custom": "Custom event type (specify in custom_event_name)"
-                      }
+                      "$ref": "#/$defs/EventType"
                     },
                     "custom_event_name": {
                       "type": "string",
@@ -1083,16 +891,7 @@
             "type": "object",
             "properties": {
               "system": {
-                "title": "Metro Area System",
-                "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')",
-                "type": "string",
-                "enum": [
-                  "nielsen_dma",
-                  "uk_itl1",
-                  "uk_itl2",
-                  "eurostat_nuts2",
-                  "custom"
-                ]
+                "$ref": "#/$defs/MetroAreaSystem"
               },
               "values": {
                 "type": "array",
@@ -1118,16 +917,7 @@
             "type": "object",
             "properties": {
               "system": {
-                "title": "Metro Area System",
-                "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')",
-                "type": "string",
-                "enum": [
-                  "nielsen_dma",
-                  "uk_itl1",
-                  "uk_itl2",
-                  "eurostat_nuts2",
-                  "custom"
-                ]
+                "$ref": "#/$defs/MetroAreaSystem"
               },
               "values": {
                 "type": "array",
@@ -1153,22 +943,7 @@
             "type": "object",
             "properties": {
               "system": {
-                "title": "Postal Code System",
-                "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision.",
-                "type": "string",
-                "enum": [
-                  "us_zip",
-                  "us_zip_plus_four",
-                  "gb_outward",
-                  "gb_full",
-                  "ca_fsa",
-                  "ca_full",
-                  "de_plz",
-                  "fr_code_postal",
-                  "au_postcode",
-                  "ch_plz",
-                  "at_plz"
-                ]
+                "$ref": "#/$defs/PostalCodeSystem"
               },
               "values": {
                 "type": "array",
@@ -1194,22 +969,7 @@
             "type": "object",
             "properties": {
               "system": {
-                "title": "Postal Code System",
-                "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision.",
-                "type": "string",
-                "enum": [
-                  "us_zip",
-                  "us_zip_plus_four",
-                  "gb_outward",
-                  "gb_full",
-                  "ca_fsa",
-                  "ca_full",
-                  "de_plz",
-                  "fr_code_postal",
-                  "au_postcode",
-                  "ch_plz",
-                  "at_plz"
-                ]
+                "$ref": "#/$defs/PostalCodeSystem"
               },
               "values": {
                 "type": "array",
@@ -1358,25 +1118,7 @@
             "per": {
               "allOf": [
                 {
-                  "title": "Reach Unit",
-                  "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                  "type": "string",
-                  "enum": [
-                    "individuals",
-                    "households",
-                    "devices",
-                    "accounts",
-                    "cookies",
-                    "custom"
-                  ],
-                  "enumDescriptions": {
-                    "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                    "households": "Unique households or TV homes.",
-                    "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                    "accounts": "Unique logged-in accounts (platform-specific identity).",
-                    "cookies": "Unique browser cookies.",
-                    "custom": "Publisher-defined reach unit. Describe in ext."
-                  }
+                  "$ref": "#/$defs/ReachUnit"
                 }
               ],
               "description": "Entity granularity for impression counting. Required when max_impressions is set."
@@ -1593,17 +1335,7 @@
           "type": "array",
           "description": "Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).",
           "items": {
-            "title": "Device Type",
-            "description": "Device form factor categories for targeting and reporting. Complements device-platform (operating system) with hardware classification. OpenRTB mapping: 1 (Mobile/Tablet General) \u2192 mobile, 2 (PC) \u2192 desktop, 4 (Phone) \u2192 mobile, 5 (Tablet) \u2192 tablet, 6 (Connected Device) \u2192 ctv, 7 (Set Top Box) \u2192 ctv. DOOH inventory uses dooh.",
-            "type": "string",
-            "enum": [
-              "desktop",
-              "mobile",
-              "tablet",
-              "ctv",
-              "dooh",
-              "unknown"
-            ]
+            "$ref": "#/$defs/DeviceType"
           },
           "minItems": 1
         },
@@ -1611,17 +1343,7 @@
           "type": "array",
           "description": "Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).",
           "items": {
-            "title": "Device Type",
-            "description": "Device form factor categories for targeting and reporting. Complements device-platform (operating system) with hardware classification. OpenRTB mapping: 1 (Mobile/Tablet General) \u2192 mobile, 2 (PC) \u2192 desktop, 4 (Phone) \u2192 mobile, 5 (Tablet) \u2192 tablet, 6 (Connected Device) \u2192 ctv, 7 (Set Top Box) \u2192 ctv. DOOH inventory uses dooh.",
-            "type": "string",
-            "enum": [
-              "desktop",
-              "mobile",
-              "tablet",
-              "ctv",
-              "dooh",
-              "unknown"
-            ]
+            "$ref": "#/$defs/DeviceType"
           },
           "minItems": 1
         },
@@ -1691,12 +1413,17 @@
                     "description": "Travel time limit."
                   },
                   "unit": {
+                    "title": "Travel Time Unit",
+                    "description": "Time unit for isochrone (travel-time catchment) calculations.",
                     "type": "string",
                     "enum": [
                       "min",
                       "hr"
                     ],
-                    "description": "Time unit."
+                    "enumDescriptions": {
+                      "min": "Minutes",
+                      "hr": "Hours"
+                    }
                   }
                 },
                 "required": [
@@ -1872,13 +1599,7 @@
                 "description": "The keyword to target"
               },
               "match_type": {
-                "type": "string",
-                "enum": [
-                  "broad",
-                  "phrase",
-                  "exact"
-                ],
-                "description": "Match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly"
+                "$ref": "#/$defs/MatchType"
               },
               "bid_price": {
                 "type": "number",
@@ -1906,13 +1627,7 @@
                 "description": "The keyword to exclude"
               },
               "match_type": {
-                "type": "string",
-                "enum": [
-                  "broad",
-                  "phrase",
-                  "exact"
-                ],
-                "description": "Match type for exclusion"
+                "$ref": "#/$defs/MatchType"
               }
             },
             "required": [
@@ -2272,15 +1987,15 @@
             "description": "Human-readable creative name"
           },
           "format_id": {
-            "title": "Format ID",
-            "description": "Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.",
+            "title": "Format Reference (Structured Object)",
+            "description": "Always a structured object {agent_url, id} \u2014 never a plain string. Format identifier specifying which format this creative conforms to. Can be: (1) concrete format_id referencing a format with fixed dimensions, (2) template format_id referencing a template format, or (3) parameterized format_id with dimensions/duration parameters for template formats.",
             "x-entity": "creative_format",
             "type": "object",
             "properties": {
               "agent_url": {
                 "type": "string",
                 "format": "uri",
-                "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
               },
               "id": {
                 "type": "string",
@@ -2363,31 +2078,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -2523,19 +2214,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -2546,19 +2225,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -2703,20 +2370,30 @@
                         "description": "Frame rate as string to preserve precision (e.g., '23.976', '29.97', '30')"
                       },
                       "frame_rate_type": {
+                        "title": "Frame Rate Type",
+                        "description": "Whether the video uses a constant or variable frame rate. Broadcast and SSAI contexts require constant frame rate for seamless splicing.",
                         "type": "string",
                         "enum": [
                           "constant",
                           "variable"
                         ],
-                        "description": "Whether the video uses constant (CFR) or variable (VFR) frame rate"
+                        "enumDescriptions": {
+                          "constant": "Constant frame rate (CFR) \u2014 each frame occupies an identical time interval",
+                          "variable": "Variable frame rate (VFR) \u2014 frame intervals may differ"
+                        }
                       },
                       "scan_type": {
+                        "title": "Scan Type",
+                        "description": "Video scan method. Modern digital delivery requires progressive scan; interlaced is retained for broadcast legacy content.",
                         "type": "string",
                         "enum": [
                           "progressive",
                           "interlaced"
                         ],
-                        "description": "Scan type of the video"
+                        "enumDescriptions": {
+                          "progressive": "All lines of each frame are drawn in sequence",
+                          "interlaced": "Alternating lines drawn in two passes per frame (legacy broadcast)"
+                        }
                       },
                       "color_space": {
                         "type": "string",
@@ -2763,20 +2440,30 @@
                         "description": "GOP/keyframe interval in seconds"
                       },
                       "gop_type": {
+                        "title": "GOP Type",
+                        "description": "Group of Pictures structure. SSAI and broadcast require closed GOPs for clean splice points; open GOPs may produce artifacts at ad boundaries.",
                         "type": "string",
                         "enum": [
                           "closed",
                           "open"
                         ],
-                        "description": "GOP structure type"
+                        "enumDescriptions": {
+                          "closed": "Each GOP is independently decodable \u2014 required for SSAI and broadcast splicing",
+                          "open": "GOPs may reference frames from adjacent GOPs \u2014 not suitable for splicing"
+                        }
                       },
                       "moov_atom_position": {
+                        "title": "Moov Atom Position",
+                        "description": "Position of the moov atom in an MP4 container. 'start' enables progressive download without buffering the entire file; required for streaming ad delivery.",
                         "type": "string",
                         "enum": [
                           "start",
                           "end"
                         ],
-                        "description": "Position of moov atom in MP4 container"
+                        "enumDescriptions": {
+                          "start": "moov atom at beginning of file \u2014 enables progressive download and streaming delivery",
+                          "end": "moov atom at end of file \u2014 requires full download before playback can begin"
+                        }
                       },
                       "has_audio": {
                         "type": "boolean",
@@ -2791,14 +2478,7 @@
                         "description": "Audio sampling rate in Hz (e.g., 44100, 48000)"
                       },
                       "audio_channels": {
-                        "type": "string",
-                        "enum": [
-                          "mono",
-                          "stereo",
-                          "5.1",
-                          "7.1"
-                        ],
-                        "description": "Audio channel configuration"
+                        "$ref": "#/$defs/AudioChannelLayout"
                       },
                       "audio_bit_depth": {
                         "type": "integer",
@@ -2846,31 +2526,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -3006,19 +2662,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -3029,19 +2673,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -3171,14 +2803,7 @@
                         "description": "Sampling rate in Hz (e.g., 44100, 48000, 96000)"
                       },
                       "channels": {
-                        "type": "string",
-                        "enum": [
-                          "mono",
-                          "stereo",
-                          "5.1",
-                          "7.1"
-                        ],
-                        "description": "Channel configuration"
+                        "$ref": "#/$defs/AudioChannelLayout"
                       },
                       "bit_depth": {
                         "type": "integer",
@@ -3214,31 +2839,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -3374,19 +2975,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -3397,19 +2986,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -3591,31 +3168,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -3751,19 +3304,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -3774,19 +3315,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -3939,31 +3468,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -4099,19 +3604,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -4122,19 +3615,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -4259,31 +3740,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -4419,19 +3876,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -4442,19 +3887,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -4591,31 +4024,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -4751,19 +4160,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -4774,19 +4171,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -4929,31 +4314,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -5089,19 +4450,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -5112,19 +4461,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -5251,151 +4588,7 @@
                         "items": {
                           "anyOf": [
                             {
-                              "title": "Universal Macro",
-                              "description": "Standardized macro placeholders for dynamic value substitution in creative tracking URLs. Macros are replaced with actual values at impression time. See docs/creative/universal-macros.mdx for detailed documentation.",
-                              "type": "string",
-                              "enum": [
-                                "MEDIA_BUY_ID",
-                                "PACKAGE_ID",
-                                "CREATIVE_ID",
-                                "CACHEBUSTER",
-                                "TIMESTAMP",
-                                "CLICK_URL",
-                                "GDPR",
-                                "GDPR_CONSENT",
-                                "US_PRIVACY",
-                                "GPP_STRING",
-                                "GPP_SID",
-                                "IP_ADDRESS",
-                                "LIMIT_AD_TRACKING",
-                                "DEVICE_TYPE",
-                                "OS",
-                                "OS_VERSION",
-                                "DEVICE_MAKE",
-                                "DEVICE_MODEL",
-                                "USER_AGENT",
-                                "APP_BUNDLE",
-                                "APP_NAME",
-                                "COUNTRY",
-                                "REGION",
-                                "CITY",
-                                "ZIP",
-                                "DMA",
-                                "LAT",
-                                "LONG",
-                                "DEVICE_ID",
-                                "DEVICE_ID_TYPE",
-                                "DOMAIN",
-                                "PAGE_URL",
-                                "REFERRER",
-                                "KEYWORDS",
-                                "PLACEMENT_ID",
-                                "FOLD_POSITION",
-                                "AD_WIDTH",
-                                "AD_HEIGHT",
-                                "VIDEO_ID",
-                                "VIDEO_TITLE",
-                                "VIDEO_DURATION",
-                                "VIDEO_CATEGORY",
-                                "CONTENT_GENRE",
-                                "CONTENT_RATING",
-                                "PLAYER_WIDTH",
-                                "PLAYER_HEIGHT",
-                                "POD_POSITION",
-                                "POD_SIZE",
-                                "AD_BREAK_ID",
-                                "STATION_ID",
-                                "COLLECTION_NAME",
-                                "INSTALLMENT_ID",
-                                "AUDIO_DURATION",
-                                "TMPX",
-                                "AXEM",
-                                "CATALOG_ID",
-                                "SKU",
-                                "GTIN",
-                                "OFFERING_ID",
-                                "JOB_ID",
-                                "HOTEL_ID",
-                                "FLIGHT_ID",
-                                "VEHICLE_ID",
-                                "LISTING_ID",
-                                "STORE_ID",
-                                "PROGRAM_ID",
-                                "DESTINATION_ID",
-                                "CREATIVE_VARIANT_ID",
-                                "APP_ITEM_ID"
-                              ],
-                              "enumDescriptions": {
-                                "MEDIA_BUY_ID": "AdCP media buy identifier",
-                                "PACKAGE_ID": "AdCP package identifier",
-                                "CREATIVE_ID": "AdCP creative identifier",
-                                "CACHEBUSTER": "Random number to prevent caching",
-                                "TIMESTAMP": "Unix timestamp in milliseconds",
-                                "CLICK_URL": "Publisher's click tracking URL (auto-inserted by sales agent)",
-                                "GDPR": "GDPR applicability flag (1=applies, 0=doesn't apply)",
-                                "GDPR_CONSENT": "IAB TCF 2.0 consent string",
-                                "US_PRIVACY": "US Privacy (CCPA) string",
-                                "GPP_STRING": "Global Privacy Platform consent string",
-                                "GPP_SID": "GPP Section ID(s) indicating applicable privacy framework sections",
-                                "IP_ADDRESS": "User IP address (often masked for privacy, may return empty)",
-                                "LIMIT_AD_TRACKING": "Limit Ad Tracking enabled (1=limited, 0=allowed)",
-                                "DEVICE_TYPE": "Device category (mobile, tablet, desktop, ctv, dooh)",
-                                "OS": "Operating system (iOS, Android, tvOS, Roku, etc.)",
-                                "OS_VERSION": "OS version number",
-                                "DEVICE_MAKE": "Device manufacturer",
-                                "DEVICE_MODEL": "Device model identifier",
-                                "USER_AGENT": "Full user agent string",
-                                "APP_BUNDLE": "App bundle ID (domain or numeric)",
-                                "APP_NAME": "Human-readable app name",
-                                "COUNTRY": "ISO 3166-1 alpha-2 country code",
-                                "REGION": "State/province/region code",
-                                "CITY": "City name",
-                                "ZIP": "Postal code",
-                                "DMA": "Nielsen DMA code (US TV markets)",
-                                "LAT": "Latitude coordinate",
-                                "LONG": "Longitude coordinate",
-                                "DEVICE_ID": "Mobile advertising ID (IDFA/AAID)",
-                                "DEVICE_ID_TYPE": "Type of device ID (idfa, aaid)",
-                                "DOMAIN": "Domain where ad is shown",
-                                "PAGE_URL": "Full page URL (encoded)",
-                                "REFERRER": "HTTP referrer URL",
-                                "KEYWORDS": "Page keywords (comma-separated)",
-                                "PLACEMENT_ID": "Global Placement ID (IAB standard)",
-                                "FOLD_POSITION": "Position relative to fold (above_fold, below_fold)",
-                                "AD_WIDTH": "Ad slot width in pixels",
-                                "AD_HEIGHT": "Ad slot height in pixels",
-                                "VIDEO_ID": "Content video identifier",
-                                "VIDEO_TITLE": "Content video title",
-                                "VIDEO_DURATION": "Content duration in seconds",
-                                "VIDEO_CATEGORY": "IAB content category",
-                                "CONTENT_GENRE": "Content genre (news, sports, comedy, etc.)",
-                                "CONTENT_RATING": "Content rating (G, PG, TV-14, etc.)",
-                                "PLAYER_WIDTH": "Video player width in pixels",
-                                "PLAYER_HEIGHT": "Video player height in pixels",
-                                "POD_POSITION": "Position within ad break",
-                                "POD_SIZE": "Total ads in the ad break",
-                                "AD_BREAK_ID": "Unique ad break identifier",
-                                "STATION_ID": "Radio station or podcast identifier",
-                                "COLLECTION_NAME": "Program or collection name",
-                                "INSTALLMENT_ID": "Installment identifier (podcast episode, print issue, etc.)",
-                                "AUDIO_DURATION": "Audio content duration in seconds",
-                                "TMPX": "TMP exposure token \u2014 HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
-                                "AXEM": "AXE contextual metadata (encoded blob). Legacy \u2014 in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
-                                "CATALOG_ID": "Buyer-defined catalog identifier from the catalog's catalog_id field",
-                                "SKU": "Product SKU identifier for the catalog item being rendered",
-                                "GTIN": "Global Trade Item Number for the catalog item being rendered",
-                                "OFFERING_ID": "AdCP offering identifier for the catalog item being rendered",
-                                "JOB_ID": "Job posting identifier for the catalog item being rendered",
-                                "HOTEL_ID": "Hotel property identifier for the catalog item being rendered",
-                                "FLIGHT_ID": "Flight route identifier for the catalog item being rendered",
-                                "VEHICLE_ID": "Vehicle listing identifier for the catalog item being rendered",
-                                "LISTING_ID": "Real estate listing identifier for the catalog item being rendered",
-                                "STORE_ID": "Store location identifier for the catalog item being rendered",
-                                "PROGRAM_ID": "Education program identifier for the catalog item being rendered",
-                                "DESTINATION_ID": "Travel destination identifier for the catalog item being rendered",
-                                "CREATIVE_VARIANT_ID": "Seller-assigned creative variant identifier, passed through at serve time",
-                                "APP_ITEM_ID": "Mobile app identifier for the catalog item being rendered"
-                              }
+                              "$ref": "#/$defs/UniversalMacro"
                             },
                             {
                               "type": "string",
@@ -5410,151 +4603,7 @@
                         "items": {
                           "anyOf": [
                             {
-                              "title": "Universal Macro",
-                              "description": "Standardized macro placeholders for dynamic value substitution in creative tracking URLs. Macros are replaced with actual values at impression time. See docs/creative/universal-macros.mdx for detailed documentation.",
-                              "type": "string",
-                              "enum": [
-                                "MEDIA_BUY_ID",
-                                "PACKAGE_ID",
-                                "CREATIVE_ID",
-                                "CACHEBUSTER",
-                                "TIMESTAMP",
-                                "CLICK_URL",
-                                "GDPR",
-                                "GDPR_CONSENT",
-                                "US_PRIVACY",
-                                "GPP_STRING",
-                                "GPP_SID",
-                                "IP_ADDRESS",
-                                "LIMIT_AD_TRACKING",
-                                "DEVICE_TYPE",
-                                "OS",
-                                "OS_VERSION",
-                                "DEVICE_MAKE",
-                                "DEVICE_MODEL",
-                                "USER_AGENT",
-                                "APP_BUNDLE",
-                                "APP_NAME",
-                                "COUNTRY",
-                                "REGION",
-                                "CITY",
-                                "ZIP",
-                                "DMA",
-                                "LAT",
-                                "LONG",
-                                "DEVICE_ID",
-                                "DEVICE_ID_TYPE",
-                                "DOMAIN",
-                                "PAGE_URL",
-                                "REFERRER",
-                                "KEYWORDS",
-                                "PLACEMENT_ID",
-                                "FOLD_POSITION",
-                                "AD_WIDTH",
-                                "AD_HEIGHT",
-                                "VIDEO_ID",
-                                "VIDEO_TITLE",
-                                "VIDEO_DURATION",
-                                "VIDEO_CATEGORY",
-                                "CONTENT_GENRE",
-                                "CONTENT_RATING",
-                                "PLAYER_WIDTH",
-                                "PLAYER_HEIGHT",
-                                "POD_POSITION",
-                                "POD_SIZE",
-                                "AD_BREAK_ID",
-                                "STATION_ID",
-                                "COLLECTION_NAME",
-                                "INSTALLMENT_ID",
-                                "AUDIO_DURATION",
-                                "TMPX",
-                                "AXEM",
-                                "CATALOG_ID",
-                                "SKU",
-                                "GTIN",
-                                "OFFERING_ID",
-                                "JOB_ID",
-                                "HOTEL_ID",
-                                "FLIGHT_ID",
-                                "VEHICLE_ID",
-                                "LISTING_ID",
-                                "STORE_ID",
-                                "PROGRAM_ID",
-                                "DESTINATION_ID",
-                                "CREATIVE_VARIANT_ID",
-                                "APP_ITEM_ID"
-                              ],
-                              "enumDescriptions": {
-                                "MEDIA_BUY_ID": "AdCP media buy identifier",
-                                "PACKAGE_ID": "AdCP package identifier",
-                                "CREATIVE_ID": "AdCP creative identifier",
-                                "CACHEBUSTER": "Random number to prevent caching",
-                                "TIMESTAMP": "Unix timestamp in milliseconds",
-                                "CLICK_URL": "Publisher's click tracking URL (auto-inserted by sales agent)",
-                                "GDPR": "GDPR applicability flag (1=applies, 0=doesn't apply)",
-                                "GDPR_CONSENT": "IAB TCF 2.0 consent string",
-                                "US_PRIVACY": "US Privacy (CCPA) string",
-                                "GPP_STRING": "Global Privacy Platform consent string",
-                                "GPP_SID": "GPP Section ID(s) indicating applicable privacy framework sections",
-                                "IP_ADDRESS": "User IP address (often masked for privacy, may return empty)",
-                                "LIMIT_AD_TRACKING": "Limit Ad Tracking enabled (1=limited, 0=allowed)",
-                                "DEVICE_TYPE": "Device category (mobile, tablet, desktop, ctv, dooh)",
-                                "OS": "Operating system (iOS, Android, tvOS, Roku, etc.)",
-                                "OS_VERSION": "OS version number",
-                                "DEVICE_MAKE": "Device manufacturer",
-                                "DEVICE_MODEL": "Device model identifier",
-                                "USER_AGENT": "Full user agent string",
-                                "APP_BUNDLE": "App bundle ID (domain or numeric)",
-                                "APP_NAME": "Human-readable app name",
-                                "COUNTRY": "ISO 3166-1 alpha-2 country code",
-                                "REGION": "State/province/region code",
-                                "CITY": "City name",
-                                "ZIP": "Postal code",
-                                "DMA": "Nielsen DMA code (US TV markets)",
-                                "LAT": "Latitude coordinate",
-                                "LONG": "Longitude coordinate",
-                                "DEVICE_ID": "Mobile advertising ID (IDFA/AAID)",
-                                "DEVICE_ID_TYPE": "Type of device ID (idfa, aaid)",
-                                "DOMAIN": "Domain where ad is shown",
-                                "PAGE_URL": "Full page URL (encoded)",
-                                "REFERRER": "HTTP referrer URL",
-                                "KEYWORDS": "Page keywords (comma-separated)",
-                                "PLACEMENT_ID": "Global Placement ID (IAB standard)",
-                                "FOLD_POSITION": "Position relative to fold (above_fold, below_fold)",
-                                "AD_WIDTH": "Ad slot width in pixels",
-                                "AD_HEIGHT": "Ad slot height in pixels",
-                                "VIDEO_ID": "Content video identifier",
-                                "VIDEO_TITLE": "Content video title",
-                                "VIDEO_DURATION": "Content duration in seconds",
-                                "VIDEO_CATEGORY": "IAB content category",
-                                "CONTENT_GENRE": "Content genre (news, sports, comedy, etc.)",
-                                "CONTENT_RATING": "Content rating (G, PG, TV-14, etc.)",
-                                "PLAYER_WIDTH": "Video player width in pixels",
-                                "PLAYER_HEIGHT": "Video player height in pixels",
-                                "POD_POSITION": "Position within ad break",
-                                "POD_SIZE": "Total ads in the ad break",
-                                "AD_BREAK_ID": "Unique ad break identifier",
-                                "STATION_ID": "Radio station or podcast identifier",
-                                "COLLECTION_NAME": "Program or collection name",
-                                "INSTALLMENT_ID": "Installment identifier (podcast episode, print issue, etc.)",
-                                "AUDIO_DURATION": "Audio content duration in seconds",
-                                "TMPX": "TMP exposure token \u2014 HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
-                                "AXEM": "AXE contextual metadata (encoded blob). Legacy \u2014 in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
-                                "CATALOG_ID": "Buyer-defined catalog identifier from the catalog's catalog_id field",
-                                "SKU": "Product SKU identifier for the catalog item being rendered",
-                                "GTIN": "Global Trade Item Number for the catalog item being rendered",
-                                "OFFERING_ID": "AdCP offering identifier for the catalog item being rendered",
-                                "JOB_ID": "Job posting identifier for the catalog item being rendered",
-                                "HOTEL_ID": "Hotel property identifier for the catalog item being rendered",
-                                "FLIGHT_ID": "Flight route identifier for the catalog item being rendered",
-                                "VEHICLE_ID": "Vehicle listing identifier for the catalog item being rendered",
-                                "LISTING_ID": "Real estate listing identifier for the catalog item being rendered",
-                                "STORE_ID": "Store location identifier for the catalog item being rendered",
-                                "PROGRAM_ID": "Education program identifier for the catalog item being rendered",
-                                "DESTINATION_ID": "Travel destination identifier for the catalog item being rendered",
-                                "CREATIVE_VARIANT_ID": "Seller-assigned creative variant identifier, passed through at serve time",
-                                "APP_ITEM_ID": "Mobile app identifier for the catalog item being rendered"
-                              }
+                              "$ref": "#/$defs/UniversalMacro"
                             },
                             {
                               "type": "string",
@@ -5608,31 +4657,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -5768,19 +4793,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -5791,19 +4804,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -5919,31 +4920,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -6079,19 +5056,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -6102,19 +5067,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -6278,31 +5231,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -6438,19 +5367,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -6461,19 +5378,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -6768,19 +5673,7 @@
                                       "description": "The disclosure text that must appear in the creative"
                                     },
                                     "position": {
-                                      "title": "Disclosure Position",
-                                      "description": "Where the disclosure should appear within the creative. prominent: clearly visible in the main creative area; footer: at the bottom of visual creatives; audio: spoken in audio/video creatives; subtitle: displayed in the subtitle or closed-caption track; overlay: superimposed on video content; end_card: displayed on video end card; pre_roll: spoken or displayed before main content; companion: in companion ad unit alongside primary creative",
-                                      "type": "string",
-                                      "enum": [
-                                        "prominent",
-                                        "footer",
-                                        "audio",
-                                        "subtitle",
-                                        "overlay",
-                                        "end_card",
-                                        "pre_roll",
-                                        "companion"
-                                      ]
+                                      "$ref": "#/$defs/DisclosurePosition"
                                     },
                                     "jurisdictions": {
                                       "type": "array",
@@ -6805,19 +5698,7 @@
                                       "description": "Language of the disclosure text as a BCP 47 language tag (e.g., 'en', 'fr-CA', 'es'). When omitted, the disclosure is assumed to match the creative's language."
                                     },
                                     "persistence": {
-                                      "title": "Disclosure Persistence",
-                                      "description": "How long the disclosure must persist during content playback or display. When omitted, the creative agent should use the most restrictive persistence mode supported by the target format.",
-                                      "type": "string",
-                                      "enum": [
-                                        "continuous",
-                                        "initial",
-                                        "flexible"
-                                      ],
-                                      "enumDescriptions": {
-                                        "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                        "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                        "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                      }
+                                      "$ref": "#/$defs/DisclosurePersistence"
                                     }
                                   },
                                   "required": [
@@ -6876,24 +5757,7 @@
                             "description": "Human-readable name for this catalog (e.g., 'Summer Products 2025', 'Amsterdam Store Locations')."
                           },
                           "type": {
-                            "title": "Catalog Type",
-                            "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' \u2014 each with an industry-specific item schema.",
-                            "type": "string",
-                            "enum": [
-                              "offering",
-                              "product",
-                              "inventory",
-                              "store",
-                              "promotion",
-                              "hotel",
-                              "flight",
-                              "job",
-                              "vehicle",
-                              "real_estate",
-                              "education",
-                              "destination",
-                              "app"
-                            ]
+                            "$ref": "#/$defs/CatalogType"
                           },
                           "url": {
                             "type": "string",
@@ -6901,27 +5765,10 @@
                             "description": "URL to an external catalog feed. The platform fetches and resolves items from this URL. For offering-type catalogs, the feed contains an array of Offering objects. For other types, the feed format is determined by feed_format. When omitted with type 'product', the platform uses its synced copy of the brand's product catalog."
                           },
                           "feed_format": {
-                            "title": "Feed Format",
-                            "description": "Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.",
-                            "type": "string",
-                            "enum": [
-                              "google_merchant_center",
-                              "facebook_catalog",
-                              "shopify",
-                              "linkedin_jobs",
-                              "custom"
-                            ]
+                            "$ref": "#/$defs/FeedFormat"
                           },
                           "update_frequency": {
-                            "title": "Update Frequency",
-                            "description": "How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.",
-                            "type": "string",
-                            "enum": [
-                              "realtime",
-                              "hourly",
-                              "daily",
-                              "weekly"
-                            ]
+                            "$ref": "#/$defs/UpdateFrequency"
                           },
                           "items": {
                             "type": "array",
@@ -6968,91 +5815,13 @@
                             "type": "array",
                             "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items \u2014 e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
                             "items": {
-                              "title": "Event Type",
-                              "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
-                              "type": "string",
-                              "enum": [
-                                "page_view",
-                                "view_content",
-                                "select_content",
-                                "select_item",
-                                "search",
-                                "share",
-                                "add_to_cart",
-                                "remove_from_cart",
-                                "viewed_cart",
-                                "add_to_wishlist",
-                                "initiate_checkout",
-                                "add_payment_info",
-                                "purchase",
-                                "refund",
-                                "lead",
-                                "qualify_lead",
-                                "close_convert_lead",
-                                "disqualify_lead",
-                                "complete_registration",
-                                "subscribe",
-                                "start_trial",
-                                "app_install",
-                                "app_launch",
-                                "contact",
-                                "schedule",
-                                "donate",
-                                "submit_application",
-                                "custom"
-                              ],
-                              "enumDescriptions": {
-                                "page_view": "User viewed a page",
-                                "view_content": "User viewed specific content (product, article, etc.)",
-                                "select_content": "User selected or clicked on content (article, video, etc.)",
-                                "select_item": "User selected a specific product or item from a list",
-                                "search": "User performed a search",
-                                "share": "User shared content via social or messaging",
-                                "add_to_cart": "User added an item to cart",
-                                "remove_from_cart": "User removed an item from cart",
-                                "viewed_cart": "User viewed their shopping cart",
-                                "add_to_wishlist": "User added an item to a wishlist",
-                                "initiate_checkout": "User started checkout process",
-                                "add_payment_info": "User added payment information",
-                                "purchase": "User completed a purchase",
-                                "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                "lead": "User expressed interest (form submission, signup, etc.)",
-                                "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                "close_convert_lead": "Lead converted to a customer or closed deal",
-                                "disqualify_lead": "Lead disqualified or marked as not viable",
-                                "complete_registration": "User completed account registration",
-                                "subscribe": "User subscribed to a service or newsletter",
-                                "start_trial": "User started a free trial",
-                                "app_install": "User installed an application",
-                                "app_launch": "User launched an application",
-                                "contact": "User initiated contact (call, message, etc.)",
-                                "schedule": "User scheduled an appointment or event",
-                                "donate": "User made a donation",
-                                "submit_application": "User submitted an application (loan, job, etc.)",
-                                "custom": "Custom event type (specify in custom_event_name)"
-                              }
+                              "$ref": "#/$defs/EventType"
                             },
                             "minItems": 1,
                             "uniqueItems": true
                           },
                           "content_id_type": {
-                            "title": "Content ID Type",
-                            "description": "Identifier type that the event's content_ids field should be matched against for items in this catalog. For example, 'gtin' means content_ids values are Global Trade Item Numbers, 'sku' means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum.",
-                            "type": "string",
-                            "enum": [
-                              "sku",
-                              "gtin",
-                              "offering_id",
-                              "job_id",
-                              "hotel_id",
-                              "flight_id",
-                              "vehicle_id",
-                              "listing_id",
-                              "store_id",
-                              "program_id",
-                              "destination_id",
-                              "app_id"
-                            ]
+                            "$ref": "#/$defs/ContentIDType"
                           },
                           "feed_field_mappings": {
                             "type": "array",
@@ -7457,31 +6226,7 @@
             "type": "object",
             "properties": {
               "digital_source_type": {
-                "title": "Digital Source Type",
-                "description": "IPTC-aligned classification of AI involvement in producing this content",
-                "type": "string",
-                "enum": [
-                  "digital_capture",
-                  "digital_creation",
-                  "trained_algorithmic_media",
-                  "composite_with_trained_algorithmic_media",
-                  "algorithmic_media",
-                  "composite_capture",
-                  "composite_synthetic",
-                  "human_edits",
-                  "data_driven_media"
-                ],
-                "enumDescriptions": {
-                  "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                  "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                  "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                  "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                  "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                  "composite_capture": "Multiple digital captures composited together without AI",
-                  "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                  "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                  "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                }
+                "$ref": "#/$defs/DigitalSourceType"
               },
               "ai_tool": {
                 "type": "object",
@@ -7617,19 +6362,7 @@
                           "minProperties": 1,
                           "properties": {
                             "persistence": {
-                              "title": "Disclosure Persistence",
-                              "description": "How long the disclosure must persist during content playback or display",
-                              "type": "string",
-                              "enum": [
-                                "continuous",
-                                "initial",
-                                "flexible"
-                              ],
-                              "enumDescriptions": {
-                                "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                              }
+                              "$ref": "#/$defs/DisclosurePersistence"
                             },
                             "min_duration_ms": {
                               "type": "integer",
@@ -7640,19 +6373,7 @@
                               "type": "array",
                               "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                               "items": {
-                                "title": "Disclosure Position",
-                                "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                "type": "string",
-                                "enum": [
-                                  "prominent",
-                                  "footer",
-                                  "audio",
-                                  "subtitle",
-                                  "overlay",
-                                  "end_card",
-                                  "pre_roll",
-                                  "companion"
-                                ]
+                                "$ref": "#/$defs/DisclosurePosition"
                               },
                               "minItems": 1,
                               "uniqueItems": true
@@ -7771,8 +6492,431 @@
     "pricing_option_id"
   ],
   "additionalProperties": true,
+  "$defs": {
+    "CatalogType": {
+      "title": "Catalog Type",
+      "description": "Catalog type. Structural types: 'offering' (AdCP Offering objects), 'product' (ecommerce entries), 'inventory' (stock per location), 'store' (physical locations), 'promotion' (deals and pricing). Vertical types: 'hotel', 'flight', 'job', 'vehicle', 'real_estate', 'education', 'destination', 'app' \u2014 each with an industry-specific item schema.",
+      "type": "string",
+      "enum": [
+        "offering",
+        "product",
+        "inventory",
+        "store",
+        "promotion",
+        "hotel",
+        "flight",
+        "job",
+        "vehicle",
+        "real_estate",
+        "education",
+        "destination",
+        "app"
+      ]
+    },
+    "FeedFormat": {
+      "title": "Feed Format",
+      "description": "Format of the external feed at url. Required when url points to a non-AdCP feed (e.g., Google Merchant Center XML, Meta Product Catalog). Omit for offering-type catalogs where the feed is native AdCP JSON.",
+      "type": "string",
+      "enum": [
+        "google_merchant_center",
+        "facebook_catalog",
+        "shopify",
+        "linkedin_jobs",
+        "custom"
+      ]
+    },
+    "UpdateFrequency": {
+      "title": "Update Frequency",
+      "description": "How often the platform should re-fetch the feed from url. Only applicable when url is provided. Platforms may use this as a hint for polling schedules.",
+      "type": "string",
+      "enum": [
+        "realtime",
+        "hourly",
+        "daily",
+        "weekly"
+      ]
+    },
+    "EventType": {
+      "title": "Event Type",
+      "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
+      "type": "string",
+      "enum": [
+        "page_view",
+        "view_content",
+        "select_content",
+        "select_item",
+        "search",
+        "share",
+        "add_to_cart",
+        "remove_from_cart",
+        "viewed_cart",
+        "add_to_wishlist",
+        "initiate_checkout",
+        "add_payment_info",
+        "purchase",
+        "refund",
+        "lead",
+        "qualify_lead",
+        "close_convert_lead",
+        "disqualify_lead",
+        "complete_registration",
+        "subscribe",
+        "start_trial",
+        "app_install",
+        "app_launch",
+        "contact",
+        "schedule",
+        "donate",
+        "submit_application",
+        "custom"
+      ],
+      "enumDescriptions": {
+        "page_view": "User viewed a page",
+        "view_content": "User viewed specific content (product, article, etc.)",
+        "select_content": "User selected or clicked on content (article, video, etc.)",
+        "select_item": "User selected a specific product or item from a list",
+        "search": "User performed a search",
+        "share": "User shared content via social or messaging",
+        "add_to_cart": "User added an item to cart",
+        "remove_from_cart": "User removed an item from cart",
+        "viewed_cart": "User viewed their shopping cart",
+        "add_to_wishlist": "User added an item to a wishlist",
+        "initiate_checkout": "User started checkout process",
+        "add_payment_info": "User added payment information",
+        "purchase": "User completed a purchase",
+        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
+        "lead": "User expressed interest (form submission, signup, etc.)",
+        "qualify_lead": "Lead qualified by sales or scoring criteria",
+        "close_convert_lead": "Lead converted to a customer or closed deal",
+        "disqualify_lead": "Lead disqualified or marked as not viable",
+        "complete_registration": "User completed account registration",
+        "subscribe": "User subscribed to a service or newsletter",
+        "start_trial": "User started a free trial",
+        "app_install": "User installed an application",
+        "app_launch": "User launched an application",
+        "contact": "User initiated contact (call, message, etc.)",
+        "schedule": "User scheduled an appointment or event",
+        "donate": "User made a donation",
+        "submit_application": "User submitted an application (loan, job, etc.)",
+        "custom": "Custom event type (specify in custom_event_name)"
+      }
+    },
+    "ContentIDType": {
+      "title": "Content ID Type",
+      "description": "Identifier type that the event's content_ids field should be matched against for items in this catalog. For example, 'gtin' means content_ids values are Global Trade Item Numbers, 'sku' means retailer SKUs. Omit when using a custom identifier scheme not listed in the enum.",
+      "type": "string",
+      "enum": [
+        "sku",
+        "gtin",
+        "offering_id",
+        "job_id",
+        "hotel_id",
+        "flight_id",
+        "vehicle_id",
+        "listing_id",
+        "store_id",
+        "program_id",
+        "destination_id",
+        "app_id"
+      ]
+    },
+    "ReachUnit": {
+      "title": "Reach Unit",
+      "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
+      "type": "string",
+      "enum": [
+        "individuals",
+        "households",
+        "devices",
+        "accounts",
+        "cookies",
+        "custom"
+      ],
+      "enumDescriptions": {
+        "individuals": "Unique people. Panel-based or identity-resolved measurement.",
+        "households": "Unique households or TV homes.",
+        "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
+        "accounts": "Unique logged-in accounts (platform-specific identity).",
+        "cookies": "Unique browser cookies.",
+        "custom": "Publisher-defined reach unit. Describe in ext."
+      }
+    },
+    "MetroAreaSystem": {
+      "title": "Metro Area System",
+      "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')",
+      "type": "string",
+      "enum": [
+        "nielsen_dma",
+        "uk_itl1",
+        "uk_itl2",
+        "eurostat_nuts2",
+        "custom"
+      ]
+    },
+    "PostalCodeSystem": {
+      "title": "Postal Code System",
+      "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision.",
+      "type": "string",
+      "enum": [
+        "us_zip",
+        "us_zip_plus_four",
+        "gb_outward",
+        "gb_full",
+        "ca_fsa",
+        "ca_full",
+        "de_plz",
+        "fr_code_postal",
+        "au_postcode",
+        "ch_plz",
+        "at_plz"
+      ]
+    },
+    "DeviceType": {
+      "title": "Device Type",
+      "description": "Device form factor categories for targeting and reporting. Complements device-platform (operating system) with hardware classification. OpenRTB mapping: 1 (Mobile/Tablet General) \u2192 mobile, 2 (PC) \u2192 desktop, 4 (Phone) \u2192 mobile, 5 (Tablet) \u2192 tablet, 6 (Connected Device) \u2192 ctv, 7 (Set Top Box) \u2192 ctv. DOOH inventory uses dooh.",
+      "type": "string",
+      "enum": [
+        "desktop",
+        "mobile",
+        "tablet",
+        "ctv",
+        "dooh",
+        "unknown"
+      ]
+    },
+    "MatchType": {
+      "title": "Match Type",
+      "description": "Keyword targeting match type. broad: ads may serve on queries semantically related to the keyword. phrase: ads serve when the query contains the keyword phrase. exact: ads serve only when the query matches the keyword exactly.",
+      "type": "string",
+      "enum": [
+        "broad",
+        "phrase",
+        "exact"
+      ],
+      "enumDescriptions": {
+        "broad": "Ads may serve on queries semantically related to the keyword",
+        "phrase": "Ads serve when the query contains the keyword phrase in order",
+        "exact": "Ads serve only when the query matches the keyword exactly"
+      }
+    },
+    "DigitalSourceType": {
+      "title": "Digital Source Type",
+      "description": "IPTC-aligned classification of AI involvement in producing this content",
+      "type": "string",
+      "enum": [
+        "digital_capture",
+        "digital_creation",
+        "trained_algorithmic_media",
+        "composite_with_trained_algorithmic_media",
+        "algorithmic_media",
+        "composite_capture",
+        "composite_synthetic",
+        "human_edits",
+        "data_driven_media"
+      ],
+      "enumDescriptions": {
+        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
+        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
+        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
+        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
+        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
+        "composite_capture": "Multiple digital captures composited together without AI",
+        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
+        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
+        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
+      }
+    },
+    "DisclosurePersistence": {
+      "title": "Disclosure Persistence",
+      "description": "How long the disclosure must persist during content playback or display",
+      "type": "string",
+      "enum": [
+        "continuous",
+        "initial",
+        "flexible"
+      ],
+      "enumDescriptions": {
+        "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
+        "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
+        "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
+      }
+    },
+    "DisclosurePosition": {
+      "title": "Disclosure Position",
+      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
+      "type": "string",
+      "enum": [
+        "prominent",
+        "footer",
+        "audio",
+        "subtitle",
+        "overlay",
+        "end_card",
+        "pre_roll",
+        "companion"
+      ]
+    },
+    "AudioChannelLayout": {
+      "title": "Audio Channel Layout",
+      "description": "Audio channel configuration",
+      "type": "string",
+      "enum": [
+        "mono",
+        "stereo",
+        "5.1",
+        "7.1"
+      ]
+    },
+    "UniversalMacro": {
+      "title": "Universal Macro",
+      "description": "Standardized macro placeholders for dynamic value substitution in creative tracking URLs. Macros are replaced with actual values at impression time. See docs/creative/universal-macros.mdx for detailed documentation.",
+      "type": "string",
+      "enum": [
+        "MEDIA_BUY_ID",
+        "PACKAGE_ID",
+        "CREATIVE_ID",
+        "CACHEBUSTER",
+        "TIMESTAMP",
+        "CLICK_URL",
+        "GDPR",
+        "GDPR_CONSENT",
+        "US_PRIVACY",
+        "GPP_STRING",
+        "GPP_SID",
+        "IP_ADDRESS",
+        "LIMIT_AD_TRACKING",
+        "DEVICE_TYPE",
+        "OS",
+        "OS_VERSION",
+        "DEVICE_MAKE",
+        "DEVICE_MODEL",
+        "USER_AGENT",
+        "APP_BUNDLE",
+        "APP_NAME",
+        "COUNTRY",
+        "REGION",
+        "CITY",
+        "ZIP",
+        "DMA",
+        "LAT",
+        "LONG",
+        "DEVICE_ID",
+        "DEVICE_ID_TYPE",
+        "DOMAIN",
+        "PAGE_URL",
+        "REFERRER",
+        "KEYWORDS",
+        "PLACEMENT_ID",
+        "FOLD_POSITION",
+        "AD_WIDTH",
+        "AD_HEIGHT",
+        "VIDEO_ID",
+        "VIDEO_TITLE",
+        "VIDEO_DURATION",
+        "VIDEO_CATEGORY",
+        "CONTENT_GENRE",
+        "CONTENT_RATING",
+        "PLAYER_WIDTH",
+        "PLAYER_HEIGHT",
+        "POD_POSITION",
+        "POD_SIZE",
+        "AD_BREAK_ID",
+        "STATION_ID",
+        "COLLECTION_NAME",
+        "INSTALLMENT_ID",
+        "AUDIO_DURATION",
+        "TMPX",
+        "AXEM",
+        "CATALOG_ID",
+        "SKU",
+        "GTIN",
+        "OFFERING_ID",
+        "JOB_ID",
+        "HOTEL_ID",
+        "FLIGHT_ID",
+        "VEHICLE_ID",
+        "LISTING_ID",
+        "STORE_ID",
+        "PROGRAM_ID",
+        "DESTINATION_ID",
+        "CREATIVE_VARIANT_ID",
+        "APP_ITEM_ID"
+      ],
+      "enumDescriptions": {
+        "MEDIA_BUY_ID": "AdCP media buy identifier",
+        "PACKAGE_ID": "AdCP package identifier",
+        "CREATIVE_ID": "AdCP creative identifier",
+        "CACHEBUSTER": "Random number to prevent caching",
+        "TIMESTAMP": "Unix timestamp in milliseconds",
+        "CLICK_URL": "Publisher's click tracking URL (auto-inserted by sales agent)",
+        "GDPR": "GDPR applicability flag (1=applies, 0=doesn't apply)",
+        "GDPR_CONSENT": "IAB TCF 2.0 consent string",
+        "US_PRIVACY": "US Privacy (CCPA) string",
+        "GPP_STRING": "Global Privacy Platform consent string",
+        "GPP_SID": "GPP Section ID(s) indicating applicable privacy framework sections",
+        "IP_ADDRESS": "User IP address (often masked for privacy, may return empty)",
+        "LIMIT_AD_TRACKING": "Limit Ad Tracking enabled (1=limited, 0=allowed)",
+        "DEVICE_TYPE": "Device category (mobile, tablet, desktop, ctv, dooh)",
+        "OS": "Operating system (iOS, Android, tvOS, Roku, etc.)",
+        "OS_VERSION": "OS version number",
+        "DEVICE_MAKE": "Device manufacturer",
+        "DEVICE_MODEL": "Device model identifier",
+        "USER_AGENT": "Full user agent string",
+        "APP_BUNDLE": "App bundle ID (domain or numeric)",
+        "APP_NAME": "Human-readable app name",
+        "COUNTRY": "ISO 3166-1 alpha-2 country code",
+        "REGION": "State/province/region code",
+        "CITY": "City name",
+        "ZIP": "Postal code",
+        "DMA": "Nielsen DMA code (US TV markets)",
+        "LAT": "Latitude coordinate",
+        "LONG": "Longitude coordinate",
+        "DEVICE_ID": "Mobile advertising ID (IDFA/AAID)",
+        "DEVICE_ID_TYPE": "Type of device ID (idfa, aaid)",
+        "DOMAIN": "Domain where ad is shown",
+        "PAGE_URL": "Full page URL (encoded)",
+        "REFERRER": "HTTP referrer URL",
+        "KEYWORDS": "Page keywords (comma-separated)",
+        "PLACEMENT_ID": "Global Placement ID (IAB standard)",
+        "FOLD_POSITION": "Position relative to fold (above_fold, below_fold)",
+        "AD_WIDTH": "Ad slot width in pixels",
+        "AD_HEIGHT": "Ad slot height in pixels",
+        "VIDEO_ID": "Content video identifier",
+        "VIDEO_TITLE": "Content video title",
+        "VIDEO_DURATION": "Content duration in seconds",
+        "VIDEO_CATEGORY": "IAB content category",
+        "CONTENT_GENRE": "Content genre (news, sports, comedy, etc.)",
+        "CONTENT_RATING": "Content rating (G, PG, TV-14, etc.)",
+        "PLAYER_WIDTH": "Video player width in pixels",
+        "PLAYER_HEIGHT": "Video player height in pixels",
+        "POD_POSITION": "Position within ad break",
+        "POD_SIZE": "Total ads in the ad break",
+        "AD_BREAK_ID": "Unique ad break identifier",
+        "STATION_ID": "Radio station or podcast identifier",
+        "COLLECTION_NAME": "Program or collection name",
+        "INSTALLMENT_ID": "Installment identifier (podcast episode, print issue, etc.)",
+        "AUDIO_DURATION": "Audio content duration in seconds",
+        "TMPX": "TMP exposure token \u2014 HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
+        "AXEM": "AXE contextual metadata (encoded blob). Legacy \u2014 in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
+        "CATALOG_ID": "Buyer-defined catalog identifier from the catalog's catalog_id field",
+        "SKU": "Product SKU identifier for the catalog item being rendered",
+        "GTIN": "Global Trade Item Number for the catalog item being rendered",
+        "OFFERING_ID": "AdCP offering identifier for the catalog item being rendered",
+        "JOB_ID": "Job posting identifier for the catalog item being rendered",
+        "HOTEL_ID": "Hotel property identifier for the catalog item being rendered",
+        "FLIGHT_ID": "Flight route identifier for the catalog item being rendered",
+        "VEHICLE_ID": "Vehicle listing identifier for the catalog item being rendered",
+        "LISTING_ID": "Real estate listing identifier for the catalog item being rendered",
+        "STORE_ID": "Store location identifier for the catalog item being rendered",
+        "PROGRAM_ID": "Education program identifier for the catalog item being rendered",
+        "DESTINATION_ID": "Travel destination identifier for the catalog item being rendered",
+        "CREATIVE_VARIANT_ID": "Seller-assigned creative variant identifier, passed through at serve time",
+        "APP_ITEM_ID": "Mobile app identifier for the catalog item being rendered"
+      }
+    }
+  },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.654Z",
+    "generatedAt": "2026-04-28T12:32:23.009Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

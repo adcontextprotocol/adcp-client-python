@@ -96,27 +96,15 @@
       "description": "Whether the video must include an audio track"
     },
     "frame_rate_type": {
-      "type": "string",
-      "enum": [
-        "constant",
-        "variable"
-      ],
+      "$ref": "../../enums/frame-rate-type.json",
       "description": "Required frame rate type. Broadcast and SSAI require constant frame rate for seamless splicing."
     },
     "scan_type": {
-      "type": "string",
-      "enum": [
-        "progressive",
-        "interlaced"
-      ],
+      "$ref": "../../enums/scan-type.json",
       "description": "Required scan type. Modern delivery requires progressive scan."
     },
     "gop_type": {
-      "type": "string",
-      "enum": [
-        "closed",
-        "open"
-      ],
+      "$ref": "../../enums/gop-type.json",
       "description": "Required GOP structure. SSAI and broadcast require closed GOPs for clean splice points."
     },
     "min_gop_interval_seconds": {
@@ -130,11 +118,7 @@
       "description": "Maximum keyframe interval in seconds. SSAI typically requires 1-2 second intervals."
     },
     "moov_atom_position": {
-      "type": "string",
-      "enum": [
-        "start",
-        "end"
-      ],
+      "$ref": "../../enums/moov-atom-position.json",
       "description": "Required moov atom position in MP4 container. 'start' enables progressive download without buffering the entire file."
     },
     "audio_codecs": {
@@ -165,13 +149,7 @@
     "audio_channels": {
       "type": "array",
       "items": {
-        "type": "string",
-        "enum": [
-          "mono",
-          "stereo",
-          "5.1",
-          "7.1"
-        ]
+        "$ref": "../../enums/audio-channel-layout.json"
       },
       "description": "Accepted audio channel configurations"
     },

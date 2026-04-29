@@ -273,12 +273,7 @@
                 "description": "Travel time limit"
               },
               "unit": {
-                "type": "string",
-                "enum": [
-                  "min",
-                  "hr"
-                ],
-                "description": "Time unit"
+                "$ref": "../enums/travel-time-unit.json"
               }
             },
             "required": [
@@ -423,14 +418,8 @@
             "description": "The keyword to target"
           },
           "match_type": {
-            "type": "string",
-            "enum": [
-              "broad",
-              "phrase",
-              "exact"
-            ],
-            "default": "broad",
-            "description": "Desired match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly. Defaults to broad."
+            "$ref": "../enums/match-type.json",
+            "default": "broad"
           }
         },
         "required": [

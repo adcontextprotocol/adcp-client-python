@@ -44,13 +44,7 @@
       "type": "array",
       "description": "Filter to these collection kinds",
       "items": {
-        "type": "string",
-        "enum": [
-          "series",
-          "publication",
-          "event_series",
-          "rotation"
-        ]
+        "$ref": "../enums/collection-kind.json"
       },
       "minItems": 1
     },

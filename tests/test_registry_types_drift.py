@@ -8,6 +8,7 @@ import pytest
 
 try:
     import yaml
+
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False
@@ -28,11 +29,10 @@ class TestRegistryTypesDrift:
     @pytest.fixture
     def registry_module(self):
         import adcp.types.registry as reg
+
         return reg
 
-    def test_all_component_schemas_have_types(
-        self, openapi_schemas: dict, registry_module
-    ):
+    def test_all_component_schemas_have_types(self, openapi_schemas: dict, registry_module):
         """Every component/schema in the OpenAPI spec has a generated class."""
         missing = []
         # Get all class names from the registry module
@@ -47,8 +47,7 @@ class TestRegistryTypesDrift:
             # We allow renames via the codegen script, so just check
             # that the schema is represented somehow
             found = any(
-                schema_name in cls or cls.startswith(schema_name[:5])
-                for cls in module_classes
+                schema_name in cls or cls.startswith(schema_name[:5]) for cls in module_classes
             )
             if not found:
                 # More lenient: check if a Pydantic model with matching
@@ -86,7 +85,7 @@ class TestRegistryTypesDrift:
         }
 
         # These are covered by existing methods with different names
-        OPERATION_TO_METHOD = {
+        OPERATION_TO_METHOD = {  # noqa: N806
             "resolveBrand": "lookup_brand",
             "resolveBrandsBulk": "lookup_brands",
             "resolveProperty": "lookup_property",
@@ -146,7 +145,6 @@ class TestRegistryTypesDrift:
                         f"{method.upper()} {path} → {expected_method} (not found on RegistryClient)"
                     )
 
-        assert missing == [], (
-            f"OpenAPI endpoints without client methods:\n"
-            + "\n".join(f"  - {m}" for m in missing)
+        assert missing == [], "OpenAPI endpoints without client methods:\n" + "\n".join(
+            f"  - {m}" for m in missing
         )

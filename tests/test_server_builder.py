@@ -111,8 +111,6 @@ class TestADCPServerBuilder:
 
     def test_serve_accepts_builder(self) -> None:
         """serve() should accept ADCPServerBuilder and auto-convert."""
-        from adcp.server.serve import serve as serve_fn
-        from adcp.server.builder import ADCPServerBuilder
 
         server = adcp_server("test-seller")
 

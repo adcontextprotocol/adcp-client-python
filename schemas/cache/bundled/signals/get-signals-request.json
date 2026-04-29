@@ -352,12 +352,13 @@
     },
     "max_results": {
       "type": "integer",
-      "description": "Maximum number of results to return",
+      "description": "DEPRECATED: Use pagination.max_results instead. When both fields are present, agents MUST honor pagination.max_results. When only this field is present without a pagination envelope, agents SHOULD treat it as the page size subject to a maximum of 100 results. This field will be removed in AdCP 4.0.",
+      "deprecated": true,
       "minimum": 1
     },
     "pagination": {
       "title": "Pagination Request",
-      "description": "Standard cursor-based pagination parameters for list operations",
+      "description": "Pagination parameters. Use pagination.max_results (max: 100, default: 50) and pagination.cursor for cursor-based page walks. When the deprecated top-level max_results field is also present, pagination.max_results takes precedence.",
       "type": "object",
       "properties": {
         "max_results": {
@@ -401,7 +402,7 @@
   ],
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.688Z",
+    "generatedAt": "2026-04-28T12:32:23.045Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

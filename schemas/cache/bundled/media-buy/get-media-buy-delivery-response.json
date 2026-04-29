@@ -218,25 +218,7 @@
         "reach_unit": {
           "allOf": [
             {
-              "title": "Reach Unit",
-              "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-              "type": "string",
-              "enum": [
-                "individuals",
-                "households",
-                "devices",
-                "accounts",
-                "cookies",
-                "custom"
-              ],
-              "enumDescriptions": {
-                "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                "households": "Unique households or TV homes.",
-                "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                "accounts": "Unique logged-in accounts (platform-specific identity).",
-                "cookies": "Unique browser cookies.",
-                "custom": "Publisher-defined reach unit. Describe in ext."
-              }
+              "$ref": "#/$defs/ReachUnit"
             }
           ],
           "description": "Unit of measurement for reach. Only present when all aggregated media buys use the same reach_unit."
@@ -296,31 +278,7 @@
             "description": "Indicates this delivery contains updated data for a previously reported period. Buyer should replace previous period data with these totals."
           },
           "pricing_model": {
-            "title": "Pricing Model",
-            "description": "Pricing model used for this media buy",
-            "type": "string",
-            "enum": [
-              "cpm",
-              "vcpm",
-              "cpc",
-              "cpcv",
-              "cpv",
-              "cpp",
-              "cpa",
-              "flat_rate",
-              "time"
-            ],
-            "enumDescriptions": {
-              "cpm": "Cost Per Mille - cost per 1,000 impressions",
-              "vcpm": "Viewable Cost Per Mille - cost per 1,000 viewable impressions (MRC standard)",
-              "cpc": "Cost Per Click - cost per click on the ad",
-              "cpcv": "Cost Per Completed View - cost per 100% video/audio completion",
-              "cpv": "Cost Per View - cost per view at publisher-defined threshold (e.g., 50% completion)",
-              "cpp": "Cost Per Point - cost per Gross Rating Point or Target Rating Point (TV/audio)",
-              "cpa": "Cost Per Acquisition - cost per conversion event (purchase, lead, signup, etc.)",
-              "flat_rate": "Flat Rate - fixed cost regardless of delivery volume (sponsorships, takeovers)",
-              "time": "Time - cost per time unit (hour, day, week, or month) that scales with campaign duration"
-            }
+            "$ref": "#/$defs/PricingModel"
           },
           "totals": {
             "allOf": [
@@ -404,69 +362,7 @@
                       "type": "object",
                       "properties": {
                         "event_type": {
-                          "title": "Event Type",
-                          "description": "The event type",
-                          "type": "string",
-                          "enum": [
-                            "page_view",
-                            "view_content",
-                            "select_content",
-                            "select_item",
-                            "search",
-                            "share",
-                            "add_to_cart",
-                            "remove_from_cart",
-                            "viewed_cart",
-                            "add_to_wishlist",
-                            "initiate_checkout",
-                            "add_payment_info",
-                            "purchase",
-                            "refund",
-                            "lead",
-                            "qualify_lead",
-                            "close_convert_lead",
-                            "disqualify_lead",
-                            "complete_registration",
-                            "subscribe",
-                            "start_trial",
-                            "app_install",
-                            "app_launch",
-                            "contact",
-                            "schedule",
-                            "donate",
-                            "submit_application",
-                            "custom"
-                          ],
-                          "enumDescriptions": {
-                            "page_view": "User viewed a page",
-                            "view_content": "User viewed specific content (product, article, etc.)",
-                            "select_content": "User selected or clicked on content (article, video, etc.)",
-                            "select_item": "User selected a specific product or item from a list",
-                            "search": "User performed a search",
-                            "share": "User shared content via social or messaging",
-                            "add_to_cart": "User added an item to cart",
-                            "remove_from_cart": "User removed an item from cart",
-                            "viewed_cart": "User viewed their shopping cart",
-                            "add_to_wishlist": "User added an item to a wishlist",
-                            "initiate_checkout": "User started checkout process",
-                            "add_payment_info": "User added payment information",
-                            "purchase": "User completed a purchase",
-                            "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                            "lead": "User expressed interest (form submission, signup, etc.)",
-                            "qualify_lead": "Lead qualified by sales or scoring criteria",
-                            "close_convert_lead": "Lead converted to a customer or closed deal",
-                            "disqualify_lead": "Lead disqualified or marked as not viable",
-                            "complete_registration": "User completed account registration",
-                            "subscribe": "User subscribed to a service or newsletter",
-                            "start_trial": "User started a free trial",
-                            "app_install": "User installed an application",
-                            "app_launch": "User launched an application",
-                            "contact": "User initiated contact (call, message, etc.)",
-                            "schedule": "User scheduled an appointment or event",
-                            "donate": "User made a donation",
-                            "submit_application": "User submitted an application (loan, job, etc.)",
-                            "custom": "Custom event type (specify in custom_event_name)"
-                          }
+                          "$ref": "#/$defs/EventType"
                         },
                         "event_source_id": {
                           "type": "string",
@@ -503,25 +399,7 @@
                   "reach_unit": {
                     "allOf": [
                       {
-                        "title": "Reach Unit",
-                        "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                        "type": "string",
-                        "enum": [
-                          "individuals",
-                          "households",
-                          "devices",
-                          "accounts",
-                          "cookies",
-                          "custom"
-                        ],
-                        "enumDescriptions": {
-                          "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                          "households": "Unique households or TV homes.",
-                          "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                          "accounts": "Unique logged-in accounts (platform-specific identity).",
-                          "cookies": "Unique browser cookies.",
-                          "custom": "Publisher-defined reach unit. Describe in ext."
-                        }
+                        "$ref": "#/$defs/ReachUnit"
                       }
                     ],
                     "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -651,17 +529,7 @@
                         "maximum": 1
                       },
                       "standard": {
-                        "title": "Viewability Standard",
-                        "description": "Viewability measurement standard applied to these metrics.",
-                        "type": "string",
-                        "enum": [
-                          "mrc",
-                          "groupm"
-                        ],
-                        "enumDescriptions": {
-                          "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                          "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                        }
+                        "$ref": "#/$defs/ViewabilityStandard"
                       }
                     },
                     "additionalProperties": true
@@ -704,31 +572,7 @@
                       "type": "object",
                       "properties": {
                         "action_source": {
-                          "title": "Action Source",
-                          "description": "Where the conversion occurred",
-                          "type": "string",
-                          "enum": [
-                            "website",
-                            "app",
-                            "offline",
-                            "phone_call",
-                            "chat",
-                            "email",
-                            "in_store",
-                            "system_generated",
-                            "other"
-                          ],
-                          "enumDescriptions": {
-                            "website": "Event occurred on a website",
-                            "app": "Event occurred in a mobile or desktop app",
-                            "offline": "Event occurred offline (imported data)",
-                            "phone_call": "Event originated from a phone call",
-                            "chat": "Event originated from a chat conversation",
-                            "email": "Event originated from an email interaction",
-                            "in_store": "Event occurred at a physical retail location",
-                            "system_generated": "Event generated by an automated system",
-                            "other": "Other source (specify in ext)"
-                          }
+                          "$ref": "#/$defs/ActionSource"
                         },
                         "event_source_id": {
                           "type": "string",
@@ -861,69 +705,7 @@
                         "type": "object",
                         "properties": {
                           "event_type": {
-                            "title": "Event Type",
-                            "description": "The event type",
-                            "type": "string",
-                            "enum": [
-                              "page_view",
-                              "view_content",
-                              "select_content",
-                              "select_item",
-                              "search",
-                              "share",
-                              "add_to_cart",
-                              "remove_from_cart",
-                              "viewed_cart",
-                              "add_to_wishlist",
-                              "initiate_checkout",
-                              "add_payment_info",
-                              "purchase",
-                              "refund",
-                              "lead",
-                              "qualify_lead",
-                              "close_convert_lead",
-                              "disqualify_lead",
-                              "complete_registration",
-                              "subscribe",
-                              "start_trial",
-                              "app_install",
-                              "app_launch",
-                              "contact",
-                              "schedule",
-                              "donate",
-                              "submit_application",
-                              "custom"
-                            ],
-                            "enumDescriptions": {
-                              "page_view": "User viewed a page",
-                              "view_content": "User viewed specific content (product, article, etc.)",
-                              "select_content": "User selected or clicked on content (article, video, etc.)",
-                              "select_item": "User selected a specific product or item from a list",
-                              "search": "User performed a search",
-                              "share": "User shared content via social or messaging",
-                              "add_to_cart": "User added an item to cart",
-                              "remove_from_cart": "User removed an item from cart",
-                              "viewed_cart": "User viewed their shopping cart",
-                              "add_to_wishlist": "User added an item to a wishlist",
-                              "initiate_checkout": "User started checkout process",
-                              "add_payment_info": "User added payment information",
-                              "purchase": "User completed a purchase",
-                              "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                              "lead": "User expressed interest (form submission, signup, etc.)",
-                              "qualify_lead": "Lead qualified by sales or scoring criteria",
-                              "close_convert_lead": "Lead converted to a customer or closed deal",
-                              "disqualify_lead": "Lead disqualified or marked as not viable",
-                              "complete_registration": "User completed account registration",
-                              "subscribe": "User subscribed to a service or newsletter",
-                              "start_trial": "User started a free trial",
-                              "app_install": "User installed an application",
-                              "app_launch": "User launched an application",
-                              "contact": "User initiated contact (call, message, etc.)",
-                              "schedule": "User scheduled an appointment or event",
-                              "donate": "User made a donation",
-                              "submit_application": "User submitted an application (loan, job, etc.)",
-                              "custom": "Custom event type (specify in custom_event_name)"
-                            }
+                            "$ref": "#/$defs/EventType"
                           },
                           "event_source_id": {
                             "type": "string",
@@ -960,25 +742,7 @@
                     "reach_unit": {
                       "allOf": [
                         {
-                          "title": "Reach Unit",
-                          "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                          "type": "string",
-                          "enum": [
-                            "individuals",
-                            "households",
-                            "devices",
-                            "accounts",
-                            "cookies",
-                            "custom"
-                          ],
-                          "enumDescriptions": {
-                            "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                            "households": "Unique households or TV homes.",
-                            "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                            "accounts": "Unique logged-in accounts (platform-specific identity).",
-                            "cookies": "Unique browser cookies.",
-                            "custom": "Publisher-defined reach unit. Describe in ext."
-                          }
+                          "$ref": "#/$defs/ReachUnit"
                         }
                       ],
                       "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -1108,17 +872,7 @@
                           "maximum": 1
                         },
                         "standard": {
-                          "title": "Viewability Standard",
-                          "description": "Viewability measurement standard applied to these metrics.",
-                          "type": "string",
-                          "enum": [
-                            "mrc",
-                            "groupm"
-                          ],
-                          "enumDescriptions": {
-                            "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                            "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                          }
+                          "$ref": "#/$defs/ViewabilityStandard"
                         }
                       },
                       "additionalProperties": true
@@ -1161,31 +915,7 @@
                         "type": "object",
                         "properties": {
                           "action_source": {
-                            "title": "Action Source",
-                            "description": "Where the conversion occurred",
-                            "type": "string",
-                            "enum": [
-                              "website",
-                              "app",
-                              "offline",
-                              "phone_call",
-                              "chat",
-                              "email",
-                              "in_store",
-                              "system_generated",
-                              "other"
-                            ],
-                            "enumDescriptions": {
-                              "website": "Event occurred on a website",
-                              "app": "Event occurred in a mobile or desktop app",
-                              "offline": "Event occurred offline (imported data)",
-                              "phone_call": "Event originated from a phone call",
-                              "chat": "Event originated from a chat conversation",
-                              "email": "Event originated from an email interaction",
-                              "in_store": "Event occurred at a physical retail location",
-                              "system_generated": "Event generated by an automated system",
-                              "other": "Other source (specify in ext)"
-                            }
+                            "$ref": "#/$defs/ActionSource"
                           },
                           "event_source_id": {
                             "type": "string",
@@ -1231,31 +961,7 @@
                       "minimum": 0
                     },
                     "pricing_model": {
-                      "title": "Pricing Model",
-                      "description": "The pricing model used for this package (e.g., cpm, cpcv, cpp). Indicates how the package is billed and which metrics are most relevant for optimization.",
-                      "type": "string",
-                      "enum": [
-                        "cpm",
-                        "vcpm",
-                        "cpc",
-                        "cpcv",
-                        "cpv",
-                        "cpp",
-                        "cpa",
-                        "flat_rate",
-                        "time"
-                      ],
-                      "enumDescriptions": {
-                        "cpm": "Cost Per Mille - cost per 1,000 impressions",
-                        "vcpm": "Viewable Cost Per Mille - cost per 1,000 viewable impressions (MRC standard)",
-                        "cpc": "Cost Per Click - cost per click on the ad",
-                        "cpcv": "Cost Per Completed View - cost per 100% video/audio completion",
-                        "cpv": "Cost Per View - cost per view at publisher-defined threshold (e.g., 50% completion)",
-                        "cpp": "Cost Per Point - cost per Gross Rating Point or Target Rating Point (TV/audio)",
-                        "cpa": "Cost Per Acquisition - cost per conversion event (purchase, lead, signup, etc.)",
-                        "flat_rate": "Flat Rate - fixed cost regardless of delivery volume (sponsorships, takeovers)",
-                        "time": "Time - cost per time unit (hour, day, week, or month) that scales with campaign duration"
-                      }
+                      "$ref": "#/$defs/PricingModel"
                     },
                     "rate": {
                       "type": "number",
@@ -1390,69 +1096,7 @@
                                   "type": "object",
                                   "properties": {
                                     "event_type": {
-                                      "title": "Event Type",
-                                      "description": "The event type",
-                                      "type": "string",
-                                      "enum": [
-                                        "page_view",
-                                        "view_content",
-                                        "select_content",
-                                        "select_item",
-                                        "search",
-                                        "share",
-                                        "add_to_cart",
-                                        "remove_from_cart",
-                                        "viewed_cart",
-                                        "add_to_wishlist",
-                                        "initiate_checkout",
-                                        "add_payment_info",
-                                        "purchase",
-                                        "refund",
-                                        "lead",
-                                        "qualify_lead",
-                                        "close_convert_lead",
-                                        "disqualify_lead",
-                                        "complete_registration",
-                                        "subscribe",
-                                        "start_trial",
-                                        "app_install",
-                                        "app_launch",
-                                        "contact",
-                                        "schedule",
-                                        "donate",
-                                        "submit_application",
-                                        "custom"
-                                      ],
-                                      "enumDescriptions": {
-                                        "page_view": "User viewed a page",
-                                        "view_content": "User viewed specific content (product, article, etc.)",
-                                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                                        "select_item": "User selected a specific product or item from a list",
-                                        "search": "User performed a search",
-                                        "share": "User shared content via social or messaging",
-                                        "add_to_cart": "User added an item to cart",
-                                        "remove_from_cart": "User removed an item from cart",
-                                        "viewed_cart": "User viewed their shopping cart",
-                                        "add_to_wishlist": "User added an item to a wishlist",
-                                        "initiate_checkout": "User started checkout process",
-                                        "add_payment_info": "User added payment information",
-                                        "purchase": "User completed a purchase",
-                                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                        "lead": "User expressed interest (form submission, signup, etc.)",
-                                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                                        "complete_registration": "User completed account registration",
-                                        "subscribe": "User subscribed to a service or newsletter",
-                                        "start_trial": "User started a free trial",
-                                        "app_install": "User installed an application",
-                                        "app_launch": "User launched an application",
-                                        "contact": "User initiated contact (call, message, etc.)",
-                                        "schedule": "User scheduled an appointment or event",
-                                        "donate": "User made a donation",
-                                        "submit_application": "User submitted an application (loan, job, etc.)",
-                                        "custom": "Custom event type (specify in custom_event_name)"
-                                      }
+                                      "$ref": "#/$defs/EventType"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -1489,25 +1133,7 @@
                               "reach_unit": {
                                 "allOf": [
                                   {
-                                    "title": "Reach Unit",
-                                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                                    "type": "string",
-                                    "enum": [
-                                      "individuals",
-                                      "households",
-                                      "devices",
-                                      "accounts",
-                                      "cookies",
-                                      "custom"
-                                    ],
-                                    "enumDescriptions": {
-                                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                      "households": "Unique households or TV homes.",
-                                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                      "cookies": "Unique browser cookies.",
-                                      "custom": "Publisher-defined reach unit. Describe in ext."
-                                    }
+                                    "$ref": "#/$defs/ReachUnit"
                                   }
                                 ],
                                 "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -1637,17 +1263,7 @@
                                     "maximum": 1
                                   },
                                   "standard": {
-                                    "title": "Viewability Standard",
-                                    "description": "Viewability measurement standard applied to these metrics.",
-                                    "type": "string",
-                                    "enum": [
-                                      "mrc",
-                                      "groupm"
-                                    ],
-                                    "enumDescriptions": {
-                                      "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                                      "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                                    }
+                                    "$ref": "#/$defs/ViewabilityStandard"
                                   }
                                 },
                                 "additionalProperties": true
@@ -1690,31 +1306,7 @@
                                   "type": "object",
                                   "properties": {
                                     "action_source": {
-                                      "title": "Action Source",
-                                      "description": "Where the conversion occurred",
-                                      "type": "string",
-                                      "enum": [
-                                        "website",
-                                        "app",
-                                        "offline",
-                                        "phone_call",
-                                        "chat",
-                                        "email",
-                                        "in_store",
-                                        "system_generated",
-                                        "other"
-                                      ],
-                                      "enumDescriptions": {
-                                        "website": "Event occurred on a website",
-                                        "app": "Event occurred in a mobile or desktop app",
-                                        "offline": "Event occurred offline (imported data)",
-                                        "phone_call": "Event originated from a phone call",
-                                        "chat": "Event originated from a chat conversation",
-                                        "email": "Event originated from an email interaction",
-                                        "in_store": "Event occurred at a physical retail location",
-                                        "system_generated": "Event generated by an automated system",
-                                        "other": "Other source (specify in ext)"
-                                      }
+                                      "$ref": "#/$defs/ActionSource"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -1867,69 +1459,7 @@
                                   "type": "object",
                                   "properties": {
                                     "event_type": {
-                                      "title": "Event Type",
-                                      "description": "The event type",
-                                      "type": "string",
-                                      "enum": [
-                                        "page_view",
-                                        "view_content",
-                                        "select_content",
-                                        "select_item",
-                                        "search",
-                                        "share",
-                                        "add_to_cart",
-                                        "remove_from_cart",
-                                        "viewed_cart",
-                                        "add_to_wishlist",
-                                        "initiate_checkout",
-                                        "add_payment_info",
-                                        "purchase",
-                                        "refund",
-                                        "lead",
-                                        "qualify_lead",
-                                        "close_convert_lead",
-                                        "disqualify_lead",
-                                        "complete_registration",
-                                        "subscribe",
-                                        "start_trial",
-                                        "app_install",
-                                        "app_launch",
-                                        "contact",
-                                        "schedule",
-                                        "donate",
-                                        "submit_application",
-                                        "custom"
-                                      ],
-                                      "enumDescriptions": {
-                                        "page_view": "User viewed a page",
-                                        "view_content": "User viewed specific content (product, article, etc.)",
-                                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                                        "select_item": "User selected a specific product or item from a list",
-                                        "search": "User performed a search",
-                                        "share": "User shared content via social or messaging",
-                                        "add_to_cart": "User added an item to cart",
-                                        "remove_from_cart": "User removed an item from cart",
-                                        "viewed_cart": "User viewed their shopping cart",
-                                        "add_to_wishlist": "User added an item to a wishlist",
-                                        "initiate_checkout": "User started checkout process",
-                                        "add_payment_info": "User added payment information",
-                                        "purchase": "User completed a purchase",
-                                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                        "lead": "User expressed interest (form submission, signup, etc.)",
-                                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                                        "complete_registration": "User completed account registration",
-                                        "subscribe": "User subscribed to a service or newsletter",
-                                        "start_trial": "User started a free trial",
-                                        "app_install": "User installed an application",
-                                        "app_launch": "User launched an application",
-                                        "contact": "User initiated contact (call, message, etc.)",
-                                        "schedule": "User scheduled an appointment or event",
-                                        "donate": "User made a donation",
-                                        "submit_application": "User submitted an application (loan, job, etc.)",
-                                        "custom": "Custom event type (specify in custom_event_name)"
-                                      }
+                                      "$ref": "#/$defs/EventType"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -1966,25 +1496,7 @@
                               "reach_unit": {
                                 "allOf": [
                                   {
-                                    "title": "Reach Unit",
-                                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                                    "type": "string",
-                                    "enum": [
-                                      "individuals",
-                                      "households",
-                                      "devices",
-                                      "accounts",
-                                      "cookies",
-                                      "custom"
-                                    ],
-                                    "enumDescriptions": {
-                                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                      "households": "Unique households or TV homes.",
-                                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                      "cookies": "Unique browser cookies.",
-                                      "custom": "Publisher-defined reach unit. Describe in ext."
-                                    }
+                                    "$ref": "#/$defs/ReachUnit"
                                   }
                                 ],
                                 "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -2114,17 +1626,7 @@
                                     "maximum": 1
                                   },
                                   "standard": {
-                                    "title": "Viewability Standard",
-                                    "description": "Viewability measurement standard applied to these metrics.",
-                                    "type": "string",
-                                    "enum": [
-                                      "mrc",
-                                      "groupm"
-                                    ],
-                                    "enumDescriptions": {
-                                      "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                                      "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                                    }
+                                    "$ref": "#/$defs/ViewabilityStandard"
                                   }
                                 },
                                 "additionalProperties": true
@@ -2167,31 +1669,7 @@
                                   "type": "object",
                                   "properties": {
                                     "action_source": {
-                                      "title": "Action Source",
-                                      "description": "Where the conversion occurred",
-                                      "type": "string",
-                                      "enum": [
-                                        "website",
-                                        "app",
-                                        "offline",
-                                        "phone_call",
-                                        "chat",
-                                        "email",
-                                        "in_store",
-                                        "system_generated",
-                                        "other"
-                                      ],
-                                      "enumDescriptions": {
-                                        "website": "Event occurred on a website",
-                                        "app": "Event occurred in a mobile or desktop app",
-                                        "offline": "Event occurred offline (imported data)",
-                                        "phone_call": "Event originated from a phone call",
-                                        "chat": "Event originated from a chat conversation",
-                                        "email": "Event originated from an email interaction",
-                                        "in_store": "Event occurred at a physical retail location",
-                                        "system_generated": "Event generated by an automated system",
-                                        "other": "Other source (specify in ext)"
-                                      }
+                                      "$ref": "#/$defs/ActionSource"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -2332,69 +1810,7 @@
                                   "type": "object",
                                   "properties": {
                                     "event_type": {
-                                      "title": "Event Type",
-                                      "description": "The event type",
-                                      "type": "string",
-                                      "enum": [
-                                        "page_view",
-                                        "view_content",
-                                        "select_content",
-                                        "select_item",
-                                        "search",
-                                        "share",
-                                        "add_to_cart",
-                                        "remove_from_cart",
-                                        "viewed_cart",
-                                        "add_to_wishlist",
-                                        "initiate_checkout",
-                                        "add_payment_info",
-                                        "purchase",
-                                        "refund",
-                                        "lead",
-                                        "qualify_lead",
-                                        "close_convert_lead",
-                                        "disqualify_lead",
-                                        "complete_registration",
-                                        "subscribe",
-                                        "start_trial",
-                                        "app_install",
-                                        "app_launch",
-                                        "contact",
-                                        "schedule",
-                                        "donate",
-                                        "submit_application",
-                                        "custom"
-                                      ],
-                                      "enumDescriptions": {
-                                        "page_view": "User viewed a page",
-                                        "view_content": "User viewed specific content (product, article, etc.)",
-                                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                                        "select_item": "User selected a specific product or item from a list",
-                                        "search": "User performed a search",
-                                        "share": "User shared content via social or messaging",
-                                        "add_to_cart": "User added an item to cart",
-                                        "remove_from_cart": "User removed an item from cart",
-                                        "viewed_cart": "User viewed their shopping cart",
-                                        "add_to_wishlist": "User added an item to a wishlist",
-                                        "initiate_checkout": "User started checkout process",
-                                        "add_payment_info": "User added payment information",
-                                        "purchase": "User completed a purchase",
-                                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                        "lead": "User expressed interest (form submission, signup, etc.)",
-                                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                                        "complete_registration": "User completed account registration",
-                                        "subscribe": "User subscribed to a service or newsletter",
-                                        "start_trial": "User started a free trial",
-                                        "app_install": "User installed an application",
-                                        "app_launch": "User launched an application",
-                                        "contact": "User initiated contact (call, message, etc.)",
-                                        "schedule": "User scheduled an appointment or event",
-                                        "donate": "User made a donation",
-                                        "submit_application": "User submitted an application (loan, job, etc.)",
-                                        "custom": "Custom event type (specify in custom_event_name)"
-                                      }
+                                      "$ref": "#/$defs/EventType"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -2431,25 +1847,7 @@
                               "reach_unit": {
                                 "allOf": [
                                   {
-                                    "title": "Reach Unit",
-                                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                                    "type": "string",
-                                    "enum": [
-                                      "individuals",
-                                      "households",
-                                      "devices",
-                                      "accounts",
-                                      "cookies",
-                                      "custom"
-                                    ],
-                                    "enumDescriptions": {
-                                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                      "households": "Unique households or TV homes.",
-                                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                      "cookies": "Unique browser cookies.",
-                                      "custom": "Publisher-defined reach unit. Describe in ext."
-                                    }
+                                    "$ref": "#/$defs/ReachUnit"
                                   }
                                 ],
                                 "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -2579,17 +1977,7 @@
                                     "maximum": 1
                                   },
                                   "standard": {
-                                    "title": "Viewability Standard",
-                                    "description": "Viewability measurement standard applied to these metrics.",
-                                    "type": "string",
-                                    "enum": [
-                                      "mrc",
-                                      "groupm"
-                                    ],
-                                    "enumDescriptions": {
-                                      "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                                      "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                                    }
+                                    "$ref": "#/$defs/ViewabilityStandard"
                                   }
                                 },
                                 "additionalProperties": true
@@ -2632,31 +2020,7 @@
                                   "type": "object",
                                   "properties": {
                                     "action_source": {
-                                      "title": "Action Source",
-                                      "description": "Where the conversion occurred",
-                                      "type": "string",
-                                      "enum": [
-                                        "website",
-                                        "app",
-                                        "offline",
-                                        "phone_call",
-                                        "chat",
-                                        "email",
-                                        "in_store",
-                                        "system_generated",
-                                        "other"
-                                      ],
-                                      "enumDescriptions": {
-                                        "website": "Event occurred on a website",
-                                        "app": "Event occurred in a mobile or desktop app",
-                                        "offline": "Event occurred offline (imported data)",
-                                        "phone_call": "Event originated from a phone call",
-                                        "chat": "Event originated from a chat conversation",
-                                        "email": "Event originated from an email interaction",
-                                        "in_store": "Event occurred at a physical retail location",
-                                        "system_generated": "Event generated by an automated system",
-                                        "other": "Other source (specify in ext)"
-                                      }
+                                      "$ref": "#/$defs/ActionSource"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -2696,13 +2060,19 @@
                                 "description": "The targeted keyword"
                               },
                               "match_type": {
+                                "title": "Match Type",
+                                "description": "Keyword targeting match type. broad: ads may serve on queries semantically related to the keyword. phrase: ads serve when the query contains the keyword phrase. exact: ads serve only when the query matches the keyword exactly.",
                                 "type": "string",
                                 "enum": [
                                   "broad",
                                   "phrase",
                                   "exact"
                                 ],
-                                "description": "Match type for this keyword"
+                                "enumDescriptions": {
+                                  "broad": "Ads may serve on queries semantically related to the keyword",
+                                  "phrase": "Ads serve when the query contains the keyword phrase in order",
+                                  "exact": "Ads serve only when the query matches the keyword exactly"
+                                }
                               }
                             },
                             "required": [
@@ -2800,69 +2170,7 @@
                                   "type": "object",
                                   "properties": {
                                     "event_type": {
-                                      "title": "Event Type",
-                                      "description": "The event type",
-                                      "type": "string",
-                                      "enum": [
-                                        "page_view",
-                                        "view_content",
-                                        "select_content",
-                                        "select_item",
-                                        "search",
-                                        "share",
-                                        "add_to_cart",
-                                        "remove_from_cart",
-                                        "viewed_cart",
-                                        "add_to_wishlist",
-                                        "initiate_checkout",
-                                        "add_payment_info",
-                                        "purchase",
-                                        "refund",
-                                        "lead",
-                                        "qualify_lead",
-                                        "close_convert_lead",
-                                        "disqualify_lead",
-                                        "complete_registration",
-                                        "subscribe",
-                                        "start_trial",
-                                        "app_install",
-                                        "app_launch",
-                                        "contact",
-                                        "schedule",
-                                        "donate",
-                                        "submit_application",
-                                        "custom"
-                                      ],
-                                      "enumDescriptions": {
-                                        "page_view": "User viewed a page",
-                                        "view_content": "User viewed specific content (product, article, etc.)",
-                                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                                        "select_item": "User selected a specific product or item from a list",
-                                        "search": "User performed a search",
-                                        "share": "User shared content via social or messaging",
-                                        "add_to_cart": "User added an item to cart",
-                                        "remove_from_cart": "User removed an item from cart",
-                                        "viewed_cart": "User viewed their shopping cart",
-                                        "add_to_wishlist": "User added an item to a wishlist",
-                                        "initiate_checkout": "User started checkout process",
-                                        "add_payment_info": "User added payment information",
-                                        "purchase": "User completed a purchase",
-                                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                        "lead": "User expressed interest (form submission, signup, etc.)",
-                                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                                        "complete_registration": "User completed account registration",
-                                        "subscribe": "User subscribed to a service or newsletter",
-                                        "start_trial": "User started a free trial",
-                                        "app_install": "User installed an application",
-                                        "app_launch": "User launched an application",
-                                        "contact": "User initiated contact (call, message, etc.)",
-                                        "schedule": "User scheduled an appointment or event",
-                                        "donate": "User made a donation",
-                                        "submit_application": "User submitted an application (loan, job, etc.)",
-                                        "custom": "Custom event type (specify in custom_event_name)"
-                                      }
+                                      "$ref": "#/$defs/EventType"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -2899,25 +2207,7 @@
                               "reach_unit": {
                                 "allOf": [
                                   {
-                                    "title": "Reach Unit",
-                                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                                    "type": "string",
-                                    "enum": [
-                                      "individuals",
-                                      "households",
-                                      "devices",
-                                      "accounts",
-                                      "cookies",
-                                      "custom"
-                                    ],
-                                    "enumDescriptions": {
-                                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                      "households": "Unique households or TV homes.",
-                                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                      "cookies": "Unique browser cookies.",
-                                      "custom": "Publisher-defined reach unit. Describe in ext."
-                                    }
+                                    "$ref": "#/$defs/ReachUnit"
                                   }
                                 ],
                                 "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -3047,17 +2337,7 @@
                                     "maximum": 1
                                   },
                                   "standard": {
-                                    "title": "Viewability Standard",
-                                    "description": "Viewability measurement standard applied to these metrics.",
-                                    "type": "string",
-                                    "enum": [
-                                      "mrc",
-                                      "groupm"
-                                    ],
-                                    "enumDescriptions": {
-                                      "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                                      "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                                    }
+                                    "$ref": "#/$defs/ViewabilityStandard"
                                   }
                                 },
                                 "additionalProperties": true
@@ -3100,31 +2380,7 @@
                                   "type": "object",
                                   "properties": {
                                     "action_source": {
-                                      "title": "Action Source",
-                                      "description": "Where the conversion occurred",
-                                      "type": "string",
-                                      "enum": [
-                                        "website",
-                                        "app",
-                                        "offline",
-                                        "phone_call",
-                                        "chat",
-                                        "email",
-                                        "in_store",
-                                        "system_generated",
-                                        "other"
-                                      ],
-                                      "enumDescriptions": {
-                                        "website": "Event occurred on a website",
-                                        "app": "Event occurred in a mobile or desktop app",
-                                        "offline": "Event occurred offline (imported data)",
-                                        "phone_call": "Event originated from a phone call",
-                                        "chat": "Event originated from a chat conversation",
-                                        "email": "Event originated from an email interaction",
-                                        "in_store": "Event occurred at a physical retail location",
-                                        "system_generated": "Event generated by an automated system",
-                                        "other": "Other source (specify in ext)"
-                                      }
+                                      "$ref": "#/$defs/ActionSource"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -3282,69 +2538,7 @@
                                   "type": "object",
                                   "properties": {
                                     "event_type": {
-                                      "title": "Event Type",
-                                      "description": "The event type",
-                                      "type": "string",
-                                      "enum": [
-                                        "page_view",
-                                        "view_content",
-                                        "select_content",
-                                        "select_item",
-                                        "search",
-                                        "share",
-                                        "add_to_cart",
-                                        "remove_from_cart",
-                                        "viewed_cart",
-                                        "add_to_wishlist",
-                                        "initiate_checkout",
-                                        "add_payment_info",
-                                        "purchase",
-                                        "refund",
-                                        "lead",
-                                        "qualify_lead",
-                                        "close_convert_lead",
-                                        "disqualify_lead",
-                                        "complete_registration",
-                                        "subscribe",
-                                        "start_trial",
-                                        "app_install",
-                                        "app_launch",
-                                        "contact",
-                                        "schedule",
-                                        "donate",
-                                        "submit_application",
-                                        "custom"
-                                      ],
-                                      "enumDescriptions": {
-                                        "page_view": "User viewed a page",
-                                        "view_content": "User viewed specific content (product, article, etc.)",
-                                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                                        "select_item": "User selected a specific product or item from a list",
-                                        "search": "User performed a search",
-                                        "share": "User shared content via social or messaging",
-                                        "add_to_cart": "User added an item to cart",
-                                        "remove_from_cart": "User removed an item from cart",
-                                        "viewed_cart": "User viewed their shopping cart",
-                                        "add_to_wishlist": "User added an item to a wishlist",
-                                        "initiate_checkout": "User started checkout process",
-                                        "add_payment_info": "User added payment information",
-                                        "purchase": "User completed a purchase",
-                                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                        "lead": "User expressed interest (form submission, signup, etc.)",
-                                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                                        "complete_registration": "User completed account registration",
-                                        "subscribe": "User subscribed to a service or newsletter",
-                                        "start_trial": "User started a free trial",
-                                        "app_install": "User installed an application",
-                                        "app_launch": "User launched an application",
-                                        "contact": "User initiated contact (call, message, etc.)",
-                                        "schedule": "User scheduled an appointment or event",
-                                        "donate": "User made a donation",
-                                        "submit_application": "User submitted an application (loan, job, etc.)",
-                                        "custom": "Custom event type (specify in custom_event_name)"
-                                      }
+                                      "$ref": "#/$defs/EventType"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -3381,25 +2575,7 @@
                               "reach_unit": {
                                 "allOf": [
                                   {
-                                    "title": "Reach Unit",
-                                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                                    "type": "string",
-                                    "enum": [
-                                      "individuals",
-                                      "households",
-                                      "devices",
-                                      "accounts",
-                                      "cookies",
-                                      "custom"
-                                    ],
-                                    "enumDescriptions": {
-                                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                      "households": "Unique households or TV homes.",
-                                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                      "cookies": "Unique browser cookies.",
-                                      "custom": "Publisher-defined reach unit. Describe in ext."
-                                    }
+                                    "$ref": "#/$defs/ReachUnit"
                                   }
                                 ],
                                 "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -3529,17 +2705,7 @@
                                     "maximum": 1
                                   },
                                   "standard": {
-                                    "title": "Viewability Standard",
-                                    "description": "Viewability measurement standard applied to these metrics.",
-                                    "type": "string",
-                                    "enum": [
-                                      "mrc",
-                                      "groupm"
-                                    ],
-                                    "enumDescriptions": {
-                                      "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                                      "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                                    }
+                                    "$ref": "#/$defs/ViewabilityStandard"
                                   }
                                 },
                                 "additionalProperties": true
@@ -3582,31 +2748,7 @@
                                   "type": "object",
                                   "properties": {
                                     "action_source": {
-                                      "title": "Action Source",
-                                      "description": "Where the conversion occurred",
-                                      "type": "string",
-                                      "enum": [
-                                        "website",
-                                        "app",
-                                        "offline",
-                                        "phone_call",
-                                        "chat",
-                                        "email",
-                                        "in_store",
-                                        "system_generated",
-                                        "other"
-                                      ],
-                                      "enumDescriptions": {
-                                        "website": "Event occurred on a website",
-                                        "app": "Event occurred in a mobile or desktop app",
-                                        "offline": "Event occurred offline (imported data)",
-                                        "phone_call": "Event originated from a phone call",
-                                        "chat": "Event originated from a chat conversation",
-                                        "email": "Event originated from an email interaction",
-                                        "in_store": "Event occurred at a physical retail location",
-                                        "system_generated": "Event generated by an automated system",
-                                        "other": "Other source (specify in ext)"
-                                      }
+                                      "$ref": "#/$defs/ActionSource"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -3753,69 +2895,7 @@
                                   "type": "object",
                                   "properties": {
                                     "event_type": {
-                                      "title": "Event Type",
-                                      "description": "The event type",
-                                      "type": "string",
-                                      "enum": [
-                                        "page_view",
-                                        "view_content",
-                                        "select_content",
-                                        "select_item",
-                                        "search",
-                                        "share",
-                                        "add_to_cart",
-                                        "remove_from_cart",
-                                        "viewed_cart",
-                                        "add_to_wishlist",
-                                        "initiate_checkout",
-                                        "add_payment_info",
-                                        "purchase",
-                                        "refund",
-                                        "lead",
-                                        "qualify_lead",
-                                        "close_convert_lead",
-                                        "disqualify_lead",
-                                        "complete_registration",
-                                        "subscribe",
-                                        "start_trial",
-                                        "app_install",
-                                        "app_launch",
-                                        "contact",
-                                        "schedule",
-                                        "donate",
-                                        "submit_application",
-                                        "custom"
-                                      ],
-                                      "enumDescriptions": {
-                                        "page_view": "User viewed a page",
-                                        "view_content": "User viewed specific content (product, article, etc.)",
-                                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                                        "select_item": "User selected a specific product or item from a list",
-                                        "search": "User performed a search",
-                                        "share": "User shared content via social or messaging",
-                                        "add_to_cart": "User added an item to cart",
-                                        "remove_from_cart": "User removed an item from cart",
-                                        "viewed_cart": "User viewed their shopping cart",
-                                        "add_to_wishlist": "User added an item to a wishlist",
-                                        "initiate_checkout": "User started checkout process",
-                                        "add_payment_info": "User added payment information",
-                                        "purchase": "User completed a purchase",
-                                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                        "lead": "User expressed interest (form submission, signup, etc.)",
-                                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                                        "complete_registration": "User completed account registration",
-                                        "subscribe": "User subscribed to a service or newsletter",
-                                        "start_trial": "User started a free trial",
-                                        "app_install": "User installed an application",
-                                        "app_launch": "User launched an application",
-                                        "contact": "User initiated contact (call, message, etc.)",
-                                        "schedule": "User scheduled an appointment or event",
-                                        "donate": "User made a donation",
-                                        "submit_application": "User submitted an application (loan, job, etc.)",
-                                        "custom": "Custom event type (specify in custom_event_name)"
-                                      }
+                                      "$ref": "#/$defs/EventType"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -3852,25 +2932,7 @@
                               "reach_unit": {
                                 "allOf": [
                                   {
-                                    "title": "Reach Unit",
-                                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                                    "type": "string",
-                                    "enum": [
-                                      "individuals",
-                                      "households",
-                                      "devices",
-                                      "accounts",
-                                      "cookies",
-                                      "custom"
-                                    ],
-                                    "enumDescriptions": {
-                                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                      "households": "Unique households or TV homes.",
-                                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                      "cookies": "Unique browser cookies.",
-                                      "custom": "Publisher-defined reach unit. Describe in ext."
-                                    }
+                                    "$ref": "#/$defs/ReachUnit"
                                   }
                                 ],
                                 "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -4000,17 +3062,7 @@
                                     "maximum": 1
                                   },
                                   "standard": {
-                                    "title": "Viewability Standard",
-                                    "description": "Viewability measurement standard applied to these metrics.",
-                                    "type": "string",
-                                    "enum": [
-                                      "mrc",
-                                      "groupm"
-                                    ],
-                                    "enumDescriptions": {
-                                      "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                                      "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                                    }
+                                    "$ref": "#/$defs/ViewabilityStandard"
                                   }
                                 },
                                 "additionalProperties": true
@@ -4053,31 +3105,7 @@
                                   "type": "object",
                                   "properties": {
                                     "action_source": {
-                                      "title": "Action Source",
-                                      "description": "Where the conversion occurred",
-                                      "type": "string",
-                                      "enum": [
-                                        "website",
-                                        "app",
-                                        "offline",
-                                        "phone_call",
-                                        "chat",
-                                        "email",
-                                        "in_store",
-                                        "system_generated",
-                                        "other"
-                                      ],
-                                      "enumDescriptions": {
-                                        "website": "Event occurred on a website",
-                                        "app": "Event occurred in a mobile or desktop app",
-                                        "offline": "Event occurred offline (imported data)",
-                                        "phone_call": "Event originated from a phone call",
-                                        "chat": "Event originated from a chat conversation",
-                                        "email": "Event originated from an email interaction",
-                                        "in_store": "Event occurred at a physical retail location",
-                                        "system_generated": "Event generated by an automated system",
-                                        "other": "Other source (specify in ext)"
-                                      }
+                                      "$ref": "#/$defs/ActionSource"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -4230,69 +3258,7 @@
                                   "type": "object",
                                   "properties": {
                                     "event_type": {
-                                      "title": "Event Type",
-                                      "description": "The event type",
-                                      "type": "string",
-                                      "enum": [
-                                        "page_view",
-                                        "view_content",
-                                        "select_content",
-                                        "select_item",
-                                        "search",
-                                        "share",
-                                        "add_to_cart",
-                                        "remove_from_cart",
-                                        "viewed_cart",
-                                        "add_to_wishlist",
-                                        "initiate_checkout",
-                                        "add_payment_info",
-                                        "purchase",
-                                        "refund",
-                                        "lead",
-                                        "qualify_lead",
-                                        "close_convert_lead",
-                                        "disqualify_lead",
-                                        "complete_registration",
-                                        "subscribe",
-                                        "start_trial",
-                                        "app_install",
-                                        "app_launch",
-                                        "contact",
-                                        "schedule",
-                                        "donate",
-                                        "submit_application",
-                                        "custom"
-                                      ],
-                                      "enumDescriptions": {
-                                        "page_view": "User viewed a page",
-                                        "view_content": "User viewed specific content (product, article, etc.)",
-                                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                                        "select_item": "User selected a specific product or item from a list",
-                                        "search": "User performed a search",
-                                        "share": "User shared content via social or messaging",
-                                        "add_to_cart": "User added an item to cart",
-                                        "remove_from_cart": "User removed an item from cart",
-                                        "viewed_cart": "User viewed their shopping cart",
-                                        "add_to_wishlist": "User added an item to a wishlist",
-                                        "initiate_checkout": "User started checkout process",
-                                        "add_payment_info": "User added payment information",
-                                        "purchase": "User completed a purchase",
-                                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                        "lead": "User expressed interest (form submission, signup, etc.)",
-                                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                                        "complete_registration": "User completed account registration",
-                                        "subscribe": "User subscribed to a service or newsletter",
-                                        "start_trial": "User started a free trial",
-                                        "app_install": "User installed an application",
-                                        "app_launch": "User launched an application",
-                                        "contact": "User initiated contact (call, message, etc.)",
-                                        "schedule": "User scheduled an appointment or event",
-                                        "donate": "User made a donation",
-                                        "submit_application": "User submitted an application (loan, job, etc.)",
-                                        "custom": "Custom event type (specify in custom_event_name)"
-                                      }
+                                      "$ref": "#/$defs/EventType"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -4329,25 +3295,7 @@
                               "reach_unit": {
                                 "allOf": [
                                   {
-                                    "title": "Reach Unit",
-                                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                                    "type": "string",
-                                    "enum": [
-                                      "individuals",
-                                      "households",
-                                      "devices",
-                                      "accounts",
-                                      "cookies",
-                                      "custom"
-                                    ],
-                                    "enumDescriptions": {
-                                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                      "households": "Unique households or TV homes.",
-                                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                      "cookies": "Unique browser cookies.",
-                                      "custom": "Publisher-defined reach unit. Describe in ext."
-                                    }
+                                    "$ref": "#/$defs/ReachUnit"
                                   }
                                 ],
                                 "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -4477,17 +3425,7 @@
                                     "maximum": 1
                                   },
                                   "standard": {
-                                    "title": "Viewability Standard",
-                                    "description": "Viewability measurement standard applied to these metrics.",
-                                    "type": "string",
-                                    "enum": [
-                                      "mrc",
-                                      "groupm"
-                                    ],
-                                    "enumDescriptions": {
-                                      "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                                      "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                                    }
+                                    "$ref": "#/$defs/ViewabilityStandard"
                                   }
                                 },
                                 "additionalProperties": true
@@ -4530,31 +3468,7 @@
                                   "type": "object",
                                   "properties": {
                                     "action_source": {
-                                      "title": "Action Source",
-                                      "description": "Where the conversion occurred",
-                                      "type": "string",
-                                      "enum": [
-                                        "website",
-                                        "app",
-                                        "offline",
-                                        "phone_call",
-                                        "chat",
-                                        "email",
-                                        "in_store",
-                                        "system_generated",
-                                        "other"
-                                      ],
-                                      "enumDescriptions": {
-                                        "website": "Event occurred on a website",
-                                        "app": "Event occurred in a mobile or desktop app",
-                                        "offline": "Event occurred offline (imported data)",
-                                        "phone_call": "Event originated from a phone call",
-                                        "chat": "Event originated from a chat conversation",
-                                        "email": "Event originated from an email interaction",
-                                        "in_store": "Event occurred at a physical retail location",
-                                        "system_generated": "Event generated by an automated system",
-                                        "other": "Other source (specify in ext)"
-                                      }
+                                      "$ref": "#/$defs/ActionSource"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -4711,69 +3625,7 @@
                                   "type": "object",
                                   "properties": {
                                     "event_type": {
-                                      "title": "Event Type",
-                                      "description": "The event type",
-                                      "type": "string",
-                                      "enum": [
-                                        "page_view",
-                                        "view_content",
-                                        "select_content",
-                                        "select_item",
-                                        "search",
-                                        "share",
-                                        "add_to_cart",
-                                        "remove_from_cart",
-                                        "viewed_cart",
-                                        "add_to_wishlist",
-                                        "initiate_checkout",
-                                        "add_payment_info",
-                                        "purchase",
-                                        "refund",
-                                        "lead",
-                                        "qualify_lead",
-                                        "close_convert_lead",
-                                        "disqualify_lead",
-                                        "complete_registration",
-                                        "subscribe",
-                                        "start_trial",
-                                        "app_install",
-                                        "app_launch",
-                                        "contact",
-                                        "schedule",
-                                        "donate",
-                                        "submit_application",
-                                        "custom"
-                                      ],
-                                      "enumDescriptions": {
-                                        "page_view": "User viewed a page",
-                                        "view_content": "User viewed specific content (product, article, etc.)",
-                                        "select_content": "User selected or clicked on content (article, video, etc.)",
-                                        "select_item": "User selected a specific product or item from a list",
-                                        "search": "User performed a search",
-                                        "share": "User shared content via social or messaging",
-                                        "add_to_cart": "User added an item to cart",
-                                        "remove_from_cart": "User removed an item from cart",
-                                        "viewed_cart": "User viewed their shopping cart",
-                                        "add_to_wishlist": "User added an item to a wishlist",
-                                        "initiate_checkout": "User started checkout process",
-                                        "add_payment_info": "User added payment information",
-                                        "purchase": "User completed a purchase",
-                                        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                        "lead": "User expressed interest (form submission, signup, etc.)",
-                                        "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                        "close_convert_lead": "Lead converted to a customer or closed deal",
-                                        "disqualify_lead": "Lead disqualified or marked as not viable",
-                                        "complete_registration": "User completed account registration",
-                                        "subscribe": "User subscribed to a service or newsletter",
-                                        "start_trial": "User started a free trial",
-                                        "app_install": "User installed an application",
-                                        "app_launch": "User launched an application",
-                                        "contact": "User initiated contact (call, message, etc.)",
-                                        "schedule": "User scheduled an appointment or event",
-                                        "donate": "User made a donation",
-                                        "submit_application": "User submitted an application (loan, job, etc.)",
-                                        "custom": "Custom event type (specify in custom_event_name)"
-                                      }
+                                      "$ref": "#/$defs/EventType"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -4810,25 +3662,7 @@
                               "reach_unit": {
                                 "allOf": [
                                   {
-                                    "title": "Reach Unit",
-                                    "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                                    "type": "string",
-                                    "enum": [
-                                      "individuals",
-                                      "households",
-                                      "devices",
-                                      "accounts",
-                                      "cookies",
-                                      "custom"
-                                    ],
-                                    "enumDescriptions": {
-                                      "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                      "households": "Unique households or TV homes.",
-                                      "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                      "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                      "cookies": "Unique browser cookies.",
-                                      "custom": "Publisher-defined reach unit. Describe in ext."
-                                    }
+                                    "$ref": "#/$defs/ReachUnit"
                                   }
                                 ],
                                 "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
@@ -4958,17 +3792,7 @@
                                     "maximum": 1
                                   },
                                   "standard": {
-                                    "title": "Viewability Standard",
-                                    "description": "Viewability measurement standard applied to these metrics.",
-                                    "type": "string",
-                                    "enum": [
-                                      "mrc",
-                                      "groupm"
-                                    ],
-                                    "enumDescriptions": {
-                                      "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
-                                      "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
-                                    }
+                                    "$ref": "#/$defs/ViewabilityStandard"
                                   }
                                 },
                                 "additionalProperties": true
@@ -5011,31 +3835,7 @@
                                   "type": "object",
                                   "properties": {
                                     "action_source": {
-                                      "title": "Action Source",
-                                      "description": "Where the conversion occurred",
-                                      "type": "string",
-                                      "enum": [
-                                        "website",
-                                        "app",
-                                        "offline",
-                                        "phone_call",
-                                        "chat",
-                                        "email",
-                                        "in_store",
-                                        "system_generated",
-                                        "other"
-                                      ],
-                                      "enumDescriptions": {
-                                        "website": "Event occurred on a website",
-                                        "app": "Event occurred in a mobile or desktop app",
-                                        "offline": "Event occurred offline (imported data)",
-                                        "phone_call": "Event originated from a phone call",
-                                        "chat": "Event originated from a chat conversation",
-                                        "email": "Event originated from an email interaction",
-                                        "in_store": "Event occurred at a physical retail location",
-                                        "system_generated": "Event generated by an automated system",
-                                        "other": "Other source (specify in ext)"
-                                      }
+                                      "$ref": "#/$defs/ActionSource"
                                     },
                                     "event_source_id": {
                                       "type": "string",
@@ -5293,8 +4093,163 @@
     "media_buy_deliveries"
   ],
   "additionalProperties": true,
+  "$defs": {
+    "ReachUnit": {
+      "title": "Reach Unit",
+      "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
+      "type": "string",
+      "enum": [
+        "individuals",
+        "households",
+        "devices",
+        "accounts",
+        "cookies",
+        "custom"
+      ],
+      "enumDescriptions": {
+        "individuals": "Unique people. Panel-based or identity-resolved measurement.",
+        "households": "Unique households or TV homes.",
+        "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
+        "accounts": "Unique logged-in accounts (platform-specific identity).",
+        "cookies": "Unique browser cookies.",
+        "custom": "Publisher-defined reach unit. Describe in ext."
+      }
+    },
+    "PricingModel": {
+      "title": "Pricing Model",
+      "description": "Pricing model used for this media buy",
+      "type": "string",
+      "enum": [
+        "cpm",
+        "vcpm",
+        "cpc",
+        "cpcv",
+        "cpv",
+        "cpp",
+        "cpa",
+        "flat_rate",
+        "time"
+      ],
+      "enumDescriptions": {
+        "cpm": "Cost Per Mille - cost per 1,000 impressions",
+        "vcpm": "Viewable Cost Per Mille - cost per 1,000 viewable impressions (MRC standard)",
+        "cpc": "Cost Per Click - cost per click on the ad",
+        "cpcv": "Cost Per Completed View - cost per 100% video/audio completion",
+        "cpv": "Cost Per View - cost per view at publisher-defined threshold (e.g., 50% completion)",
+        "cpp": "Cost Per Point - cost per Gross Rating Point or Target Rating Point (TV/audio)",
+        "cpa": "Cost Per Acquisition - cost per conversion event (purchase, lead, signup, etc.)",
+        "flat_rate": "Flat Rate - fixed cost regardless of delivery volume (sponsorships, takeovers)",
+        "time": "Time - cost per time unit (hour, day, week, or month) that scales with campaign duration"
+      }
+    },
+    "EventType": {
+      "title": "Event Type",
+      "description": "The event type",
+      "type": "string",
+      "enum": [
+        "page_view",
+        "view_content",
+        "select_content",
+        "select_item",
+        "search",
+        "share",
+        "add_to_cart",
+        "remove_from_cart",
+        "viewed_cart",
+        "add_to_wishlist",
+        "initiate_checkout",
+        "add_payment_info",
+        "purchase",
+        "refund",
+        "lead",
+        "qualify_lead",
+        "close_convert_lead",
+        "disqualify_lead",
+        "complete_registration",
+        "subscribe",
+        "start_trial",
+        "app_install",
+        "app_launch",
+        "contact",
+        "schedule",
+        "donate",
+        "submit_application",
+        "custom"
+      ],
+      "enumDescriptions": {
+        "page_view": "User viewed a page",
+        "view_content": "User viewed specific content (product, article, etc.)",
+        "select_content": "User selected or clicked on content (article, video, etc.)",
+        "select_item": "User selected a specific product or item from a list",
+        "search": "User performed a search",
+        "share": "User shared content via social or messaging",
+        "add_to_cart": "User added an item to cart",
+        "remove_from_cart": "User removed an item from cart",
+        "viewed_cart": "User viewed their shopping cart",
+        "add_to_wishlist": "User added an item to a wishlist",
+        "initiate_checkout": "User started checkout process",
+        "add_payment_info": "User added payment information",
+        "purchase": "User completed a purchase",
+        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
+        "lead": "User expressed interest (form submission, signup, etc.)",
+        "qualify_lead": "Lead qualified by sales or scoring criteria",
+        "close_convert_lead": "Lead converted to a customer or closed deal",
+        "disqualify_lead": "Lead disqualified or marked as not viable",
+        "complete_registration": "User completed account registration",
+        "subscribe": "User subscribed to a service or newsletter",
+        "start_trial": "User started a free trial",
+        "app_install": "User installed an application",
+        "app_launch": "User launched an application",
+        "contact": "User initiated contact (call, message, etc.)",
+        "schedule": "User scheduled an appointment or event",
+        "donate": "User made a donation",
+        "submit_application": "User submitted an application (loan, job, etc.)",
+        "custom": "Custom event type (specify in custom_event_name)"
+      }
+    },
+    "ViewabilityStandard": {
+      "title": "Viewability Standard",
+      "description": "Viewability measurement standard applied to these metrics.",
+      "type": "string",
+      "enum": [
+        "mrc",
+        "groupm"
+      ],
+      "enumDescriptions": {
+        "mrc": "MRC/IAB standard: 50% of pixels in view for 1 continuous second (display) or 2 continuous seconds (video).",
+        "groupm": "GroupM standard: 100% of pixels in view for 1 continuous second (display) or 50% of video duration."
+      }
+    },
+    "ActionSource": {
+      "title": "Action Source",
+      "description": "Where the conversion occurred",
+      "type": "string",
+      "enum": [
+        "website",
+        "app",
+        "offline",
+        "phone_call",
+        "chat",
+        "email",
+        "in_store",
+        "system_generated",
+        "other"
+      ],
+      "enumDescriptions": {
+        "website": "Event occurred on a website",
+        "app": "Event occurred in a mobile or desktop app",
+        "offline": "Event occurred offline (imported data)",
+        "phone_call": "Event originated from a phone call",
+        "chat": "Event originated from a chat conversation",
+        "email": "Event originated from an email interaction",
+        "in_store": "Event occurred at a physical retail location",
+        "system_generated": "Event generated by an automated system",
+        "other": "Other source (specify in ext)"
+      }
+    }
+  },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.627Z",
+    "generatedAt": "2026-04-28T12:32:22.983Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

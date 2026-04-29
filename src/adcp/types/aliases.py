@@ -182,6 +182,16 @@ from adcp.types._generated import (
 # No more separate reference type needed
 # Import Package from _generated (still uses qualified name for internal reasons)
 from adcp.types._generated import _PackageFromPackage as Package
+
+# AdCP 3.0.1 renamed core/format-id.json title from "Format ID" to
+# "Format Reference (Structured Object)". The canonical class lives at
+# core/format_id.py:FormatReferenceStructuredObject; the bundled-message
+# duplicate (which _generated picks up first under the bare name `FormatId`)
+# is a stale per-message inline. Re-export the canonical class as `FormatId`
+# so downstream code that builds Format(format_id=FormatId(...)) keeps working.
+from adcp.types.generated_poc.core.format_id import (
+    FormatReferenceStructuredObject as FormatId,
+)
 from adcp.types.generated_poc.creative.sync_creatives_response import (
     Creative as SyncCreativeResultInternal,
 )
@@ -1436,6 +1446,8 @@ __all__ = [
     # Account reference variants
     "AccountReferenceById",
     "AccountReferenceByNaturalKey",
+    # Format identifier (canonical core class, AdCP 3.0.1+)
+    "FormatId",
     # Activation key variants
     "SegmentIdActivationKey",
     "KeyValueActivationKey",

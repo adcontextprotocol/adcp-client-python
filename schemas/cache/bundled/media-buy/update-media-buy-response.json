@@ -521,69 +521,7 @@
                       "type": "array",
                       "description": "Event types that represent conversions for items in this catalog. Declares what events the platform should attribute to catalog items \u2014 e.g., a job catalog converts via submit_application, a product catalog via purchase. The event's content_ids field carries the item IDs that connect back to catalog items. Use content_id_type to declare what identifier type content_ids values represent.",
                       "items": {
-                        "title": "Event Type",
-                        "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
-                        "type": "string",
-                        "enum": [
-                          "page_view",
-                          "view_content",
-                          "select_content",
-                          "select_item",
-                          "search",
-                          "share",
-                          "add_to_cart",
-                          "remove_from_cart",
-                          "viewed_cart",
-                          "add_to_wishlist",
-                          "initiate_checkout",
-                          "add_payment_info",
-                          "purchase",
-                          "refund",
-                          "lead",
-                          "qualify_lead",
-                          "close_convert_lead",
-                          "disqualify_lead",
-                          "complete_registration",
-                          "subscribe",
-                          "start_trial",
-                          "app_install",
-                          "app_launch",
-                          "contact",
-                          "schedule",
-                          "donate",
-                          "submit_application",
-                          "custom"
-                        ],
-                        "enumDescriptions": {
-                          "page_view": "User viewed a page",
-                          "view_content": "User viewed specific content (product, article, etc.)",
-                          "select_content": "User selected or clicked on content (article, video, etc.)",
-                          "select_item": "User selected a specific product or item from a list",
-                          "search": "User performed a search",
-                          "share": "User shared content via social or messaging",
-                          "add_to_cart": "User added an item to cart",
-                          "remove_from_cart": "User removed an item from cart",
-                          "viewed_cart": "User viewed their shopping cart",
-                          "add_to_wishlist": "User added an item to a wishlist",
-                          "initiate_checkout": "User started checkout process",
-                          "add_payment_info": "User added payment information",
-                          "purchase": "User completed a purchase",
-                          "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                          "lead": "User expressed interest (form submission, signup, etc.)",
-                          "qualify_lead": "Lead qualified by sales or scoring criteria",
-                          "close_convert_lead": "Lead converted to a customer or closed deal",
-                          "disqualify_lead": "Lead disqualified or marked as not viable",
-                          "complete_registration": "User completed account registration",
-                          "subscribe": "User subscribed to a service or newsletter",
-                          "start_trial": "User started a free trial",
-                          "app_install": "User installed an application",
-                          "app_launch": "User launched an application",
-                          "contact": "User initiated contact (call, message, etc.)",
-                          "schedule": "User scheduled an appointment or event",
-                          "donate": "User made a donation",
-                          "submit_application": "User submitted an application (loan, job, etc.)",
-                          "custom": "Custom event type (specify in custom_event_name)"
-                        }
+                        "$ref": "#/$defs/EventType"
                       },
                       "minItems": 1,
                       "uniqueItems": true
@@ -889,15 +827,15 @@
                 "type": "array",
                 "description": "Format IDs active for this package. Echoed from the create_media_buy request; omitted means all formats for the product are active.",
                 "items": {
-                  "title": "Format ID",
-                  "description": "Structured format identifier with agent URL and format name. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants.",
+                  "title": "Format Reference (Structured Object)",
+                  "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
                   "x-entity": "creative_format",
                   "type": "object",
                   "properties": {
                     "agent_url": {
                       "type": "string",
                       "format": "uri",
-                      "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                      "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
                     },
                     "id": {
                       "type": "string",
@@ -983,16 +921,7 @@
                       "type": "object",
                       "properties": {
                         "system": {
-                          "title": "Metro Area System",
-                          "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')",
-                          "type": "string",
-                          "enum": [
-                            "nielsen_dma",
-                            "uk_itl1",
-                            "uk_itl2",
-                            "eurostat_nuts2",
-                            "custom"
-                          ]
+                          "$ref": "#/$defs/MetroAreaSystem"
                         },
                         "values": {
                           "type": "array",
@@ -1018,16 +947,7 @@
                       "type": "object",
                       "properties": {
                         "system": {
-                          "title": "Metro Area System",
-                          "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')",
-                          "type": "string",
-                          "enum": [
-                            "nielsen_dma",
-                            "uk_itl1",
-                            "uk_itl2",
-                            "eurostat_nuts2",
-                            "custom"
-                          ]
+                          "$ref": "#/$defs/MetroAreaSystem"
                         },
                         "values": {
                           "type": "array",
@@ -1053,22 +973,7 @@
                       "type": "object",
                       "properties": {
                         "system": {
-                          "title": "Postal Code System",
-                          "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision.",
-                          "type": "string",
-                          "enum": [
-                            "us_zip",
-                            "us_zip_plus_four",
-                            "gb_outward",
-                            "gb_full",
-                            "ca_fsa",
-                            "ca_full",
-                            "de_plz",
-                            "fr_code_postal",
-                            "au_postcode",
-                            "ch_plz",
-                            "at_plz"
-                          ]
+                          "$ref": "#/$defs/PostalCodeSystem"
                         },
                         "values": {
                           "type": "array",
@@ -1094,22 +999,7 @@
                       "type": "object",
                       "properties": {
                         "system": {
-                          "title": "Postal Code System",
-                          "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision.",
-                          "type": "string",
-                          "enum": [
-                            "us_zip",
-                            "us_zip_plus_four",
-                            "gb_outward",
-                            "gb_full",
-                            "ca_fsa",
-                            "ca_full",
-                            "de_plz",
-                            "fr_code_postal",
-                            "au_postcode",
-                            "ch_plz",
-                            "at_plz"
-                          ]
+                          "$ref": "#/$defs/PostalCodeSystem"
                         },
                         "values": {
                           "type": "array",
@@ -1258,25 +1148,7 @@
                       "per": {
                         "allOf": [
                           {
-                            "title": "Reach Unit",
-                            "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                            "type": "string",
-                            "enum": [
-                              "individuals",
-                              "households",
-                              "devices",
-                              "accounts",
-                              "cookies",
-                              "custom"
-                            ],
-                            "enumDescriptions": {
-                              "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                              "households": "Unique households or TV homes.",
-                              "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                              "accounts": "Unique logged-in accounts (platform-specific identity).",
-                              "cookies": "Unique browser cookies.",
-                              "custom": "Publisher-defined reach unit. Describe in ext."
-                            }
+                            "$ref": "#/$defs/ReachUnit"
                           }
                         ],
                         "description": "Entity granularity for impression counting. Required when max_impressions is set."
@@ -1493,17 +1365,7 @@
                     "type": "array",
                     "description": "Restrict to specific device form factors. Use for campaigns targeting hardware categories rather than operating systems (e.g., mobile-only promotions, CTV campaigns).",
                     "items": {
-                      "title": "Device Type",
-                      "description": "Device form factor categories for targeting and reporting. Complements device-platform (operating system) with hardware classification. OpenRTB mapping: 1 (Mobile/Tablet General) \u2192 mobile, 2 (PC) \u2192 desktop, 4 (Phone) \u2192 mobile, 5 (Tablet) \u2192 tablet, 6 (Connected Device) \u2192 ctv, 7 (Set Top Box) \u2192 ctv. DOOH inventory uses dooh.",
-                      "type": "string",
-                      "enum": [
-                        "desktop",
-                        "mobile",
-                        "tablet",
-                        "ctv",
-                        "dooh",
-                        "unknown"
-                      ]
+                      "$ref": "#/$defs/DeviceType"
                     },
                     "minItems": 1
                   },
@@ -1511,17 +1373,7 @@
                     "type": "array",
                     "description": "Exclude specific device form factors from delivery (e.g., exclude CTV for app-install campaigns).",
                     "items": {
-                      "title": "Device Type",
-                      "description": "Device form factor categories for targeting and reporting. Complements device-platform (operating system) with hardware classification. OpenRTB mapping: 1 (Mobile/Tablet General) \u2192 mobile, 2 (PC) \u2192 desktop, 4 (Phone) \u2192 mobile, 5 (Tablet) \u2192 tablet, 6 (Connected Device) \u2192 ctv, 7 (Set Top Box) \u2192 ctv. DOOH inventory uses dooh.",
-                      "type": "string",
-                      "enum": [
-                        "desktop",
-                        "mobile",
-                        "tablet",
-                        "ctv",
-                        "dooh",
-                        "unknown"
-                      ]
+                      "$ref": "#/$defs/DeviceType"
                     },
                     "minItems": 1
                   },
@@ -1591,12 +1443,17 @@
                               "description": "Travel time limit."
                             },
                             "unit": {
+                              "title": "Travel Time Unit",
+                              "description": "Time unit for isochrone (travel-time catchment) calculations.",
                               "type": "string",
                               "enum": [
                                 "min",
                                 "hr"
                               ],
-                              "description": "Time unit."
+                              "enumDescriptions": {
+                                "min": "Minutes",
+                                "hr": "Hours"
+                              }
                             }
                           },
                           "required": [
@@ -1772,13 +1629,7 @@
                           "description": "The keyword to target"
                         },
                         "match_type": {
-                          "type": "string",
-                          "enum": [
-                            "broad",
-                            "phrase",
-                            "exact"
-                          ],
-                          "description": "Match type: broad matches related queries, phrase matches queries containing the keyword phrase, exact matches the query exactly"
+                          "$ref": "#/$defs/MatchType"
                         },
                         "bid_price": {
                           "type": "number",
@@ -1806,13 +1657,7 @@
                           "description": "The keyword to exclude"
                         },
                         "match_type": {
-                          "type": "string",
-                          "enum": [
-                            "broad",
-                            "phrase",
-                            "exact"
-                          ],
-                          "description": "Match type for exclusion"
+                          "$ref": "#/$defs/MatchType"
                         }
                       },
                       "required": [
@@ -2157,15 +2002,15 @@
                 "type": "array",
                 "description": "Format IDs that creative assets will be provided for this package",
                 "items": {
-                  "title": "Format ID",
-                  "description": "Structured format identifier with agent URL and format name. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants.",
+                  "title": "Format Reference (Structured Object)",
+                  "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
                   "x-entity": "creative_format",
                   "type": "object",
                   "properties": {
                     "agent_url": {
                       "type": "string",
                       "format": "uri",
-                      "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                      "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
                     },
                     "id": {
                       "type": "string",
@@ -2238,25 +2083,7 @@
                         "reach_unit": {
                           "allOf": [
                             {
-                              "title": "Reach Unit",
-                              "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
-                              "type": "string",
-                              "enum": [
-                                "individuals",
-                                "households",
-                                "devices",
-                                "accounts",
-                                "cookies",
-                                "custom"
-                              ],
-                              "enumDescriptions": {
-                                "individuals": "Unique people. Panel-based or identity-resolved measurement.",
-                                "households": "Unique households or TV homes.",
-                                "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
-                                "accounts": "Unique logged-in accounts (platform-specific identity).",
-                                "cookies": "Unique browser cookies.",
-                                "custom": "Publisher-defined reach unit. Describe in ext."
-                              }
+                              "$ref": "#/$defs/ReachUnit"
                             }
                           ],
                           "description": "Unit for reach measurement. Required when metric is 'reach'. Must be a value declared in the product's metric_optimization.supported_reach_units."
@@ -2408,69 +2235,7 @@
                                 "description": "Event source to include (must be configured on this account via sync_event_sources)"
                               },
                               "event_type": {
-                                "title": "Event Type",
-                                "description": "Event type to include from this source (e.g., purchase, lead, app_install, refund)",
-                                "type": "string",
-                                "enum": [
-                                  "page_view",
-                                  "view_content",
-                                  "select_content",
-                                  "select_item",
-                                  "search",
-                                  "share",
-                                  "add_to_cart",
-                                  "remove_from_cart",
-                                  "viewed_cart",
-                                  "add_to_wishlist",
-                                  "initiate_checkout",
-                                  "add_payment_info",
-                                  "purchase",
-                                  "refund",
-                                  "lead",
-                                  "qualify_lead",
-                                  "close_convert_lead",
-                                  "disqualify_lead",
-                                  "complete_registration",
-                                  "subscribe",
-                                  "start_trial",
-                                  "app_install",
-                                  "app_launch",
-                                  "contact",
-                                  "schedule",
-                                  "donate",
-                                  "submit_application",
-                                  "custom"
-                                ],
-                                "enumDescriptions": {
-                                  "page_view": "User viewed a page",
-                                  "view_content": "User viewed specific content (product, article, etc.)",
-                                  "select_content": "User selected or clicked on content (article, video, etc.)",
-                                  "select_item": "User selected a specific product or item from a list",
-                                  "search": "User performed a search",
-                                  "share": "User shared content via social or messaging",
-                                  "add_to_cart": "User added an item to cart",
-                                  "remove_from_cart": "User removed an item from cart",
-                                  "viewed_cart": "User viewed their shopping cart",
-                                  "add_to_wishlist": "User added an item to a wishlist",
-                                  "initiate_checkout": "User started checkout process",
-                                  "add_payment_info": "User added payment information",
-                                  "purchase": "User completed a purchase",
-                                  "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
-                                  "lead": "User expressed interest (form submission, signup, etc.)",
-                                  "qualify_lead": "Lead qualified by sales or scoring criteria",
-                                  "close_convert_lead": "Lead converted to a customer or closed deal",
-                                  "disqualify_lead": "Lead disqualified or marked as not viable",
-                                  "complete_registration": "User completed account registration",
-                                  "subscribe": "User subscribed to a service or newsletter",
-                                  "start_trial": "User started a free trial",
-                                  "app_install": "User installed an application",
-                                  "app_launch": "User launched an application",
-                                  "contact": "User initiated contact (call, message, etc.)",
-                                  "schedule": "User scheduled an appointment or event",
-                                  "donate": "User made a donation",
-                                  "submit_application": "User submitted an application (loan, job, etc.)",
-                                  "custom": "Custom event type (specify in custom_event_name)"
-                                }
+                                "$ref": "#/$defs/EventType"
                               },
                               "custom_event_name": {
                                 "type": "string",
@@ -2740,6 +2505,8 @@
           "type": "array",
           "description": "Actions the buyer can perform after this update. Saves a round-trip to get_media_buys.",
           "items": {
+            "title": "Media Buy Valid Action",
+            "description": "Actions the buyer can perform on a media buy",
             "type": "string",
             "enum": [
               "pause",
@@ -2878,8 +2645,154 @@
       }
     }
   ],
+  "$defs": {
+    "EventType": {
+      "title": "Event Type",
+      "description": "Standard marketing event types for event logging, aligned with IAB ECAPI",
+      "type": "string",
+      "enum": [
+        "page_view",
+        "view_content",
+        "select_content",
+        "select_item",
+        "search",
+        "share",
+        "add_to_cart",
+        "remove_from_cart",
+        "viewed_cart",
+        "add_to_wishlist",
+        "initiate_checkout",
+        "add_payment_info",
+        "purchase",
+        "refund",
+        "lead",
+        "qualify_lead",
+        "close_convert_lead",
+        "disqualify_lead",
+        "complete_registration",
+        "subscribe",
+        "start_trial",
+        "app_install",
+        "app_launch",
+        "contact",
+        "schedule",
+        "donate",
+        "submit_application",
+        "custom"
+      ],
+      "enumDescriptions": {
+        "page_view": "User viewed a page",
+        "view_content": "User viewed specific content (product, article, etc.)",
+        "select_content": "User selected or clicked on content (article, video, etc.)",
+        "select_item": "User selected a specific product or item from a list",
+        "search": "User performed a search",
+        "share": "User shared content via social or messaging",
+        "add_to_cart": "User added an item to cart",
+        "remove_from_cart": "User removed an item from cart",
+        "viewed_cart": "User viewed their shopping cart",
+        "add_to_wishlist": "User added an item to a wishlist",
+        "initiate_checkout": "User started checkout process",
+        "add_payment_info": "User added payment information",
+        "purchase": "User completed a purchase",
+        "refund": "A purchase was fully or partially refunded (adjusts ROAS)",
+        "lead": "User expressed interest (form submission, signup, etc.)",
+        "qualify_lead": "Lead qualified by sales or scoring criteria",
+        "close_convert_lead": "Lead converted to a customer or closed deal",
+        "disqualify_lead": "Lead disqualified or marked as not viable",
+        "complete_registration": "User completed account registration",
+        "subscribe": "User subscribed to a service or newsletter",
+        "start_trial": "User started a free trial",
+        "app_install": "User installed an application",
+        "app_launch": "User launched an application",
+        "contact": "User initiated contact (call, message, etc.)",
+        "schedule": "User scheduled an appointment or event",
+        "donate": "User made a donation",
+        "submit_application": "User submitted an application (loan, job, etc.)",
+        "custom": "Custom event type (specify in custom_event_name)"
+      }
+    },
+    "MetroAreaSystem": {
+      "title": "Metro Area System",
+      "description": "Metro area classification system (e.g., 'nielsen_dma', 'uk_itl2')",
+      "type": "string",
+      "enum": [
+        "nielsen_dma",
+        "uk_itl1",
+        "uk_itl2",
+        "eurostat_nuts2",
+        "custom"
+      ]
+    },
+    "PostalCodeSystem": {
+      "title": "Postal Code System",
+      "description": "Postal code system (e.g., 'us_zip', 'gb_outward'). System name encodes country and precision.",
+      "type": "string",
+      "enum": [
+        "us_zip",
+        "us_zip_plus_four",
+        "gb_outward",
+        "gb_full",
+        "ca_fsa",
+        "ca_full",
+        "de_plz",
+        "fr_code_postal",
+        "au_postcode",
+        "ch_plz",
+        "at_plz"
+      ]
+    },
+    "ReachUnit": {
+      "title": "Reach Unit",
+      "description": "Unit of measurement for reach and audience size metrics. Different channels and measurement providers count reach in fundamentally different units, making cross-channel comparison impossible without declaring the unit.",
+      "type": "string",
+      "enum": [
+        "individuals",
+        "households",
+        "devices",
+        "accounts",
+        "cookies",
+        "custom"
+      ],
+      "enumDescriptions": {
+        "individuals": "Unique people. Panel-based or identity-resolved measurement.",
+        "households": "Unique households or TV homes.",
+        "devices": "Unique device identifiers (IDFA, GAID, CTV device ID).",
+        "accounts": "Unique logged-in accounts (platform-specific identity).",
+        "cookies": "Unique browser cookies.",
+        "custom": "Publisher-defined reach unit. Describe in ext."
+      }
+    },
+    "DeviceType": {
+      "title": "Device Type",
+      "description": "Device form factor categories for targeting and reporting. Complements device-platform (operating system) with hardware classification. OpenRTB mapping: 1 (Mobile/Tablet General) \u2192 mobile, 2 (PC) \u2192 desktop, 4 (Phone) \u2192 mobile, 5 (Tablet) \u2192 tablet, 6 (Connected Device) \u2192 ctv, 7 (Set Top Box) \u2192 ctv. DOOH inventory uses dooh.",
+      "type": "string",
+      "enum": [
+        "desktop",
+        "mobile",
+        "tablet",
+        "ctv",
+        "dooh",
+        "unknown"
+      ]
+    },
+    "MatchType": {
+      "title": "Match Type",
+      "description": "Keyword targeting match type. broad: ads may serve on queries semantically related to the keyword. phrase: ads serve when the query contains the keyword phrase. exact: ads serve only when the query matches the keyword exactly.",
+      "type": "string",
+      "enum": [
+        "broad",
+        "phrase",
+        "exact"
+      ],
+      "enumDescriptions": {
+        "broad": "Ads may serve on queries semantically related to the keyword",
+        "phrase": "Ads serve when the query contains the keyword phrase in order",
+        "exact": "Ads serve only when the query matches the keyword exactly"
+      }
+    }
+  },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.677Z",
+    "generatedAt": "2026-04-28T12:32:23.032Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

@@ -86,13 +86,7 @@
             "description": "The keyword to target"
           },
           "match_type": {
-            "type": "string",
-            "enum": [
-              "broad",
-              "phrase",
-              "exact"
-            ],
-            "description": "Match type for this keyword"
+            "$ref": "../enums/match-type.json"
           },
           "bid_price": {
             "type": "number",
@@ -120,13 +114,7 @@
             "description": "The keyword to stop targeting"
           },
           "match_type": {
-            "type": "string",
-            "enum": [
-              "broad",
-              "phrase",
-              "exact"
-            ],
-            "description": "Match type to remove"
+            "$ref": "../enums/match-type.json"
           }
         },
         "required": [
@@ -149,13 +137,7 @@
             "description": "The keyword to exclude"
           },
           "match_type": {
-            "type": "string",
-            "enum": [
-              "broad",
-              "phrase",
-              "exact"
-            ],
-            "description": "Match type for exclusion"
+            "$ref": "../enums/match-type.json"
           }
         },
         "required": [
@@ -178,13 +160,7 @@
             "description": "The keyword to stop excluding"
           },
           "match_type": {
-            "type": "string",
-            "enum": [
-              "broad",
-              "phrase",
-              "exact"
-            ],
-            "description": "Match type to remove"
+            "$ref": "../enums/match-type.json"
           }
         },
         "required": [

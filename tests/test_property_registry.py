@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from adcp.property_registry import PropertyRegistry
-from adcp.types.registry import FeedEvent, FederatedAgentWithDetails
+from adcp.types.registry import FederatedAgentWithDetails, FeedEvent
 
 
 def _make_agent(
@@ -15,12 +15,14 @@ def _make_agent(
     name: str = "Agent",
     publisher_domains: list[str] | None = None,
 ) -> FederatedAgentWithDetails:
-    return FederatedAgentWithDetails.model_validate({
-        "url": url,
-        "name": name,
-        "type": "sales",
-        "publisher_domains": publisher_domains or [],
-    })
+    return FederatedAgentWithDetails.model_validate(
+        {
+            "url": url,
+            "name": name,
+            "type": "sales",
+            "publisher_domains": publisher_domains or [],
+        }
+    )
 
 
 def _make_event(
@@ -48,10 +50,12 @@ class TestLoad:
     @pytest.mark.asyncio
     async def test_builds_indexes(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com", "pub2.com"]),
-            _make_agent("https://a2.com", publisher_domains=["pub2.com", "pub3.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com", "pub2.com"]),
+                _make_agent("https://a2.com", publisher_domains=["pub2.com", "pub3.com"]),
+            ]
+        )
 
         reg = PropertyRegistry(mock_client)
         await reg.load()
@@ -66,9 +70,11 @@ class TestLoad:
     @pytest.mark.asyncio
     async def test_get_domains(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com", "pub2.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com", "pub2.com"]),
+            ]
+        )
 
         reg = PropertyRegistry(mock_client)
         await reg.load()
@@ -80,10 +86,12 @@ class TestLoad:
     @pytest.mark.asyncio
     async def test_get_agents(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
-            _make_agent("https://a2.com", publisher_domains=["pub1.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
+                _make_agent("https://a2.com", publisher_domains=["pub1.com"]),
+            ]
+        )
 
         reg = PropertyRegistry(mock_client)
         await reg.load()
@@ -107,10 +115,12 @@ class TestLoad:
     @pytest.mark.asyncio
     async def test_agent_without_publisher_domains(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=None),
-            _make_agent("https://a2.com", publisher_domains=[]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=None),
+                _make_agent("https://a2.com", publisher_domains=[]),
+            ]
+        )
 
         reg = PropertyRegistry(mock_client)
         await reg.load()
@@ -121,10 +131,12 @@ class TestLoad:
     @pytest.mark.asyncio
     async def test_counts(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com", "pub2.com"]),
-            _make_agent("https://a2.com", publisher_domains=["pub2.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com", "pub2.com"]),
+                _make_agent("https://a2.com", publisher_domains=["pub2.com"]),
+            ]
+        )
 
         reg = PropertyRegistry(mock_client)
         await reg.load()
@@ -187,9 +199,11 @@ class TestEventHandling:
     @pytest.mark.asyncio
     async def test_authorization_revoked_removes_edge(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
+            ]
+        )
         reg = PropertyRegistry(mock_client)
         await reg.load()
         assert reg.is_authorized("https://a1.com", "pub1.com")
@@ -205,9 +219,11 @@ class TestEventHandling:
     @pytest.mark.asyncio
     async def test_agent_deleted_removes_all_edges(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com", "pub2.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com", "pub2.com"]),
+            ]
+        )
         reg = PropertyRegistry(mock_client)
         await reg.load()
 
@@ -221,17 +237,21 @@ class TestEventHandling:
     @pytest.mark.asyncio
     async def test_agent_updated_refreshes_domains(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["old.com"]),
-        ])
-        mock_client.get_agent_domains = AsyncMock(return_value={
-            "agent_url": "https://a1.com",
-            "properties": [{"domain": "new.com"}],
-            "identifiers": [],
-            "property_count": 1,
-            "identifier_count": 0,
-            "generated_at": "",
-        })
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["old.com"]),
+            ]
+        )
+        mock_client.get_agent_domains = AsyncMock(
+            return_value={
+                "agent_url": "https://a1.com",
+                "properties": [{"domain": "new.com"}],
+                "identifiers": [],
+                "property_count": 1,
+                "identifier_count": 0,
+                "generated_at": "",
+            }
+        )
 
         reg = PropertyRegistry(mock_client)
         await reg.load()
@@ -250,10 +270,12 @@ class TestEventHandling:
     @pytest.mark.asyncio
     async def test_property_deleted_removes_domain(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
-            _make_agent("https://a2.com", publisher_domains=["pub1.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
+                _make_agent("https://a2.com", publisher_domains=["pub1.com"]),
+            ]
+        )
         reg = PropertyRegistry(mock_client)
         await reg.load()
 
@@ -267,9 +289,11 @@ class TestEventHandling:
     @pytest.mark.asyncio
     async def test_unknown_event_ignored(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
+            ]
+        )
         reg = PropertyRegistry(mock_client)
         await reg.load()
 
@@ -296,12 +320,12 @@ class TestEventHandling:
     @pytest.mark.asyncio
     async def test_agent_refresh_failure_is_best_effort(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
-        ])
-        mock_client.get_agent_domains = AsyncMock(
-            side_effect=Exception("network error")
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub1.com"]),
+            ]
         )
+        mock_client.get_agent_domains = AsyncMock(side_effect=Exception("network error"))
 
         reg = PropertyRegistry(mock_client)
         await reg.load()
@@ -357,6 +381,7 @@ class TestLifecycle:
     @pytest.mark.asyncio
     async def test_start_with_auth_creates_background_task(self):
         import asyncio
+
         from adcp.types.registry import FeedPage
 
         mock_client = MagicMock()
@@ -370,8 +395,10 @@ class TestLifecycle:
         mock_store.save = AsyncMock()
 
         reg = PropertyRegistry(
-            mock_client, auth_token="sk_test",
-            poll_interval=0.01, cursor_store=mock_store,
+            mock_client,
+            auth_token="sk_test",
+            poll_interval=0.01,
+            cursor_store=mock_store,
         )
         await reg.start()
 
@@ -388,9 +415,11 @@ class TestLifecycle:
     @pytest.mark.asyncio
     async def test_context_manager(self):
         mock_client = MagicMock()
-        mock_client.list_agents = AsyncMock(return_value=[
-            _make_agent("https://a1.com", publisher_domains=["pub.com"]),
-        ])
+        mock_client.list_agents = AsyncMock(
+            return_value=[
+                _make_agent("https://a1.com", publisher_domains=["pub.com"]),
+            ]
+        )
 
         async with PropertyRegistry(mock_client) as reg:
             assert reg.loaded
@@ -431,7 +460,7 @@ class TestLifecycle:
 
 class TestExports:
     def test_importable_from_adcp(self):
-        from adcp import PropertyRegistry as PR  # noqa: F401
+        from adcp import PropertyRegistry as PR  # noqa: F401, N817
 
     def test_importable_from_module(self):
-        from adcp.property_registry import PropertyRegistry as PR  # noqa: F401
+        from adcp.property_registry import PropertyRegistry as PR  # noqa: F401, N817

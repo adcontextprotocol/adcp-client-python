@@ -65,25 +65,7 @@
       ]
     },
     "protocol": {
-      "title": "AdCP Protocol",
-      "description": "AdCP protocol this task belongs to",
-      "type": "string",
-      "enum": [
-        "media-buy",
-        "signals",
-        "governance",
-        "creative",
-        "brand",
-        "sponsored-intelligence"
-      ],
-      "enumDescriptions": {
-        "media-buy": "Campaign creation, package management, delivery optimization, and conversion tracking",
-        "signals": "Audience signal discovery and activation",
-        "governance": "Property governance (identity, authorization, data, selection), brand standards, and compliance",
-        "creative": "Creative asset management, format discovery, and rendering",
-        "brand": "Brand identity, rights discovery, and rights acquisition",
-        "sponsored-intelligence": "AI-mediated commerce and conversational sponsored experiences, including buyer-agent sessions and measurement of AI-surfaced outcomes"
-      }
+      "$ref": "#/$defs/AdCPProtocol"
     },
     "status": {
       "title": "Task Status",
@@ -175,25 +157,7 @@
           "description": "Additional error context",
           "properties": {
             "protocol": {
-              "title": "AdCP Protocol",
-              "description": "AdCP protocol where error occurred",
-              "type": "string",
-              "enum": [
-                "media-buy",
-                "signals",
-                "governance",
-                "creative",
-                "brand",
-                "sponsored-intelligence"
-              ],
-              "enumDescriptions": {
-                "media-buy": "Campaign creation, package management, delivery optimization, and conversion tracking",
-                "signals": "Audience signal discovery and activation",
-                "governance": "Property governance (identity, authorization, data, selection), brand standards, and compliance",
-                "creative": "Creative asset management, format discovery, and rendering",
-                "brand": "Brand identity, rights discovery, and rights acquisition",
-                "sponsored-intelligence": "AI-mediated commerce and conversational sponsored experiences, including buyer-agent sessions and measurement of AI-surfaced outcomes"
-              }
+              "$ref": "#/$defs/AdCPProtocol"
             },
             "operation": {
               "type": "string",
@@ -269,8 +233,31 @@
     "updated_at"
   ],
   "additionalProperties": true,
+  "$defs": {
+    "AdCPProtocol": {
+      "title": "AdCP Protocol",
+      "description": "AdCP protocol this task belongs to",
+      "type": "string",
+      "enum": [
+        "media-buy",
+        "signals",
+        "governance",
+        "creative",
+        "brand",
+        "sponsored-intelligence"
+      ],
+      "enumDescriptions": {
+        "media-buy": "Campaign creation, package management, delivery optimization, and conversion tracking",
+        "signals": "Audience signal discovery and activation",
+        "governance": "Property governance (identity, authorization, data, selection), brand standards, and compliance",
+        "creative": "Creative asset management, format discovery, and rendering",
+        "brand": "Brand identity, rights discovery, and rights acquisition",
+        "sponsored-intelligence": "AI-mediated commerce and conversational sponsored experiences, including buyer-agent sessions and measurement of AI-surfaced outcomes"
+      }
+    }
+  },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.526Z",
+    "generatedAt": "2026-04-28T12:32:22.870Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

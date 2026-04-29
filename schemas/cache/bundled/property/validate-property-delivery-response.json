@@ -258,13 +258,21 @@
                   "description": "Which feature was evaluated. Data features come from the governance agent's feature catalog (e.g., 'mfa_score', 'carbon_score'). Record-level structural checks use reserved namespaces: 'record:list_membership', 'record:excluded', 'delivery:seller_authorization', 'delivery:click_url_presence'. Reserved prefixes: 'record:', 'delivery:'."
                 },
                 "status": {
+                  "title": "Feature Check Status",
+                  "description": "Per-feature evaluation outcome in content standards checks. For the two-outcome overall record verdict, see binary-verdict.",
                   "type": "string",
                   "enum": [
                     "passed",
                     "failed",
                     "warning",
                     "unevaluated"
-                  ]
+                  ],
+                  "enumDescriptions": {
+                    "passed": "Feature met the applicable content standard",
+                    "failed": "Feature did not meet the applicable content standard",
+                    "warning": "Feature is within tolerance but approaching a threshold \u2014 informational, not blocking",
+                    "unevaluated": "Feature was not assessed in this evaluation run (e.g., required data not present)"
+                  }
                 },
                 "policy_id": {
                   "type": "string",
@@ -403,7 +411,7 @@
   ],
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.685Z",
+    "generatedAt": "2026-04-28T12:32:23.042Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

@@ -234,33 +234,7 @@
                     "type": "object",
                     "properties": {
                       "type": {
-                        "title": "UID Type",
-                        "description": "Universal ID type",
-                        "type": "string",
-                        "enum": [
-                          "rampid",
-                          "rampid_derived",
-                          "id5",
-                          "uid2",
-                          "euid",
-                          "pairid",
-                          "maid",
-                          "hashed_email",
-                          "publisher_first_party",
-                          "other"
-                        ],
-                        "enumDescriptions": {
-                          "rampid": "LiveRamp RampID maintained form (XY, 32 bytes on the wire)",
-                          "rampid_derived": "LiveRamp RampID derived form (Xi, 48 bytes on the wire)",
-                          "id5": "ID5 universal ID",
-                          "uid2": "Unified ID 2.0",
-                          "euid": "European Unified ID",
-                          "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
-                          "maid": "Mobile Advertising ID (IDFA/GAID)",
-                          "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous \u2014 unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
-                          "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
-                          "other": "Other universal ID type (specify in ext)"
-                        }
+                        "$ref": "#/$defs/UIDType"
                       },
                       "value": {
                         "type": "string",
@@ -335,33 +309,7 @@
                     "type": "object",
                     "properties": {
                       "type": {
-                        "title": "UID Type",
-                        "description": "Universal ID type",
-                        "type": "string",
-                        "enum": [
-                          "rampid",
-                          "rampid_derived",
-                          "id5",
-                          "uid2",
-                          "euid",
-                          "pairid",
-                          "maid",
-                          "hashed_email",
-                          "publisher_first_party",
-                          "other"
-                        ],
-                        "enumDescriptions": {
-                          "rampid": "LiveRamp RampID maintained form (XY, 32 bytes on the wire)",
-                          "rampid_derived": "LiveRamp RampID derived form (Xi, 48 bytes on the wire)",
-                          "id5": "ID5 universal ID",
-                          "uid2": "Unified ID 2.0",
-                          "euid": "European Unified ID",
-                          "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
-                          "maid": "Mobile Advertising ID (IDFA/GAID)",
-                          "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous \u2014 unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
-                          "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
-                          "other": "Other universal ID type (specify in ext)"
-                        }
+                        "$ref": "#/$defs/UIDType"
                       },
                       "value": {
                         "type": "string",
@@ -467,8 +415,39 @@
     ]
   },
   "additionalProperties": true,
+  "$defs": {
+    "UIDType": {
+      "title": "UID Type",
+      "description": "Universal ID type",
+      "type": "string",
+      "enum": [
+        "rampid",
+        "rampid_derived",
+        "id5",
+        "uid2",
+        "euid",
+        "pairid",
+        "maid",
+        "hashed_email",
+        "publisher_first_party",
+        "other"
+      ],
+      "enumDescriptions": {
+        "rampid": "LiveRamp RampID maintained form (XY, 32 bytes on the wire)",
+        "rampid_derived": "LiveRamp RampID derived form (Xi, 48 bytes on the wire)",
+        "id5": "ID5 universal ID",
+        "uid2": "Unified ID 2.0",
+        "euid": "European Unified ID",
+        "pairid": "Publisher Addressable Identity via IAB Tech Lab PAIR protocol",
+        "maid": "Mobile Advertising ID (IDFA/GAID)",
+        "hashed_email": "SHA-256 hashed email address. Pseudonymous PII, not anonymous \u2014 unsalted SHA-256 of the email namespace is recoverable via precomputed dictionaries; treat as PII. See docs/reference/privacy-considerations#unsalted-hashed-identifiers-are-pseudonymous-not-anonymous.",
+        "publisher_first_party": "Publisher's own first-party identifier, opaque to buyers",
+        "other": "Other universal ID type (specify in ext)"
+      }
+    }
+  },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.657Z",
+    "generatedAt": "2026-04-28T12:32:23.011Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

@@ -450,14 +450,14 @@ class TestFetchAdagents:
                 mock_response.status_code = 200
                 mock_response.json.return_value = resolved_data
                 return mock_response
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", MockRedirectClient
-        ):
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
             result = await fetch_adagents("example.com", client=mock_client)
 
         assert result == resolved_data
@@ -535,14 +535,14 @@ class TestFetchAdagents:
         class MockRedirectClient:
             async def get(self, url, **kwargs):
                 return await mock_get(url, **kwargs)
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", MockRedirectClient
-        ):
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
             with pytest.raises(AdagentsValidationError, match="redirect|depth"):
                 await fetch_adagents("example.com", client=mock_client)
 
@@ -703,8 +703,10 @@ class TestSSRFProtection:
                 mock_response.status_code = 200
                 mock_response.json.return_value = resolved_data
                 return mock_response
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -763,14 +765,14 @@ class TestSSRFProtection:
                 mock_response.status_code = 200
                 mock_response.json.return_value = resolved_data
                 return mock_response
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
-        with unittest.mock.patch.object(
-            adagents_module.httpx, "AsyncClient", MockRedirectClient
-        ):
+        with unittest.mock.patch.object(adagents_module.httpx, "AsyncClient", MockRedirectClient):
             result = await fetch_adagents("example.com", client=mock_client)
         assert "authorized_agents" in result
 
@@ -1817,8 +1819,6 @@ class TestFetchAgentAuthorizations:
     async def test_uses_provided_http_client(self):
         """Should use provided HTTP client for connection pooling."""
         from unittest.mock import MagicMock, patch
-
-        import httpx
 
         adagents_data = {
             "authorized_agents": [

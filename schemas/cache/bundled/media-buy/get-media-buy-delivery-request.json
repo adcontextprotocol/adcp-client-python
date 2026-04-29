@@ -171,52 +171,12 @@
     "status_filter": {
       "oneOf": [
         {
-          "title": "Media Buy Status",
-          "description": "Status of a media buy.",
-          "type": "string",
-          "enum": [
-            "pending_creatives",
-            "pending_start",
-            "active",
-            "paused",
-            "completed",
-            "rejected",
-            "canceled"
-          ],
-          "enumDescriptions": {
-            "pending_creatives": "Media buy is approved but has no creatives assigned. The buyer must attach creatives via sync_creatives before the buy can serve.",
-            "pending_start": "Media buy is ready to serve and waiting for its flight date to begin.",
-            "active": "Media buy is currently running",
-            "paused": "Media buy is temporarily paused",
-            "completed": "Media buy has finished running",
-            "rejected": "Media buy was declined by the seller after creation",
-            "canceled": "Media buy was terminated before natural completion. Check cancellation.canceled_by to determine whether the buyer or seller initiated."
-          }
+          "$ref": "#/$defs/MediaBuyStatus"
         },
         {
           "type": "array",
           "items": {
-            "title": "Media Buy Status",
-            "description": "Status of a media buy.",
-            "type": "string",
-            "enum": [
-              "pending_creatives",
-              "pending_start",
-              "active",
-              "paused",
-              "completed",
-              "rejected",
-              "canceled"
-            ],
-            "enumDescriptions": {
-              "pending_creatives": "Media buy is approved but has no creatives assigned. The buyer must attach creatives via sync_creatives before the buy can serve.",
-              "pending_start": "Media buy is ready to serve and waiting for its flight date to begin.",
-              "active": "Media buy is currently running",
-              "paused": "Media buy is temporarily paused",
-              "completed": "Media buy has finished running",
-              "rejected": "Media buy was declined by the seller after creation",
-              "canceled": "Media buy was terminated before natural completion. Check cancellation.canceled_by to determine whether the buyer or seller initiated."
-            }
+            "$ref": "#/$defs/MediaBuyStatus"
           },
           "minItems": 1
         }
@@ -384,34 +344,7 @@
               "description": "Maximum number of geo entries to return. Defaults to 25. When truncated, by_geo_truncated is true in the response."
             },
             "sort_by": {
-              "title": "Sort Metric",
-              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
-              "type": "string",
-              "enum": [
-                "impressions",
-                "spend",
-                "clicks",
-                "ctr",
-                "views",
-                "completed_views",
-                "completion_rate",
-                "conversions",
-                "conversion_value",
-                "roas",
-                "cost_per_acquisition",
-                "new_to_brand_rate",
-                "leads",
-                "grps",
-                "reach",
-                "frequency",
-                "engagements",
-                "follows",
-                "saves",
-                "profile_visits",
-                "engagement_rate",
-                "cost_per_click"
-              ],
-              "default": "spend"
+              "$ref": "#/$defs/SortMetric"
             }
           },
           "required": [
@@ -429,34 +362,7 @@
               "description": "Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded)."
             },
             "sort_by": {
-              "title": "Sort Metric",
-              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
-              "type": "string",
-              "enum": [
-                "impressions",
-                "spend",
-                "clicks",
-                "ctr",
-                "views",
-                "completed_views",
-                "completion_rate",
-                "conversions",
-                "conversion_value",
-                "roas",
-                "cost_per_acquisition",
-                "new_to_brand_rate",
-                "leads",
-                "grps",
-                "reach",
-                "frequency",
-                "engagements",
-                "follows",
-                "saves",
-                "profile_visits",
-                "engagement_rate",
-                "cost_per_click"
-              ],
-              "default": "spend"
+              "$ref": "#/$defs/SortMetric"
             }
           },
           "additionalProperties": true
@@ -471,34 +377,7 @@
               "description": "Maximum number of entries to return. When omitted, all entries are returned (the enum is small and bounded)."
             },
             "sort_by": {
-              "title": "Sort Metric",
-              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
-              "type": "string",
-              "enum": [
-                "impressions",
-                "spend",
-                "clicks",
-                "ctr",
-                "views",
-                "completed_views",
-                "completion_rate",
-                "conversions",
-                "conversion_value",
-                "roas",
-                "cost_per_acquisition",
-                "new_to_brand_rate",
-                "leads",
-                "grps",
-                "reach",
-                "frequency",
-                "engagements",
-                "follows",
-                "saves",
-                "profile_visits",
-                "engagement_rate",
-                "cost_per_click"
-              ],
-              "default": "spend"
+              "$ref": "#/$defs/SortMetric"
             }
           },
           "additionalProperties": true
@@ -514,34 +393,7 @@
               "description": "Maximum number of entries to return. Defaults to 25."
             },
             "sort_by": {
-              "title": "Sort Metric",
-              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
-              "type": "string",
-              "enum": [
-                "impressions",
-                "spend",
-                "clicks",
-                "ctr",
-                "views",
-                "completed_views",
-                "completion_rate",
-                "conversions",
-                "conversion_value",
-                "roas",
-                "cost_per_acquisition",
-                "new_to_brand_rate",
-                "leads",
-                "grps",
-                "reach",
-                "frequency",
-                "engagements",
-                "follows",
-                "saves",
-                "profile_visits",
-                "engagement_rate",
-                "cost_per_click"
-              ],
-              "default": "spend"
+              "$ref": "#/$defs/SortMetric"
             }
           },
           "additionalProperties": true
@@ -557,34 +409,7 @@
               "description": "Maximum number of entries to return. Defaults to 25."
             },
             "sort_by": {
-              "title": "Sort Metric",
-              "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
-              "type": "string",
-              "enum": [
-                "impressions",
-                "spend",
-                "clicks",
-                "ctr",
-                "views",
-                "completed_views",
-                "completion_rate",
-                "conversions",
-                "conversion_value",
-                "roas",
-                "cost_per_acquisition",
-                "new_to_brand_rate",
-                "leads",
-                "grps",
-                "reach",
-                "frequency",
-                "engagements",
-                "follows",
-                "saves",
-                "profile_visits",
-                "engagement_rate",
-                "cost_per_click"
-              ],
-              "default": "spend"
+              "$ref": "#/$defs/SortMetric"
             }
           },
           "additionalProperties": true
@@ -606,8 +431,63 @@
     }
   },
   "additionalProperties": true,
+  "$defs": {
+    "MediaBuyStatus": {
+      "title": "Media Buy Status",
+      "description": "Status of a media buy.",
+      "type": "string",
+      "enum": [
+        "pending_creatives",
+        "pending_start",
+        "active",
+        "paused",
+        "completed",
+        "rejected",
+        "canceled"
+      ],
+      "enumDescriptions": {
+        "pending_creatives": "Media buy is approved but has no creatives assigned. The buyer must attach creatives via sync_creatives before the buy can serve.",
+        "pending_start": "Media buy is ready to serve and waiting for its flight date to begin.",
+        "active": "Media buy is currently running",
+        "paused": "Media buy is temporarily paused",
+        "completed": "Media buy has finished running",
+        "rejected": "Media buy was declined by the seller after creation",
+        "canceled": "Media buy was terminated before natural completion. Check cancellation.canceled_by to determine whether the buyer or seller initiated."
+      }
+    },
+    "SortMetric": {
+      "title": "Sort Metric",
+      "description": "Metric to sort breakdown rows by (descending). Falls back to 'spend' if the seller does not report the requested metric.",
+      "type": "string",
+      "enum": [
+        "impressions",
+        "spend",
+        "clicks",
+        "ctr",
+        "views",
+        "completed_views",
+        "completion_rate",
+        "conversions",
+        "conversion_value",
+        "roas",
+        "cost_per_acquisition",
+        "new_to_brand_rate",
+        "leads",
+        "grps",
+        "reach",
+        "frequency",
+        "engagements",
+        "follows",
+        "saves",
+        "profile_visits",
+        "engagement_rate",
+        "cost_per_click"
+      ],
+      "default": "spend"
+    }
+  },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.624Z",
+    "generatedAt": "2026-04-28T12:32:22.979Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

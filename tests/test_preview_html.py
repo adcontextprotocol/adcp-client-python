@@ -5,11 +5,10 @@ from unittest.mock import patch
 import pytest
 
 from adcp import ADCPClient
-from adcp.types import AgentConfig, ImageContent, Protocol
+from adcp.types import AgentConfig, FormatId, ImageContent, Protocol
 from adcp.types._generated import (
     CreativeManifest,
     Format,
-    FormatId,
     GetProductsRequest,
     GetProductsResponse,
     ListCreativeFormatsRequest,

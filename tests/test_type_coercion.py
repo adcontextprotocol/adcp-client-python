@@ -8,9 +8,6 @@ Reference: https://github.com/adcontextprotocol/adcp-client-python/issues/102
 
 from __future__ import annotations
 
-import pytest
-from pydantic import ValidationError
-
 from adcp.types import (
     AssetContentType,
     GetProductsRequest,

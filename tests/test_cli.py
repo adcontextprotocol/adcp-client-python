@@ -414,14 +414,11 @@ class TestDeprecatedFieldWarnings:
 
     def test_check_deprecated_fields_no_warning_for_standard_assets(self, capsys):
         """Should not warn when using standard assets field."""
-        from adcp import Format
+        from adcp import Format, FormatId
         from adcp.__main__ import _check_deprecated_fields
 
-        # Use the core FormatId which is a proper format identifier type
-        from adcp.types.generated_poc.core.format_id import FormatId as CoreFormatId
-
         fmt = Format(
-            format_id=CoreFormatId(agent_url="https://test.com", id="test"),
+            format_id=FormatId(agent_url="https://test.com", id="test"),
             name="Test",
             assets=[
                 {

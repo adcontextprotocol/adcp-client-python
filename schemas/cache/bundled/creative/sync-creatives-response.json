@@ -158,13 +158,19 @@
                     "x-entity": "operator"
                   },
                   "billing": {
+                    "title": "Billing Party",
+                    "description": "Who is invoiced on this account. See billing_entity for the invoiced party's business details.",
                     "type": "string",
                     "enum": [
                       "operator",
                       "agent",
                       "advertiser"
                     ],
-                    "description": "Who is invoiced on this account. operator: seller invoices the operator (agency or brand buying direct). agent: agent consolidates billing. advertiser: seller invoices the advertiser directly, even when a different operator places orders on their behalf. See billing_entity for the invoiced party's business details."
+                    "enumDescriptions": {
+                      "operator": "Seller invoices the operator \u2014 agency or brand buying direct",
+                      "agent": "Agent consolidates billing across brands and is invoiced by the seller",
+                      "advertiser": "Seller invoices the advertiser directly, even when a different operator places orders on their behalf"
+                    }
                   },
                   "billing_entity": {
                     "title": "Business Entity",
@@ -379,6 +385,8 @@
                     "description": "Identifier for the rate card applied to this account"
                   },
                   "payment_terms": {
+                    "title": "Payment Terms",
+                    "description": "Payment terms agreed for this account. Binding for all invoices when the account is active.",
                     "type": "string",
                     "enum": [
                       "net_15",
@@ -388,7 +396,14 @@
                       "net_90",
                       "prepay"
                     ],
-                    "description": "Payment terms agreed for this account. Binding for all invoices when the account is active."
+                    "enumDescriptions": {
+                      "net_15": "Payment due within 15 days of invoice",
+                      "net_30": "Payment due within 30 days of invoice",
+                      "net_45": "Payment due within 45 days of invoice",
+                      "net_60": "Payment due within 60 days of invoice",
+                      "net_90": "Payment due within 90 days of invoice",
+                      "prepay": "Payment required before campaign delivery"
+                    }
                   },
                   "credit_limit": {
                     "type": "object",
@@ -433,6 +448,8 @@
                     "additionalProperties": true
                   },
                   "account_scope": {
+                    "title": "Account Scope",
+                    "description": "How the seller scoped a billing account relative to the operator and brand dimensions.",
                     "type": "string",
                     "enum": [
                       "operator",
@@ -440,7 +457,12 @@
                       "operator_brand",
                       "agent"
                     ],
-                    "description": "How the seller scoped this account. operator: shared across all brands for this operator. brand: shared across all operators for this brand. operator_brand: dedicated to a specific operator+brand combination. agent: the agent's default account with no brand or operator association."
+                    "enumDescriptions": {
+                      "operator": "Account is shared across all brands for this operator",
+                      "brand": "Account is shared across all operators for this brand",
+                      "operator_brand": "Account is dedicated to a specific operator+brand combination",
+                      "agent": "The agent's default account with no brand or operator association"
+                    }
                   },
                   "governance_agents": {
                     "type": "array",
@@ -1117,7 +1139,7 @@
     }
   ],
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.587Z",
+    "generatedAt": "2026-04-28T12:32:22.941Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

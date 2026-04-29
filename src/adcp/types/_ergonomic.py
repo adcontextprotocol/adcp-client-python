@@ -57,6 +57,7 @@ from adcp.types.generated_poc.enums.delivery_type import DeliveryType
 from adcp.types.generated_poc.enums.disclosure_persistence import DisclosurePersistence
 from adcp.types.generated_poc.enums.disclosure_position import DisclosurePosition
 from adcp.types.generated_poc.enums.media_buy_status import MediaBuyStatus
+from adcp.types.generated_poc.enums.media_buy_valid_action import MediaBuyValidAction
 from adcp.types.generated_poc.enums.pacing import Pacing
 from adcp.types.generated_poc.enums.sort_direction import SortDirection
 from adcp.types.generated_poc.enums.wcag_level import WcagLevel
@@ -95,7 +96,6 @@ from adcp.types.generated_poc.creative.list_creatives_response import (
     ListCreativesResponse,
 )
 from adcp.types.generated_poc.media_buy.get_products_request import BuyingMode
-from adcp.types.generated_poc.media_buy.create_media_buy_response import ValidAction
 
 
 def _apply_coercion() -> None:
@@ -448,7 +448,7 @@ def _apply_coercion() -> None:
 
     # Apply coercion to CreateMediaBuyResponse1
     # - status: MediaBuyStatus | str | None
-    # - valid_actions: list[ValidAction | str] | None
+    # - valid_actions: list[MediaBuyValidAction | str] | None
     # - packages: list[Package] (accepts subclass instances)
     # - context: ContextObject | dict | None
     # - ext: ExtensionObject | dict | None
@@ -461,8 +461,8 @@ def _apply_coercion() -> None:
         CreateMediaBuyResponse1,
         "valid_actions",
         Annotated[
-            list[ValidAction] | None,
-            BeforeValidator(coerce_to_enum_list(ValidAction)),
+            list[MediaBuyValidAction] | None,
+            BeforeValidator(coerce_to_enum_list(MediaBuyValidAction)),
         ],
     )
     _patch_field_annotation(

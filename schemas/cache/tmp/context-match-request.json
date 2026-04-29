@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Context Match Request",
   "description": "Sent by publisher to router or provider to evaluate packages against contextual signals. The provider uses its synced package set for the placement. MUST NOT contain user identity. The request_id MUST NOT correlate with any identity match request_id. Extension fields (ext, context) are intentionally omitted \u2014 extension data in the context path could inadvertently carry or correlate user identity signals.",
+  "x-status": "experimental",
   "type": "object",
   "properties": {
     "adcp_major_version": {

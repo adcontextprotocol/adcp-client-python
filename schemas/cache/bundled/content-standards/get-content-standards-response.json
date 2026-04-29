@@ -32,53 +32,7 @@
             "channels_any": {
               "type": "array",
               "items": {
-                "title": "Media Channel",
-                "description": "Standardized advertising media channels describing how buyers allocate budget. Channels are planning abstractions, not technical substrates. See the Media Channel Taxonomy specification for detailed definitions.",
-                "type": "string",
-                "enum": [
-                  "display",
-                  "olv",
-                  "social",
-                  "search",
-                  "ctv",
-                  "linear_tv",
-                  "radio",
-                  "streaming_audio",
-                  "podcast",
-                  "dooh",
-                  "ooh",
-                  "print",
-                  "cinema",
-                  "email",
-                  "gaming",
-                  "retail_media",
-                  "influencer",
-                  "affiliate",
-                  "product_placement",
-                  "sponsored_intelligence"
-                ],
-                "enumDescriptions": {
-                  "display": "Digital display advertising (banners, native, rich media) across web and app",
-                  "olv": "Online video advertising outside CTV (pre-roll, outstream, in-app video)",
-                  "social": "Social media platforms (Facebook, Instagram, TikTok, LinkedIn, etc.)",
-                  "search": "Search engine advertising and search networks",
-                  "ctv": "Connected TV and streaming on television screens",
-                  "linear_tv": "Traditional broadcast and cable television",
-                  "radio": "Traditional AM/FM radio broadcast",
-                  "streaming_audio": "Digital audio streaming services (Spotify, Pandora, etc.)",
-                  "podcast": "Podcast advertising (host-read or dynamically inserted)",
-                  "dooh": "Digital out-of-home screens in public spaces",
-                  "ooh": "Classic out-of-home (physical billboards, transit, etc.)",
-                  "print": "Newspapers, magazines, and other print publications",
-                  "cinema": "Movie theater advertising",
-                  "email": "Email advertising and sponsored newsletter content",
-                  "gaming": "In-game advertising across platforms",
-                  "retail_media": "Retail media networks and commerce marketplaces (Amazon, Walmart, Instacart)",
-                  "influencer": "Creator and influencer marketing partnerships",
-                  "affiliate": "Affiliate networks, comparison sites, and performance-based partnerships",
-                  "product_placement": "Product placement, branded content, and sponsorship integrations",
-                  "sponsored_intelligence": "Sponsored Intelligence \u2014 advertising within AI assistants, AI search, and generative AI experiences via the reversed data flow"
-                }
+                "$ref": "#/$defs/MediaChannel"
               },
               "minItems": 1,
               "description": "Advertising channels. Standards apply to ANY of the listed channels (OR logic)."
@@ -186,53 +140,7 @@
                   "channels": {
                     "type": "array",
                     "items": {
-                      "title": "Media Channel",
-                      "description": "Standardized advertising media channels describing how buyers allocate budget. Channels are planning abstractions, not technical substrates. See the Media Channel Taxonomy specification for detailed definitions.",
-                      "type": "string",
-                      "enum": [
-                        "display",
-                        "olv",
-                        "social",
-                        "search",
-                        "ctv",
-                        "linear_tv",
-                        "radio",
-                        "streaming_audio",
-                        "podcast",
-                        "dooh",
-                        "ooh",
-                        "print",
-                        "cinema",
-                        "email",
-                        "gaming",
-                        "retail_media",
-                        "influencer",
-                        "affiliate",
-                        "product_placement",
-                        "sponsored_intelligence"
-                      ],
-                      "enumDescriptions": {
-                        "display": "Digital display advertising (banners, native, rich media) across web and app",
-                        "olv": "Online video advertising outside CTV (pre-roll, outstream, in-app video)",
-                        "social": "Social media platforms (Facebook, Instagram, TikTok, LinkedIn, etc.)",
-                        "search": "Search engine advertising and search networks",
-                        "ctv": "Connected TV and streaming on television screens",
-                        "linear_tv": "Traditional broadcast and cable television",
-                        "radio": "Traditional AM/FM radio broadcast",
-                        "streaming_audio": "Digital audio streaming services (Spotify, Pandora, etc.)",
-                        "podcast": "Podcast advertising (host-read or dynamically inserted)",
-                        "dooh": "Digital out-of-home screens in public spaces",
-                        "ooh": "Classic out-of-home (physical billboards, transit, etc.)",
-                        "print": "Newspapers, magazines, and other print publications",
-                        "cinema": "Movie theater advertising",
-                        "email": "Email advertising and sponsored newsletter content",
-                        "gaming": "In-game advertising across platforms",
-                        "retail_media": "Retail media networks and commerce marketplaces (Amazon, Walmart, Instacart)",
-                        "influencer": "Creator and influencer marketing partnerships",
-                        "affiliate": "Affiliate networks, comparison sites, and performance-based partnerships",
-                        "product_placement": "Product placement, branded content, and sponsorship integrations",
-                        "sponsored_intelligence": "Sponsored Intelligence \u2014 advertising within AI assistants, AI search, and generative AI experiences via the reversed data flow"
-                      }
+                      "$ref": "#/$defs/MediaChannel"
                     },
                     "description": "Advertising channels this policy applies to. If omitted or null, the policy applies to all channels."
                   },
@@ -340,15 +248,15 @@
                         "description": "Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: 'en', 'es-MX', 'v2', 'headline_test_b'. The combination of artifact_id + variant_id must be unique."
                       },
                       "format_id": {
-                        "title": "Format ID",
-                        "description": "Optional reference to a format definition. Uses the same format registry as creative formats.",
+                        "title": "Format Reference (Structured Object)",
+                        "description": "Always a structured object {agent_url, id} \u2014 never a plain string. Optional reference to a format definition. Uses the same format registry as creative formats.",
                         "x-entity": "creative_format",
                         "type": "object",
                         "properties": {
                           "agent_url": {
                             "type": "string",
                             "format": "uri",
-                            "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                            "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
                           },
                           "id": {
                             "type": "string",
@@ -459,31 +367,7 @@
                                   "type": "object",
                                   "properties": {
                                     "digital_source_type": {
-                                      "title": "Digital Source Type",
-                                      "description": "IPTC-aligned classification of AI involvement in producing this content",
-                                      "type": "string",
-                                      "enum": [
-                                        "digital_capture",
-                                        "digital_creation",
-                                        "trained_algorithmic_media",
-                                        "composite_with_trained_algorithmic_media",
-                                        "algorithmic_media",
-                                        "composite_capture",
-                                        "composite_synthetic",
-                                        "human_edits",
-                                        "data_driven_media"
-                                      ],
-                                      "enumDescriptions": {
-                                        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                                        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                                        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                                        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                                        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                                        "composite_capture": "Multiple digital captures composited together without AI",
-                                        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                                        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                                        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                                      }
+                                      "$ref": "#/$defs/DigitalSourceType"
                                     },
                                     "ai_tool": {
                                       "type": "object",
@@ -619,19 +503,7 @@
                                                 "minProperties": 1,
                                                 "properties": {
                                                   "persistence": {
-                                                    "title": "Disclosure Persistence",
-                                                    "description": "How long the disclosure must persist during content playback or display",
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "continuous",
-                                                      "initial",
-                                                      "flexible"
-                                                    ],
-                                                    "enumDescriptions": {
-                                                      "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                                      "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                                      "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                                    }
+                                                    "$ref": "#/$defs/DisclosurePersistence"
                                                   },
                                                   "min_duration_ms": {
                                                     "type": "integer",
@@ -642,19 +514,7 @@
                                                     "type": "array",
                                                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                                     "items": {
-                                                      "title": "Disclosure Position",
-                                                      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                                      "type": "string",
-                                                      "enum": [
-                                                        "prominent",
-                                                        "footer",
-                                                        "audio",
-                                                        "subtitle",
-                                                        "overlay",
-                                                        "end_card",
-                                                        "pre_roll",
-                                                        "companion"
-                                                      ]
+                                                      "$ref": "#/$defs/DisclosurePosition"
                                                     },
                                                     "minItems": 1,
                                                     "uniqueItems": true
@@ -782,31 +642,7 @@
                                   "type": "object",
                                   "properties": {
                                     "digital_source_type": {
-                                      "title": "Digital Source Type",
-                                      "description": "IPTC-aligned classification of AI involvement in producing this content",
-                                      "type": "string",
-                                      "enum": [
-                                        "digital_capture",
-                                        "digital_creation",
-                                        "trained_algorithmic_media",
-                                        "composite_with_trained_algorithmic_media",
-                                        "algorithmic_media",
-                                        "composite_capture",
-                                        "composite_synthetic",
-                                        "human_edits",
-                                        "data_driven_media"
-                                      ],
-                                      "enumDescriptions": {
-                                        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                                        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                                        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                                        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                                        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                                        "composite_capture": "Multiple digital captures composited together without AI",
-                                        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                                        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                                        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                                      }
+                                      "$ref": "#/$defs/DigitalSourceType"
                                     },
                                     "ai_tool": {
                                       "type": "object",
@@ -942,19 +778,7 @@
                                                 "minProperties": 1,
                                                 "properties": {
                                                   "persistence": {
-                                                    "title": "Disclosure Persistence",
-                                                    "description": "How long the disclosure must persist during content playback or display",
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "continuous",
-                                                      "initial",
-                                                      "flexible"
-                                                    ],
-                                                    "enumDescriptions": {
-                                                      "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                                      "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                                      "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                                    }
+                                                    "$ref": "#/$defs/DisclosurePersistence"
                                                   },
                                                   "min_duration_ms": {
                                                     "type": "integer",
@@ -965,19 +789,7 @@
                                                     "type": "array",
                                                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                                     "items": {
-                                                      "title": "Disclosure Position",
-                                                      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                                      "type": "string",
-                                                      "enum": [
-                                                        "prominent",
-                                                        "footer",
-                                                        "audio",
-                                                        "subtitle",
-                                                        "overlay",
-                                                        "end_card",
-                                                        "pre_roll",
-                                                        "companion"
-                                                      ]
+                                                      "$ref": "#/$defs/DisclosurePosition"
                                                     },
                                                     "minItems": 1,
                                                     "uniqueItems": true
@@ -1124,31 +936,7 @@
                                   "type": "object",
                                   "properties": {
                                     "digital_source_type": {
-                                      "title": "Digital Source Type",
-                                      "description": "IPTC-aligned classification of AI involvement in producing this content",
-                                      "type": "string",
-                                      "enum": [
-                                        "digital_capture",
-                                        "digital_creation",
-                                        "trained_algorithmic_media",
-                                        "composite_with_trained_algorithmic_media",
-                                        "algorithmic_media",
-                                        "composite_capture",
-                                        "composite_synthetic",
-                                        "human_edits",
-                                        "data_driven_media"
-                                      ],
-                                      "enumDescriptions": {
-                                        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                                        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                                        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                                        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                                        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                                        "composite_capture": "Multiple digital captures composited together without AI",
-                                        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                                        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                                        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                                      }
+                                      "$ref": "#/$defs/DigitalSourceType"
                                     },
                                     "ai_tool": {
                                       "type": "object",
@@ -1284,19 +1072,7 @@
                                                 "minProperties": 1,
                                                 "properties": {
                                                   "persistence": {
-                                                    "title": "Disclosure Persistence",
-                                                    "description": "How long the disclosure must persist during content playback or display",
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "continuous",
-                                                      "initial",
-                                                      "flexible"
-                                                    ],
-                                                    "enumDescriptions": {
-                                                      "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                                      "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                                      "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                                    }
+                                                    "$ref": "#/$defs/DisclosurePersistence"
                                                   },
                                                   "min_duration_ms": {
                                                     "type": "integer",
@@ -1307,19 +1083,7 @@
                                                     "type": "array",
                                                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                                     "items": {
-                                                      "title": "Disclosure Position",
-                                                      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                                      "type": "string",
-                                                      "enum": [
-                                                        "prominent",
-                                                        "footer",
-                                                        "audio",
-                                                        "subtitle",
-                                                        "overlay",
-                                                        "end_card",
-                                                        "pre_roll",
-                                                        "companion"
-                                                      ]
+                                                      "$ref": "#/$defs/DisclosurePosition"
                                                     },
                                                     "minItems": 1,
                                                     "uniqueItems": true
@@ -1459,31 +1223,7 @@
                                   "type": "object",
                                   "properties": {
                                     "digital_source_type": {
-                                      "title": "Digital Source Type",
-                                      "description": "IPTC-aligned classification of AI involvement in producing this content",
-                                      "type": "string",
-                                      "enum": [
-                                        "digital_capture",
-                                        "digital_creation",
-                                        "trained_algorithmic_media",
-                                        "composite_with_trained_algorithmic_media",
-                                        "algorithmic_media",
-                                        "composite_capture",
-                                        "composite_synthetic",
-                                        "human_edits",
-                                        "data_driven_media"
-                                      ],
-                                      "enumDescriptions": {
-                                        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                                        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                                        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                                        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                                        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                                        "composite_capture": "Multiple digital captures composited together without AI",
-                                        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                                        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                                        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                                      }
+                                      "$ref": "#/$defs/DigitalSourceType"
                                     },
                                     "ai_tool": {
                                       "type": "object",
@@ -1619,19 +1359,7 @@
                                                 "minProperties": 1,
                                                 "properties": {
                                                   "persistence": {
-                                                    "title": "Disclosure Persistence",
-                                                    "description": "How long the disclosure must persist during content playback or display",
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "continuous",
-                                                      "initial",
-                                                      "flexible"
-                                                    ],
-                                                    "enumDescriptions": {
-                                                      "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                                      "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                                      "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                                    }
+                                                    "$ref": "#/$defs/DisclosurePersistence"
                                                   },
                                                   "min_duration_ms": {
                                                     "type": "integer",
@@ -1642,19 +1370,7 @@
                                                     "type": "array",
                                                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                                     "items": {
-                                                      "title": "Disclosure Position",
-                                                      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                                      "type": "string",
-                                                      "enum": [
-                                                        "prominent",
-                                                        "footer",
-                                                        "audio",
-                                                        "subtitle",
-                                                        "overlay",
-                                                        "end_card",
-                                                        "pre_roll",
-                                                        "companion"
-                                                      ]
+                                                      "$ref": "#/$defs/DisclosurePosition"
                                                     },
                                                     "minItems": 1,
                                                     "uniqueItems": true
@@ -1789,31 +1505,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -1949,19 +1641,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -1972,19 +1652,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -2125,15 +1793,15 @@
                         "description": "Identifies a specific variant of this artifact. Use for A/B tests, translations, or temporal versions. Examples: 'en', 'es-MX', 'v2', 'headline_test_b'. The combination of artifact_id + variant_id must be unique."
                       },
                       "format_id": {
-                        "title": "Format ID",
-                        "description": "Optional reference to a format definition. Uses the same format registry as creative formats.",
+                        "title": "Format Reference (Structured Object)",
+                        "description": "Always a structured object {agent_url, id} \u2014 never a plain string. Optional reference to a format definition. Uses the same format registry as creative formats.",
                         "x-entity": "creative_format",
                         "type": "object",
                         "properties": {
                           "agent_url": {
                             "type": "string",
                             "format": "uri",
-                            "description": "URL of the agent that defines this format (e.g., 'https://creatives.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats)"
+                            "description": "URL of the agent that defines this format (e.g., 'https://creative.adcontextprotocol.org' for standard formats, or 'https://publisher.com/.well-known/adcp/sales' for custom formats). Callers comparing two `format-id` values MUST canonicalize `agent_url` per the AdCP URL canonicalization rules before treating two formats as the same. See docs/reference/url-canonicalization."
                           },
                           "id": {
                             "type": "string",
@@ -2244,31 +1912,7 @@
                                   "type": "object",
                                   "properties": {
                                     "digital_source_type": {
-                                      "title": "Digital Source Type",
-                                      "description": "IPTC-aligned classification of AI involvement in producing this content",
-                                      "type": "string",
-                                      "enum": [
-                                        "digital_capture",
-                                        "digital_creation",
-                                        "trained_algorithmic_media",
-                                        "composite_with_trained_algorithmic_media",
-                                        "algorithmic_media",
-                                        "composite_capture",
-                                        "composite_synthetic",
-                                        "human_edits",
-                                        "data_driven_media"
-                                      ],
-                                      "enumDescriptions": {
-                                        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                                        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                                        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                                        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                                        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                                        "composite_capture": "Multiple digital captures composited together without AI",
-                                        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                                        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                                        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                                      }
+                                      "$ref": "#/$defs/DigitalSourceType"
                                     },
                                     "ai_tool": {
                                       "type": "object",
@@ -2404,19 +2048,7 @@
                                                 "minProperties": 1,
                                                 "properties": {
                                                   "persistence": {
-                                                    "title": "Disclosure Persistence",
-                                                    "description": "How long the disclosure must persist during content playback or display",
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "continuous",
-                                                      "initial",
-                                                      "flexible"
-                                                    ],
-                                                    "enumDescriptions": {
-                                                      "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                                      "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                                      "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                                    }
+                                                    "$ref": "#/$defs/DisclosurePersistence"
                                                   },
                                                   "min_duration_ms": {
                                                     "type": "integer",
@@ -2427,19 +2059,7 @@
                                                     "type": "array",
                                                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                                     "items": {
-                                                      "title": "Disclosure Position",
-                                                      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                                      "type": "string",
-                                                      "enum": [
-                                                        "prominent",
-                                                        "footer",
-                                                        "audio",
-                                                        "subtitle",
-                                                        "overlay",
-                                                        "end_card",
-                                                        "pre_roll",
-                                                        "companion"
-                                                      ]
+                                                      "$ref": "#/$defs/DisclosurePosition"
                                                     },
                                                     "minItems": 1,
                                                     "uniqueItems": true
@@ -2567,31 +2187,7 @@
                                   "type": "object",
                                   "properties": {
                                     "digital_source_type": {
-                                      "title": "Digital Source Type",
-                                      "description": "IPTC-aligned classification of AI involvement in producing this content",
-                                      "type": "string",
-                                      "enum": [
-                                        "digital_capture",
-                                        "digital_creation",
-                                        "trained_algorithmic_media",
-                                        "composite_with_trained_algorithmic_media",
-                                        "algorithmic_media",
-                                        "composite_capture",
-                                        "composite_synthetic",
-                                        "human_edits",
-                                        "data_driven_media"
-                                      ],
-                                      "enumDescriptions": {
-                                        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                                        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                                        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                                        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                                        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                                        "composite_capture": "Multiple digital captures composited together without AI",
-                                        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                                        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                                        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                                      }
+                                      "$ref": "#/$defs/DigitalSourceType"
                                     },
                                     "ai_tool": {
                                       "type": "object",
@@ -2727,19 +2323,7 @@
                                                 "minProperties": 1,
                                                 "properties": {
                                                   "persistence": {
-                                                    "title": "Disclosure Persistence",
-                                                    "description": "How long the disclosure must persist during content playback or display",
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "continuous",
-                                                      "initial",
-                                                      "flexible"
-                                                    ],
-                                                    "enumDescriptions": {
-                                                      "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                                      "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                                      "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                                    }
+                                                    "$ref": "#/$defs/DisclosurePersistence"
                                                   },
                                                   "min_duration_ms": {
                                                     "type": "integer",
@@ -2750,19 +2334,7 @@
                                                     "type": "array",
                                                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                                     "items": {
-                                                      "title": "Disclosure Position",
-                                                      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                                      "type": "string",
-                                                      "enum": [
-                                                        "prominent",
-                                                        "footer",
-                                                        "audio",
-                                                        "subtitle",
-                                                        "overlay",
-                                                        "end_card",
-                                                        "pre_roll",
-                                                        "companion"
-                                                      ]
+                                                      "$ref": "#/$defs/DisclosurePosition"
                                                     },
                                                     "minItems": 1,
                                                     "uniqueItems": true
@@ -2909,31 +2481,7 @@
                                   "type": "object",
                                   "properties": {
                                     "digital_source_type": {
-                                      "title": "Digital Source Type",
-                                      "description": "IPTC-aligned classification of AI involvement in producing this content",
-                                      "type": "string",
-                                      "enum": [
-                                        "digital_capture",
-                                        "digital_creation",
-                                        "trained_algorithmic_media",
-                                        "composite_with_trained_algorithmic_media",
-                                        "algorithmic_media",
-                                        "composite_capture",
-                                        "composite_synthetic",
-                                        "human_edits",
-                                        "data_driven_media"
-                                      ],
-                                      "enumDescriptions": {
-                                        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                                        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                                        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                                        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                                        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                                        "composite_capture": "Multiple digital captures composited together without AI",
-                                        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                                        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                                        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                                      }
+                                      "$ref": "#/$defs/DigitalSourceType"
                                     },
                                     "ai_tool": {
                                       "type": "object",
@@ -3069,19 +2617,7 @@
                                                 "minProperties": 1,
                                                 "properties": {
                                                   "persistence": {
-                                                    "title": "Disclosure Persistence",
-                                                    "description": "How long the disclosure must persist during content playback or display",
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "continuous",
-                                                      "initial",
-                                                      "flexible"
-                                                    ],
-                                                    "enumDescriptions": {
-                                                      "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                                      "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                                      "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                                    }
+                                                    "$ref": "#/$defs/DisclosurePersistence"
                                                   },
                                                   "min_duration_ms": {
                                                     "type": "integer",
@@ -3092,19 +2628,7 @@
                                                     "type": "array",
                                                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                                     "items": {
-                                                      "title": "Disclosure Position",
-                                                      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                                      "type": "string",
-                                                      "enum": [
-                                                        "prominent",
-                                                        "footer",
-                                                        "audio",
-                                                        "subtitle",
-                                                        "overlay",
-                                                        "end_card",
-                                                        "pre_roll",
-                                                        "companion"
-                                                      ]
+                                                      "$ref": "#/$defs/DisclosurePosition"
                                                     },
                                                     "minItems": 1,
                                                     "uniqueItems": true
@@ -3244,31 +2768,7 @@
                                   "type": "object",
                                   "properties": {
                                     "digital_source_type": {
-                                      "title": "Digital Source Type",
-                                      "description": "IPTC-aligned classification of AI involvement in producing this content",
-                                      "type": "string",
-                                      "enum": [
-                                        "digital_capture",
-                                        "digital_creation",
-                                        "trained_algorithmic_media",
-                                        "composite_with_trained_algorithmic_media",
-                                        "algorithmic_media",
-                                        "composite_capture",
-                                        "composite_synthetic",
-                                        "human_edits",
-                                        "data_driven_media"
-                                      ],
-                                      "enumDescriptions": {
-                                        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                                        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                                        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                                        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                                        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                                        "composite_capture": "Multiple digital captures composited together without AI",
-                                        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                                        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                                        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                                      }
+                                      "$ref": "#/$defs/DigitalSourceType"
                                     },
                                     "ai_tool": {
                                       "type": "object",
@@ -3404,19 +2904,7 @@
                                                 "minProperties": 1,
                                                 "properties": {
                                                   "persistence": {
-                                                    "title": "Disclosure Persistence",
-                                                    "description": "How long the disclosure must persist during content playback or display",
-                                                    "type": "string",
-                                                    "enum": [
-                                                      "continuous",
-                                                      "initial",
-                                                      "flexible"
-                                                    ],
-                                                    "enumDescriptions": {
-                                                      "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                                      "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                                      "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                                    }
+                                                    "$ref": "#/$defs/DisclosurePersistence"
                                                   },
                                                   "min_duration_ms": {
                                                     "type": "integer",
@@ -3427,19 +2915,7 @@
                                                     "type": "array",
                                                     "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                                     "items": {
-                                                      "title": "Disclosure Position",
-                                                      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                                      "type": "string",
-                                                      "enum": [
-                                                        "prominent",
-                                                        "footer",
-                                                        "audio",
-                                                        "subtitle",
-                                                        "overlay",
-                                                        "end_card",
-                                                        "pre_roll",
-                                                        "companion"
-                                                      ]
+                                                      "$ref": "#/$defs/DisclosurePosition"
                                                     },
                                                     "minItems": 1,
                                                     "uniqueItems": true
@@ -3574,31 +3050,7 @@
                         "type": "object",
                         "properties": {
                           "digital_source_type": {
-                            "title": "Digital Source Type",
-                            "description": "IPTC-aligned classification of AI involvement in producing this content",
-                            "type": "string",
-                            "enum": [
-                              "digital_capture",
-                              "digital_creation",
-                              "trained_algorithmic_media",
-                              "composite_with_trained_algorithmic_media",
-                              "algorithmic_media",
-                              "composite_capture",
-                              "composite_synthetic",
-                              "human_edits",
-                              "data_driven_media"
-                            ],
-                            "enumDescriptions": {
-                              "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
-                              "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
-                              "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
-                              "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
-                              "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
-                              "composite_capture": "Multiple digital captures composited together without AI",
-                              "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
-                              "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
-                              "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
-                            }
+                            "$ref": "#/$defs/DigitalSourceType"
                           },
                           "ai_tool": {
                             "type": "object",
@@ -3734,19 +3186,7 @@
                                       "minProperties": 1,
                                       "properties": {
                                         "persistence": {
-                                          "title": "Disclosure Persistence",
-                                          "description": "How long the disclosure must persist during content playback or display",
-                                          "type": "string",
-                                          "enum": [
-                                            "continuous",
-                                            "initial",
-                                            "flexible"
-                                          ],
-                                          "enumDescriptions": {
-                                            "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
-                                            "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
-                                            "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
-                                          }
+                                          "$ref": "#/$defs/DisclosurePersistence"
                                         },
                                         "min_duration_ms": {
                                           "type": "integer",
@@ -3757,19 +3197,7 @@
                                           "type": "array",
                                           "description": "Preferred disclosure positions in priority order. The first position a format supports should be used.",
                                           "items": {
-                                            "title": "Disclosure Position",
-                                            "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
-                                            "type": "string",
-                                            "enum": [
-                                              "prominent",
-                                              "footer",
-                                              "audio",
-                                              "subtitle",
-                                              "overlay",
-                                              "end_card",
-                                              "pre_roll",
-                                              "companion"
-                                            ]
+                                            "$ref": "#/$defs/DisclosurePosition"
                                           },
                                           "minItems": 1,
                                           "uniqueItems": true
@@ -4307,10 +3735,116 @@
           ]
         }
       ]
+    },
+    "MediaChannel": {
+      "title": "Media Channel",
+      "description": "Standardized advertising media channels describing how buyers allocate budget. Channels are planning abstractions, not technical substrates. See the Media Channel Taxonomy specification for detailed definitions.",
+      "type": "string",
+      "enum": [
+        "display",
+        "olv",
+        "social",
+        "search",
+        "ctv",
+        "linear_tv",
+        "radio",
+        "streaming_audio",
+        "podcast",
+        "dooh",
+        "ooh",
+        "print",
+        "cinema",
+        "email",
+        "gaming",
+        "retail_media",
+        "influencer",
+        "affiliate",
+        "product_placement",
+        "sponsored_intelligence"
+      ],
+      "enumDescriptions": {
+        "display": "Digital display advertising (banners, native, rich media) across web and app",
+        "olv": "Online video advertising outside CTV (pre-roll, outstream, in-app video)",
+        "social": "Social media platforms (Facebook, Instagram, TikTok, LinkedIn, etc.)",
+        "search": "Search engine advertising and search networks",
+        "ctv": "Connected TV and streaming on television screens",
+        "linear_tv": "Traditional broadcast and cable television",
+        "radio": "Traditional AM/FM radio broadcast",
+        "streaming_audio": "Digital audio streaming services (Spotify, Pandora, etc.)",
+        "podcast": "Podcast advertising (host-read or dynamically inserted)",
+        "dooh": "Digital out-of-home screens in public spaces",
+        "ooh": "Classic out-of-home (physical billboards, transit, etc.)",
+        "print": "Newspapers, magazines, and other print publications",
+        "cinema": "Movie theater advertising",
+        "email": "Email advertising and sponsored newsletter content",
+        "gaming": "In-game advertising across platforms",
+        "retail_media": "Retail media networks and commerce marketplaces (Amazon, Walmart, Instacart)",
+        "influencer": "Creator and influencer marketing partnerships",
+        "affiliate": "Affiliate networks, comparison sites, and performance-based partnerships",
+        "product_placement": "Product placement, branded content, and sponsorship integrations",
+        "sponsored_intelligence": "Sponsored Intelligence \u2014 advertising within AI assistants, AI search, and generative AI experiences via the reversed data flow"
+      }
+    },
+    "DigitalSourceType": {
+      "title": "Digital Source Type",
+      "description": "IPTC-aligned classification of AI involvement in producing this content",
+      "type": "string",
+      "enum": [
+        "digital_capture",
+        "digital_creation",
+        "trained_algorithmic_media",
+        "composite_with_trained_algorithmic_media",
+        "algorithmic_media",
+        "composite_capture",
+        "composite_synthetic",
+        "human_edits",
+        "data_driven_media"
+      ],
+      "enumDescriptions": {
+        "digital_capture": "Captured by a digital device (camera, scanner, screen recording) with no AI involvement",
+        "digital_creation": "Created by a human using digital tools (Photoshop, Illustrator, After Effects) without AI generation",
+        "trained_algorithmic_media": "Generated entirely by a trained AI model (DALL-E, Midjourney, Stable Diffusion, Sora)",
+        "composite_with_trained_algorithmic_media": "Human-created content combined with AI-generated elements (e.g., photo with AI background)",
+        "algorithmic_media": "Produced by deterministic algorithms without machine learning (procedural generation, rule-based systems)",
+        "composite_capture": "Multiple digital captures composited together without AI",
+        "composite_synthetic": "Composite of multiple elements where at least one is AI-generated (e.g., stock photo composited with AI-generated background)",
+        "human_edits": "Content augmented, corrected, or enhanced by humans using non-generative tools",
+        "data_driven_media": "Assembled from structured data feeds (DCO templates, product catalogs, weather-triggered variants)"
+      }
+    },
+    "DisclosurePersistence": {
+      "title": "Disclosure Persistence",
+      "description": "How long the disclosure must persist during content playback or display",
+      "type": "string",
+      "enum": [
+        "continuous",
+        "initial",
+        "flexible"
+      ],
+      "enumDescriptions": {
+        "continuous": "Disclosure must remain visible or audible throughout the entire content display duration. For video and audio, this means the full playback duration. For static formats (display, DOOH), this means the full display slot. For DOOH specifically, 'content duration' means the ad's display slot within the rotation, not the screen's full rotation cycle.",
+        "initial": "Disclosure must appear at the start of content for a minimum duration before it may be removed. Pair with min_duration_ms in render_guidance or creative brief to specify the required duration.",
+        "flexible": "Disclosure presence is sufficient; placement timing and duration are at the publisher's discretion"
+      }
+    },
+    "DisclosurePosition": {
+      "title": "Disclosure Position",
+      "description": "Where a required disclosure should appear within a creative. Used by creative briefs to specify disclosure placement and by formats to declare which positions they can render.",
+      "type": "string",
+      "enum": [
+        "prominent",
+        "footer",
+        "audio",
+        "subtitle",
+        "overlay",
+        "end_card",
+        "pre_roll",
+        "companion"
+      ]
     }
   },
   "_bundled": {
-    "generatedAt": "2026-04-22T09:42:38.502Z",
+    "generatedAt": "2026-04-28T12:32:22.847Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

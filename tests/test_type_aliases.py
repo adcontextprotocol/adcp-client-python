@@ -210,8 +210,6 @@ def test_all_asset_type_aliases_exported():
 def test_discriminated_union_aliases_point_to_correct_types():
     """Test that discriminated union aliases point to the correct generated types."""
     from adcp.types._generated import (
-        CreativeItem1,
-        CreativeItem2,
         DaastAsset1,
         DaastAsset2,
         PreviewRender1,
@@ -233,7 +231,6 @@ def test_discriminated_union_aliases_point_to_correct_types():
     # DAAST assets
     assert UrlDaastAsset is DaastAsset1
     assert InlineDaastAsset is DaastAsset2
-
 
 
 def test_semantic_aliases_can_be_imported_from_main_package():
