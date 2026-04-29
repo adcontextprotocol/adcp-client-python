@@ -49,6 +49,8 @@ SCENARIOS = [
     "force_creative_status",
     "force_account_status",
     "force_media_buy_status",
+    "force_create_media_buy_arm",
+    "force_task_completion",
     "force_session_status",
     "simulate_delivery",
     "simulate_budget_spend",
@@ -59,6 +61,10 @@ SCENARIOS = [
     "seed_plan",
     "seed_media_buy",
 ]
+
+_MAX_TASK_ID = 128
+_MAX_MESSAGE = 2000
+_MAX_RESULT_BYTES = 256 * 1024  # 256 KB soft cap per AdCP 3.0.1
 
 
 class TestControllerError(Exception):
@@ -162,6 +168,89 @@ class TestControllerStore:
 
         Returns:
             {"previous_state": str, "current_state": str}
+        """
+        raise NotImplementedError
+
+    async def force_create_media_buy_arm(
+        self,
+        arm: str,
+        task_id: str | None = None,
+        message: str | None = None,
+        *,
+        account: dict[str, Any] | None = None,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Register a single-shot directive for the next create_media_buy call.
+
+        The directive is consumed by the next create_media_buy call from the
+        same authenticated sandbox account, then cleared. A second registration
+        before consumption overwrites the first.
+
+        Args:
+            arm: Response arm — ``'submitted'`` or ``'input-required'``.
+            task_id: Required when ``arm='submitted'``. The seller MUST emit
+                this exact value on the next create_media_buy task envelope
+                and accept it on subsequent tasks/get calls within the same
+                sandbox account. Max 128 chars.
+            message: Optional plain-text note surfaced on the response.
+                Max 2000 chars.
+            account: Caller-supplied account object from the MCP request.
+                Implementations use this for single-shot-per-account isolation.
+            context: Optional ToolContext from the server's context_factory.
+
+        Returns:
+            ForcedDirectiveSuccess::
+
+                {"success": True, "forced": {"arm": str, "task_id"?: str}}
+
+        Raises:
+            TestControllerError: with code ``"NOT_FOUND"`` if the caller
+                account is not recognized, or ``"INVALID_PARAMS"`` on
+                validation failure.
+        """
+        raise NotImplementedError
+
+    async def force_task_completion(
+        self,
+        task_id: str,
+        result: dict[str, Any],
+        *,
+        account: dict[str, Any] | None = None,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Resolve a previously-submitted task to ``'completed'``.
+
+        Isolation and idempotency contract:
+
+        - **Cross-account replay** — raise ``TestControllerError("NOT_FOUND", ...)``
+          when the task_id was registered by a different sandbox account.
+        - **Identical-params replay** — idempotent; return the same
+          ``StateTransitionSuccess``.
+        - **Diverging-params replay** against a terminal task — raise
+          ``TestControllerError("INVALID_TRANSITION", ...,
+          current_state="completed")``.
+
+        Args:
+            task_id: Task handle to resolve. Max 128 chars.
+            result: Completion payload (non-empty object). Implementations
+                SHOULD validate it against the response branch for the task's
+                original method and MUST reject payloads that fail that check
+                with ``TestControllerError("INVALID_PARAMS", ...)``.
+            account: Caller-supplied account object from the MCP request.
+                Used for cross-account isolation.
+            context: Optional ToolContext from the server's context_factory.
+
+        Returns:
+            StateTransitionSuccess::
+
+                {"success": True, "previous_state": "submitted",
+                 "current_state": "completed"}
+
+        Raises:
+            TestControllerError: with code ``"NOT_FOUND"`` if the task_id
+                is unknown or owned by a different account,
+                ``"INVALID_TRANSITION"`` if the task is already terminal and
+                params diverge, or ``"INVALID_PARAMS"`` on validation failure.
         """
         raise NotImplementedError
 
@@ -414,6 +503,73 @@ async def _handle_test_controller(
                 termination_reason=scenario_params.get("termination_reason"),
                 **extra,
             )
+        elif scenario == "force_create_media_buy_arm":
+            arm = scenario_params.get("arm") or ""
+            if arm not in ("submitted", "input-required"):
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "arm must be 'submitted' or 'input-required'",
+                )
+            raw_task_id = scenario_params.get("task_id")
+            task_id: str | None = (
+                raw_task_id.strip() if isinstance(raw_task_id, str) else None
+            )
+            if not task_id:
+                task_id = None
+            if arm == "submitted" and not task_id:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "task_id is required when arm is 'submitted'",
+                )
+            if task_id and len(task_id) > _MAX_TASK_ID:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"task_id must be at most {_MAX_TASK_ID} characters",
+                )
+            message = scenario_params.get("message")
+            if message is not None and len(str(message)) > _MAX_MESSAGE:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"message must be at most {_MAX_MESSAGE} characters",
+                )
+            result = await method(
+                arm=arm,
+                task_id=task_id,
+                message=message,
+                account=params.get("account"),
+                **extra,
+            )
+        elif scenario == "force_task_completion":
+            raw_task_id = scenario_params.get("task_id")
+            task_id = raw_task_id.strip() if isinstance(raw_task_id, str) else None
+            if not task_id:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "Missing required parameter: 'task_id'",
+                )
+            if len(task_id) > _MAX_TASK_ID:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"task_id must be at most {_MAX_TASK_ID} characters",
+                )
+            result_value = scenario_params.get("result")
+            if not isinstance(result_value, dict) or not result_value:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    "result must be a non-empty object",
+                )
+            result_bytes = len(json.dumps(result_value).encode("utf-8"))
+            if result_bytes > _MAX_RESULT_BYTES:
+                return _controller_error(
+                    "INVALID_PARAMS",
+                    f"result payload exceeds {_MAX_RESULT_BYTES // 1024} KB limit",
+                )
+            result = await method(
+                task_id=task_id,
+                result=result_value,
+                account=params.get("account"),
+                **extra,
+            )
         elif scenario == "simulate_delivery":
             result = await method(
                 media_buy_id=scenario_params["media_buy_id"],
@@ -546,29 +702,19 @@ def register_test_controller(
         description="Compliance test controller. Sandbox only, not for production use.",
     )
 
-    # Override schema with the proper comply_test_controller inputSchema
+    # Override schema with the proper comply_test_controller inputSchema.
+    # Derived from SCENARIOS so it can't drift from the dispatcher.
     tool.parameters = {
         "type": "object",
         "properties": {
             "account": {"type": "object"},
             "scenario": {
                 "type": "string",
-                "enum": [
-                    "list_scenarios",
-                    "force_creative_status",
-                    "force_account_status",
-                    "force_media_buy_status",
-                    "force_session_status",
-                    "simulate_delivery",
-                    "simulate_budget_spend",
-                    "seed_product",
-                    "seed_pricing_option",
-                    "seed_creative",
-                    "seed_plan",
-                    "seed_media_buy",
-                ],
+                # Derived from SCENARIOS so the enum never drifts from the dispatcher.
+                "enum": ["list_scenarios"] + SCENARIOS,
             },
             "params": {"type": "object"},
+            "account": {"type": "object"},
             "context": {"type": "object"},
         },
         "required": ["scenario"],
