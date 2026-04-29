@@ -526,6 +526,11 @@ async def _handle_test_controller(
                     "INVALID_PARAMS",
                     f"task_id must be at most {_MAX_TASK_ID} characters",
                 )
+            # Forced.task_id is only valid for arm='submitted'; strip it for
+            # 'input-required' so stores can't inadvertently echo it into the
+            # Forced object (which has extra="forbid" in the response schema).
+            if arm == "input-required":
+                task_id = None
             message = scenario_params.get("message")
             if message is not None and len(str(message)) > _MAX_MESSAGE:
                 return _controller_error(

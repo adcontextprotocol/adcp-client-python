@@ -225,6 +225,23 @@ async def test_arm_whitespace_task_id_treated_as_missing() -> None:
     assert resp["error"] == "INVALID_PARAMS"
 
 
+@pytest.mark.asyncio
+async def test_arm_task_id_stripped_for_input_required() -> None:
+    """task_id is silently dropped for arm='input-required'.
+
+    Forced.extra='forbid' in the response schema means a store that echoes
+    task_id on input-required would produce an invalid response. The
+    dispatcher strips it before calling the store.
+    """
+    store = _ArmStore()
+    resp = await _handle_test_controller(
+        store,
+        _arm_req({"arm": "input-required", "task_id": "should-be-dropped"}, account=_ACCOUNT_A),
+    )
+    assert resp["success"] is True
+    assert "task_id" not in resp["forced"]
+
+
 # ===========================================================================
 # force_task_completion
 # ===========================================================================
