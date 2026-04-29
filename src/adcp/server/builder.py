@@ -115,10 +115,30 @@ class ADCPServerBuilder:
         serve(server, name="my-seller")
     """
 
-    def __init__(self, name: str, *, version: str = "1.0.0") -> None:
+    def __init__(
+        self,
+        name: str,
+        *,
+        version: str = "1.0.0",
+        adcp_version: str | None = None,
+    ) -> None:
+        from adcp._version import resolve_adcp_version
+
         self.name = name
         self.version = version
+        self._adcp_version: str = resolve_adcp_version(adcp_version)
         self._handlers: dict[str, Callable[..., Any]] = {}
+
+    def get_adcp_version(self) -> str:
+        """Return the AdCP protocol release this server is pinned to.
+
+        Resolved at construction from the ``adcp_version`` kwarg, with
+        fallback to the SDK's compile-time pin (``ADCP_VERSION``
+        packaged with the wheel). Stage 2 plumbing — Stage 3 will use
+        this to select which schema set the server validates handler
+        responses against and which capability shape it advertises.
+        """
+        return self._adcp_version
 
     def __getattr__(self, task_name: str) -> Callable[..., Any]:
         """Return a decorator that registers a handler for the given task."""
