@@ -703,9 +703,9 @@ class ADCPClient:
         Returns:
             A fully configured ``ADCPClient`` backed by the injected session.
         """
-        from uuid import uuid4
+        from uuid import uuid4 as _uuid4
 
-        effective_id = agent_id or f"in-process-{uuid4().hex[:8]}"
+        effective_id = agent_id if agent_id is not None else f"in-process-{_uuid4().hex[:8]}"
         config = AgentConfig(
             id=effective_id,
             # RFC 2606 .invalid TLD — passes the http:// validator, guaranteed
@@ -720,7 +720,11 @@ class ADCPClient:
             validate_features=validate_features,
             capabilities_ttl=capabilities_ttl,
         )
-        assert isinstance(instance.adapter, MCPAdapter)
+        if not isinstance(instance.adapter, MCPAdapter):
+            raise RuntimeError(  # pragma: no cover
+                "from_mcp_client: expected MCPAdapter but got "
+                f"{type(instance.adapter).__name__}"
+            )
         instance.adapter._inject_session(client)
         return instance
 
