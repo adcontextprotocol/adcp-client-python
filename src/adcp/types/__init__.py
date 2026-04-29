@@ -303,6 +303,7 @@ from adcp.types._generated import (
     RightsPricingOption,
     RightsTerms,
     Security,
+    SellerAgentReference,
     SiCapabilities,
     SiGetOfferingRequest,
     SiGetOfferingResponse,
@@ -1032,6 +1033,7 @@ __all__ = [
     "ReportingWebhook",
     "AuthenticationScheme",
     "Security",
+    "SellerAgentReference",
     # Asset-content types (payload describing types — distinct from
     # the `<Type>FormatAsset` slot types in aliases.py)
     "AudioContent",

@@ -10,6 +10,7 @@ repos:
       - id: black
         language_version: python3.11
         args: [--line-length=100]
+        exclude: ^src/adcp/types/generated_poc/
 
   # Ruff linting (ignoring line-length for now - black handles it)
   - repo: https://github.com/astral-sh/ruff-pre-commit

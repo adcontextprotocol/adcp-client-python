@@ -93,6 +93,41 @@ def generate_consolidated_exports() -> str:
         # compliance.comply_test_controller_response (test-only enum). Export both
         # with qualified names; aliases/init re-export core Error as the canonical one.
         "Error": {"error", "comply_test_controller_response"},
+        # FormatId: AdCP 3.0.1 renamed core/format-id.json title from "Format ID"
+        # to "Format Reference (Structured Object)". The canonical class in
+        # core/format_id.py is now FormatReferenceStructuredObject, but every
+        # bundled-message file inlines a per-message duplicate still named
+        # FormatId. Without this entry, the bundled stale duplicate would win
+        # the bare-name slot in _generated.py and shadow the canonical class.
+        # aliases.py re-exports the canonical FormatReferenceStructuredObject as
+        # the public FormatId.
+        "FormatId": {
+            "build_creative_request",
+            "build_creative_response",
+            "calibrate_content_request",
+            "create_content_standards_request",
+            "create_media_buy_request",
+            "create_media_buy_response",
+            "get_content_standards_response",
+            "get_creative_delivery_response",
+            "get_creative_features_request",
+            "get_media_buy_artifacts_response",
+            "get_products_request",
+            "get_products_response",
+            "list_content_standards_response",
+            "list_creative_formats_request",
+            "list_creative_formats_response",
+            "list_creatives_request",
+            "list_creatives_response",
+            "package_request",
+            "preview_creative_request",
+            "preview_creative_response",
+            "sync_creatives_request",
+            "update_content_standards_request",
+            "update_media_buy_request",
+            "update_media_buy_response",
+            "validate_content_delivery_request",
+        },
     }
 
     special_imports = []
@@ -168,11 +203,19 @@ def generate_consolidated_exports() -> str:
         for module_name in sorted(modules_seen):
             # Non-bundled versions use the stem as the alias suffix
             # (_PackageFromGetMediaBuysResponse). Bundled versions prepend
-            # "Bundled" so they don't collide when the same filename exists
-            # under both roots.
+            # "Bundled<Subdir>" so the same filename existing under both
+            # bundled/creative/ and bundled/media_buy/ produces distinct
+            # qualified names (otherwise the duplicate triggers a mypy
+            # incompatible-import error at import time).
             parts = module_name.split(".")
             stem = parts[-1].replace("_", " ").title().replace(" ", "")
-            prefix = "Bundled" if parts[0] == "bundled" else ""
+            if parts[0] == "bundled" and len(parts) >= 3:
+                subdir = parts[1].replace("_", " ").title().replace(" ", "")
+                prefix = f"Bundled{subdir}"
+            elif parts[0] == "bundled":
+                prefix = "Bundled"
+            else:
+                prefix = ""
             qualified_name = f"_{type_name}From{prefix}{stem}"
             import_str = (
                 f"from adcp.types.generated_poc.{module_name}"
