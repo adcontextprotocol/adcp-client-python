@@ -494,13 +494,13 @@ async def test_owned_client_default_allows_non_standard_ports() -> None:
     """The default ``WebhookSender`` (no operator client, no
     ``allowed_destination_ports``) accepts AdCP-spec-compliant buyers on
     non-standard ports — :9443 (Tomcat default), :4443 (Spring Boot
-    default), path-routed multi-tenant gateways. The IP-range check still
-    applies; we just don't impose a port filter unless the operator
-    explicitly opts in.
+    default), path-routed multi-tenant gateways.
 
-    Sender-level positive analog of test_ssrf_default_imposes_no_port_filter
-    in test_jwks.py — confirms the permissive default reaches the actual
-    delivery path, not just the underlying validator."""
+    Sender-level positive analog of ``test_ssrf_default_imposes_no_port_filter``
+    in ``test_jwks.py`` — confirms the permissive default reaches the
+    actual delivery path, not just the underlying validator. The IP-range
+    check is enforced by the validator and covered separately by
+    ``test_owned_client_rejects_loopback_destination``."""
     from unittest.mock import patch
 
     captured: list[tuple[str, int]] = []
@@ -642,8 +642,51 @@ async def test_owned_client_ignores_https_proxy_env() -> None:
                         status="completed",
                     )
 
+    # The per-request httpx.AsyncClient construction passes a `transport`
+    # kwarg; the eager __aenter__ construction does not. Asserting both
+    # `transport` is present AND `trust_env=False` is set proves the
+    # captured kwargs are from the per-request construction, not the
+    # eager-init that has nothing to do with HTTPS_PROXY hardening.
+    assert "transport" in captured_kwargs, (
+        "captured kwargs do not include `transport` — the assertion below "
+        "is reading the eager __aenter__ construction, not the per-request "
+        "construction the proxy-bypass guard lives on"
+    )
     assert captured_kwargs.get("trust_env") is False, (
         "WebhookSender's per-request httpx.AsyncClient must construct with "
         "trust_env=False — otherwise HTTPS_PROXY env vars defeat the IP pin"
     )
     assert captured_kwargs.get("follow_redirects") is False
+
+
+@pytest.mark.asyncio
+async def test_owned_client_rejects_hostile_url_before_signing() -> None:
+    """Validate-before-sign defense in depth: a hostile URL raises
+    SSRFValidationError synchronously inside ``build_async_ip_pinned_transport``,
+    BEFORE ``sign_webhook`` is called. No Ed25519/ES256 signature ever
+    materializes in process memory for a URL that fails the SSRF guard —
+    anything that snapshots locals on exception (faulthandler, custom
+    logging) cannot capture a signature that wasn't generated.
+
+    Regression guard for the validate-before-sign reorder in _send_bytes."""
+    from unittest.mock import patch
+
+    from adcp.signing import SSRFValidationError
+
+    sender = WebhookSender.from_jwk(
+        {**WEBHOOK_JWK, "d": WEBHOOK_JWK["_private_d_for_test_only"]},
+    )
+    with patch("adcp.webhook_sender.sign_webhook") as mock_sign:
+        async with sender:
+            with pytest.raises(SSRFValidationError):
+                await sender.send_mcp(
+                    url="https://127.0.0.1/webhooks/adcp",
+                    task_id="task_no_sign",
+                    task_type="create_media_buy",
+                    status="completed",
+                )
+    assert mock_sign.called is False, (
+        "sign_webhook was called even though SSRF validation rejected the URL — "
+        "the signature would sit in process memory until the rejection. "
+        "Validate-before-sign ordering is broken; check _send_bytes."
+    )
