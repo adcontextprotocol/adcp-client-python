@@ -85,14 +85,26 @@ class VerifiedSigner:
 class VerifierCapability:
     """The `request_signing` block a verifier advertises on get_adcp_capabilities.
 
-    Defaults to `covers_content_digest="required"`: body integrity must be
-    authenticated end-to-end. With `"either"`, a MITM inside TLS termination
-    (reverse proxy, service mesh) can swap bodies freely on unsigned-digest
-    requests — only pick `"either"` if you've weighed that tradeoff.
+    Defaults to ``covers_content_digest="either"`` per the AdCP 3.0 schema
+    (`get-adcp-capabilities-response.json` declares this as the default
+    explicitly, with `"required"` recommended for spend-committing
+    operations and AdCP 4.0 expected to recommend `"required"` more
+    broadly).
+
+    Operators who want body-integrity authentication end-to-end on
+    every request — closing the MITM-inside-TLS-termination case where
+    a reverse proxy or service mesh can swap bodies on unsigned-digest
+    requests — opt INTO ``covers_content_digest="required"`` explicitly,
+    or use ``required_for=frozenset({"create_media_buy", ...})`` to
+    promote spend-committing operations selectively.
+
+    The webhook-signing profile (``adcp.signing.webhook_verifier``) hard-
+    codes ``"required"`` regardless of this default — webhook bodies
+    always carry signed digests.
     """
 
     supported: bool = True
-    covers_content_digest: CoversDigestPolicy = "required"
+    covers_content_digest: CoversDigestPolicy = "either"
     required_for: frozenset[str] = field(default_factory=frozenset)
     supported_for: frozenset[str] = field(default_factory=frozenset)
 

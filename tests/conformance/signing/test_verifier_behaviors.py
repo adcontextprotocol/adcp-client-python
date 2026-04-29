@@ -346,6 +346,11 @@ def test_verify_options_rejects_positional() -> None:
 # ---- 6a: VerifierCapability default ----
 
 
-def test_verifier_capability_defaults_to_required_digest() -> None:
+def test_verifier_capability_defaults_to_either_digest() -> None:
+    """The AdCP 3.0 schema declares ``covers_content_digest`` default as
+    ``"either"`` (``get-adcp-capabilities-response.json``); ``"required"``
+    is opt-in for spend-committing operations. AdCP 4.0 is expected to
+    recommend ``"required"`` more broadly. Operators promote operations
+    selectively via ``required_for=frozenset({"create_media_buy", ...})``."""
     cap = VerifierCapability()
-    assert cap.covers_content_digest == "required"
+    assert cap.covers_content_digest == "either"
