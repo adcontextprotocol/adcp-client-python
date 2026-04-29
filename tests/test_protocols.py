@@ -932,10 +932,11 @@ class TestA2AContextId:
 
     @pytest.mark.asyncio
     async def test_rejected_task_result_content(self, a2a_config):
-        """TASK_STATE_REJECTED — adapter returns SUBMITTED status with 'rejected'
-        in metadata and the TextPart message. REJECTED is terminal (task_id is
-        cleared) but routes through the non-COMPLETED else-branch in
-        _process_task_response, so data=None."""
+        """TASK_STATE_REJECTED — adapter routes through the non-COMPLETED
+        else-branch in _process_task_response (a2a.py:618-673), returning
+        ``status=SUBMITTED``, ``data=None``, ``success=True`` (the branch
+        hardcodes success — see follow-up tracker), and metadata carrying
+        the lowercased state, the task id, and the context id."""
         adapter = A2AAdapter(a2a_config)
 
         rejected = create_mock_a2a_task(
@@ -954,17 +955,33 @@ class TestA2AContextId:
 
         assert result.status == TaskStatus.SUBMITTED
         assert result.data is None
+        assert result.error is None
+        assert result.success is True  # FIXME: semantically wrong for REJECTED
         assert result.message == "policy violation: brand safety"
         assert result.metadata is not None
         assert result.metadata["status"] == "rejected"
+        assert result.metadata["task_id"] == "task-rejected-content"
+        assert result.metadata["context_id"] == "ctx-rej"
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "_process_task_response only extracts adcp_error DataParts for COMPLETED "
+            "tasks; rejected tasks lose structured error detail. When this gap is "
+            "fixed (issue #263), flip the test to assert the extracted error "
+            "instead of removing xfail."
+        ),
+    )
     @pytest.mark.asyncio
-    async def test_rejected_task_adcp_error_datapart_not_extracted(self, a2a_config):
-        """TASK_STATE_REJECTED with a DataPart carrying adcp_error — the
-        DataPart is silently dropped because _process_task_response only
-        calls _extract_result_from_task for COMPLETED tasks.  This test
-        documents the current gap: callers cannot read structured error
-        detail from a rejected task's artifact without a separate fix."""
+    async def test_rejected_task_adcp_error_datapart_extracted(self, a2a_config):
+        """TASK_STATE_REJECTED with a DataPart carrying adcp_error.
+
+        Strict-xfail: today the DataPart's structured error detail is silently
+        dropped because the adapter only calls ``_extract_result_from_task``
+        for COMPLETED tasks. This test asserts the desired post-fix behavior
+        (error code accessible to callers); ``strict=True`` flips to failure
+        the moment someone fixes the gap so we don't keep documenting it as
+        endorsed."""
         adapter = A2AAdapter(a2a_config)
 
         rejected = create_mock_a2a_task(
@@ -984,20 +1001,51 @@ class TestA2AContextId:
         with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
             result = await adapter._call_a2a_tool("create_media_buy", {})
 
+        # Desired post-fix: structured error surfaces on TaskResult.
+        assert result.error is not None
+        assert "POLICY_VIOLATION" in (result.error or "")
+
+    @pytest.mark.asyncio
+    async def test_rejected_task_drops_datapart_keeps_textpart(self, a2a_config):
+        """TASK_STATE_REJECTED with both a DataPart and a TextPart — pin the
+        current behavior: the TextPart message is preserved, the DataPart's
+        structured payload is not extracted (tracked separately in the strict
+        xfail above). This guards against a regression that drops the human
+        message too."""
+        adapter = A2AAdapter(a2a_config)
+
+        rejected = create_mock_a2a_task(
+            task_id="task-rejected-mixed",
+            context_id="ctx-rej-mixed",
+            state="rejected",
+            parts=[
+                DataPart(data={"adcp_error": {"code": "POLICY_VIOLATION", "message": "rejected"}}),
+                TextPart(text="rejected by server"),
+            ],
+        )
+        mock_a2a_client = AsyncMock()
+        mock_a2a_client.send_message = AsyncMock(
+            return_value=SendMessageSuccessResponse(result=rejected)
+        )
+
+        with patch.object(adapter, "_get_a2a_client", return_value=mock_a2a_client):
+            result = await adapter._call_a2a_tool("create_media_buy", {})
+
         assert result.status == TaskStatus.SUBMITTED
-        # Gap: adcp_error DataPart is not extracted for non-COMPLETED states.
-        # A future fix should surface structured error detail here.
         assert result.data is None
         assert result.message == "rejected by server"
         assert result.metadata is not None
         assert result.metadata["status"] == "rejected"
+        assert result.metadata["task_id"] == "task-rejected-mixed"
+        assert result.metadata["context_id"] == "ctx-rej-mixed"
 
     @pytest.mark.asyncio
     async def test_auth_required_task_result_content(self, a2a_config):
-        """TASK_STATE_AUTH_REQUIRED — non-terminal state. Adapter returns
-        SUBMITTED status with 'auth-required' in metadata and the challenge
-        message from the TextPart.  Callers should surface this to trigger
-        an auth flow before re-submitting."""
+        """TASK_STATE_AUTH_REQUIRED — non-terminal state. Same else-branch
+        as REJECTED in _process_task_response, so the assertions parallel
+        ``test_rejected_task_result_content``: status SUBMITTED, data None,
+        metadata with state, task id, and context id, plus the challenge
+        message extracted from the TextPart."""
         adapter = A2AAdapter(a2a_config)
 
         auth_task = create_mock_a2a_task(
@@ -1016,6 +1064,8 @@ class TestA2AContextId:
 
         assert result.status == TaskStatus.SUBMITTED
         assert result.data is None
+        assert result.error is None
+        assert result.success is True
         assert result.message == "OAuth required: redirect to https://auth.example.com"
         assert result.metadata is not None
         assert result.metadata["status"] == "auth-required"
