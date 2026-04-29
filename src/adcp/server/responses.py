@@ -22,10 +22,13 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from adcp.server.helpers import valid_actions_for_status
+
+_logger = logging.getLogger("adcp.server")
 
 
 def _serialize(items: list[Any]) -> list[Any]:
@@ -79,6 +82,14 @@ def capabilities_response(
             idempotency=store.capability(),
         )
     """
+    if compliance_testing is not None and not idempotency:
+        _logger.warning(
+            "capabilities_response: adcp.idempotency not declared. "
+            "The AdCP 3.0.1 storyboard runner may downgrade to v2 mode and "
+            "cascade failures across idempotency-dependent tracks. "
+            "Pass idempotency={'supported': False} to declare non-support, "
+            "or idempotency=store.capability() to declare support."
+        )
     adcp_info: dict[str, Any] = {"major_versions": major_versions or [3]}
     if idempotency:
         adcp_info["idempotency"] = idempotency

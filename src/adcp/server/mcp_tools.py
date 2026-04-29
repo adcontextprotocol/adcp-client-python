@@ -839,6 +839,7 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
+                "account": {"type": "object"},
                 "scenario": {
                     "type": "string",
                     "enum": [
@@ -849,6 +850,11 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                         "force_session_status",
                         "simulate_delivery",
                         "simulate_budget_spend",
+                        "seed_product",
+                        "seed_pricing_option",
+                        "seed_creative",
+                        "seed_plan",
+                        "seed_media_buy",
                     ],
                 },
                 "params": {"type": "object"},

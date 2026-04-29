@@ -52,6 +52,12 @@ SCENARIOS = [
     "force_session_status",
     "simulate_delivery",
     "simulate_budget_spend",
+    # seed_* scenarios pre-populate storyboard fixtures (AdCP 3.0.1)
+    "seed_product",
+    "seed_pricing_option",
+    "seed_creative",
+    "seed_plan",
+    "seed_media_buy",
 ]
 
 
@@ -188,6 +194,77 @@ class TestControllerStore:
 
         Returns:
             {"simulated": {...}}
+        """
+        raise NotImplementedError
+
+    async def seed_product(
+        self,
+        fixture: dict[str, Any] | None = None,
+        product_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate a product fixture for storyboard tests (AdCP 3.0.1).
+
+        Returns:
+            {"product_id": str}
+        """
+        raise NotImplementedError
+
+    async def seed_pricing_option(
+        self,
+        fixture: dict[str, Any] | None = None,
+        product_id: str | None = None,
+        pricing_option_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate a pricing option fixture for storyboard tests (AdCP 3.0.1).
+
+        Returns:
+            {"pricing_option_id": str}
+        """
+        raise NotImplementedError
+
+    async def seed_creative(
+        self,
+        fixture: dict[str, Any] | None = None,
+        creative_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate a creative fixture for storyboard tests (AdCP 3.0.1).
+
+        Returns:
+            {"creative_id": str}
+        """
+        raise NotImplementedError
+
+    async def seed_plan(
+        self,
+        fixture: dict[str, Any] | None = None,
+        plan_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate a plan fixture for storyboard tests (AdCP 3.0.1).
+
+        Returns:
+            {"plan_id": str}
+        """
+        raise NotImplementedError
+
+    async def seed_media_buy(
+        self,
+        fixture: dict[str, Any] | None = None,
+        media_buy_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate a media buy fixture for storyboard tests (AdCP 3.0.1).
+
+        Returns:
+            {"media_buy_id": str}
         """
         raise NotImplementedError
 
@@ -353,6 +430,37 @@ async def _handle_test_controller(
                 media_buy_id=scenario_params.get("media_buy_id"),
                 **extra,
             )
+        elif scenario == "seed_product":
+            result = await method(
+                fixture=scenario_params.get("fixture"),
+                product_id=scenario_params.get("product_id"),
+                **extra,
+            )
+        elif scenario == "seed_pricing_option":
+            result = await method(
+                fixture=scenario_params.get("fixture"),
+                product_id=scenario_params.get("product_id"),
+                pricing_option_id=scenario_params.get("pricing_option_id"),
+                **extra,
+            )
+        elif scenario == "seed_creative":
+            result = await method(
+                fixture=scenario_params.get("fixture"),
+                creative_id=scenario_params.get("creative_id"),
+                **extra,
+            )
+        elif scenario == "seed_plan":
+            result = await method(
+                fixture=scenario_params.get("fixture"),
+                plan_id=scenario_params.get("plan_id"),
+                **extra,
+            )
+        elif scenario == "seed_media_buy":
+            result = await method(
+                fixture=scenario_params.get("fixture"),
+                media_buy_id=scenario_params.get("media_buy_id"),
+                **extra,
+            )
         else:
             return _controller_error("UNKNOWN_SCENARIO", f"Unknown scenario: {scenario}")
     except TestControllerError as e:
@@ -442,6 +550,7 @@ def register_test_controller(
     tool.parameters = {
         "type": "object",
         "properties": {
+            "account": {"type": "object"},
             "scenario": {
                 "type": "string",
                 "enum": [
@@ -452,6 +561,11 @@ def register_test_controller(
                     "force_session_status",
                     "simulate_delivery",
                     "simulate_budget_spend",
+                    "seed_product",
+                    "seed_pricing_option",
+                    "seed_creative",
+                    "seed_plan",
+                    "seed_media_buy",
                 ],
             },
             "params": {"type": "object"},

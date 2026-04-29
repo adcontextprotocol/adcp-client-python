@@ -305,6 +305,7 @@ def serve(
     *,
     name: str = "adcp-agent",
     port: int | None = None,
+    host: str | None = None,
     transport: str = "streamable-http",
     instructions: str | None = None,
     test_controller: TestControllerStore | None = None,
@@ -315,6 +316,7 @@ def serve(
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
+    stateless_http: bool = True,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -371,6 +373,20 @@ def serve(
             entirely (not recommended — the cap is the only guard
             against adversarial payloads exhausting Pydantic validation
             CPU/memory). See :mod:`adcp.server._size_limit`.
+        host: Network interface to bind to (MCP transports only). Defaults
+            to the ``ADCP_HOST`` environment variable, then ``"0.0.0.0"``
+            (all interfaces). Use ``"127.0.0.1"`` for local-only
+            development. Container deployments (Fly.io, k8s, Cloud Run)
+            require ``"0.0.0.0"`` so the process listens on the
+            container's external interface.
+        stateless_http: When ``True`` (default), sets FastMCP's
+            ``stateless_http`` and ``json_response`` flags for the
+            streamable-http transport. The AdCP storyboard runner expects
+            synchronous JSON responses; the default streaming-SSE mode
+            closes the ASGI response without completing, causing the
+            runner to report ``overall_status: "unreachable"``. Set to
+            ``False`` only if your client explicitly requires SSE
+            streaming (MCP transports only).
 
     Security:
         This function does NOT configure authentication. In production,
@@ -428,6 +444,7 @@ def serve(
             handler,
             name=name,
             port=port,
+            host=host,
             transport=transport,
             instructions=instructions,
             test_controller=test_controller,
@@ -435,6 +452,7 @@ def serve(
             middleware=middleware,
             advertise_all=advertise_all,
             max_request_size=max_request_size,
+            stateless_http=stateless_http,
         )
     else:
         valid = ", ".join(sorted(("a2a", "streamable-http", "sse", "stdio")))
@@ -523,6 +541,7 @@ def _serve_mcp(
     *,
     name: str,
     port: int | None,
+    host: str | None = None,
     transport: str,
     instructions: str | None,
     test_controller: TestControllerStore | None,
@@ -530,17 +549,20 @@ def _serve_mcp(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
+    stateless_http: bool = True,
 ) -> None:
     """Start an MCP server."""
     mcp = create_mcp_server(
         handler,
         name=name,
         port=port,
+        host=host,
         instructions=instructions,
         include_test_controller=test_controller is not None,
         context_factory=context_factory,
         middleware=middleware,
         advertise_all=advertise_all,
+        stateless_http=stateless_http,
     )
 
     if test_controller is not None:
@@ -644,11 +666,13 @@ def create_mcp_server(
     *,
     name: str = "adcp-agent",
     port: int | None = None,
+    host: str | None = None,
     instructions: str | None = None,
     include_test_controller: bool = False,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
+    stateless_http: bool = True,
 ) -> Any:
     """Create a FastMCP server from an ADCP handler without starting it.
 
@@ -692,6 +716,16 @@ def create_mcp_server(
             :func:`~adcp.server.get_tools_for_handler` for semantics;
             use ``True`` for spec-compliance storyboards or when you
             deliberately want to expose a ``not_supported`` tool.
+        host: Network interface to bind to. Defaults to the ``ADCP_HOST``
+            environment variable, then ``"0.0.0.0"`` (all interfaces).
+            Use ``"127.0.0.1"`` for local-only development.
+        stateless_http: When ``True`` (default), sets FastMCP's
+            ``stateless_http`` and ``json_response`` flags before the
+            server starts. Required for the AdCP storyboard runner to
+            connect; the streaming-SSE default causes
+            ``ASGI callable returned without completing response``.
+            Set to ``False`` only if your client explicitly requires
+            SSE streaming.
 
     Returns:
         A configured FastMCP server instance. Call ``mcp.run()`` to start,
@@ -744,7 +778,12 @@ def create_mcp_server(
     from mcp.server.fastmcp import FastMCP
 
     resolved_port = port or int(os.environ.get("PORT", "3001"))
+    resolved_host = host if host is not None else (os.environ.get("ADCP_HOST") or "0.0.0.0")
     mcp = FastMCP(name, instructions=instructions, port=resolved_port)
+    mcp.settings.host = resolved_host
+    if stateless_http:
+        mcp.settings.stateless_http = True
+        mcp.settings.json_response = True
     _register_handler_tools(
         mcp,
         handler,
