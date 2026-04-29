@@ -15,6 +15,40 @@ The TypeScript scaffold at [`src/lib/server/decisioning/`](https://github.com/ad
 
 The v6.0 framework owns wire mapping, account resolution, async tasks, idempotency, RFC 9421 signing, schema validation, sandbox routing, status-change projection, and lifecycle observability. Adopters describe their platform once via per-specialism `Protocol` classes; the framework does the rest.
 
+### Existing `adcp` Python package
+
+The `adcp` package ([`adcontextprotocol/adcp-client-python`](https://github.com/adcontextprotocol/adcp-client-python), PyPI: `adcp`, currently v4.0.0 with `ADCP_VERSION=3.0.0`) **already exposes a mature server surface**:
+
+- `adcp.server` — `ADCPHandler` class-pattern, `adcp_server(...)` decorator builder, `serve()` entry point, MCP + A2A transport mounts (`mcp_tools.py`, `a2a_server.py`), auth middleware, governance/content-standards/brand/sponsored-intelligence handlers
+- `adcp.signing` — RFC 9421 signer/verifier (`signer.py`, `verifier.py`, `jws.py`, `digest.py`), JWKS resolver (`jwks.py`), IP-pinned transport (`ip_pinned_transport.py`), JCS canonicalization (`canonical.py`, backed by `rfc8785`), replay protection (`replay.py`), revocation (`revocation.py`, `revocation_fetcher.py`), webhook signer/verifier
+- `adcp.types` — generated wire types from `schemas/cache/3.0.0/`; ergonomic + alias layer; Pydantic v2 models
+- `adcp._idempotency` + `adcp.server.idempotency/` — idempotency middleware
+- `adcp.testing`, `adcp.validation`, `adcp.webhook_sender`, `adcp.webhook_receiver`, `adcp.protocols.{mcp,a2a}`
+
+**v6.0 DecisioningPlatform is a successor pattern** to `ADCPHandler` — Protocol-driven instead of class-inheritance, hybrid `T | TaskHandoff[T]` returns instead of method-name-explosion, multi-tenant primitives. It lands as a new module **inside the existing `adcp` package**, not as a separate `adcp-server` package. The framework reuses the existing primitives in `adcp.signing` / `adcp._idempotency` / `adcp.server` / `adcp.types` rather than building parallel implementations.
+
+### Module path
+
+The framework lives at `adcp.decisioning.*`:
+
+| Submodule | Contents |
+|---|---|
+| `adcp.decisioning` | Re-exports the public surface: `DecisioningPlatform`, `TaskHandoff`, `RequestContext`, `Account`, `serve`, `create_adcp_server_from_platform` |
+| `adcp.decisioning.specialisms` | 12 `Protocol` classes — `SalesPlatform`, `AudiencePlatform`, `SignalsPlatform`, `CreativeAdServerPlatform`, `CreativeTemplatePlatform`, `CreativeGenerativePlatform`, `CampaignGovernancePlatform`, `PropertyListsPlatform`, `CollectionListsPlatform`, `ContentStandardsPlatform`, `BrandRightsPlatform`, plus `MeasurementVerificationPlatform` (preview) |
+| `adcp.decisioning.dispatch` | Adapter seam from `Protocol`-impl methods to existing `adcp.server.serve` handler shape; `asyncio.to_thread` sync dispatch; `TaskHandoff` detection; `validate_platform()` |
+| `adcp.decisioning.tenant_registry` | Multi-tenant primitive composing `adcp.server.serve(factory=...)` |
+| `adcp.decisioning.task_registry` | `TaskRegistry` Protocol + `InMemoryTaskRegistry` + `SqlAlchemyTaskRegistry` (HITL task lifecycle — new, distinct from idempotency middleware) |
+| `adcp.decisioning.status_changes` | `InMemoryStatusChangeBus` + `DbBackedStatusChangeBus` |
+| `adcp.decisioning.delivery` | `McpWebhookDelivery` + `A2aTaskDelivery` (composed from existing `adcp.webhook_sender` + `adcp.server.a2a_server`) |
+| `adcp.decisioning.testing`, `adcp.decisioning.dev` | `make_test_context`, `JwksFixture` |
+
+### Reuse vs. build
+
+The framework's foundation primitives are mostly already in `adcp`. Implementation work splits into:
+
+- **Audit gaps** in existing primitives against this RFC's locked decisions — pin-and-bind SNI / redirects / port allowlist, RFC 9421 covered-fields lock + tenant-scoped JWKS, idempotency keying tuple `(key, account, tool, body_hash)`, Pydantic `extra='forbid'` default, webhook envelope `operation_id`, multi-tenant `factory=` shape on `serve()`. Each gap is a small fix PR against the existing module.
+- **Add new layers** — `adcp.decisioning.*` modules listed above. The largest new piece is the HITL `task_registry` (idempotency middleware doesn't cover task lifecycle) and the multi-tenant `tenant_registry`.
+
 **Reference reading:**
 
 - [`docs/proposals/decisioning-platform-v1.md`](https://github.com/adcontextprotocol/adcp-client/blob/main/docs/proposals/decisioning-platform-v1.md) — original TS design proposal
@@ -55,6 +89,7 @@ The v6.0 framework owns wire mapping, account resolution, async tasks, idempoten
 | Singleton-mode `Account.id='training-agent'` for every caller | Singleton synthesizes per-principal `Account.id` | Closed buyer-to-buyer idempotency-cache leak. |
 | Flat `(key_id) -> jwk` JWKS resolver | Tenant-scoped `(tenant_id, key_id) -> jwk`; required signature components locked | Closed JWKS auth-confusion across tenants; spec-compliant covered-fields list. |
 | `WebhookTransport` override accepted any `httpx.AsyncClient` | Override requires `WebhookTransport` Protocol with `enforces_ssrf_at_connect=True` | Operator override silently bypassing SSRF was a configuration footgun. |
+| Separate `adcp-server` package on PyPI | Lands inside existing `adcp` package at `adcp.decisioning.*`; package version v4 → v5 | The `adcp` package already ships RFC 9421 signing, JCS canonicalization, IP-pinned transport, JWKS, idempotency middleware, generated wire types, MCP + A2A transports. Splitting them across two packages would mean duplicating half the foundation; in-package landing reuses the primitives instead. |
 
 ## Scope
 
@@ -79,7 +114,7 @@ The v6.0 framework owns wire mapping, account resolution, async tasks, idempoten
 
 **Goals:**
 
-1. **Wire-shape parity** with the TypeScript SDK at the AdCP wire version (`schemas/cache/3.0.0/`). A buyer's MCP/A2A request that succeeds against `@adcp/client` must succeed against `adcp-server` with the same response payload, modulo serialization order. Verified by a wire-parity test suite (see § *Validation matrix*).
+1. **Wire-shape parity** with the TypeScript SDK at the AdCP wire version (`schemas/cache/3.0.0/`). A buyer's MCP/A2A request that succeeds against `@adcp/client` must succeed against `adcp` with the same response payload, modulo serialization order. Verified by a wire-parity test suite (see § *Validation matrix*).
 2. **Adopter-experience parity.** The Python SKILL has the same canonical example as the TypeScript SKILL, same fields, same error codes, same migration sketch.
 3. **Migration path** from the salesagent's current Flask + per-adapter shape that doesn't require a rewrite — `@tool` decorators stay, per-adapter classes become `SalesPlatform` impls, framework absorbs idempotency / signing / sandbox / status-change.
 4. **Async-or-sync method support.** Adopter methods can be either; the framework awaits async handlers natively and runs sync handlers via `asyncio.to_thread`. Flask salesagent is sync today; FastAPI adopters are async; both must work without forking.
@@ -123,16 +158,16 @@ from typing import Protocol, Generic, TypeVar, Awaitable, Union
 from collections.abc import Awaitable as _Awaitable
 
 # Wire types — auto-generated from schemas/cache/3.0.0/*.json via
-# datamodel-code-generator. Adopters import from adcp_server.types.
-from adcp_server.types import (
+# datamodel-code-generator. Adopters import from adcp.types.
+from adcp.types import (
     GetProductsRequest, GetProductsResponse,
     CreateMediaBuyRequest, CreateMediaBuySuccess,
     UpdateMediaBuyRequest, UpdateMediaBuySuccess,
     GetMediaBuyDeliveryRequest, GetMediaBuyDeliveryResponse,
     CreativeAsset, SyncCreativesRow,
 )
-from adcp_server.async_outcome import TaskHandoff
-from adcp_server.context import RequestContext
+from adcp.decisioning.async_outcome import TaskHandoff
+from adcp.decisioning.context import RequestContext
 
 TMeta = TypeVar("TMeta", default=dict)  # PEP 696 default via typing_extensions on 3.10-3.12
 
@@ -319,7 +354,7 @@ The TypeScript brand-marker uses `Symbol.for(...)` because JS sometimes runs unt
 The Python implementation is a small class with a single private slot:
 
 ```python
-# adcp_server/async_outcome.py
+# adcp/decisioning/async_outcome.py
 from typing import Generic, TypeVar, Callable, Awaitable
 
 TResult = TypeVar("TResult")
@@ -348,7 +383,7 @@ No `WeakValueDictionary`, no module-level storage, no strong-ref bookkeeping. Th
 `ctx.handoff_to_task(fn)`:
 
 ```python
-# adcp_server/context.py
+# adcp/decisioning/context.py
 class RequestContext(Generic[TMeta]):
     account: Account[TMeta]
     state: StateReader  # workflow steps, proposals, governance JWS
@@ -481,7 +516,7 @@ This matters because Flask salesagent is synchronous (sync DB drivers, sync requ
 **Custom thread pool for `serve(thread_pool_size=...)`.** `asyncio.to_thread` dispatches to the loop's default executor. `serve()` MUST install a custom `ThreadPoolExecutor` via `loop.set_default_executor(...)` *before* the first dispatch, otherwise the kwarg is silently ignored and the runtime uses Python's stdlib default (`min(32, os.cpu_count() + 4)` on 3.13):
 
 ```python
-# adcp_server/serve.py
+# adcp/decisioning/serve.py
 def serve(server, *, thread_pool_size: int | None = None, **kwargs):
     loop = asyncio.new_event_loop()
     if thread_pool_size is not None:
@@ -504,7 +539,7 @@ def serve(server, *, thread_pool_size: int | None = None, **kwargs):
 ### Error model (`AdcpError`)
 
 ```python
-# adcp_server/errors.py
+# adcp/decisioning/errors.py
 from typing import Literal, TypedDict, NotRequired
 
 # 45 spec error codes from schemas/cache/3.0.0/enums/error-code.json
@@ -588,7 +623,7 @@ Wire types come from `schemas/cache/<version>/*.json` via codegen (`datamodel-co
 **Extra-field policy defaults to `'forbid'`** in every environment. Forward-compat with newer spec versions is an explicit operator decision via `ADCP_FORWARD_COMPAT=permissive` (or `serve(strict_wire_validation=False)`), tied to a known spec-rev rollout — not an env-name heuristic.
 
 ```python
-# adcp_server/types/_config.py
+# adcp/decisioning/types/_config.py
 import os
 
 def _default_extra() -> Literal['ignore', 'forbid']:
@@ -630,7 +665,7 @@ This runbook lives in the SKILL alongside the configuration reference; alert rul
 ### Status-change bus
 
 ```python
-# adcp_server/status_changes.py
+# adcp/decisioning/status_changes.py
 import threading
 from typing import Callable, Literal, TypedDict
 
@@ -699,7 +734,7 @@ Each `DecisioningAdcpServer` owns a `StatusChangeBus` accessible as `server.stat
 
 ```python
 # Wire the durable bus alongside an existing SQLA stack:
-from adcp_server.status_changes import DbBackedStatusChangeBus
+from adcp.decisioning.status_changes import DbBackedStatusChangeBus
 from salesagent.db import engine
 
 server = create_adcp_server_from_platform(
@@ -982,7 +1017,7 @@ def validate_push_notification_token(token: str) -> None:
 **DNS rebinding: pin-and-bind ships in v6.0.** The validator inspects the literal hostname, but a buyer can register `https://rebind.attacker.com/` with a TTL-0 A-record that returns `8.8.8.8` at validate time and `127.0.0.1` at fetch time. v6.0 ships pin-and-bind delivery via a custom `httpx.AsyncHTTPTransport` so the IP resolved at request time (after re-checking SSRF ranges) is the IP the framework connects to — while preserving the original hostname for TLS SNI verification:
 
 ```python
-# adcp_server/webhooks/_pin_and_bind.py
+# adcp/decisioning/webhooks/_pin_and_bind.py
 import asyncio
 import socket
 import httpx
@@ -1033,7 +1068,7 @@ _ALLOWED_WEBHOOK_PORTS: frozenset[int] = frozenset({443, 8443})
 **Operator override.** `serve(webhook_client=...)` accepts a `WebhookTransport` (defined below), not a raw `httpx.AsyncClient` — the override MUST satisfy a Protocol the framework checks at boot. A naive override bypasses pin-and-bind silently if all the framework asks for is "an httpx client"; the Protocol gate prevents that.
 
 ```python
-# adcp_server/webhooks/transport.py
+# adcp/decisioning/webhooks/transport.py
 class WebhookTransport(Protocol):
     """Protocol the framework requires of any webhook delivery transport.
     Implementations MUST enforce SSRF range checks against the connection
@@ -1081,7 +1116,7 @@ The `WebhookPayload` envelope above is the **MCP** wire shape. A2A buyers receiv
 Framework dispatches at the transport layer:
 
 ```python
-# adcp_server/delivery/__init__.py
+# adcp/decisioning/delivery/__init__.py
 class TerminalDelivery(Protocol):
     """Carries a TaskRecord's terminal state to the buyer's transport."""
 
@@ -1108,7 +1143,7 @@ The framework selects the delivery based on the transport that originated the ta
 Framework-owned. Three implementations ship with v6.0; adopters pick the one matching their stack.
 
 ```python
-# adcp_server/task_registry.py
+# adcp/decisioning/task_registry.py
 from typing import Protocol, Generic, TypeVar
 from datetime import datetime
 
@@ -1142,7 +1177,7 @@ Salesagent wires `SqlAlchemyTaskRegistry` so the registry shares the existing co
 # the adopter's own migration tree:
 from alembic.config import Config
 from alembic import command
-from adcp_server.migrations import alembic_dir
+from adcp.decisioning.migrations import alembic_dir
 
 cfg = Config()
 cfg.set_main_option('script_location', str(alembic_dir()))
@@ -1155,7 +1190,7 @@ Adopter's own Alembic tree is untouched. Framework upgrades bump the framework's
 
 ```python
 # Salesagent wiring:
-from adcp_server.task_registry import SqlAlchemyTaskRegistry
+from adcp.decisioning.task_registry import SqlAlchemyTaskRegistry
 from salesagent.db import engine
 
 serve(
@@ -1422,11 +1457,11 @@ If you have **both** signed-request auth and `account_id` in the body (rare — 
 
 ### Testing handlers
 
-`adcp_server.testing` ships fixtures so adopter unit tests don't need a running server:
+`adcp.decisioning.testing` ships fixtures so adopter unit tests don't need a running server:
 
 ```python
 # tests/test_my_seller.py
-from adcp_server.testing import make_test_context
+from adcp.decisioning.testing import make_test_context
 from my_seller import HelloSeller
 
 def test_create_media_buy_returns_sync_success():
@@ -1457,7 +1492,7 @@ serve(server, authenticate=None)  # framework dispatches without verifying signa
 # the JWKS at localhost:9999/.well-known/jwks.json, and configures
 # the verifier against it. Use to test the signed-request code path
 # end-to-end without external infrastructure.
-from adcp_server.dev import JwksFixture
+from adcp.decisioning.dev import JwksFixture
 with JwksFixture(port=9999) as fixture:
     serve(
         server,
@@ -1475,21 +1510,22 @@ with JwksFixture(port=9999) as fixture:
 
 **Realistic scope.** Full salesagent migration is calendar-months of engineering, not weeks. The migration touches every tool dispatch path, the tenant model, the audit-log integration, OAuth callbacks, and the existing per-adapter abstraction layer. The plan below is staged so each stage ships independently — the merge seam in `serve()` accepts v5-style handler entries alongside v6 platforms, so half-migrated states are deployable.
 
-**Stage 1 — Foundation (1-2 weeks).** Install `adcp-server`, wire the auth boundary, register a single tenant.
+**Stage 1 — Foundation (1-2 weeks).** Bump the salesagent's `adcp` pin to `>=5.0,<6.0`, switch the existing tool entry points from `ADCPHandler`-style registration to the `create_adcp_server_from_platform` adapter in handler-bag mode (no `Protocol` impls yet — the merge seam keeps existing `@tool` handlers running). This proves the framework loads against the salesagent's existing wire surface without any per-tool migration.
 
 ```python
-from adcp_server import serve, create_adcp_server_from_platform
-from adcp_server.task_registry import SqlAlchemyTaskRegistry
+from adcp.decisioning import serve, create_adcp_server_from_platform
+from adcp.decisioning.task_registry import SqlAlchemyTaskRegistry
 from salesagent.db import engine
 
 # At this stage, server still routes everything through the existing
-# v5 handler bag — no platforms yet. Just gets the framework alongside
-# the existing app for a known-quiet tool.
-v5_handlers = load_v5_handlers()
+# salesagent handler bag — no platforms yet. The framework runs
+# alongside the existing app and inherits the existing adcp.signing /
+# adcp._idempotency primitives unchanged.
+existing_handlers = load_existing_handlers()
 
 server = create_adcp_server_from_platform(
     platform=None,  # all-handler mode
-    handlers=v5_handlers,
+    handlers=existing_handlers,
     task_registry=SqlAlchemyTaskRegistry(engine),
 )
 serve(server, authenticate=signed_request_verifier(...))
@@ -1546,9 +1582,12 @@ serve(factory=lambda ctx: registry.resolve_by_host(ctx.host).server, ...)
 
 **Estimated total effort:**
 
-- **Framework build (this RFC):** ~18-21 weeks focused engineering, accounting for A2A delivery (~1 week), `DbBackedStatusChangeBus` outbox-poll + optional Postgres `LISTEN/NOTIFY` (~3 days), JCS canonicalization + `tests/test_jcs_parity.py` (~3-4 days), `JwksFixture` (~2 days), `examples/hello_seller.py` + `MaybeAsync`/`SalesResult` aliases (small). Calendar: ~5-6 months with one engineer + AI assistance.
+The earlier 18-21-week estimate assumed a greenfield port building all primitives from scratch. Landing inside `adcp` reuses the existing `adcp.signing` / `adcp._idempotency` / `adcp.server` / `adcp.types` foundation, which compresses the budget substantially.
+
+- **Audit + gap-fixes against existing primitives:** ~2-3 weeks total. Each audit issue (pin-and-bind, RFC 9421 verifier, idempotency keying, `extra='forbid'`, webhook `operation_id`, multi-tenant `factory=`) is a small fix-PR; some may already be compliant.
+- **New `adcp.decisioning.*` layers:** ~8-10 weeks. The largest pieces are `task_registry` with `SqlAlchemyTaskRegistry` (~1.5 weeks), `tenant_registry` (~1 week), 12 Protocol classes (~2 weeks parallelizable), `dispatch` adapter seam (~1 week), `DbBackedStatusChangeBus` (~3 days), A2A delivery (~1 week), JCS parity test (~3-4 days), examples + SKILL (~1 week). Calendar: ~3-4 months with one engineer + AI assistance, ~6-8 weeks if work parallelizes across 2-3 contributors after the audit phase.
 - **Salesagent migration:** ~8-12 weeks calendar after framework lands. Stage 2 (per-specialism conversion) is the long pole; Stage 1 + 3 + 4 are 1-2 weeks each.
-- **Total runway from PR #290 merge to "salesagent on v6.0 in production":** ~6-8 months.
+- **Total runway from PR #290 merge to "salesagent on v6.0 in production":** **~4-6 months** (down from 6-8).
 
 Smaller adopters with fewer tools and a single tenant can finish their migration in 2-3 weeks once the framework ships.
 
@@ -1596,11 +1635,11 @@ A complete runnable version ships at [`examples/hello_seller.py`](https://github
 
 ```python
 # examples/hello_seller.py — full runnable file
-from adcp_server import (
+from adcp.decisioning import (
     DecisioningPlatform, DecisioningCapabilities, SingletonAccounts,
     create_adcp_server_from_platform, serve,
 )
-from adcp_server.types import (
+from adcp.types import (
     GetProductsRequest, GetProductsResponse,
     CreateMediaBuyRequest, CreateMediaBuySuccess,
 )
@@ -1659,16 +1698,17 @@ Wire types are Pydantic 2 `BaseModel`. `extra` policy default:
 
 **RFC recommendation: `'forbid'` default in all environments**, with `ADCP_FORWARD_COMPAT=permissive` (or `serve(strict_wire_validation=False)`) as the explicit opt-in for rolling spec upgrades. Adopters override per-model via `model_config = ConfigDict(...)` if they need different behavior on a specific field. Python is one-directionally stricter than TS (whose Zod default is `.strip()`), which is safe — anything Python accepts, TS accepts.
 
-### 3. Library naming + packaging cadence
+### 3. Packaging — in-package landing
 
-Two naming schemes:
+**RFC recommendation: land DecisioningPlatform inside the existing `adcp` package** at `adcp.decisioning.*`. The `adcp` package on PyPI is at v4.0.0; v5.0.0 introduces the `DecisioningPlatform` Protocol-driven pattern alongside the existing `ADCPHandler` class-pattern (no removal in v5; `ADCPHandler` deprecation handled in a later major when the migration path proves out).
 
-- `pip install adcp-server` — short, idiomatic Python, no namespacing
-- `pip install @adcp/python-server` — matches TypeScript scope, but `@scope/name` packages don't render naturally on PyPI
+Earlier RFC drafts proposed a separate `adcp-server` package — that's rejected for three reasons:
 
-**RFC recommendation: `adcp-server`** on PyPI; document the scope correspondence in the README.
+1. **The foundation primitives are already in `adcp`.** RFC 9421 signing, JCS canonicalization, IP-pinned transport, JWKS resolver, idempotency middleware, generated wire types, MCP + A2A transports — all already shipped at v4. Splitting them across two packages would mean duplicating or vendoring half of `adcp.signing` into `adcp-server`, which creates two parallel implementations adopters have to keep in sync.
+2. **Cross-package version coupling is a worse failure mode** than in-package version coupling. With a single package, `pip install adcp>=5.0,<6.0` pins everything wire-relevant atomically. With two packages, adopters hit the "did I update both?" footgun.
+3. **The existing `ADCPHandler` adopters need a migration story, not a fork.** A separate package would force them to choose: stay on `adcp` v4 or switch to `adcp-server`. Landing inside the package lets them keep their existing imports while adopting the new pattern incrementally.
 
-**Version pinning:** the Python SDK ships its own version independent of the TypeScript SDK, but both pin to the same `ADCP_VERSION` (currently `3.0.0`). When AdCP 3.1 ships, both SDKs cut new majors that bump `ADCP_VERSION`; adopters who pin `adcp-server>=3.0,<4.0` and `@adcp/client@>=3.0.0 <4.0.0` get the same wire surface.
+**Version pinning:** the Python package version (`5.0.0`) ships its own cadence independent of the TypeScript SDK, but both pin to the same `ADCP_VERSION` (currently `3.0.0`, file at `src/adcp/ADCP_VERSION`). When AdCP 3.1 ships, both SDKs cut new majors that bump `ADCP_VERSION`; adopters who pin `adcp>=5.0,<6.0` and `@adcp/client@>=3.0.0 <4.0.0` get the same wire surface.
 
 ### 4. CI matrix — Python 3.10 / 3.11 / 3.12 / 3.13?
 
@@ -1886,7 +1926,7 @@ The Python port MUST pass equivalents of these TypeScript test files. Wire-shape
 8. **HTTP signatures (RFC 9421):** `http-message-signatures` (woodruffw). Required covered components locked: `("@method", "@target-uri", "@authority", "content-digest", "created", "expires")`. Max clock skew 60s. JWKS resolver is tenant-scoped — `(tenant_id, key_id) -> public_jwk`, rejecting keys outside the active tenant's JWKS.
 9. **Webhook envelope:** matches `mcp-webhook-payload.json` including `operation_id` (buyer-supplied, echoed). MCP transport uses `WebhookPayload`; A2A transport uses native `Task` + `TaskStatusUpdateEvent` with the AdCP payload nested in `status.message.parts[].data`. Both ship in v6.0 — A2A delivery is not v6.1-deferred.
 10. **Tenant health:** two orthogonal axes — `verification: 'pending' | 'healthy' | 'unverified' | 'failed'` and `operator_gate: 'enabled' | 'disabled'`. `resolve_by_host` returns `TenantResolution(tenant_id, config, server)` (named, not tuple-indexed) only when verification is healthy/unverified AND operator_gate is enabled.
-11. **Library name:** `adcp-server` on PyPI. `ADCP_VERSION` pinned in lockstep with `@adcp/client`.
+11. **Packaging:** lands inside the existing `adcp` package at `adcp.decisioning.*`; package version bumps to v5.0.0 when DecisioningPlatform ships. `ADCP_VERSION` pinned in lockstep with `@adcp/client` (file at `src/adcp/ADCP_VERSION`). No separate `adcp-server` package — foundation primitives already live in `adcp.signing`, `adcp._idempotency`, `adcp.server`, `adcp.types`; the framework reuses them rather than building parallel implementations.
 12. **Python versions:** 3.10 minimum; CI 3.10 / 3.11 / 3.12 / 3.13. PEP 696 TypeVar defaults via `typing_extensions>=4.12`. `TenantConfig` is a dataclass (not `TypedDict + Generic` — that combination is a runtime `TypeError` on 3.10).
 13. **Type checking:** framework runs mypy strict + pyright strict on every PR; adopter expectations advisory. Public return types use named aliases (`MaybeAsync[T]`, `SalesResult[T]`) instead of inline four-way unions for coding-agent legibility.
 14. **Spec consolidation (adcp#3392):** v6.0 ships hybrid handoff on `create_media_buy` + `sync_creatives` only (the two tools whose response schemas inline the `Submitted` arm). The other 4 HITL-eligible tools (`update_media_buy`, `build_creative`, `sync_catalogs`, `sync_event_sources`) surface lifecycle via `publish_status_change` in v6.0 with `update_media_buy` returning sync-success without the `status` field for in-flight re-approval (NOT `status='pending_approval'` — that value is not in `MediaBuyStatus`). adcp#3392 is a v6.1 release blocker; if spec consolidation stalls, v6.1 ships hybrid handoff via the `tasks/submit` task-router envelope projection, not deferred.
@@ -1896,13 +1936,28 @@ The Python port MUST pass equivalents of these TypeScript test files. Wire-shape
 
 If the salesagent team and Python team accept this RFC:
 
-1. Create `adcontextprotocol/adcp-python-server` repo with the SKILL, generated types, and core framework primitives (`AdcpError`, `TaskHandoff`, `RequestContext`, observability hooks).
-2. Port `validate_platform()` + the 12 specialism `Protocol` classes.
-3. Port `tenant_registry` + JWKS validator.
-4. Port `task_registry` Protocol + the two v6.0 impls (in-memory, SQLAlchemy). Reserve the `AsyncpgTaskRegistry` name; ship in v6.1 when an adopter needs it.
-5. Port the `mock-seller`, `broadcast-tv`, and `identity-graph` worked examples — same shape as TypeScript, idiomatic Python.
-6. Wire `serve(authenticate=signed_request_verifier(...), webhooks=...)` with pin-and-bind delivery default.
-7. Open the salesagent migration PR — convert one adapter end-to-end as a proof point.
-8. CI parity — ensure the Python `tests/test_*.py` matrix above passes against the same `schemas/cache/3.0.0/` cache the TypeScript SDK uses, including the new `tests/test_wire_parity.py` against TS-produced golden files.
+**Audit existing primitives** (small fix-PRs against modules already in `adcp`):
 
-Track progress at `adcontextprotocol/adcp-client-python` — RFC adoption tracker + sub-issues per locked decision.
+1. **`adcp.signing.ip_pinned_transport` audit** — confirm SNI preservation on host rewrite, `follow_redirects=False`, port allowlist `{443, 8443}`, IPv6 zone-ID handling, all-`getaddrinfo`-answers SSRF check. Fix any gaps found.
+2. **`adcp.signing.verifier` + `adcp.signing.jwks` audit** — confirm RFC 9421 covered-fields lock (`@method`, `@target-uri`, `@authority`, `content-digest`, `created`, `expires`), 60s skew bound, tenant-scoped `(tenant_id, key_id) -> jwk` resolver shape. Fix any gaps.
+3. **`adcp._idempotency` + `adcp.server.idempotency/` audit** — confirm keying tuple is `(idempotency_key, account_id, tool_name, sha256(canonical_json(body)))`, not just `(key, account)`. Wire `tests/test_jcs_parity.py` against TS golden files. Fix any gaps.
+4. **`adcp.types` audit** — confirm `BASE_CONFIG.extra='forbid'`; surface `ADCP_FORWARD_COMPAT=permissive` as the opt-in.
+5. **`adcp.webhook_sender` audit** — confirm `WebhookPayload` includes `operation_id` (buyer-supplied, echoed). Fix if missing.
+6. **`adcp.server.serve` audit** — confirm `factory=` kwarg supports per-tenant routing (the `TenantRegistry` use case). Add if missing.
+
+**Add new layers** at `adcp.decisioning.*`:
+
+7. `adcp.decisioning.types` — `TaskHandoff`, `RequestContext[TMeta]`, `Account[TMeta]`, `AccountStore` Protocol + `SingletonAccounts`/`ExplicitAccounts`/`FromAuthAccounts` reference impls, `MaybeAsync[T]` / `SalesResult[T]` aliases.
+8. `adcp.decisioning.specialisms.*` — 12 `Protocol` classes (one PR per specialism — parallelizable across contributors once one lands as a template).
+9. `adcp.decisioning.dispatch` — adapter seam from `Protocol` impls to existing `adcp.server.serve` handler shape; `asyncio.to_thread` sync dispatch with custom executor; `TaskHandoff` type-identity detection; `validate_platform()`.
+10. `adcp.decisioning.task_registry` — `TaskRegistry` Protocol + `InMemoryTaskRegistry` + `SqlAlchemyTaskRegistry` (separate Alembic version table `adcp_alembic`). Reserve `AsyncpgTaskRegistry`; ship in v6.1.
+11. `adcp.decisioning.status_changes` — `InMemoryStatusChangeBus` (default) + `DbBackedStatusChangeBus` (outbox-poll default; Postgres `LISTEN/NOTIFY` opt-in).
+12. `adcp.decisioning.delivery` — `McpWebhookDelivery` (composes `adcp.webhook_sender`) + `A2aTaskDelivery` (composes `adcp.server.a2a_server`).
+13. `adcp.decisioning.tenant_registry` — multi-tenant primitive with `verification` + `operator_gate` orthogonal axes; `TenantResolution` named return.
+14. `adcp.decisioning.testing` (`make_test_context`) + `adcp.decisioning.dev` (`JwksFixture`).
+15. `examples/hello_seller.py` (gates on first `SalesPlatform` PR), then `mock_seller`, `broadcast_tv`, `identity_graph` worked examples.
+16. SKILL document (`skills/build-decisioning-platform/SKILL.md`) mirroring TS SKILL, including operator runbook for `ADCP_FORWARD_COMPAT`.
+17. `tests/test_wire_parity.py` against TS-produced golden files.
+18. Open salesagent migration PR — Stage 1 first (handler-bag mode under the new framework, no per-tool migration), then Stages 2-4 incrementally.
+
+Track progress at `adcontextprotocol/adcp-client-python` — RFC adoption tracker + sub-issues per audit and per layer. Audit issues fire first (#1-6) since their findings shape the layers built on top.
