@@ -1688,3 +1688,112 @@ class TestMCPAdapter:
         mock_exit_stack.aclose.assert_called_once()
         assert adapter._exit_stack is None
         assert adapter._session is None
+
+
+class TestFromMcpClientFactory:
+    """Tests for ADCPClient.from_mcp_client() factory method."""
+
+    def _make_mock_session(self) -> AsyncMock:
+        """Return a minimal mock ClientSession."""
+        session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.isError = False
+        mock_result.structuredContent = {"products": []}
+        mock_result.content = []
+        session.call_tool.return_value = mock_result
+        return session
+
+    def test_factory_injects_session(self):
+        """Injected session is wired directly — no URL connection."""
+        from adcp import ADCPClient
+
+        session = self._make_mock_session()
+        client = ADCPClient.from_mcp_client(session, agent_id="test-seller")
+        adapter = client.adapter
+        assert isinstance(adapter, MCPAdapter)
+        assert adapter._session is session
+        assert adapter._session_is_injected is True
+
+    def test_factory_default_agent_id_is_unique(self):
+        """Default agent_id gets a unique in-process token each call."""
+        from adcp import ADCPClient
+
+        session = self._make_mock_session()
+        c1 = ADCPClient.from_mcp_client(session)
+        c2 = ADCPClient.from_mcp_client(session)
+        assert c1.agent_config.id.startswith("in-process-")
+        assert c2.agent_config.id.startswith("in-process-")
+        assert c1.agent_config.id != c2.agent_config.id
+
+    def test_factory_explicit_agent_id(self):
+        """Explicit agent_id is preserved on the AgentConfig."""
+        from adcp import ADCPClient
+
+        session = self._make_mock_session()
+        client = ADCPClient.from_mcp_client(session, agent_id="seller-abc")
+        assert client.agent_config.id == "seller-abc"
+
+    @pytest.mark.asyncio
+    async def test_tool_call_routes_through_injected_session(self):
+        """Tool calls use the injected session, not a URL-based connection."""
+        from adcp import ADCPClient
+
+        session = self._make_mock_session()
+        client = ADCPClient.from_mcp_client(session, agent_id="test-seller")
+
+        result = await client.adapter._call_mcp_tool("get_products", {"brief": "test"})
+
+        session.call_tool.assert_called_once()
+        assert result.success is True
+        assert result.data == {"products": []}
+
+    @pytest.mark.asyncio
+    async def test_close_is_noop_for_injected_session(self):
+        """close() does not call _cleanup_failed_connection for injected sessions."""
+        from adcp import ADCPClient
+
+        session = self._make_mock_session()
+        client = ADCPClient.from_mcp_client(session, agent_id="test-seller")
+
+        with patch.object(
+            client.adapter, "_cleanup_failed_connection", new_callable=AsyncMock
+        ) as mock_cleanup:
+            await client.close()
+            mock_cleanup.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_exit_is_noop(self):
+        """async with exit does not close the injected session."""
+        from adcp import ADCPClient
+
+        session = self._make_mock_session()
+        client = ADCPClient.from_mcp_client(session, agent_id="test-seller")
+
+        with patch.object(
+            client.adapter, "_cleanup_failed_connection", new_callable=AsyncMock
+        ) as mock_cleanup:
+            async with client:
+                pass
+            mock_cleanup.assert_not_called()
+
+    def test_validation_config_is_wired(self):
+        """Validation modes from the factory are applied to the adapter."""
+        from adcp import ADCPClient
+        from adcp.validation.client_hooks import ValidationHookConfig
+
+        session = self._make_mock_session()
+        config = ValidationHookConfig(requests="strict", responses="strict")
+        client = ADCPClient.from_mcp_client(session, validation=config)
+        assert client.adapter.request_validation_mode == "strict"
+        assert client.adapter.response_validation_mode == "strict"
+
+    def test_idempotency_token_is_set(self):
+        """Factory-created client has a unique idempotency token on the adapter."""
+        from adcp import ADCPClient
+
+        session = self._make_mock_session()
+        c1 = ADCPClient.from_mcp_client(session)
+        c2 = ADCPClient.from_mcp_client(session)
+        assert c1.adapter.idempotency_client_token is not None
+        assert c2.adapter.idempotency_client_token is not None
+        assert c1.adapter.idempotency_client_token != c2.adapter.idempotency_client_token

@@ -641,6 +641,89 @@ class ADCPClient:
             client.adapter._restore_active_task_id(active_task_id)
         return client
 
+    @classmethod
+    def from_mcp_client(
+        cls,
+        client: Any,
+        *,
+        agent_id: str | None = None,
+        validation: ValidationHookConfig | None = None,
+        strict_idempotency: bool = False,
+        validate_features: bool = False,
+        capabilities_ttl: float = 3600.0,
+    ) -> ADCPClient:
+        """Create an ADCPClient wrapping a pre-connected MCP ClientSession.
+
+        Parity with JS ``AgentClient.fromMCPClient()`` (v5.19.0). The primary
+        use case is compliance test fleets that wire a full ``ADCPClient``
+        against an in-process MCP server without standing up a loopback HTTP
+        server.
+
+        **Session lifecycle:** the caller owns the session — ``close()`` and
+        ``async with`` exit on the returned client are no-ops. Use your own
+        ``AsyncExitStack`` to scope both the transport and the client::
+
+            import contextlib
+            from mcp import ClientSession
+            from mcp.shared.memory import create_client_server_memory_streams
+
+            async with contextlib.AsyncExitStack() as stack:
+                (c_read, c_write), (s_read, s_write) = await stack.enter_async_context(
+                    create_client_server_memory_streams()
+                )
+                # wire your in-process server to (s_read, s_write) here
+                session = await stack.enter_async_context(
+                    ClientSession(c_read, c_write)
+                )
+                await session.initialize()
+                adcp_client = ADCPClient.from_mcp_client(session, agent_id="test-seller")
+                result = await adcp_client.get_products(GetProductsRequest(...))
+
+        Note:
+            Request signing is not supported on the injected-session path —
+            the signing hook is wired into the HTTP transport layer that is
+            bypassed here. ``signing=`` is intentionally absent from this
+            factory's parameters.
+
+        Args:
+            client: A pre-connected ``mcp.ClientSession`` whose
+                ``initialize()`` has already been awaited.
+            agent_id: Identifier for the wrapped agent used in log messages
+                and error objects. Defaults to a unique ``in-process-XXXXXXXX``
+                token; set this explicitly when running multiple in-process
+                agents concurrently so log lines are distinguishable.
+            validation: Schema-validation modes (same as ``__init__``).
+            strict_idempotency: Verify seller declared idempotency support
+                before each mutating call (same as ``__init__``).
+            validate_features: Gate tool calls on fetched capability
+                declarations (same as ``__init__``).
+            capabilities_ttl: TTL for the capability cache in seconds
+                (same as ``__init__``).
+
+        Returns:
+            A fully configured ``ADCPClient`` backed by the injected session.
+        """
+        from uuid import uuid4
+
+        effective_id = agent_id or f"in-process-{uuid4().hex[:8]}"
+        config = AgentConfig(
+            id=effective_id,
+            # RFC 2606 .invalid TLD — passes the http:// validator, guaranteed
+            # not to route to a real host. Self-documenting in error messages.
+            agent_uri="http://in-process.invalid",
+            protocol=Protocol.MCP,
+        )
+        instance = cls(
+            config,
+            validation=validation,
+            strict_idempotency=strict_idempotency,
+            validate_features=validate_features,
+            capabilities_ttl=capabilities_ttl,
+        )
+        assert isinstance(instance.adapter, MCPAdapter)
+        instance.adapter._inject_session(client)
+        return instance
+
     async def _ensure_idempotency_capability(self) -> None:
         """Verify the seller positively declares idempotency support in capabilities.
 

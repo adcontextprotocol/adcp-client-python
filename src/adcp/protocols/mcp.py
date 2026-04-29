@@ -217,6 +217,18 @@ class MCPAdapter(ProtocolAdapter):
             )
         self._session: Any = None
         self._exit_stack: Any = None
+        # True when the session was injected by ADCPClient.from_mcp_client().
+        # Caller owns the lifecycle — close() is a no-op on injected adapters.
+        self._session_is_injected: bool = False
+
+    def _inject_session(self, session: ClientSession) -> None:
+        """Pre-wire a caller-owned session, bypassing URL-based connection.
+
+        Used by ADCPClient.from_mcp_client(). Once injected, _get_session()
+        returns it immediately and close() is a no-op (caller owns lifecycle).
+        """
+        self._session = session
+        self._session_is_injected = True
 
     async def _cleanup_failed_connection(self, context: str) -> None:
         """
@@ -821,6 +833,8 @@ class MCPAdapter(ProtocolAdapter):
 
     async def close(self) -> None:
         """Close the MCP session and clean up resources."""
+        if self._session_is_injected:
+            return  # caller owns lifecycle; never close an injected session
         await self._cleanup_failed_connection("during close")
 
     # ========================================================================
