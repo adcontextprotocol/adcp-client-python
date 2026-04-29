@@ -95,6 +95,31 @@ class TestValidActionsForStatus:
         assert "sync_creatives" in actions
         assert "cancel" in actions
 
+    def test_pending_activation_is_not_recognized(self) -> None:
+        # AdCP v3 renamed pending_activation to pending_creatives + pending_start.
+        # Lock the rename so a copy-paste from old docs / old SDK code returns
+        # an empty action list rather than silently matching a stale entry.
+        from adcp.server.helpers import MEDIA_BUY_STATE_MACHINE
+
+        assert valid_actions_for_status("pending_activation") == []
+        assert "pending_activation" not in MEDIA_BUY_STATE_MACHINE
+
+    def test_state_machine_keys_match_spec_enum(self) -> None:
+        # Keys must exactly match enums/media-buy-status.json. Terminal
+        # statuses are present with empty action lists. Guards against
+        # future silent drift between the spec enum and the dispatcher.
+        from adcp.server.helpers import MEDIA_BUY_STATE_MACHINE
+
+        assert set(MEDIA_BUY_STATE_MACHINE) == {
+            "pending_creatives",
+            "pending_start",
+            "active",
+            "paused",
+            "completed",
+            "rejected",
+            "canceled",
+        }
+
     def test_unknown_status_empty(self) -> None:
         assert valid_actions_for_status("nonexistent") == []
 
