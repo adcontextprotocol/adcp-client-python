@@ -546,3 +546,98 @@ def test_normalize_passthrough_for_unknown_enum_prefixes() -> None:
     assert out["status"]["state"] == "completed"
     assert out["status"]["message"]["role"] == "user"
     assert out["role"] == "user"
+
+
+# -- SSRF guard regression tests (parity with WebhookSender) ---------------
+
+
+@pytest.mark.asyncio
+async def test_deliver_owned_client_rejects_loopback_destination() -> None:
+    """The legacy ``deliver()`` helper now wires the same per-request
+    IP-pinned transport that ``WebhookSender._send_bytes`` uses (see #299).
+    A buyer-supplied URL pointing at 127.0.0.1 must reject before the
+    POST hits a real socket — the previous unguarded ``httpx.AsyncClient``
+    would have delivered to the loopback address.
+
+    Operator-supplied clients (``client=...``) skip the SSRF guard by
+    design; they own egress policy on their transport."""
+    from adcp.signing import SSRFValidationError
+
+    config = PushNotificationConfig(
+        url="https://127.0.0.1/webhooks/adcp",
+        authentication=PNAuthentication(schemes=["Bearer"], credentials=_BEARER_TOKEN),
+    )
+    payload = create_mcp_webhook_payload(
+        task_id="task_ssrf",
+        task_type="create_media_buy",
+        status="completed",
+    )
+
+    with pytest.raises(SSRFValidationError):
+        await deliver(config, payload)
+
+
+@pytest.mark.asyncio
+async def test_deliver_allow_private_dev_escape_hatch() -> None:
+    """Adopters with dev/CI fixtures posting to internal endpoints
+    pass ``allow_private=True`` to disable the IP-range check. Pin-and-
+    bind still applies (URL gets resolved + connection pinned), and the
+    rest of the contract stands — bytes signed == bytes posted."""
+    from unittest.mock import patch
+
+    config = PushNotificationConfig(
+        url="https://10.0.0.1/webhooks/adcp",
+        authentication=PNAuthentication(schemes=["Bearer"], credentials=_BEARER_TOKEN),
+    )
+    payload = create_mcp_webhook_payload(
+        task_id="task_priv",
+        task_type="create_media_buy",
+        status="completed",
+    )
+
+    # Stub the pinned-transport build with a transport that actually
+    # accepts a body without opening a socket. We're testing the kwarg
+    # plumbing, not the network round-trip.
+    captured: dict[str, Any] = {}
+
+    def fake_build(uri: str, **kwargs: Any) -> Any:
+        captured.update(kwargs)
+        captured["uri"] = uri
+        return httpx.MockTransport(lambda _req: httpx.Response(200))
+
+    with patch(
+        "adcp.signing.ip_pinned_transport.build_async_ip_pinned_transport",
+        side_effect=fake_build,
+    ):
+        response = await deliver(config, payload, allow_private=True)
+
+    assert response.status_code == 200
+    assert captured["allow_private"] is True
+    assert captured["uri"] == "https://10.0.0.1/webhooks/adcp"
+
+
+@pytest.mark.asyncio
+async def test_deliver_operator_supplied_client_skips_ssrf_guard() -> None:
+    """When the operator provides their own ``httpx.AsyncClient``,
+    ``deliver()`` does NOT build a pinned transport — the operator owns
+    SSRF on their transport (vetted egress proxy, ASGI test transport).
+    A request that would fail the SSRF range check under the owned-client
+    path (resolves to a private/loopback IP) succeeds via the operator's
+    MockTransport without any DNS lookup."""
+    # https:// is required by the scheme check; MockTransport captures
+    # the request without a real socket so SSRF range never fires.
+    config = PushNotificationConfig(
+        url="https://operator-trusted.test/webhooks/adcp",
+        authentication=PNAuthentication(schemes=["Bearer"], credentials=_BEARER_TOKEN),
+    )
+    payload = create_mcp_webhook_payload(
+        task_id="task_op",
+        task_type="create_media_buy",
+        status="completed",
+    )
+
+    transport = httpx.MockTransport(lambda _req: httpx.Response(200))
+    async with httpx.AsyncClient(transport=transport) as client:
+        response = await deliver(config, payload, client=client)
+
+    assert response.status_code == 200

@@ -705,6 +705,8 @@ async def deliver(
     extra_headers: Mapping[str, str] | None = None,
     timeout_seconds: float | None = None,
     token_field: str | None = None,
+    allow_private: bool = False,
+    allowed_ports: frozenset[int] | None = None,
 ) -> httpx.Response:
     """Dispatch one legacy-auth webhook in a single call.
 
@@ -728,11 +730,23 @@ async def deliver(
             :func:`create_mcp_webhook_payload` / :func:`create_a2a_webhook_payload`),
             an a2a ``Task`` / ``TaskStatusUpdateEvent``, or a plain dict.
             Models are dumped with ``mode="json", exclude_none=True``.
-        client: Optional shared ``httpx.AsyncClient``. Recommended in
-            production for connection pooling and egress-policy enforcement
-            (a custom ``httpx.BaseTransport`` is the right place to block
-            SSRF to private IPs — the helper validates scheme but cannot
-            see post-DNS resolution without racing TOCTOU).
+        client: Optional shared ``httpx.AsyncClient``. When supplied, the
+            caller owns SSRF guarantees — the helper trusts the operator's
+            transport completely (typically a vetted egress proxy with
+            mTLS, or an ASGI transport for testing). When omitted, the
+            helper builds a per-request :class:`adcp.signing.IpPinnedTransport`
+            so the URL is resolved, SSRF-validated, and pinned to the
+            resolved IP — same defense applied to :class:`WebhookSender`.
+        allow_private: Forwarded to the per-request pinned transport
+            (owned-client path only). ``False`` (default) rejects URLs
+            whose resolved IP is in a private / loopback / link-local
+            range. Set ``True`` for dev/CI fixtures that post to internal
+            endpoints; production should leave it ``False``.
+        allowed_ports: Forwarded to the per-request pinned transport
+            (owned-client path only). ``None`` (default) imposes no port
+            filter — AdCP doesn't constrain webhook ports. Hardened
+            deployments pass :data:`adcp.signing.DEFAULT_ALLOWED_PORTS`
+            (`{443, 8443}`) or a custom set.
         extra_headers: Merged last. May not override any of
             ``Content-Type``, ``Content-Digest``, ``Content-Length``,
             ``Host``, ``Authorization``, ``Signature``, ``Signature-Input``,
@@ -768,10 +782,13 @@ async def deliver(
         DeprecationWarning (fires once): ``authentication`` is a 3.x fallback.
 
     Security notes:
-        * ``config.url`` is buyer-controlled. The helper enforces HTTPS and
-          rejects control characters but does NOT block private / link-local
-          destinations — wire an egress policy via ``client.transport`` to
-          stop SSRF into your VPC or cloud metadata service.
+        * ``config.url`` is buyer-controlled. The helper enforces HTTPS,
+          rejects control characters, AND (on the owned-client path)
+          builds a per-request IP-pinned transport that runs the full
+          SSRF range check (loopback / RFC 1918 / link-local / CGNAT /
+          IPv6 ULA / multicast / cloud metadata) and pins the connection
+          to the validated IP. Operator-supplied clients skip the SSRF
+          guard — they own egress policy on their transport.
         * ``config.token`` sits in the request body, so any receiver that
           logs bodies retains it indefinitely. Treat the token as a
           medium-sensitivity correlator, not a long-lived secret.
@@ -862,14 +879,32 @@ async def deliver(
             _validate_header_value(f"extra_headers[{key!r}]", value)
             headers[key] = value
 
-    owns_client = client is None
     effective_timeout = timeout_seconds if timeout_seconds is not None else _DEFAULT_TIMEOUT_SECONDS
-    http_client = client or httpx.AsyncClient(timeout=effective_timeout)
-    try:
-        return await http_client.post(url, content=body_bytes, headers=headers)
-    finally:
-        if owns_client:
-            await http_client.aclose()
+    if client is None:
+        # Owned-client path: build a per-request IP-pinned transport so
+        # the URL is SSRF-validated and pinned to the resolved IP, with
+        # follow_redirects=False (rebinding-via-redirect defense) and
+        # trust_env=False (HTTPS_PROXY env vars cannot route the request
+        # away from the pinned target). Mirrors the WebhookSender pattern
+        # — see adcp.webhook_sender._send_bytes for the same shape.
+        from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
+        transport = build_async_ip_pinned_transport(
+            url,
+            allow_private=allow_private,
+            allowed_ports=allowed_ports,
+        )
+        async with httpx.AsyncClient(
+            transport=transport,
+            timeout=effective_timeout,
+            follow_redirects=False,
+            trust_env=False,
+        ) as http_client:
+            return await http_client.post(url, content=body_bytes, headers=headers)
+    # Operator-supplied client: trust them completely; they own SSRF
+    # guarantees on their transport (vetted egress proxy, ASGI test
+    # transport, etc.).
+    return await client.post(url, content=body_bytes, headers=headers)
 
 
 def _extract_config_fields(
