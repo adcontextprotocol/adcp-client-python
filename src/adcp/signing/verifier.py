@@ -87,9 +87,9 @@ class VerifierCapability:
 
     Defaults to ``covers_content_digest="either"`` per the AdCP 3.0 schema
     (`get-adcp-capabilities-response.json` declares this as the default
-    explicitly, with `"required"` recommended for spend-committing
-    operations and AdCP 4.0 expected to recommend `"required"` more
-    broadly).
+    explicitly). The schema rationale recommends `"required"` for
+    spend-committing operations in production, and AdCP 4.0 recommends
+    `"required"` more broadly.
 
     Operators who want body-integrity authentication end-to-end on
     every request — closing the MITM-inside-TLS-termination case where

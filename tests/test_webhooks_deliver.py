@@ -16,11 +16,13 @@ import hashlib
 import hmac
 import json
 from typing import Any
+from unittest.mock import patch
 
 import httpx
 import pytest
 from a2a.types import TaskState  # TaskState is the proto enum; still exported
 
+from adcp.signing import SSRFValidationError
 from adcp.types.generated_poc.core.push_notification_config import (
     Authentication as PNAuthentication,
 )
@@ -552,7 +554,7 @@ def test_normalize_passthrough_for_unknown_enum_prefixes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_deliver_owned_client_rejects_loopback_destination() -> None:
+async def test_owned_client_rejects_loopback_destination() -> None:
     """The legacy ``deliver()`` helper now wires the same per-request
     IP-pinned transport that ``WebhookSender._send_bytes`` uses (see #299).
     A buyer-supplied URL pointing at 127.0.0.1 must reject before the
@@ -561,8 +563,6 @@ async def test_deliver_owned_client_rejects_loopback_destination() -> None:
 
     Operator-supplied clients (``client=...``) skip the SSRF guard by
     design; they own egress policy on their transport."""
-    from adcp.signing import SSRFValidationError
-
     config = PushNotificationConfig(
         url="https://127.0.0.1/webhooks/adcp",
         authentication=PNAuthentication(schemes=["Bearer"], credentials=_BEARER_TOKEN),
@@ -578,13 +578,11 @@ async def test_deliver_owned_client_rejects_loopback_destination() -> None:
 
 
 @pytest.mark.asyncio
-async def test_deliver_allow_private_dev_escape_hatch() -> None:
+async def test_allow_private_dev_escape_hatch() -> None:
     """Adopters with dev/CI fixtures posting to internal endpoints
     pass ``allow_private=True`` to disable the IP-range check. Pin-and-
     bind still applies (URL gets resolved + connection pinned), and the
     rest of the contract stands — bytes signed == bytes posted."""
-    from unittest.mock import patch
-
     config = PushNotificationConfig(
         url="https://10.0.0.1/webhooks/adcp",
         authentication=PNAuthentication(schemes=["Bearer"], credentials=_BEARER_TOKEN),
@@ -598,6 +596,11 @@ async def test_deliver_allow_private_dev_escape_hatch() -> None:
     # Stub the pinned-transport build with a transport that actually
     # accepts a body without opening a socket. We're testing the kwarg
     # plumbing, not the network round-trip.
+    #
+    # Patch target is the source module (adcp.signing.ip_pinned_transport)
+    # because deliver() does a lazy in-function ``from ... import``. If
+    # the import is ever moved to module-level on adcp.webhooks, the
+    # patch target must follow — `patch("adcp.webhooks.build_async_ip_pinned_transport", ...)`.
     captured: dict[str, Any] = {}
 
     def fake_build(uri: str, **kwargs: Any) -> Any:
@@ -617,7 +620,7 @@ async def test_deliver_allow_private_dev_escape_hatch() -> None:
 
 
 @pytest.mark.asyncio
-async def test_deliver_operator_supplied_client_skips_ssrf_guard() -> None:
+async def test_operator_supplied_client_skips_ssrf_guard() -> None:
     """When the operator provides their own ``httpx.AsyncClient``,
     ``deliver()`` does NOT build a pinned transport — the operator owns
     SSRF on their transport (vetted egress proxy, ASGI test transport).
