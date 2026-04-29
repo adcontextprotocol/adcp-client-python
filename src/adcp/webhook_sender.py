@@ -44,7 +44,10 @@ from adcp.signing.crypto import (
     load_private_key_pem,
     private_key_from_jwk,
 )
-from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+from adcp.signing.ip_pinned_transport import (
+    AsyncIpPinnedTransport,
+    build_async_ip_pinned_transport,
+)
 from adcp.signing.webhook_signer import sign_webhook
 from adcp.types import GeneratedTaskStatus
 from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
@@ -505,7 +508,26 @@ class WebhookSender:
         with mTLS to a known buyer set, or an ASGI transport for testing),
         the sender trusts the operator's transport completely. Pin-and-bind
         is skipped; the operator's transport owns SSRF.
+
+        On the owned-client path, SSRF validation runs **before** signing
+        so a hostile URL is rejected without first generating an
+        Ed25519/ES256 signature over the body. That signature would
+        otherwise sit in process memory until the SSRF rejection —
+        anything that snapshots locals on exception (faulthandler,
+        custom logging) could capture it. Validate first, sign second.
         """
+        # Build the pinned transport up-front for the owned-client path.
+        # This runs SSRF + port validation against the URL before any
+        # signing happens; a hostile URL raises SSRFValidationError here
+        # and the body never gets signed.
+        transport: AsyncIpPinnedTransport | None = None
+        if self._owns_client:
+            transport = build_async_ip_pinned_transport(
+                url,
+                allow_private=self._allow_private_destinations,
+                allowed_ports=self._allowed_destination_ports,
+            )
+
         base_headers = {"Content-Type": "application/json"}
         signed = sign_webhook(
             method="POST",
@@ -529,27 +551,26 @@ class WebhookSender:
             for k, v in extra_headers.items():
                 headers[k] = v
 
-        if self._owns_client:
-            # Per-request pinned transport. Building one client per delivery
-            # is the security-correct choice: keeping a pinned transport
-            # alive across deliveries to the same hostname would defeat the
-            # rebinding defense (the IP would be frozen at first delivery).
-            transport = build_async_ip_pinned_transport(
-                url,
-                allow_private=self._allow_private_destinations,
-                allowed_ports=self._allowed_destination_ports,
-            )
+        if transport is not None:
+            # Owned-client path. ``trust_env=False`` prevents httpx from
+            # routing the request through ``HTTPS_PROXY`` / ``HTTP_PROXY``
+            # env vars — every other pinned-transport callsite in the
+            # codebase sets this for the same reason (default_jwks_fetcher,
+            # async_default_jwks_fetcher, revocation_fetcher). Without it,
+            # an attacker who controls process env can route the signed
+            # webhook through their endpoint, defeating the IP pin entirely.
             async with httpx.AsyncClient(
                 transport=transport,
                 timeout=self._timeout,
                 follow_redirects=False,
+                trust_env=False,
             ) as client:
                 response = await client.post(url, content=body, headers=headers)
         else:
             # Operator-supplied client — they own the SSRF guarantees on
             # their transport (proxy allowlist, mTLS, etc.). Reachable as
-            # None after aclose(); a runtime check beats an assert that
-            # python -O strips to silently NoneType.post().
+            # None after aclose(); explicit raise survives ``python -O``
+            # which would strip an assert.
             if self._client is None:
                 raise RuntimeError(
                     "WebhookSender's operator-supplied client was already "

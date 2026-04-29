@@ -101,12 +101,7 @@ def test_ssrf_caps_resolved_address_scan() -> None:
 
 
 # ---- Port allowlist (opt-in operator hardening) ----
-#
-# AdCP doesn't constrain webhook ports in the spec, so the default validator
-# imposes no port filter. Adopters who want a hardening posture pass
-# ``allowed_ports=DEFAULT_ALLOWED_PORTS`` (or a custom set); rejection of
-# non-standard ports closes a smuggle vector for buyers bouncing traffic to
-# internal services on the same routable IP.
+# Rationale lives in adcp.signing.jwks.DEFAULT_ALLOWED_PORTS docstring.
 
 
 @pytest.mark.parametrize(

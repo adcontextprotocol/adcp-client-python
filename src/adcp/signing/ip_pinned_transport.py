@@ -295,11 +295,14 @@ def build_ip_pinned_transport(
     """Resolve ``uri`` once and return a transport pinned to the validated IP.
 
     Raises :class:`SSRFValidationError` if the URI's scheme isn't
-    ``http``/``https``, the port is not in the allowlist, the host
-    doesn't resolve, or every resolved IP is in a blocked range.
+    ``http``/``https``, ``allowed_ports`` is set and the URI's port is
+    outside it, the host doesn't resolve, or every resolved IP is in a
+    blocked range.
 
-    ``allowed_ports`` defaults to
-    :data:`adcp.signing.jwks.DEFAULT_ALLOWED_PORTS` (`{443, 8443}`).
+    ``allowed_ports`` defaults to ``None`` (no port filter — AdCP
+    doesn't constrain webhook ports). Hardened deployments pass
+    :data:`adcp.signing.jwks.DEFAULT_ALLOWED_PORTS` (`{443, 8443}`)
+    or a custom set.
 
     Typical use inside a fetcher::
 
@@ -328,8 +331,9 @@ def build_async_ip_pinned_transport(
     function itself is not awaitable. The returned transport plugs
     into :class:`httpx.AsyncClient`.
 
-    ``allowed_ports`` defaults to
-    :data:`adcp.signing.jwks.DEFAULT_ALLOWED_PORTS` (`{443, 8443}`).
+    ``allowed_ports`` defaults to ``None`` (no port filter); see
+    :func:`build_ip_pinned_transport` for the hardening kwarg
+    semantics.
     """
     hostname, resolved_ip, _port = resolve_and_validate_host(
         uri,
