@@ -176,8 +176,13 @@ class ADCPServerBuilder:
             if domains:
                 from adcp.server.responses import capabilities_response
 
+                pinned_version = self._adcp_version
+
                 async def auto_capabilities(params: Any, context: Any = None) -> dict[str, Any]:
-                    return capabilities_response(domains)
+                    return capabilities_response(
+                        domains,
+                        adcp_version=pinned_version,
+                    )
 
                 handlers["get_adcp_capabilities"] = auto_capabilities
 

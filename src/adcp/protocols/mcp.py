@@ -508,6 +508,10 @@ class MCPAdapter(ProtocolAdapter):
         params, idempotency_key = _idempotency.inject_key(
             tool_name, params, client_token=self.idempotency_client_token
         )
+        # Apply per-instance envelope enrichment (e.g. adcp_version pin).
+        # Runs after idempotency injection so the enriched dict is the
+        # one that's validated and sent.
+        params = self._enrich_outgoing_params(params)
 
         try:
             # Pre-send schema validation — throws in strict, logs in warn,

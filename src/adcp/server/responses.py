@@ -45,6 +45,9 @@ def capabilities_response(
     supported_protocols: list[str],
     *,
     major_versions: list[int] | None = None,
+    adcp_version: str | None = None,
+    supported_versions: list[str] | None = None,
+    build_version: str | None = None,
     sandbox: bool = True,
     features: dict[str, Any] | None = None,
     idempotency: dict[str, Any] | None = None,
@@ -57,7 +60,23 @@ def capabilities_response(
             Valid values: media_buy, signals, governance, creative, brand,
             sponsored_intelligence. ``compliance_testing`` is NOT a protocol —
             pass it via the ``compliance_testing`` kwarg.
-        major_versions: AdCP major versions. Defaults to [3].
+        major_versions: AdCP major versions. Defaults to [3]. Deprecated in
+            favor of ``supported_versions`` (release-precision); both are
+            emitted through 3.x for backwards compatibility.
+        adcp_version: Server's pinned release this response was built
+            for (release-precision string, e.g. ``"3.1"``). When set,
+            included on the response envelope so buyers can read what
+            release the server actually served. Typically passed by
+            ``ADCPServerBuilder``'s auto-capabilities handler from its
+            per-instance pin.
+        supported_versions: Release-precision versions this server speaks
+            (e.g. ``["3.0", "3.1"]``). Authoritative for buyer-side
+            release pinning per the version-negotiation RFC. When omitted
+            and ``adcp_version`` is set, defaults to ``[adcp_version]``.
+        build_version: Optional advisory metadata — full
+            VERSION.RELEASE.PATCH of the server's build (e.g.
+            ``"3.1.2"``). Useful for incident triage; not part of the
+            wire negotiation contract.
         sandbox: Whether this is a sandbox agent. Defaults to True.
         features: Additional feature flags.
         idempotency: Optional idempotency declaration, nested under
@@ -80,6 +99,12 @@ def capabilities_response(
         )
     """
     adcp_info: dict[str, Any] = {"major_versions": major_versions or [3]}
+    if supported_versions is None and adcp_version is not None:
+        supported_versions = [adcp_version]
+    if supported_versions:
+        adcp_info["supported_versions"] = supported_versions
+    if build_version:
+        adcp_info["build_version"] = build_version
     if idempotency:
         adcp_info["idempotency"] = idempotency
     resp: dict[str, Any] = {
@@ -87,6 +112,8 @@ def capabilities_response(
         "supported_protocols": supported_protocols,
         "sandbox": sandbox,
     }
+    if adcp_version is not None:
+        resp["adcp_version"] = adcp_version
     if features:
         resp["features"] = features
     if compliance_testing is not None:

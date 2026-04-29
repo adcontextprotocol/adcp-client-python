@@ -480,6 +480,17 @@ class ADCPClient:
         # Apply schema validation modes (default: requests=warn, responses=strict
         # in dev/test, warn in production — see ``ValidationHookConfig`` docs).
         self.adapter.configure_validation(validation)
+        # Auto-inject the per-instance ``adcp_version`` pin into every
+        # outbound request envelope. Caller-supplied values on the
+        # request object win — the enricher is the default, not an
+        # override — so per-call overrides remain available once the
+        # generated request types declare the field.
+        _pinned_version = self._adcp_version
+
+        def _inject_adcp_version(params: dict[str, Any]) -> dict[str, Any]:
+            return {"adcp_version": _pinned_version, **params}
+
+        self.adapter.envelope_enricher = _inject_adcp_version
 
         if context_id:
             # Empty string is treated as "not provided" — callers using
