@@ -430,6 +430,53 @@ def sample_product_json():
 
 ---
 
+## In-Process MCP Fixtures
+
+For compliance fleets and integration tests that need a full `ADCPClient`
+exercising the real protocol path against an in-process server (no
+loopback HTTP), wire an `InMemoryTransport` pair and pass the connected
+session to `ADCPClient.from_mcp_client()`:
+
+```python
+import contextlib
+
+import pytest
+from mcp import ClientSession
+from mcp.shared.memory import create_client_server_memory_streams
+
+from adcp import ADCPClient
+
+
+@pytest.fixture
+async def in_process_client(my_mcp_server):
+    """ADCPClient backed by an in-process MCP transport.
+
+    Caller owns the session lifecycle — `close()` and `async with` exit
+    on the returned client are no-ops.
+    """
+    async with contextlib.AsyncExitStack() as stack:
+        (c_read, c_write), (s_read, s_write) = await stack.enter_async_context(
+            create_client_server_memory_streams()
+        )
+        # wire your in-process server to (s_read, s_write) here
+        my_mcp_server.connect(s_read, s_write)
+
+        session = await stack.enter_async_context(ClientSession(c_read, c_write))
+        await session.initialize()
+
+        yield ADCPClient.from_mcp_client(session, agent_id="fixture")
+```
+
+Why this matters: a loopback HTTP server adds a port-allocation race per
+test, dies under high parallelism, and obscures bugs that only surface
+when a real protocol path is exercised. The factory bypasses that without
+giving up any of the client surface (validation hooks, idempotency, the
+capability cache).
+
+For parity, see JS `AgentClient.fromMCPClient()` (v5.19.0).
+
+---
+
 ## Anti-Patterns to Avoid
 
 ### ❌ Don't Import from Internal Modules

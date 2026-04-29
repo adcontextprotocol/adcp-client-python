@@ -12,6 +12,7 @@ import time
 from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, TypedDict, cast
+from uuid import uuid4
 
 from a2a.types import Task, TaskStatusUpdateEvent
 from pydantic import BaseModel
@@ -660,6 +661,23 @@ class ADCPClient:
         against an in-process MCP server without standing up a loopback HTTP
         server.
 
+        Warning:
+            The returned client's ``close()`` and ``async with`` ``__aexit__``
+            are **no-ops** — the caller owns the injected session and is
+            responsible for closing it. Code that relies on ``async with
+            ADCPClient.from_mcp_client(...) as c:`` to clean up the session
+            will leak the session.
+
+            Webhook delivery and ``on_activity`` callbacks are **not wired**
+            on the in-process path — there is no HTTP transport for the
+            seller to call back through. Don't pass these to the factory
+            (they're absent from the signature on purpose).
+
+            If the injected session has not been initialized
+            (``await session.initialize()``), the first tool call surfaces
+            as an opaque MCP protocol error in ``TaskResult.error``. The
+            factory does not initialize for you — verify before calling.
+
         **Session lifecycle:** the caller owns the session — ``close()`` and
         ``async with`` exit on the returned client are no-ops. Use your own
         ``AsyncExitStack`` to scope both the transport and the client::
@@ -705,9 +723,7 @@ class ADCPClient:
         Returns:
             A fully configured ``ADCPClient`` backed by the injected session.
         """
-        from uuid import uuid4 as _uuid4
-
-        effective_id = agent_id if agent_id is not None else f"in-process-{_uuid4().hex[:8]}"
+        effective_id = agent_id if agent_id is not None else f"in-process-{uuid4().hex[:8]}"
         config = AgentConfig(
             id=effective_id,
             # RFC 2606 .invalid TLD — passes the http:// validator, guaranteed
@@ -724,8 +740,7 @@ class ADCPClient:
         )
         if not isinstance(instance.adapter, MCPAdapter):
             raise RuntimeError(  # pragma: no cover
-                "from_mcp_client: expected MCPAdapter but got "
-                f"{type(instance.adapter).__name__}"
+                "from_mcp_client: expected MCPAdapter but got " f"{type(instance.adapter).__name__}"
             )
         instance.adapter._inject_session(client)
         return instance
