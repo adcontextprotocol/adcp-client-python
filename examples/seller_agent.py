@@ -225,7 +225,10 @@ class DemoSeller(ADCPHandler):
                 }
             )
 
-        has_creatives = any(pkg.get("creatives") for pkg in params["packages"])
+        has_creatives = any(
+            pkg.get("creatives") or pkg.get("creative_assignments")
+            for pkg in params["packages"]
+        )
         status = "active" if has_creatives else "pending_creatives"
         mb_id = f"mb-{uuid.uuid4().hex[:8]}"
         media_buys[mb_id] = {
