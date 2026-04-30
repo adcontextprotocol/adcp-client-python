@@ -1,5 +1,24 @@
 # Changelog
 
+## [4.3.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.2.0...v4.3.0) (2026-04-30)
+
+
+### Features
+
+* **server:** public register_handler_tools seam + advertised_tools class attr ([#318](https://github.com/adcontextprotocol/adcp-client-python/issues/318)) ([d96822a](https://github.com/adcontextprotocol/adcp-client-python/commit/d96822a64b54289c23e143b39d5e95808b65c1c2))
+* **signing:** SigningProvider Protocol for KMS-backed signing ([#283](https://github.com/adcontextprotocol/adcp-client-python/issues/283)) ([#323](https://github.com/adcontextprotocol/adcp-client-python/issues/323)) ([4de648e](https://github.com/adcontextprotocol/adcp-client-python/commit/4de648e27f0df522269e9cfb28a5b40aa8138527))
+
+
+### Bug Fixes
+
+* **examples:** close last 5 storyboard fixture-dependent failures ([#319](https://github.com/adcontextprotocol/adcp-client-python/issues/319)) ([#322](https://github.com/adcontextprotocol/adcp-client-python/issues/322)) ([d92cfb1](https://github.com/adcontextprotocol/adcp-client-python/commit/d92cfb13839fa26a4ab69ae2db941c752db054a1))
+* **examples:** seed_product complete defaults + format_ids agent_url normalization ([#319](https://github.com/adcontextprotocol/adcp-client-python/issues/319)) ([#321](https://github.com/adcontextprotocol/adcp-client-python/issues/321)) ([046b15e](https://github.com/adcontextprotocol/adcp-client-python/commit/046b15e429b40412a284d50e9d28bf884355c80f))
+
+
+### Documentation
+
+* **handler-authoring:** expand with salesagent migration production patterns ([#326](https://github.com/adcontextprotocol/adcp-client-python/issues/326)) ([ce4c5df](https://github.com/adcontextprotocol/adcp-client-python/commit/ce4c5df50fa156f3ff318c6a4c6376019adff540))
+
 ## [4.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.1.0...v4.2.0) (2026-04-30)
 
 
