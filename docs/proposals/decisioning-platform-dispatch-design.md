@@ -1,7 +1,7 @@
 # DecisioningPlatform dispatch design (post-review)
 
 Pre-implementation reference for the `adcp.decisioning.{handler, dispatch,
-serve, task_registry}` modules. Synthesizes 7 reviewer passes:
+serve, task_registry}` modules. Synthesizes 8 reviewer passes:
 
 * **Round 1** (initial design): agentic-product-architect, python-expert
 * **Round 2** (post-codegen-and-framing additions): agentic-product-architect
@@ -11,8 +11,14 @@ serve, task_registry}` modules. Synthesizes 7 reviewer passes:
   Account.id leak boundary, cross-tenant probe regression, validation
   noise, codegen DX, executor configurability, field-name semantics,
   example coverage, kwarg unpacking
+* **Round 4** (cross-language: TS team review of the parallel `@adcp/client`
+  port + the TS team's "Python port v2" RFC + Yahoo's ask for typed
+  metadata threading): RequestContext typed sub-readers (`state` /
+  `resolve`), validate_platform tightening, `AdcpError` projection
+  consistency, ErrorCode codegen, in-memory task gate, per-server
+  status-change bus, examples-import lint
 
-Authoritative through D14. Tracks "things deferred" for v6.1 and beyond.
+Authoritative through D15. Tracks "things deferred" for v6.1 and beyond.
 
 ## Decisions
 
@@ -803,6 +809,146 @@ spec evolution. The buyer pays for that with a `tools/list` that
 doesn't include the new specialism's tools, which is the right
 fail-soft behavior.
 
+### D15. `RequestContext` typed sub-readers — `state` and `resolve`
+
+**Decision:** widen `RequestContext[TMeta]` from
+`{account, auth_info, now, handoff_to_task}` to add two typed
+framework-owned sub-readers:
+
+```python
+@dataclass
+class RequestContext(ToolContext, Generic[TMeta]):
+    account: Account[TMeta]
+    auth_info: AuthInfo | None = None
+    auth_principal: str | None = None  # round-3 D9
+    now: datetime = field(default_factory=...)
+
+    state: StateReader = field(default_factory=...)      # NEW (Round 4)
+    resolve: ResourceResolver = field(default_factory=...) # NEW (Round 4)
+
+    def handoff_to_task(self, fn) -> TaskHandoff[T]: ...
+```
+
+`StateReader` exposes sync reads on framework-owned in-flight workflow
+state (no DB hit on the platform side):
+
+```python
+class StateReader(Protocol):
+    def find_by_object(
+        self,
+        type: WorkflowObjectType,  # 'media_buy' | 'creative' | 'product' | 'plan' | 'audience' | 'rights_grant' | 'task'
+        id: str,
+    ) -> Sequence[WorkflowStep]:
+        """Chronological steps that touched this object on this account."""
+        ...
+
+    def find_proposal_by_id(self, proposal_id: str) -> Proposal | None:
+        """Resolve a proposal_id threaded across get_products → refine
+        → create_media_buy without platform code."""
+        ...
+
+    def governance_context(self) -> GovernanceContextJWS | None:
+        """Currently in-flight verified governance context (JWS string)
+        or None for non-governance flows. Framework verifies signature,
+        plan-binding, seller-binding, phase-binding before exposure;
+        platform code can trust the value."""
+        ...
+
+    def workflow_steps(self) -> Sequence[WorkflowStep]:
+        """All chronological steps for this request's account.
+        Audit-read shape."""
+        ...
+```
+
+`ResourceResolver` exposes async framework-mediated fetches with cache
++ validation built-in:
+
+```python
+class ResourceResolver(Protocol):
+    async def property_list(self, list_id: str) -> PropertyList:
+        """Validates the id against the seller's declared lists before
+        returning."""
+        ...
+
+    async def collection_list(self, list_id: str) -> CollectionList: ...
+
+    async def creative_format(
+        self,
+        format_id: FormatReferenceStructuredObject,
+    ) -> Format:
+        """Routes through ``capabilities.creative_agents`` declaration
+        with a 1h cache; self-hosted formats hit the local
+        CreativePlatform.list_formats(). Returns the resolved Format
+        with full asset slot definitions."""
+        ...
+```
+
+**Why this matters (Yahoo's ask):** without these readers, every
+platform method that needs prior workflow context (e.g.,
+`update_media_buy` checking what creative state the media buy is in,
+`refine_products` reading proposal context, `get_media_buy_delivery`
+reading governance bindings) has to re-query the platform's own DB,
+duplicating state the framework already owns and re-validating
+references the framework already validated. The TS-side approach
+gives platforms typed read-only views and Yahoo specifically asked
+for parity in the Python SDK.
+
+**Why typed sub-readers, not flat `ctx.workflow_steps()` /
+`ctx.property_list(...)` methods:** the namespacing is
+load-bearing for adopter mental model. `state.*` = sync, "what does
+the framework know"; `resolve.*` = async, "fetch + validate". Coding
+agents pattern-match the namespace. Flattening loses that.
+
+**Why `Protocol`-typed sub-readers, not concrete classes:** lets
+adopters substitute test doubles in unit tests via dataclass replacement
+(`replace(ctx, state=fake_state_reader)`). Concrete classes would
+force monkey-patching.
+
+**v6.0 ship scope:** ship the `Protocol`-typed surface in the
+foundation PR with default impls that return empty / raise
+`NotImplementedError("landing in v6.1")`. Do NOT block foundation on
+the workflow-step backing store (that's a v6.1 concern — same gating
+as the TS side, where the round-2 review explicitly says "landing in
+rc.1"). The Protocol shape locks the contract; impls fill in.
+
+**Field ordering in `RequestContext`:** `state` and `resolve` come
+AFTER `account` / `auth_info` / `now` (existing fields) so existing
+test fixtures and downstream code that constructs `RequestContext`
+positionally don't break. New fields use `field(default_factory=...)`
+defaults pointing at no-op stub implementations:
+
+```python
+class _NotYetWiredStateReader:
+    def find_by_object(self, type, id):
+        return ()
+    def find_proposal_by_id(self, proposal_id):
+        return None
+    def governance_context(self):
+        return None
+    def workflow_steps(self):
+        return ()
+
+class _NotYetWiredResolver:
+    async def property_list(self, list_id):
+        raise NotImplementedError(
+            "ResourceResolver.property_list landing in v6.1 — "
+            "see docs/proposals/decisioning-platform-dispatch-design.md#d15"
+        )
+    # ... etc
+```
+
+The stubs let foundation-PR examples and tests construct
+`RequestContext()` without wiring a backend; production deployments
+get the v6.1 backing store when it lands.
+
+**Rationale for shipping the surface now even with stub backings:**
+adopters write platform method bodies that read `ctx.state.*` and
+`ctx.resolve.*`. If the surface lands in v6.1 instead of v6.0,
+every adopter's method bodies need to be rewritten to thread state
+through `ctx.account.metadata` (or worse, through their own
+re-implementation of the workflow store). Locking the typed surface
+in v6.0 lets adopters write the right shape from day one.
+
 ## File plan
 
 **Two PRs**, splitting the framework-shared code from the
@@ -830,6 +976,9 @@ public surface — minor bump).
 | `adcp/decisioning/dispatch.py` | ~350 | `decisioning_dispatch_middleware`, `_invoke_platform_method`, `validate_platform` (with tolerant `REQUIRED_METHODS_PER_SPECIALISM.get`), executor lifecycle (allocate in `serve()`, shutdown via existing framework hook), `_project_handoff` (sync needs explicit `copy_context`; async gets it free from `create_task`). |
 | `adcp/decisioning/task_registry.py` | ~150 | `TaskRegistry` Protocol with pinned shape contracts (D7) + `InMemoryTaskRegistry` stub + `TaskHandoffContext` (consumed by handoff fns; carries `id` + `update(progress)` + `heartbeat()` stub). |
 | `adcp/decisioning/serve.py` | ~150 | Wrapper around `adcp.server.serve`. Builds handler + middleware + context_factory (returns `RequestContext`, NOT `ToolContext`) + executor. `create_adcp_server_from_platform` seam returns `(handler, middleware, context_factory)` 3-tuple. |
+| `adcp/decisioning/state.py` | ~80 | **D15** — `StateReader` Protocol + `_NotYetWiredStateReader` no-op default + `WorkflowStep` / `WorkflowObjectType` / `Proposal` / `GovernanceContextJWS` types. |
+| `adcp/decisioning/resolve.py` | ~80 | **D15** — `ResourceResolver` Protocol + `_NotYetWiredResolver` raise-with-pointer default + `PropertyList` / `CollectionList` / `Format` typed return types (re-exported from `adcp.types`). |
+| `adcp/decisioning/context.py` | (existing, +30) | **D15** — add `state: StateReader` and `resolve: ResourceResolver` fields with stub defaults. Round-3: `auth_principal: str \| None` typed attribute. |
 | `adcp/decisioning/specialisms/sales.py` | (existing, +10) | Add `TOOLS: set[str]` constant. |
 | `adcp/decisioning/platform.py` | (existing, +25) | Add `__init_subclass__` validator (D11) + `BaseModel` MRO-conflict docstring note. |
 | `examples/hello_seller.py` | ~50 | Sync flow vertical slice (D13). |
@@ -842,9 +991,13 @@ public surface — minor bump).
 | `tests/test_decisioning_handler_codegen.py` | ~80 | Regen-drift: regen `handler.py` into tempdir, `git diff --exit-code`. Mirrors `tests/test_mcp_schema_drift.py` pattern. **Drift error message asserts the prescriptive form** (round-3 finding) — names `uv run python scripts/generate_decisioning_handler.py` verbatim. Codegen-time fail-fast on missing Pydantic Request type. |
 | `tests/test_hello_seller_integration.py` | ~150 | End-to-end sync: boot example via ASGI, MCP `tools/call` hits sync `get_products` + sync `create_media_buy`, response round-trips. AdcpError path: hostile budget rejected with structured-error envelope. |
 | `tests/test_hello_seller_async_handoff_integration.py` | ~180 | End-to-end hybrid: boot the handoff example, MCP `tools/call` to `create_media_buy` returns `TaskHandoff`, Submitted envelope serializes correctly, `tasks/get` returns Submitted → Working → Completed lifecycle, registry has the terminal artifact. |
+| `tests/test_decisioning_context_state_resolve.py` | ~120 | **D15** — `StateReader` Protocol structural match (custom impl satisfies); `ResourceResolver` Protocol structural match; default `_NotYetWiredStateReader` returns empty sequences (NOT raise — adopters reading optimistic state shouldn't crash); default `_NotYetWiredResolver.property_list()` raises `NotImplementedError` with the design-doc anchor in the message; substituting test doubles via `dataclasses.replace(ctx, state=fake)` works (round-trip regression). |
+| `tests/test_decisioning_validate_platform_strict.py` | ~120 | **Round-4 (Emma #6 + #16):** specialism enum-coverage check (declaring a known specialism that has no `REQUIRED_METHODS_PER_SPECIALISM` entry must NOT silently pass — must fail server boot pointing at the spec drift); validator throws are caught and surface as `AdcpError("INVALID_REQUEST", ...)` rather than crashing the server boot. |
+| `tests/test_decisioning_in_memory_registry_prod_gate.py` | ~80 | **Round-4 (Emma #8):** `serve()` + `InMemoryTaskRegistry` + `production` env raises `AdcpError` unless `ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1` set. Sales-broadcast-tv adopter forced into HITL path is the regression case. |
+| `tests/test_decisioning_status_change_isolation.py` | ~80 | **Round-4 (Emma #17):** two `serve()` instances in the same process route their own `publish_status_change` events to per-instance subscribers, NOT a module-level singleton. Concurrent test files don't clobber each other's bus. |
 
-**Foundation PR total:** ~2100 lines (~250 generated, ~700 tests).
-After prep PR + this lands: ~3500 lines on top of 1500-line foundation
+**Foundation PR total:** ~2475 lines (~250 generated, ~1100 tests).
+After prep PR + this lands: ~3850 lines on top of 1500-line foundation
 skeleton already committed.
 
 ## Things deferred (track separately)
@@ -1017,3 +1170,165 @@ and adding cross-tenant + arg-projection regression tests.
     (Item 8).
 
   Foundation PR total grew from ~2275 to ~2475 lines.
+
+## Round-4 review changelog
+
+Cross-language review pass — synthesizes (a) the TS team's review of
+the parallel TypeScript port (`adcontextprotocol/adcp-client` PR #1005,
+EmmaLouise2018 round-1), (b) the TS team's `decisioning-platform-python-port-v2.md`
+RFC for what the Python SDK should ship, and (c) Yahoo's specific ask
+for typed metadata + framework-owned state threading on
+`RequestContext`.
+
+**Guiding principle the TS port adopted, ported here:** "make it
+impossible for an implementer to screw up via typing." Python can't
+match TS's compile-time `RequiredPlatformsFor<S>` gate, but per-method
+typed surfaces, runtime `validate_platform` boot-time checks, typed
+`RequestContext` sub-readers, and `Protocol` structural matching close
+most of the gap. Where TS got compile-time enforcement we get
+boot-time fail-fast; where TS got "buyer-supplied data can't reach
+this type" we get the same property via dispatch type-identity.
+
+### What's structurally avoided in our Python design
+
+The TS team's round-1 review surfaced bugs that are **structurally
+unrepresentable in our hybrid `SalesResult[T]` design**:
+
+* **Emma #2 — `validatePlatform` allows "neither defined" path
+  → runtime crash.** Python uses one method per tool returning
+  `SalesResult[T]`, not dual `create_media_buy` + `create_media_buy_task`.
+  No "both defined" or "neither defined" failure modes exist.
+* **Emma #3 — Missing `*Task` arms for 4 of 6 Submitted-bearing
+  tools.** Same reason — every mutating tool is hybrid via
+  `SalesResult[T]`. Python's structural confirmation: schemas show
+  Submitted arms on `update_media_buy`, `get_products`, `build_creative`,
+  `sync_catalogs` (in addition to `create_media_buy` and `sync_creatives`).
+* **Emma #13 — Compile-time XOR for dual-method via TS discriminated
+  unions.** N/A — single method per tool.
+* **Emma's design concern #14 — "Always declare HITL, resolve
+  immediately" anti-pattern that taxes every sync buyer with `tasks_get`
+  polling.** Python's `TaskHandoff[T]` is exactly the pattern Emma
+  asked for (`throw RequiresReviewError` from sync, framework converts
+  to `submitted` envelope). Worth calling out in the foundation PR
+  description so the framework-design choice gets the credit.
+
+### Items applied to the Python design
+
+* **D14 (Emma #6) — specialism enum coverage check.** Round-3 caught
+  *unknown* specialisms with `UserWarning`. Round-4 catches the inverse:
+  declaring a *known* specialism (in the wire enum) that has no
+  `REQUIRED_METHODS_PER_SPECIALISM` entry must NOT silently pass — must
+  fail server boot pointing at the spec drift. Test:
+  `test_decisioning_validate_platform_strict.py`.
+* **D7 + serve() (Emma #8) — production gate on `InMemoryTaskRegistry`.**
+  `serve()` refuses to start when wired with `InMemoryTaskRegistry` and
+  `ADCP_ENV=production` (or equivalent) unless
+  `ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1` opt-in. Sales-broadcast-tv
+  adopters are *structurally forced* into the HITL path which depends on
+  the registry — silent in-memory fallback is a real prod foot-gun.
+  Test: `test_decisioning_in_memory_registry_prod_gate.py`.
+* **Dispatch (Emma #10) — `AdcpError` projection consistency.**
+  Every code path that can raise `AdcpError` (specialism methods,
+  account resolver, validators, capability synthesis,
+  `list_accounts`-shape reads) goes through the same wire-projection
+  in dispatch. No path falls back to generic `SERVICE_UNAVAILABLE`.
+  Pinned in D14 `_invoke_platform_method` contract; verified via
+  `test_decisioning_dispatch.py` extension (every code path covered).
+* **D6 (Emma #11) — sync-handoff register-before-cleanup race.**
+  TS-side bug: `taskFn` resolving synchronously runs `composed.then`
+  cleanup before `_registerBackground` registers, leaking the entry.
+  Python equivalent in our `loop.run_in_executor` + `copy_context()` path:
+  if the handoff fn resolves before `task_registry.register()` writes
+  the entry, the cleanup hook may delete a non-existent record. Add
+  regression test in `test_decisioning_task_registry_cross_tenant.py`
+  asserting register-before-resolve ordering even for synchronously
+  completing handoff fns.
+* **`validate_platform` (Emma #16) — catch validator throws.**
+  Wrap each per-specialism validator in try/except; on raise, surface
+  as `AdcpError("INVALID_REQUEST", ...)` rather than crashing server
+  boot or leaving the platform marked stuck-unverified. Test:
+  same file as #6 above.
+* **Dispatch (Emma #17) — per-server status-change bus, not
+  module-level singleton.** Module-level `publishStatusChange` is hostile
+  to multi-tenant test isolation (concurrent `serve()` instances clobber
+  each other's bus). Use a per-server bus on the wrapper returned by
+  `create_adcp_server_from_platform`; `publish_status_change` is bound
+  via the per-server `RequestContext` (or via explicit `server.bus`
+  reference passed to background workers). Test:
+  `test_decisioning_status_change_isolation.py`.
+* **`AdcpError` (Emma #18) — `ACCOUNT_NOT_FOUND` semantics.**
+  Document that `ACCOUNT_NOT_FOUND` is reserved for the resolver path
+  (`AccountStore.resolve` → `AdcpError(code='ACCOUNT_NOT_FOUND')`).
+  Specialism methods raising `ACCOUNT_NOT_FOUND` get re-mapped to
+  `INVALID_REQUEST` with a `field='account_id'` hint, so adopter misuse
+  doesn't pollute the error code's meaning to buyers. Update
+  `AdcpError` docstring + add a dispatch test.
+* **`AdcpError` (Emma #19) — codegen `ErrorCode` literal.**
+  Currently `AdcpError(code: str)` is free-form. Generate an `ErrorCode`
+  Literal type from `schemas/cache/3.0.0/enums/error-code.json` so
+  `AdcpError(code='BUDGET_TOO_LO')` (typo) trips mypy at adopter
+  edit-time. Vendor codes outside the enum stay accepted via
+  `ErrorCode | str` union. Tracked as deferred (codegen task on the
+  drift-script PR after foundation).
+* **CI lint (Emma #5) — examples can't reach into `src/`.**
+  `examples/hello_seller.py` MUST import from `adcp.decisioning`, not
+  `src/adcp/decisioning`. Add a lint to CI: any `from adcp.` import in
+  `examples/` rejecting `from src.adcp.` paths. Avoids the TS-side
+  three-source-of-truth bug.
+
+### D15 added — typed `RequestContext` sub-readers (Yahoo's ask)
+
+The TS team's `decisioning-platform-python-port-v2.md` RFC + Yahoo's
+explicit request: widen `RequestContext[TMeta]` to include framework-
+owned typed sub-readers `state` (sync workflow-state reads) and
+`resolve` (async framework-mediated fetches). Without this, every
+platform method that needs prior workflow context has to re-query its
+own DB, duplicating state the framework already owns and re-validating
+references the framework already validated. **Surface ships in v6.0
+with no-op stub backings; impls fill in for v6.1**, so adopters can
+write the right shape from day one without rewriting later. See D15
+above for the full Protocol definitions and rationale.
+
+### File plan additions
+
+* `adcp/decisioning/state.py` (~80 lines) — `StateReader` Protocol +
+  stub
+* `adcp/decisioning/resolve.py` (~80 lines) — `ResourceResolver`
+  Protocol + stub
+* `adcp/decisioning/context.py` (+30 lines) — wire `state` + `resolve`
+  fields with stub defaults (D15)
+* `tests/test_decisioning_context_state_resolve.py` (~120 lines) —
+  D15 Protocol structural match + test-double substitution regression
+* `tests/test_decisioning_validate_platform_strict.py` (~120 lines) —
+  Emma #6 enum coverage + Emma #16 validator-throws fail-soft
+* `tests/test_decisioning_in_memory_registry_prod_gate.py` (~80 lines) —
+  Emma #8 prod-gate regression
+* `tests/test_decisioning_status_change_isolation.py` (~80 lines) —
+  Emma #17 per-server bus regression
+* CI: examples-import lint rule (Emma #5) — added to ruff config
+  (`tool.ruff.lint.flake8-tidy-imports` ban-relative-imports for
+  `examples/**`)
+
+Foundation PR total grew from ~2475 to ~2965 lines (D15 + Round-4
+tests + Emma items).
+
+### Items deferred to follow-up PRs (not foundation-blocking)
+
+* **`ErrorCode` Literal codegen** (Emma #19) — separate codegen-script
+  PR after foundation. Tracking issue.
+* **Workflow-step / proposal / governance backing store** for `state`
+  reader (D15 v6.1 backing impls). Foundation ships the no-op stub.
+* **`tasks/get` wire surface** for adopter HITL polling — the framework
+  has the registry from foundation, but the wire endpoint that buyers
+  hit lands with `task_registry` follow-up PR.
+
+### TS-only items, no Python equivalent
+
+* Emma #1 (JWKS material comparison) — Python uses `cryptography`
+  full-key import; the bug is structurally unrepresentable.
+* Emma #12 (`<P extends DecisioningPlatform<any, any>>` cast widening)
+  — Python `TypeVar` with `default=` preserves narrowing through
+  `Protocol` parameterization.
+* Emma #15 (`resolveByHost` O(N) parsing) — Python doesn't have that
+  surface yet.
+* Emma #20 (`typesVersions` missing) — npm-only.
