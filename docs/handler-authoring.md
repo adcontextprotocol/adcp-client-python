@@ -94,19 +94,22 @@ def _resolve_identity(ctx: ToolContext | None) -> ResolvedIdentity:
 The `# … adapter config, feature flags, etc. from your DB` comment hides
 a second DB hop that most production handlers need. `context_factory`
 resolves `caller_identity` from the bearer token; `_resolve_identity`
-enriches it with per-principal config that isn't available at auth time:
+enriches it with per-principal config that isn't available at auth time.
+Return `None` on failure so the calling handler converts it to an error
+dict (raising a non-`ADCPError` exception produces a 500 — see
+[Troubleshooting](#troubleshooting)):
 
 ```python
-async def _resolve_identity(ctx: ToolContext | None) -> ResolvedIdentity:
+async def _resolve_identity(ctx: ToolContext | None) -> ResolvedIdentity | None:
     if ctx is None or ctx.caller_identity is None:
-        raise AuthenticationRequired("unauthenticated call")
+        return None
     row = await pool.fetchrow(
         "SELECT tenant_id, db_url, feature_flags "
         "FROM principals WHERE id = $1",
         ctx.caller_identity,
     )
     if row is None:
-        raise AuthenticationRequired(f"unknown principal: {ctx.caller_identity!r}")
+        return None
     return ResolvedIdentity(
         principal_id=ctx.caller_identity,
         tenant_id=row["tenant_id"],
@@ -115,10 +118,19 @@ async def _resolve_identity(ctx: ToolContext | None) -> ResolvedIdentity:
     )
 ```
 
-`_impl` functions receive `ResolvedIdentity` and have no knowledge of
-`ToolContext` or the transport. **Resolve once per request** at the top of
-the handler and pass the identity through — resolving inside each `_impl`
-function compounds the DB round-trips when a handler calls multiple `_impl`s.
+**Resolve once per request** at the top of the handler and check for
+`None` before delegating to `_impl`:
+
+```python
+async def get_products(self, params, context: ToolContext | None = None):
+    identity = await _resolve_identity(context)
+    if identity is None:
+        return adcp_error("AUTH_REQUIRED")
+    return await get_products_impl(params, identity=identity)
+```
+
+Passing the resolved identity through avoids compounding DB round-trips
+when a single handler call delegates to multiple `_impl`s.
 
 ## Typed handler params
 
@@ -327,7 +339,7 @@ including non-discovery tools in your extension (a common copy-paste error):
 from adcp.server import DISCOVERY_TOOLS, validate_discovery_set
 
 MY_DISCOVERY_TOOLS = DISCOVERY_TOOLS | {"list_public_formats", "get_vendor_catalog"}
-validate_discovery_set(MY_DISCOVERY_TOOLS)  # raises ValueError listing any unrecognised names
+validate_discovery_set(MY_DISCOVERY_TOOLS)  # raises ValueError for unknown names or mutating tools
 ```
 
 `validate_discovery_set` does not register the tools — it only validates
