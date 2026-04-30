@@ -232,7 +232,14 @@ def _log_advertised_tools(
     if unadvertised and not advertise_all:
         logger.debug("%s server unadvertised tools: %s", transport, ", ".join(unadvertised))
 
-    _warn_if_unregistered_subclass(handler, advertise_all=advertise_all)
+    # Stacklevel walks: warnings.warn → _warn_if_unregistered_subclass →
+    # _log_advertised_tools → operator's call site. The MCP path adds one
+    # extra frame (_register_handler_tools); A2A calls _log_advertised_tools
+    # directly from create_a2a_server.
+    caller_stacklevel = 4 if transport == "mcp" else 3
+    _warn_if_unregistered_subclass(
+        handler, advertise_all=advertise_all, stacklevel=caller_stacklevel
+    )
 
 
 #: Bases whose tool set is broad-by-design — when an adopter subclass
@@ -246,7 +253,9 @@ def _log_advertised_tools(
 _BROAD_SURFACE_BASES: frozenset[str] = frozenset({"ADCPHandler"})
 
 
-def _warn_if_unregistered_subclass(handler: ADCPHandler[Any], *, advertise_all: bool) -> None:
+def _warn_if_unregistered_subclass(
+    handler: ADCPHandler[Any], *, advertise_all: bool, stacklevel: int = 4
+) -> None:
     """Emit a one-time ``UserWarning`` when a custom handler base bypasses
     the tool-discovery registry.
 
@@ -281,11 +290,9 @@ def _warn_if_unregistered_subclass(handler: ADCPHandler[Any], *, advertise_all: 
     )
     if has_specialized_parent:
         return
-    # stacklevel=4 walks: warnings.warn → _warn_if_unregistered_subclass
-    # → _log_advertised_tools → _register_handler_tools → operator's
-    # serve()/create_mcp_server()/create_a2a_server() call site. If any
-    # of those frames are added or removed, recompute or refactor to
-    # use stacklevel=2 from a thin wrapper.
+    # Default stacklevel=4 covers the MCP path (warn → this fn →
+    # _log_advertised_tools → _register_handler_tools → caller). The A2A
+    # path lacks _register_handler_tools and passes stacklevel=3.
     warnings.warn(
         f"Handler class {cls.__name__!r} subclasses ADCPHandler directly "
         f"but isn't registered in the framework's tool-discovery "
@@ -303,7 +310,7 @@ def _warn_if_unregistered_subclass(handler: ADCPHandler[Any], *, advertise_all: 
         f"`uv run python scripts/generate_decisioning_handler.py` "
         f"emits the declaration for you.",
         UserWarning,
-        stacklevel=4,
+        stacklevel=stacklevel,
     )
 
 
