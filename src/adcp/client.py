@@ -4280,7 +4280,7 @@ class ADCPMultiAgentClient:
         on_activity: Callable[[Activity], None] | None = None,
         handlers: dict[str, Callable[..., Any]] | None = None,
         signing: SigningConfig | None = None,
-        adcp_version: str | None = None,
+        adcp_version: str | dict[str, str] | None = None,
     ):
         """
         Initialize multi-agent client.
@@ -4294,34 +4294,75 @@ class ADCPMultiAgentClient:
             signing: Optional RFC 9421 signing config forwarded to every
                 per-agent ADCPClient. The same identity signs traffic to
                 all agents. See ADCPClient.__init__ for details.
-            adcp_version: AdCP protocol release pin forwarded to every
-                per-agent ADCPClient. All agents under this multi-client
-                speak the same release. See ADCPClient.__init__ for
-                semantics. Cross-major pins raise ConfigurationError at
-                construction.
+            adcp_version: AdCP protocol release pin. Three forms:
+
+                - ``None`` (default): every per-agent ADCPClient resolves
+                  the SDK's compile-time pin.
+                - ``str`` (e.g. ``"3.1"``): every agent uses this pin.
+                - ``dict[str, str]`` (e.g.
+                  ``{"seller_a": "3.0", "seller_b": "3.1"}``): per-agent
+                  override map keyed by ``agent.id``. Agents missing
+                  from the map fall back to the SDK default — useful
+                  for holdco/multi-tenant operators where one seller is
+                  ahead of the others on the upgrade cadence.
+
+                See ADCPClient.__init__ for per-instance semantics.
+                Cross-major pins raise ConfigurationError at construction.
         """
-        self._adcp_version: str = resolve_adcp_version(adcp_version)
-        self.agents = {
-            agent.id: ADCPClient(
-                agent,
-                webhook_url_template=webhook_url_template,
-                webhook_secret=webhook_secret,
-                on_activity=on_activity,
-                signing=signing,
-                adcp_version=self._adcp_version,
-            )
-            for agent in agents
-        }
+        # Per-agent map → resolve each pin individually for the dict form;
+        # otherwise use the uniform pin for all agents.
+        if isinstance(adcp_version, dict):
+            self._adcp_version: str | None = None  # mixed pins
+            self._per_agent_versions: dict[str, str] = {
+                agent_id: resolve_adcp_version(pin) for agent_id, pin in adcp_version.items()
+            }
+            default_pin = resolve_adcp_version(None)
+            self.agents = {
+                agent.id: ADCPClient(
+                    agent,
+                    webhook_url_template=webhook_url_template,
+                    webhook_secret=webhook_secret,
+                    on_activity=on_activity,
+                    signing=signing,
+                    adcp_version=self._per_agent_versions.get(agent.id, default_pin),
+                )
+                for agent in agents
+            }
+        else:
+            self._adcp_version = resolve_adcp_version(adcp_version)
+            self._per_agent_versions = {}
+            self.agents = {
+                agent.id: ADCPClient(
+                    agent,
+                    webhook_url_template=webhook_url_template,
+                    webhook_secret=webhook_secret,
+                    on_activity=on_activity,
+                    signing=signing,
+                    adcp_version=self._adcp_version,
+                )
+                for agent in agents
+            }
         self.handlers = handlers or {}
 
     def get_adcp_version(self) -> str:
-        """Return the AdCP protocol release this multi-client is pinned to.
+        """Return the AdCP protocol release pin for this multi-client.
 
-        Resolved at construction. All per-agent clients share the same
-        pin — see ADCPClient.get_adcp_version for the per-instance
-        semantics.
+        Returns the uniform pin when all agents share one. Raises
+        :class:`ValueError` when agents have heterogeneous pins (the
+        ``dict[str, str]`` constructor form) — in that case, query
+        the per-agent pin via ``multi.agent(agent_id).get_adcp_version()``.
         """
-        return self._adcp_version
+        if self._adcp_version is not None:
+            return self._adcp_version
+        # Heterogeneous: surface uniformly if all agents agree at runtime.
+        versions = {client.get_adcp_version() for client in self.agents.values()}
+        if len(versions) == 1:
+            return next(iter(versions))
+        raise ValueError(
+            "Multi-agent client has heterogeneous adcp_version pins; "
+            "use multi.agent(agent_id).get_adcp_version() to read per-agent. "
+            f"Pins by agent: { {a: c.get_adcp_version() for a, c in self.agents.items()} }"
+        )
 
     def agent(self, agent_id: str) -> ADCPClient:
         """Get client for specific agent."""

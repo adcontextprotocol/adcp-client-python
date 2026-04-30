@@ -209,6 +209,64 @@ def test_multi_agent_cross_major_rejected() -> None:
         ADCPMultiAgentClient(agents=[_agent_config()], adcp_version="4.0")
 
 
+def _two_agents() -> list[AgentConfig]:
+    return [
+        AgentConfig(id="seller_a", agent_uri="https://a.example.com", protocol=Protocol.A2A),
+        AgentConfig(id="seller_b", agent_uri="https://b.example.com", protocol=Protocol.A2A),
+    ]
+
+
+def test_multi_agent_per_agent_map_pins_each_agent_independently() -> None:
+    """Per-agent dict form lets a holdco pin each seller separately."""
+    multi = ADCPMultiAgentClient(
+        agents=_two_agents(),
+        adcp_version={"seller_a": "3.0", "seller_b": "3.1"},
+    )
+    assert multi.agent("seller_a").get_adcp_version() == "3.0"
+    assert multi.agent("seller_b").get_adcp_version() == "3.1"
+
+
+def test_multi_agent_per_agent_map_falls_back_to_default_for_missing_keys() -> None:
+    multi = ADCPMultiAgentClient(
+        agents=_two_agents(),
+        adcp_version={"seller_a": "3.1"},
+    )
+    assert multi.agent("seller_a").get_adcp_version() == "3.1"
+    # seller_b missing from map → SDK default.
+    assert multi.agent("seller_b").get_adcp_version() == normalize_to_release_precision(
+        get_adcp_spec_version()
+    )
+
+
+def test_multi_agent_get_version_raises_on_heterogeneous_pins() -> None:
+    multi = ADCPMultiAgentClient(
+        agents=_two_agents(),
+        adcp_version={"seller_a": "3.0", "seller_b": "3.1"},
+    )
+    with pytest.raises(ValueError) as exc:
+        multi.get_adcp_version()
+    msg = str(exc.value)
+    assert "heterogeneous" in msg
+    assert "seller_a" in msg and "seller_b" in msg
+
+
+def test_multi_agent_get_version_returns_uniform_when_map_agrees() -> None:
+    """Dict form with all agents at the same pin still resolves uniformly."""
+    multi = ADCPMultiAgentClient(
+        agents=_two_agents(),
+        adcp_version={"seller_a": "3.1", "seller_b": "3.1"},
+    )
+    assert multi.get_adcp_version() == "3.1"
+
+
+def test_multi_agent_per_agent_map_cross_major_rejected() -> None:
+    with pytest.raises(ConfigurationError):
+        ADCPMultiAgentClient(
+            agents=_two_agents(),
+            adcp_version={"seller_a": "3.0", "seller_b": "4.0"},
+        )
+
+
 # ---------------------------------------------------------------------------
 # ADCPServerBuilder + adcp_server() factory
 # ---------------------------------------------------------------------------

@@ -103,7 +103,7 @@ def capabilities_response(
         supported_versions = [adcp_version]
     if supported_versions:
         adcp_info["supported_versions"] = supported_versions
-    if build_version:
+    if build_version is not None:
         adcp_info["build_version"] = build_version
     if idempotency:
         adcp_info["idempotency"] = idempotency
