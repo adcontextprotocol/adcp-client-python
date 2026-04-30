@@ -8,6 +8,7 @@ reporter, not in the response shape we emit.
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 from pathlib import Path
 from types import ModuleType
@@ -15,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from adcp.validation.schema_validator import validate_response
+from adcp.validation import format_issues, validate_response
 
 
 def _load_seller_agent() -> ModuleType:
@@ -30,7 +31,8 @@ def _load_seller_agent() -> ModuleType:
 # Snapshot at collection time — seed_product() mutates PRODUCTS in-place, so
 # a bare reference would change parametrize IDs across test runs in the same
 # process if an integration test instantiates DemoStore and calls seed_product.
-_PRODUCTS: list[dict[str, Any]] = list(_load_seller_agent().PRODUCTS)
+# deepcopy guards against seed_pricing_option() mutating per-dict contents.
+_PRODUCTS: list[dict[str, Any]] = copy.deepcopy(_load_seller_agent().PRODUCTS)
 
 
 class TestStaticProductsSchemaCompliance:
@@ -45,7 +47,7 @@ class TestStaticProductsSchemaCompliance:
         )
         assert outcome.valid, (
             f"get_products response with all {len(_PRODUCTS)} products failed "
-            f"Python-side schema validation: {outcome.issues}"
+            f"Python-side schema validation: {format_issues(outcome.issues)}"
         )
 
     @pytest.mark.parametrize(
@@ -63,5 +65,5 @@ class TestStaticProductsSchemaCompliance:
         )
         assert outcome.valid, (
             f"Product {product.get('product_id')!r} failed Python-side schema "
-            f"validation: {outcome.issues}"
+            f"validation: {format_issues(outcome.issues)}"
         )
