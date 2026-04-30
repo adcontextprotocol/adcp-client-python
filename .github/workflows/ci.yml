@@ -364,7 +364,7 @@ jobs:
             # Any HTTP response (including 405 on GET to a POST-only endpoint)
             # means the server is up and accepting connections.
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
-              http://localhost:3001/mcp 2>/dev/null || echo "000")
+              http://127.0.0.1:3001/mcp 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" != "000" ]; then
               echo "Seller agent ready (HTTP ${HTTP_CODE}, pid ${AGENT_PID})"
               break
@@ -388,7 +388,7 @@ jobs:
         # drift as soon as it ships, which is the point of this job.
         run: |
           npx -y -p @adcp/client@latest adcp storyboard run \
-            http://localhost:3001/mcp media_buy_seller \
+            http://127.0.0.1:3001/mcp media_buy_seller \
             --json --allow-http \
             > storyboard-result.json
 
