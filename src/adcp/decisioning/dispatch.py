@@ -336,21 +336,47 @@ def compose_caller_identity(
     account: Account[Any],
     store: AccountStore[Any],
 ) -> str:
-    """Compose the cache scope key from store qualname + account id.
+    """Compose the cache scope key from ``module + qualname + account.id``.
 
-    Round-3 D9: the framework's idempotency middleware reads
-    ``ctx.caller_identity`` for cache scoping. Using ``account.id``
+    Round-3 D9 + Round-4 review: the framework's idempotency middleware
+    reads ``ctx.caller_identity`` for cache scoping. Using ``account.id``
     alone leaks across stores when two adopters use different
     ``AccountStore`` impls but happen to mint colliding ids. The
-    composite ``f"{store qualname}:{account.id}"`` gives structural
-    cross-store isolation at zero coordination cost.
+    composite ``f"{store_module}.{store_qualname}:{account.id}"`` gives
+    structural cross-store isolation at zero coordination cost.
 
-    Within-store collisions (one impl, identical ``account.id`` for
-    two distinct accounts) remain an adopter bug at
+    Includes ``__module__`` because ``__qualname__`` is the dotted path
+    *within* a module — two ``MyStore`` classes in different packages
+    share the same qualname. Without the module prefix the isolation
+    promise breaks across cross-package re-implementations.
+
+    Empty / whitespace ``account.id`` raises ``AdcpError`` —
+    ``Account(id="")`` would silently collapse every tenant whose
+    AccountStore returns the empty default into a single cache scope.
+    The dataclass default ``Account(id="<unset>")`` is also rejected so
+    a misconfigured store that forgets to populate ``id`` fails fast
+    rather than leaking buy-side data.
+
+    Within-store collisions (one impl, identical ``account.id`` for two
+    distinct accounts) remain an adopter bug at
     ``AccountStore.resolve``; the framework can't structurally prevent
     that without a runtime registry costing more than it buys.
     """
-    return f"{type(store).__qualname__}:{account.id}"
+    if not account.id or not account.id.strip() or account.id == "<unset>":
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                f"AccountStore returned an account with empty/unset id "
+                f"({account.id!r}). The framework refuses to scope the "
+                "idempotency cache by an empty key — every empty-id "
+                "tenant would share state. Fix: ensure your "
+                "AccountStore.resolve always returns Account(id=<non-empty>) "
+                "and never leaves the dataclass default."
+            ),
+            recovery="terminal",
+        )
+    cls = type(store)
+    return f"{cls.__module__}.{cls.__qualname__}:{account.id}"
 
 
 # ---------------------------------------------------------------------------
@@ -363,6 +389,7 @@ def _build_request_context(
     account: Account[Any],
     auth_info: AuthInfo | None,
     *,
+    store: AccountStore[Any] | None = None,
     state_reader: Any | None = None,
     resource_resolver: Any | None = None,
 ) -> RequestContext[Any]:
@@ -374,14 +401,27 @@ def _build_request_context(
     :class:`adcp.decisioning.RequestContext` carries the
     ``@internal-construction`` note).
 
+    Sets ``ctx.caller_identity`` to the composite cache scope key
+    via :func:`compose_caller_identity` when ``store`` is supplied.
+    Wiring this is critical — it's the framework's idempotency
+    middleware's only safeguard against cross-store cache collisions
+    (D9 round-3). When ``store`` is ``None`` (test fixtures, custom
+    dispatch paths), falls back to ``tool_ctx.caller_identity``
+    verbatim. Production callers from ``handler.py`` always supply
+    the store.
+
     :param tool_ctx: The framework's :class:`ToolContext` from the
         underlying transport. Carries ``request_id``, ``tenant_id``,
-        and ``metadata``; we extend its caller_identity to the
+        and ``metadata``; we override its caller_identity to the
         composite key.
     :param account: Resolved account from the platform's
         :class:`AccountStore.resolve`.
     :param auth_info: Optional verified principal info — when present,
         ``auth_principal`` is populated from ``auth_info.principal``.
+    :param store: The AccountStore that produced ``account``. Required
+        for the production cache-isolation guarantee; the dispatch
+        adapter always supplies it. Test fixtures may pass ``None``
+        to skip the composite-key derivation.
     :param state_reader: Custom ``StateReader`` impl. Defaults to the
         v6.0 stub. Accept as a parameter so ``serve()`` can wire a
         v6.1 backing store without touching dispatch.
@@ -396,12 +436,20 @@ def _build_request_context(
 
     auth_principal = auth_info.principal if auth_info is not None else None
 
+    # Composite cache scope key when store is supplied (production
+    # path). Falls back to tool_ctx.caller_identity for test fixtures.
+    caller_identity: str | None
+    if store is not None:
+        caller_identity = compose_caller_identity(account, store)
+    else:
+        caller_identity = tool_ctx.caller_identity
+
     # Build the RequestContext with the explicit state/resolve kwargs
     # if provided; otherwise let the dataclass default factories
     # supply the v6.0 stubs.
     ctx_kwargs: dict[str, Any] = {
         "request_id": tool_ctx.request_id,
-        "caller_identity": tool_ctx.caller_identity,
+        "caller_identity": caller_identity,
         "tenant_id": tool_ctx.tenant_id,
         "metadata": dict(tool_ctx.metadata),
         "account": account,
@@ -604,9 +652,22 @@ async def _project_handoff(
             # the typed Pydantic response.
             await registry.complete(task_id, {"value": str(result)})
 
-    # ``asyncio.create_task`` snapshots contextvars automatically
-    # — no explicit copy needed at this site.
-    asyncio.create_task(_run())
+    # ``asyncio.create_task`` only weak-refs the resulting Task — under
+    # GC pressure or with no outer awaiter, the task can be collected
+    # mid-flight, leaving the registry stuck in 'submitted' forever.
+    # Track in a module-level set with a done-callback that discards
+    # the entry once the task completes. Documented Python footgun:
+    # https://docs.python.org/3/library/asyncio-task.html#creating-tasks
+    #
+    # Per Python 3.11+ semantics, ``asyncio.create_task`` inherits the
+    # current task's ContextVar state by reference (NOT a snapshot).
+    # That's the right behavior here — the background task should see
+    # the request-scope ContextVars set by middleware, NOT a stale
+    # snapshot from before middleware ran. Sync handoffs go through
+    # ``run_in_executor`` with explicit ``copy_context`` inside ``_run``.
+    bg_task = asyncio.create_task(_run(), name=f"adcp-handoff-{task_id}")
+    _BACKGROUND_HANDOFF_TASKS.add(bg_task)
+    bg_task.add_done_callback(_BACKGROUND_HANDOFF_TASKS.discard)
 
     # Wire ``Submitted`` envelope per spec.
     return {
@@ -614,6 +675,14 @@ async def _project_handoff(
         "status": "submitted",
         "task_type": method_name,
     }
+
+
+#: Strong-ref the in-flight handoff tasks so the asyncio loop's
+#: weak-ref behavior doesn't garbage-collect them mid-flight. Each
+#: completed task removes itself via :meth:`asyncio.Task.add_done_callback`.
+#: Module-level so the set survives across requests; framework-internal,
+#: never exported.
+_BACKGROUND_HANDOFF_TASKS: set[asyncio.Task[None]] = set()
 
 
 __all__ = [

@@ -220,11 +220,28 @@ def test_required_methods_per_specialism_pinned_for_sales() -> None:
 # ---- compose_caller_identity (D9 round-3) ----
 
 
-def test_compose_caller_identity_uses_store_qualname_and_account_id() -> None:
+def test_compose_caller_identity_uses_module_qualname_and_account_id() -> None:
+    """Composite key is ``module.qualname:account_id``. Includes
+    ``__module__`` because two ``MyStore`` classes in different
+    packages share ``__qualname__`` — structural cross-MODULE
+    isolation (round-4 review)."""
     store = SingletonAccounts(account_id="acme")
     account: Account[Any] = Account(id="acme:buyer-a")
     key = compose_caller_identity(account, store)
-    assert key == "SingletonAccounts:acme:buyer-a"
+    assert key == "adcp.decisioning.accounts.SingletonAccounts:acme:buyer-a"
+
+
+def test_compose_caller_identity_rejects_empty_account_id() -> None:
+    """Empty/whitespace/<unset> account.id raises — Account(id="")
+    or the dataclass default would silently collapse every empty-id
+    tenant into one cache scope class (P0 security fix from round-4
+    review)."""
+    store = SingletonAccounts(account_id="x")
+    for bogus in ("", "   ", "<unset>"):
+        with pytest.raises(AdcpError) as exc_info:
+            compose_caller_identity(Account(id=bogus), store)
+        assert exc_info.value.code == "INVALID_REQUEST"
+        assert "empty" in str(exc_info.value).lower() or "unset" in str(exc_info.value).lower()
 
 
 def test_compose_caller_identity_isolates_across_stores() -> None:
@@ -263,9 +280,25 @@ def test_build_request_context_threads_account_and_auth() -> None:
     assert ctx.auth_info is auth
     assert ctx.auth_principal == "buyer-a"
     assert ctx.request_id == "req_1"
+    # Without ``store=`` (test fixture path), caller_identity falls
+    # back to tool_ctx.caller_identity. The composite-key path is
+    # exercised by test_build_request_context_uses_composite_key_when_store_supplied.
     assert ctx.caller_identity == "caller_x"
     assert ctx.tenant_id == "tenant_y"
     assert ctx.metadata == {"foo": "bar"}
+
+
+def test_build_request_context_uses_composite_key_when_store_supplied() -> None:
+    """P0 round-4 regression: ``_build_request_context`` MUST set
+    ``ctx.caller_identity`` to the composite key when ``store=`` is
+    supplied. Without this wiring, idempotency middleware caches by
+    raw ``tool_ctx.caller_identity`` and D9 round-3 cross-store
+    isolation does not exist at runtime."""
+    store = SingletonAccounts(account_id="acme")
+    account: Account[Any] = Account(id="acme:buyer-a")
+    tool_ctx = ToolContext(caller_identity="raw-original")
+    ctx = _build_request_context(tool_ctx, account, None, store=store)
+    assert ctx.caller_identity == ("adcp.decisioning.accounts.SingletonAccounts:acme:buyer-a")
 
 
 def test_build_request_context_with_no_auth() -> None:
@@ -681,6 +714,55 @@ async def test_handoff_sync_fn_runs_on_executor(
     assert rec is not None
     assert rec["state"] == "completed"
     assert rec["result"]["thread"].startswith("test-dispatch-")
+
+
+@pytest.mark.asyncio
+async def test_handoff_background_task_is_strong_referenced(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """P0 round-4 regression: ``asyncio.create_task`` only weak-refs
+    the resulting Task; under GC pressure the loop can collect the
+    background task before it completes, leaving the registry stuck
+    in 'submitted' forever. Fix: the framework tracks pending tasks
+    in a module-level set with done-callback cleanup. Test asserts
+    the set membership is correct during the task's lifetime."""
+    from adcp.decisioning.dispatch import _BACKGROUND_HANDOFF_TASKS
+
+    registry = InMemoryTaskRegistry()
+    ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
+    started = asyncio.Event()
+    finish = asyncio.Event()
+
+    async def _handoff_fn(task_ctx):
+        started.set()
+        await finish.wait()
+        return {"done": True}
+
+    initial_size = len(_BACKGROUND_HANDOFF_TASKS)
+    envelope = await _project_handoff(
+        TaskHandoff(_handoff_fn),
+        ctx,
+        method_name="create_media_buy",
+        registry=registry,
+        executor=executor,
+    )
+    # Background task is alive — strong-ref'd via the module-level set.
+    await asyncio.wait_for(started.wait(), timeout=2.0)
+    assert len(_BACKGROUND_HANDOFF_TASKS) > initial_size
+    bg_tasks_for_this = [
+        t
+        for t in _BACKGROUND_HANDOFF_TASKS
+        if t.get_name() == f"adcp-handoff-{envelope['task_id']}"
+    ]
+    assert (
+        len(bg_tasks_for_this) == 1
+    ), f"Expected exactly one tracked background task; got {len(bg_tasks_for_this)}"
+    # Let it complete; the done-callback removes from the set.
+    finish.set()
+    await asyncio.sleep(0.1)
+    assert all(
+        t.get_name() != f"adcp-handoff-{envelope['task_id']}" for t in _BACKGROUND_HANDOFF_TASKS
+    ), "Completed background task must be removed via done-callback"
 
 
 @pytest.mark.asyncio

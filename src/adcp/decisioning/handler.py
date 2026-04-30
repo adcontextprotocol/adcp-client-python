@@ -210,12 +210,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         account: Account[Any],
     ) -> Any:
         """Wrap :func:`_build_request_context` with the handler's
-        wired StateReader / ResourceResolver overrides."""
+        wired StateReader / ResourceResolver overrides AND the
+        platform's AccountStore (for D9 round-3 composite cache
+        scope-key derivation)."""
         auth_info = self._extract_auth_info(tool_ctx)
         return _build_request_context(
             tool_ctx,
             account,
             auth_info,
+            store=self._platform.accounts,
             state_reader=self._state_reader,
             resource_resolver=self._resource_resolver,
         )

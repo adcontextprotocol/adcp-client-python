@@ -51,10 +51,12 @@ def test_in_memory_task_registry_satisfies_protocol() -> None:
 
 
 def test_custom_registry_satisfies_protocol_via_duck_typing() -> None:
-    """Adopter-written class with the right methods matches without
-    inheritance."""
+    """Adopter-written class with the right methods + ``is_durable``
+    class attr matches without inheritance."""
 
     class _Stub:
+        is_durable = True  # custom durable impl
+
         async def issue(self, *, account_id: str, task_type: str) -> str:
             return "task_x"
 
@@ -76,6 +78,19 @@ def test_custom_registry_satisfies_protocol_via_duck_typing() -> None:
             return None
 
     assert isinstance(_Stub(), TaskRegistry)
+
+
+def test_in_memory_task_registry_is_not_durable() -> None:
+    """``InMemoryTaskRegistry.is_durable`` is False — production-mode
+    gate refuses by default. Subclasses for instrumentation inherit
+    this."""
+    assert InMemoryTaskRegistry.is_durable is False
+    assert InMemoryTaskRegistry().is_durable is False
+
+    class _InstrumentedSubclass(InMemoryTaskRegistry):
+        pass
+
+    assert _InstrumentedSubclass.is_durable is False
 
 
 # ---- InMemoryTaskRegistry — issue + initial state ----

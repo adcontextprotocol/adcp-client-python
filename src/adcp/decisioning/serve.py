@@ -142,21 +142,29 @@ def create_adcp_server_from_platform(
         )
 
     # Allocate registry, with production-mode gate (Emma #8).
+    # Gate reads the registry's is_durable class-level marker rather
+    # than `isinstance(registry, InMemoryTaskRegistry)`. Two reasons:
+    #   1. Adopters subclassing InMemoryTaskRegistry for instrumentation
+    #      inherit `is_durable=False` and correctly trip the gate.
+    #   2. Adopters duck-typing a custom in-memory store would bypass
+    #      the isinstance check; the marker is opt-in for durability,
+    #      defaulting safe.
     if registry is None:
         registry = InMemoryTaskRegistry()
-    if isinstance(registry, InMemoryTaskRegistry) and _is_production_env():
+    is_durable = bool(getattr(registry, "is_durable", False))
+    if not is_durable and _is_production_env():
         opt_in = os.environ.get("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", "").strip()
         if opt_in != "1":
             raise AdcpError(
                 "INVALID_REQUEST",
                 message=(
-                    "InMemoryTaskRegistry refuses to start in production "
-                    "(ADCP_ENV is 'prod' or 'production'). HITL flows "
-                    "depend on the registry — silent in-memory fallback "
-                    "would lose tasks across process restarts. Either "
-                    "wire a durable TaskRegistry impl (see "
-                    "adcp.decisioning.TaskRegistry Protocol; v6.1 ships "
-                    "PostgresTaskRegistry) OR set "
+                    f"Non-durable TaskRegistry ({type(registry).__name__}) "
+                    "refuses to start in production (ADCP_ENV is 'prod' "
+                    "or 'production'). HITL flows depend on the registry "
+                    "— silent in-memory fallback would lose tasks across "
+                    "process restarts. Either wire a durable "
+                    "TaskRegistry impl (set is_durable=True on the class; "
+                    "v6.1 ships PostgresTaskRegistry) OR set "
                     "ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1 to "
                     "explicitly opt into in-memory tasks (e.g., for "
                     "single-process pilots)."
@@ -164,6 +172,7 @@ def create_adcp_server_from_platform(
                 recovery="terminal",
                 details={
                     "registry": type(registry).__name__,
+                    "is_durable": is_durable,
                     "ADCP_ENV": os.environ.get("ADCP_ENV", ""),
                 },
             )

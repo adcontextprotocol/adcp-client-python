@@ -178,11 +178,15 @@ def test_create_passes_in_production_with_explicit_opt_in() -> None:
 
 
 def test_create_passes_in_production_with_custom_durable_registry() -> None:
-    """When the operator supplies a non-InMemory registry, the gate
-    doesn't fire — a v6.1-style PostgresTaskRegistry would be
-    accepted in prod without the opt-in."""
+    """When the operator supplies a registry with ``is_durable=True``,
+    the gate doesn't fire — a v6.1-style PostgresTaskRegistry would
+    be accepted in prod without the opt-in. The marker is what the
+    gate reads (NOT isinstance checks; subclasses of
+    InMemoryTaskRegistry inherit is_durable=False)."""
 
     class _DurableStub:
+        is_durable = True  # the marker the gate reads
+
         async def issue(self, *, account_id, task_type):
             return "task_x"
 
@@ -207,6 +211,55 @@ def test_create_passes_in_production_with_custom_durable_registry() -> None:
         )
     assert registry is custom_reg
     executor.shutdown(wait=True)
+
+
+def test_create_raises_when_inmemory_subclass_used_in_production() -> None:
+    """Adopter subclassing InMemoryTaskRegistry for instrumentation
+    inherits is_durable=False — gate fires, no bypass via subclass.
+    This is the regression for the round-4 review's `isinstance`
+    bypass concern."""
+
+    class _InstrumentedInMemoryRegistry(InMemoryTaskRegistry):
+        pass
+
+    platform = _BarePlatform()
+    with patch.dict(os.environ, {"ADCP_ENV": "production"}):
+        os.environ.pop("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", None)
+        with pytest.raises(AdcpError) as exc_info:
+            create_adcp_server_from_platform(platform, registry=_InstrumentedInMemoryRegistry())
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert "_InstrumentedInMemoryRegistry" in str(exc_info.value)
+
+
+def test_create_raises_when_duck_typed_non_durable_used_in_production() -> None:
+    """Custom registry with no is_durable marker (defaults False via
+    getattr) trips the gate. Adopters MUST explicitly opt into
+    is_durable=True; safe-by-default."""
+
+    class _BareRegistry:
+        async def issue(self, *, account_id, task_type):
+            return "task_x"
+
+        async def update_progress(self, task_id, progress):
+            pass
+
+        async def complete(self, task_id, result):
+            pass
+
+        async def fail(self, task_id, error):
+            pass
+
+        async def get(self, task_id, *, expected_account_id=None):
+            return None
+
+    platform = _BarePlatform()
+    with patch.dict(os.environ, {"ADCP_ENV": "production"}):
+        os.environ.pop("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", None)
+        with pytest.raises(AdcpError) as exc_info:
+            create_adcp_server_from_platform(
+                platform, registry=_BareRegistry()  # type: ignore[arg-type]
+            )
+    assert exc_info.value.code == "INVALID_REQUEST"
 
 
 def test_create_passes_in_dev_env_with_default_registry() -> None:

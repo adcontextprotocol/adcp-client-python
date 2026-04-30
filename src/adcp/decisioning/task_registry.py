@@ -40,7 +40,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 
 #: Terminal task states per AdCP 3.0 spec (``enums/task-status.json``).
 #: ``submitted`` = task created but not yet started; ``working`` = adopter
@@ -123,6 +123,18 @@ class TaskRegistry(Protocol):
     """Per-account task store — the seam adopters substitute for a
     durable backing implementation.
 
+    **Durability marker** (``is_durable: ClassVar[bool]``):
+
+    Production deployments running ``sales-broadcast-tv`` or any HITL
+    flow refuse to start with a non-durable registry unless the
+    operator explicitly opts in via
+    ``ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1``. The framework reads
+    ``registry.is_durable`` to make this decision; subclassing
+    :class:`InMemoryTaskRegistry` for instrumentation does NOT bypass
+    the gate (the subclass inherits ``is_durable = False``). Custom
+    durable impls MUST set ``is_durable = True`` explicitly. The
+    Protocol declares this as a class-level ``bool``.
+
     Lifecycle (framework-driven; adopters call only :meth:`TaskHandoffContext`
     methods, not these directly):
 
@@ -156,6 +168,14 @@ class TaskRegistry(Protocol):
     ``tests/test_decisioning_task_registry_cross_tenant.py`` for
     the regression suite.
     """
+
+    #: Whether this registry persists tasks across process restarts.
+    #: ``False`` for in-memory / lossy impls; ``True`` for durable
+    #: backings (PostgreSQL, Redis, etc.). The framework's
+    #: production-mode gate refuses non-durable registries unless
+    #: the operator explicitly opts in via
+    #: ``ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1``.
+    is_durable: ClassVar[bool]
 
     async def issue(
         self,
@@ -259,12 +279,16 @@ class InMemoryTaskRegistry:
 
     Production-mode gate: :func:`adcp.decisioning.serve.serve` refuses
     to wire this when ``ADCP_ENV`` indicates production unless
-    ``ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1`` is set. The gate lives
-    in ``serve.py`` (Stage 3 dispatch) — this class itself is benign;
-    constructing it is fine. Production sellers running
-    ``sales-broadcast-tv`` or any HITL flow get the explicit refusal
-    so silent in-memory fallback can't bite oncall.
+    ``ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1`` is set. The gate
+    reads ``registry.is_durable``; subclassing this class for
+    instrumentation does NOT bypass the gate (the ``False`` is
+    inherited). Custom durable impls set ``is_durable = True``
+    explicitly. Production sellers running ``sales-broadcast-tv``
+    or any HITL flow get the explicit refusal so silent in-memory
+    fallback can't bite oncall.
     """
+
+    is_durable: ClassVar[bool] = False
 
     def __init__(self) -> None:
         self._records: dict[str, TaskRecord] = {}
@@ -276,6 +300,20 @@ class InMemoryTaskRegistry:
         account_id: str,
         task_type: str,
     ) -> str:
+        # Reject empty/unset account_id at issue-time. Without this,
+        # two tenants whose AccountStore returns Account(id="") or the
+        # default Account(id="<unset>") share a cache scope class and
+        # can read each other's tasks via cross-tenant probe (the
+        # equality check passes when both are empty). See
+        # tests/test_decisioning_task_registry_cross_tenant.py for the
+        # regression suite.
+        if not account_id or not account_id.strip() or account_id == "<unset>":
+            raise ValueError(
+                f"account_id must be a non-empty, non-default string; "
+                f"got {account_id!r}. AccountStore.resolve must always "
+                "return Account(id=<non-empty>) so cross-tenant cache "
+                "scoping works correctly."
+            )
         task_id = f"task_{uuid.uuid4().hex[:16]}"
         async with self._lock:
             self._records[task_id] = TaskRecord(
