@@ -231,9 +231,56 @@ class ADCPHandler(ABC, Generic[TContext]):
     - ContentStandardsHandler: For content standards agents
     - SponsoredIntelligenceHandler: For sponsored intelligence agents
     - GovernanceHandler: For governance agents
+
+    **Tool advertisement** (`advertised_tools` class attribute):
+
+    A subclass that introduces a new specialism — i.e., a custom base
+    that needs its own ``tools/list`` filter rather than inheriting one
+    from a built-in handler — declares the tool set on the class body::
+
+        class PlatformHandler(ADCPHandler):
+            advertised_tools: ClassVar[set[str]] = {
+                "get_products",
+                "create_media_buy",
+                ...
+            }
+
+    The framework registers ``PlatformHandler -> advertised_tools`` with
+    :func:`adcp.server.mcp_tools.register_handler_tools` at class
+    definition time. Subclasses that DON'T introduce a new specialism
+    (a custom ``MyContentAgent(ContentStandardsHandler)``, for example)
+    inherit their parent's tool set unchanged — no class attr needed.
+
+    Hand-written equivalent (no ``advertised_tools`` declaration)::
+
+        from adcp.server.mcp_tools import register_handler_tools
+        register_handler_tools("PlatformHandler", {...})
+
+    Either path is fine; codegen targets emit the class attribute so the
+    declaration sits next to the class definition.
     """
 
     _agent_type: str = "this agent"
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        """Auto-register subclass-declared tool advertisement.
+
+        Reads ``cls.__dict__["advertised_tools"]`` (subclass-defined-only
+        — inherited values don't trigger re-registration) and routes
+        through :func:`adcp.server.mcp_tools.register_handler_tools`.
+        Only fires when the subclass declares the attribute on its own
+        class body; intermediate subclasses (multi-level hierarchy)
+        register at the level that introduces the attribute.
+
+        The lazy import avoids a base.py ↔ mcp_tools.py circular —
+        mcp_tools imports ADCPHandler at module load, so register is
+        looked up only when a subclass is actually being created.
+        """
+        super().__init_subclass__(**kwargs)
+        if "advertised_tools" in cls.__dict__:
+            from adcp.server.mcp_tools import register_handler_tools
+
+            register_handler_tools(cls.__name__, cls.__dict__["advertised_tools"])
 
     def _not_supported(self, operation: str) -> NotImplementedResponse:
         """Create a not-supported response that includes the agent type."""

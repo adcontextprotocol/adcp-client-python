@@ -99,6 +99,7 @@ from adcp.server.mcp_tools import (
     MCPToolSet,
     create_mcp_tools,
     get_tools_for_handler,
+    register_handler_tools,
     validate_discovery_set,
 )
 from adcp.server.proposal import ProposalBuilder, ProposalNotSupported
@@ -167,6 +168,7 @@ __all__ = [
     "create_mcp_tools",
     "create_mcp_server",
     "get_tools_for_handler",
+    "register_handler_tools",
     "serve",
     "validate_discovery_set",
     # A2A integration

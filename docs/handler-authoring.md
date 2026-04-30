@@ -55,6 +55,50 @@ Pass ``advertise_all=True`` to ``serve()`` / ``create_mcp_server()`` /
 storyboards, agents that deliberately signal
 ``not_supported`` on specific tools).
 
+**Custom handler bases — declare ``advertised_tools``.** The override
+filter works perfectly for direct ``ADCPHandler`` subclasses and the
+specialized bases (``GovernanceHandler``, ``ContentStandardsHandler``,
+etc.). But if you're authoring a *new* specialized base that
+introduces its own focused tool set — typically a codegen target like
+``adcp.decisioning.handler.PlatformHandler``, or a hand-rolled
+``ReadOnlyAnalyticsHandler`` — declare the tool set on the class
+itself::
+
+    from typing import ClassVar
+    from adcp.server import ADCPHandler
+
+    class ReadOnlyAnalyticsHandler(ADCPHandler):
+        advertised_tools: ClassVar[set[str]] = {
+            "get_products",
+            "get_media_buy_delivery",
+        }
+
+        # ... method bodies ...
+
+The framework auto-registers ``ReadOnlyAnalyticsHandler ->
+advertised_tools`` at class definition time via
+``ADCPHandler.__init_subclass__``. The override filter then runs
+against this set instead of inheriting ``ADCPHandler``'s full
+surface.
+
+Equivalent imperative form — same outcome::
+
+    from adcp.server import register_handler_tools
+    register_handler_tools("ReadOnlyAnalyticsHandler", {"get_products", ...})
+
+Without either declaration, ``serve()`` emits a one-time
+``UserWarning`` at boot pointing you at the registration paths. The
+warning matters because the alternative — silent over-advertisement
+of the full ADCPHandler surface — is exactly the discoverability
+gap that bites operators in production: ``tools/list`` returns 57
+tools when the agent only handles 2.
+
+**What not to build:** don't use ``advertise_all=True`` as a
+workaround for missing registration. The flag exists for legitimate
+opt-in cases (storyboards, deliberate ``not_supported`` signaling);
+using it to silence the registration warning over-advertises every
+tool to every buyer.
+
 ## The `_impl` pattern (production-grade)
 
 Production agents usually don't put business logic directly on handler
