@@ -365,11 +365,18 @@ class DemoSeller(ADCPHandler):
                     field="product_id",
                     suggestion="Use get_products to discover available products",
                 )
-            # Reject aggressive measurement_terms. The compliance runner sends
-            # max_variance_percent=0 with a c30 window (unworkable) on the
-            # rejection path, then retries with c7 + 10% variance.
-            terms = pkg.get("measurement_terms") or {}
-            billing = terms.get("billing_measurement") or {}
+            # Reject aggressive measurement_terms. The compliance runner
+            # sends max_variance_percent=0 with a c30 window (unworkable)
+            # on the rejection path, then retries with c7 + 10% variance
+            # (and possibly a third-party vendor — vendor identity is
+            # buyer's choice, not the seller's). Defensive coercion —
+            # storyboard fixtures occasionally send measurement_terms as
+            # a string or other non-dict shape; treat that as "no terms"
+            # rather than crashing.
+            raw_terms = pkg.get("measurement_terms")
+            pkg_terms = raw_terms if isinstance(raw_terms, dict) else {}
+            raw_billing = pkg_terms.get("billing_measurement")
+            billing = raw_billing if isinstance(raw_billing, dict) else {}
             window = billing.get("measurement_window")
             variance = billing.get("max_variance_percent")
             if (variance is not None and variance < 5) or (
@@ -382,6 +389,7 @@ class DemoSeller(ADCPHandler):
                     field="measurement_terms",
                     recovery="correctable",
                 )
+
             built_pkg: dict[str, Any] = {
                 "package_id": f"pkg-{uuid.uuid4().hex[:8]}",
                 "product_id": product_id,
@@ -761,6 +769,49 @@ class DemoStore(TestControllerStore):
         data = dict(fixture or {})
         pid = product_id or data.get("product_id") or f"seeded-{uuid.uuid4().hex[:8]}"
         data["product_id"] = pid
+        # Ensure schema-required fields are present so downstream validation
+        # passes even when the runner sends a minimal fixture with only
+        # product_id. Defaults are spec-valid (non-empty arrays where
+        # ``minItems: 1`` applies, format_ids carrying agent_url) so the
+        # storyboard runner's get-products-response.json validation succeeds
+        # against any product the runner seeds.
+        data.setdefault("name", pid)
+        data.setdefault("description", f"Seeded product {pid}")
+        data.setdefault("delivery_type", "non_guaranteed")
+        data.setdefault(
+            "publisher_properties",
+            [{"publisher_domain": "example.com", "selection_type": "all"}],
+        )
+        data.setdefault(
+            "format_ids",
+            [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        )
+        # Normalize any caller-supplied format_ids items that omit
+        # agent_url. Storyboard fixtures commonly send
+        # ``format_ids: [{"id": "..."}]`` — the bare id without the
+        # canonical agent_url. The schema requires both fields, so fill
+        # in the local AGENT_URL when missing.
+        data["format_ids"] = [
+            (
+                {**fmt, "agent_url": fmt.get("agent_url") or AGENT_URL}
+                if isinstance(fmt, dict)
+                else fmt
+            )
+            for fmt in data["format_ids"]
+        ]
+        data.setdefault("pricing_options", [])
+        data.setdefault(
+            "reporting_capabilities",
+            {
+                "available_metrics": ["impressions", "spend"],
+                "available_reporting_frequencies": ["hourly", "daily"],
+                "date_range_support": "date_range",
+                "supports_webhooks": False,
+                "expected_delay_minutes": 60,
+                "timezone": "UTC",
+            },
+        )
+        data.setdefault("delivery_measurement", {"provider": "internal"})
         for i, p in enumerate(PRODUCTS):
             if p.get("product_id") == pid:
                 PRODUCTS[i] = data

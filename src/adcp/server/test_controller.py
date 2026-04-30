@@ -659,6 +659,16 @@ async def _handle_test_controller(
     if isinstance(result, dict) and "success" not in result:
         result["success"] = True
 
+    # Echo the wire ``context`` field per the spec's
+    # comply-test-controller-response shape. Storyboards thread state
+    # across steps via the context object; sellers that don't echo
+    # break the storyboard runner's ``$context.<field>`` resolution
+    # for downstream steps. Skip when the store already populated
+    # ``context`` itself (an explicit override wins).
+    wire_context = params.get("context")
+    if isinstance(result, dict) and "context" not in result and isinstance(wire_context, dict):
+        result["context"] = dict(wire_context)
+
     return dict(result)
 
 
