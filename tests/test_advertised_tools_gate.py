@@ -369,24 +369,38 @@ def test_decorator_wrapped_override_counts_as_override():
 
 
 # ---------------------------------------------------------------------------
-# Coupling invariant — _SDK_BASE_CLASS_NAMES must stay in sync with _HANDLER_TOOLS
+# SDK-base-class detection reads _HANDLER_TOOLS live (no frozen-set drift)
 # ---------------------------------------------------------------------------
 
 
-def test_sdk_base_class_names_stays_in_sync_with_handler_tools():
-    """``_SDK_BASE_CLASS_NAMES`` is derived from ``_HANDLER_TOOLS.keys()``
-    and the override detector walks the MRO looking for name matches. If
-    someone adds a new specialized base (e.g. ``RetailMediaHandler``) to
-    ``_HANDLER_TOOLS`` without touching ``_SDK_BASE_CLASS_NAMES``, the
-    detector will skip it and silently mis-classify every subclass's
-    overrides. This test locks the two names together.
+def test_is_sdk_base_class_reads_handler_tools_live():
+    """``_is_sdk_base_class`` reads ``_HANDLER_TOOLS`` directly so handlers
+    registered after import time (via :func:`register_handler_tools` or
+    :meth:`ADCPHandler.__init_subclass__`) participate in override
+    detection without rebuilding any cached set. Regression coverage for
+    the prior frozen-set drift bug.
     """
-    from adcp.server.mcp_tools import _HANDLER_TOOLS, _SDK_BASE_CLASS_NAMES
-
-    assert set(_SDK_BASE_CLASS_NAMES) == set(_HANDLER_TOOLS.keys()), (
-        "_SDK_BASE_CLASS_NAMES must be derived from _HANDLER_TOOLS.keys(). "
-        "Adding a new specialized handler base requires updating both."
+    from adcp.server.mcp_tools import (
+        _HANDLER_TOOLS,
+        _is_sdk_base_class,
+        register_handler_tools,
     )
+
+    # Built-in bases recognised.
+    for name in _HANDLER_TOOLS:
+        assert _is_sdk_base_class(name), name
+
+    # Unknown name rejected.
+    assert not _is_sdk_base_class("DefinitelyNotAHandler")
+
+    # Newly registered name picked up immediately, no rebuild.
+    register_handler_tools("_TestLiveDetectionHandler", {"get_products"})
+    try:
+        assert _is_sdk_base_class("_TestLiveDetectionHandler")
+    finally:
+        # Test-cleanup — remove the synthetic registration so other
+        # tests don't see drift.
+        _HANDLER_TOOLS.pop("_TestLiveDetectionHandler", None)
 
 
 # ---------------------------------------------------------------------------

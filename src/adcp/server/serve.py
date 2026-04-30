@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
@@ -27,7 +28,11 @@ from typing import TYPE_CHECKING, Any, Literal
 logger = logging.getLogger("adcp.server")
 
 from adcp.server.base import ADCPHandler, ToolContext
-from adcp.server.mcp_tools import create_tool_caller, get_tools_for_handler
+from adcp.server.mcp_tools import (
+    _HANDLER_TOOLS,
+    create_tool_caller,
+    get_tools_for_handler,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -203,6 +208,14 @@ def _log_advertised_tools(
 
     Registered at ``INFO`` because operators routinely tail this; the
     delta at ``DEBUG`` because it's noisy on fully-implemented handlers.
+
+    Also fires a one-time ``UserWarning`` at boot when the handler
+    class introduces a new specialism (a custom subclass that's not in
+    the framework's tool registry and doesn't declare
+    ``advertised_tools``) but ``advertise_all`` is False — closes the
+    silent over-advertisement gap where adopters see the full
+    ``ADCPHandler`` tool surface inherited via MRO when they meant to
+    declare a focused subset.
     """
     registered_set = set(registered)
     full_defs = get_tools_for_handler(handler, advertise_all=True)
@@ -218,6 +231,63 @@ def _log_advertised_tools(
     )
     if unadvertised and not advertise_all:
         logger.debug("%s server unadvertised tools: %s", transport, ", ".join(unadvertised))
+
+    _warn_if_unregistered_subclass(handler, advertise_all=advertise_all)
+
+
+def _warn_if_unregistered_subclass(handler: ADCPHandler[Any], *, advertise_all: bool) -> None:
+    """Emit a one-time ``UserWarning`` when a custom handler base bypasses
+    the tool-discovery registry.
+
+    The trigger: the concrete handler class itself isn't in
+    ``_HANDLER_TOOLS``, has no ``advertised_tools`` declaration of its
+    own, and inherits its tool set from ``ADCPHandler`` (the broadest
+    base) rather than a specialized base like ``GovernanceHandler``.
+    That combination almost always means the adopter meant to declare a
+    focused tool set but forgot to register it; the framework
+    over-advertises by silently falling through to ADCPHandler's full
+    surface.
+
+    Suppressed when ``advertise_all=True`` — that's the explicit "yes,
+    advertise everything" opt-in.
+    """
+    if advertise_all:
+        return
+    cls = type(handler)
+    if cls.__name__ in _HANDLER_TOOLS:
+        return
+    if "advertised_tools" in cls.__dict__:
+        # Should already have been auto-registered via __init_subclass__,
+        # but defensively skip the warning if the attribute exists.
+        return
+    # Walk MRO looking for a specialized SDK base (anything in the
+    # registry other than ADCPHandler itself). If one is found, the
+    # adopter is subclassing a focused base and inheriting its tool set
+    # — that's the documented pattern, no warning needed.
+    has_specialized_parent = any(
+        base.__name__ in _HANDLER_TOOLS and base.__name__ != "ADCPHandler" for base in cls.__mro__
+    )
+    if has_specialized_parent:
+        return
+    warnings.warn(
+        f"Handler class {cls.__name__!r} subclasses ADCPHandler directly "
+        f"but isn't registered in the framework's tool-discovery "
+        f"registry. tools/list will inherit the full ADCPHandler tool "
+        f"surface — this almost always means over-advertising for a "
+        f"new specialism.\n\n"
+        f"Pick one:\n"
+        f"  (a) declare ``advertised_tools: set[str] = {{...}}`` on "
+        f"{cls.__name__} (auto-registers via __init_subclass__)\n"
+        f"  (b) call adcp.server.mcp_tools.register_handler_tools("
+        f"{cls.__name__!r}, {{...}}) before serve()\n"
+        f"  (c) pass advertise_all=True to serve() to acknowledge the "
+        f"full advertisement\n\n"
+        f"Decisioning-platform adopters: codegen via "
+        f"`uv run python scripts/generate_decisioning_handler.py` "
+        f"emits the declaration for you.",
+        UserWarning,
+        stacklevel=4,
+    )
 
 
 async def _dispatch_with_middleware(

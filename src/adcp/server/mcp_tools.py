@@ -19,6 +19,7 @@ Provides utilities for registering ADCP handlers with MCP servers.
 from __future__ import annotations
 
 import copy
+import difflib
 import logging
 from collections.abc import Callable, Iterable
 from typing import Any
@@ -1027,6 +1028,58 @@ for _handler_name, _tools in _HANDLER_TOOLS.items():
     assert not _unknown, f"{_handler_name} references unknown tools: {_unknown}"
 
 
+def register_handler_tools(handler_name: str, tools: Iterable[str]) -> None:
+    """Register a handler-class-name → tool-set mapping with the framework.
+
+    Public seam. ``get_tools_for_handler`` reads ``_HANDLER_TOOLS`` to
+    filter ``tools/list`` per handler subclass; without registration, an
+    ``ADCPHandler`` subclass that introduces a new specialism would fall
+    through to its parent's tool set (typically ``ADCPHandler``'s
+    full-spec surface), over-advertising. Codegen targets like
+    ``adcp.decisioning.handler.PlatformHandler`` register here at class
+    definition time via ``ADCPHandler.__init_subclass__``; hand-written
+    custom bases call this directly before ``serve()``.
+    Idempotent on equal input — calling twice with the same tool set
+    is a no-op so module re-imports / reload-friendly test harnesses
+    don't break.
+    Conflicts raise. Unknown tool names raise with a closest-match
+    suggestion (typo recovery for adopters working from spec memory).
+    :param handler_name: The class name of the handler subclass —
+        typically ``cls.__name__`` from inside ``__init_subclass__``.
+    :param tools: Iterable of AdCP tool names this handler answers
+        (members of ``ADCP_TOOL_DEFINITIONS``). Order doesn't matter.
+    :raises ValueError: when ``handler_name`` is already registered with
+        a different tool set, or when any tool name is not in the AdCP
+        spec surface.
+    """
+    incoming = frozenset(tools)
+    existing = _HANDLER_TOOLS.get(handler_name)
+    if existing is not None:
+        if frozenset(existing) == incoming:
+            return
+        raise ValueError(
+            f"register_handler_tools({handler_name!r}, ...) called twice "
+            f"with different tool sets. Existing: {sorted(existing)}; "
+            f"incoming: {sorted(incoming)}. The framework can only hold "
+            "one mapping per handler class — pick the canonical set."
+        )
+    unknown = incoming - _ALL_TOOL_NAMES
+    if unknown:
+        suggestions: list[str] = []
+        for bad in sorted(unknown):
+            close = difflib.get_close_matches(bad, _ALL_TOOL_NAMES, n=1)
+            if close:
+                suggestions.append(f"{bad!r} (did you mean {close[0]!r}?)")
+            else:
+                suggestions.append(repr(bad))
+        raise ValueError(
+            f"register_handler_tools({handler_name!r}, ...): unknown tool "
+            f"name(s) {', '.join(suggestions)}. Tool names must match the "
+            "AdCP spec — see ``adcp.server.mcp_tools.ADCP_TOOL_DEFINITIONS``."
+        )
+    _HANDLER_TOOLS[handler_name] = set(incoming)
+
+
 # ============================================================================
 # Pydantic schema generation — spec-accurate input schemas
 # ============================================================================
@@ -1325,10 +1378,18 @@ def _apply_pydantic_schemas() -> None:
 _apply_pydantic_schemas()
 
 
-_SDK_BASE_CLASS_NAMES: frozenset[str] = frozenset(_HANDLER_TOOLS.keys())
-"""Names of the SDK's own base classes. Used to detect whether a method
-is an SDK default (inherited from one of these) or a subclass override.
-Kept alongside ``_HANDLER_TOOLS`` so they can't drift."""
+def _is_sdk_base_class(cls_name: str) -> bool:
+    """True when ``cls_name`` is registered in ``_HANDLER_TOOLS``.
+
+    Used during MRO walks to identify the nearest SDK base whose
+    method baselines a subclass override. Reads ``_HANDLER_TOOLS``
+    live so that handler classes registered after import time —
+    via :func:`register_handler_tools` or
+    :meth:`ADCPHandler.__init_subclass__` reading
+    ``advertised_tools`` — participate in override detection without
+    requiring a frozen-set rebuild.
+    """
+    return cls_name in _HANDLER_TOOLS
 
 
 def _is_method_overridden(handler_cls: type, method_name: str) -> bool:
@@ -1375,7 +1436,7 @@ def _is_method_overridden(handler_cls: type, method_name: str) -> bool:
     sdk_base: type | None = None
     base_method: Any | None = None
     for base in handler_cls.__mro__[1:]:
-        if base.__name__ not in _SDK_BASE_CLASS_NAMES:
+        if not _is_sdk_base_class(base.__name__):
             continue
         found = base.__dict__.get(method_name)
         if found is None:
