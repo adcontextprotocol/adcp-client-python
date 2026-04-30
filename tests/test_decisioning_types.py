@@ -285,10 +285,14 @@ def test_account_store_protocol_runtime_checkable() -> None:
 
 def test_account_store_resolution_literal() -> None:
     """``resolution`` is a structural literal the framework reads at
-    server boot for ``validate_platform`` checks."""
-    assert SingletonAccounts(account_id="x").resolution == "singleton"
+    server boot for ``validate_platform`` checks. Mirrors the JS-side
+    literal (``src/lib/server/decisioning/account.ts``) for
+    cross-language parity: ``'explicit'`` (wire ref drives lookup),
+    ``'implicit'`` (verified auth principal drives lookup),
+    ``'derived'`` (single-platform with per-principal id synthesis)."""
+    assert SingletonAccounts(account_id="x").resolution == "derived"
     assert ExplicitAccounts(loader=lambda _x: Account(id="y")).resolution == "explicit"
-    assert FromAuthAccounts(loader=lambda _x: Account(id="z")).resolution == "from_auth"
+    assert FromAuthAccounts(loader=lambda _x: Account(id="z")).resolution == "implicit"
 
 
 # ---- DecisioningPlatform contract ----
@@ -305,4 +309,4 @@ def test_decisioning_platform_subclass_attributes() -> None:
 
     s = HelloSeller()
     assert s.capabilities.specialisms == ["sales-non-guaranteed"]
-    assert s.accounts.resolution == "singleton"
+    assert s.accounts.resolution == "derived"

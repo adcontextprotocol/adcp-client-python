@@ -162,8 +162,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         Pulls auth info from ``ctx.metadata['auth_info']`` when the
         operator's ``context_factory`` populates it; otherwise None.
         Adopter ``AccountStore`` impls handle missing-auth cases per
-        their own resolution mode (singleton tolerates None;
-        from_auth raises ``AUTH_INVALID``; explicit resolves by ref).
+        their own resolution mode (``'derived'`` tolerates None;
+        ``'implicit'`` raises ``AUTH_INVALID``; ``'explicit'`` resolves
+        by ref).
         ``AccountStore.resolve`` takes a dict — convert the typed
         Pydantic ``AccountReference`` via ``model_dump()`` so adopter
         store impls see a normalized shape.

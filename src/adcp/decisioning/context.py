@@ -102,6 +102,50 @@ class RequestContext(ToolContext, Generic[TMeta]):
     returned :class:`TaskHandoff` via type-identity and projects it
     to the wire ``Submitted`` envelope.
 
+    **Identifier disambiguation — when to use which:**
+
+    The context carries four identifier-shaped fields. Each has a
+    distinct role; mixing them up is the most common adopter bug.
+
+    +---------------------+-----------------------------+--------------------------------+
+    | Field               | What it answers             | Read it for                    |
+    +=====================+=============================+================================+
+    | ``account.id``      | "Whose data is this?"       | Routing the request to the     |
+    |                     | The resolved tenant /       | right adapter, scoping DB      |
+    |                     | account that owns the call. | reads, audit logs.             |
+    +---------------------+-----------------------------+--------------------------------+
+    | ``auth_principal``  | "Who's calling?"            | Per-principal ACLs within an   |
+    |                     | The verified caller's       | account ("can principal X      |
+    |                     | identity label              | mutate this buy?").            |
+    |                     | (``agent_url`` for AdCP v3  |                                |
+    |                     | signed-request agents,      |                                |
+    |                     | OAuth subject for bearer    |                                |
+    |                     | flows, mTLS subject for     |                                |
+    |                     | client-cert flows).         |                                |
+    +---------------------+-----------------------------+--------------------------------+
+    | ``caller_identity`` | "What's the cache scope?"   | NEVER read directly in adopter |
+    |                     | Composite framework-set key | code. The framework's          |
+    |                     | (``store.qualname:           | idempotency middleware reads   |
+    |                     | account.id``) used by the   | this. Mutating it breaks       |
+    |                     | idempotency middleware.     | replay-cache scoping.          |
+    +---------------------+-----------------------------+--------------------------------+
+    | ``tenant_id``       | "Which transport tenant?"   | Multi-tenant transport routing |
+    |                     | Inherited from              | (host header, URL path).       |
+    |                     | :class:`ToolContext`. Set   | Usually equals ``account.id``  |
+    |                     | by the transport layer      | for explicit-resolution        |
+    |                     | before dispatch.            | adopters; can diverge for      |
+    |                     |                             | derived/implicit modes.        |
+    +---------------------+-----------------------------+--------------------------------+
+
+    Common patterns:
+
+    * Routing to the right adapter? → ``ctx.account.metadata.adapter``
+      (typed via the ``TMeta`` generic).
+    * Authorization check? → ``ctx.auth_principal`` (who's calling)
+      against ``ctx.account.id`` (whose data they're touching).
+    * Idempotency scope? → don't touch; the framework owns this.
+    * Logging request provenance? → log all four; they're cheap.
+
     :param state: Sync reads of framework-owned in-flight workflow
         state. Default is :class:`adcp.decisioning.state._NotYetWiredStateReader`
         — returns empty values + emits one-time UserWarning per
