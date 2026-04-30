@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.2.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.1.0...v4.2.0) (2026-04-30)
+
+
+### Features
+
+* **examples:** DemoStore overrides for force_create_media_buy_arm, force_task_completion, and seed_* scenarios ([#313](https://github.com/adcontextprotocol/adcp-client-python/issues/313)) ([e2a2707](https://github.com/adcontextprotocol/adcp-client-python/commit/e2a270778960a891cdb8afa8d30d00e3570afd4d))
+* **sdk:** per-instance adcp_version pin + wire emission (Stage 2 + 3a) ([#294](https://github.com/adcontextprotocol/adcp-client-python/issues/294)) ([4aa7a6d](https://github.com/adcontextprotocol/adcp-client-python/commit/4aa7a6d1a19a6ff681b13d773e55cfb09bab495f))
+* **server:** add force_create_media_buy_arm + force_task_completion controller scenarios ([#282](https://github.com/adcontextprotocol/adcp-client-python/issues/282)) ([9818250](https://github.com/adcontextprotocol/adcp-client-python/commit/9818250c75bc08deaf43af5c829c78eabb1cd342))
+* **test-controller:** add seed_creative_format scenario; advertise force_session_status in capabilities ([#315](https://github.com/adcontextprotocol/adcp-client-python/issues/315)) ([ce7e9ab](https://github.com/adcontextprotocol/adcp-client-python/commit/ce7e9ab2c9569a69a39601b224278c0b7a349b1e))
+
+
+### Bug Fixes
+
+* **examples:** seller_agent.py AdCP 3.0.1 storyboard compliance (items 1-6 of [#304](https://github.com/adcontextprotocol/adcp-client-python/issues/304)) ([#310](https://github.com/adcontextprotocol/adcp-client-python/issues/310)) ([04966d7](https://github.com/adcontextprotocol/adcp-client-python/commit/04966d7183811238d57e28a3aebc63e6de135a32))
+* **server:** comply_test_controller returns dict to fix controller_detected: false ([#317](https://github.com/adcontextprotocol/adcp-client-python/issues/317)) ([9244d46](https://github.com/adcontextprotocol/adcp-client-python/commit/9244d464e756dcef969ebdb3f9b49369c06a1f58))
+* **server:** fix streamable-http ASGI error, host binding, and AdCP 3.0.1 scenario gaps ([#296](https://github.com/adcontextprotocol/adcp-client-python/issues/296)) ([6be0232](https://github.com/adcontextprotocol/adcp-client-python/commit/6be02328be979ccd32ac2914d8b5e04c0923dd02))
+
 ## [4.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.0.0...v4.1.0) (2026-04-30)
 
 

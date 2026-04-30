@@ -234,76 +234,11 @@ async def test_seed_product_is_findable_by_create_media_buy() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_media_buy_terms_rejected_high_viewability() -> None:
-    """Per-package measurement_terms.viewability_threshold > 80 must return TERMS_REJECTED."""
-    seller = _seller()
-    resp = await seller.create_media_buy(
-        {
-            "packages": [
-                {
-                    "product_id": "premium-homepage",
-                    "pricing_option_id": "po-cpm-homepage",
-                    "budget": 10000,
-                    "measurement_terms": {"viewability_threshold": 85},
-                }
-            ],
-        }
-    )
-    errors = resp.get("errors", [])
-    assert any(
-        e.get("code") == "TERMS_REJECTED" for e in errors
-    ), f"Expected TERMS_REJECTED in errors, got: {resp}"
-    # TERMS_REJECTED is a negotiation error; recovery must be correctable, not terminal.
-    rejected = next(e for e in errors if e.get("code") == "TERMS_REJECTED")
-    assert (
-        rejected.get("recovery") == "correctable"
-    ), f"Expected recovery=correctable, got: {rejected}"
-
-
-@pytest.mark.asyncio
-async def test_create_media_buy_terms_rejected_at_boundary() -> None:
-    """viewability_threshold == 80 is exactly at the limit and must be accepted."""
-    seller = _seller()
-    resp = await seller.create_media_buy(
-        {
-            "packages": [
-                {
-                    "product_id": "premium-homepage",
-                    "pricing_option_id": "po-cpm-homepage",
-                    "budget": 10000,
-                    "measurement_terms": {"viewability_threshold": 80},
-                }
-            ],
-        }
-    )
-    assert (
-        resp.get("media_buy_id") is not None
-    ), f"viewability_threshold=80 should be accepted, got: {resp}"
-
-
-@pytest.mark.asyncio
-async def test_create_media_buy_accepts_normal_viewability() -> None:
-    """viewability_threshold < 80 must NOT be rejected."""
-    seller = _seller()
-    resp = await seller.create_media_buy(
-        {
-            "packages": [
-                {
-                    "product_id": "premium-homepage",
-                    "pricing_option_id": "po-cpm-homepage",
-                    "budget": 10000,
-                    "measurement_terms": {"viewability_threshold": 70},
-                }
-            ],
-        }
-    )
-    assert resp.get("media_buy_id") is not None, f"Expected success, got: {resp}"
-
-
-@pytest.mark.asyncio
-async def test_create_media_buy_terms_rejected_third_party_vendor() -> None:
-    """Third-party vendor (not seller's own domain) is rejected — demo
-    seller uses internal counter, can't honor third-party measurement."""
+async def test_create_media_buy_accepts_third_party_vendor() -> None:
+    """Vendor identity is buyer's choice; storyboard
+    measurement_terms_rejected/create_media_buy_relaxed_terms expects
+    acceptance of `vendor.domain` like 'videoamp.example' as long as
+    variance + window are workable."""
     seller = _seller()
     resp = await seller.create_media_buy(
         {
@@ -314,77 +249,24 @@ async def test_create_media_buy_terms_rejected_third_party_vendor() -> None:
                     "budget": 10000,
                     "measurement_terms": {
                         "billing_measurement": {
-                            "vendor": {"domain": "moat.com"},
+                            "vendor": {"domain": "videoamp.example"},
+                            "max_variance_percent": 10,
+                            "measurement_window": "c7",
                         },
                     },
                 }
             ],
         }
     )
-    errors = resp.get("errors", [])
-    assert any(
-        e.get("code") == "TERMS_REJECTED" for e in errors
-    ), f"Expected TERMS_REJECTED for vendor mismatch, got: {resp}"
-    rejected = next(e for e in errors if e.get("code") == "TERMS_REJECTED")
-    assert rejected["recovery"] == "correctable"
-    assert "vendor" in rejected.get(
-        "field", ""
-    ), f"Expected field path to mention vendor, got: {rejected.get('field')}"
-
-
-@pytest.mark.asyncio
-async def test_create_media_buy_accepts_seller_vendor() -> None:
-    """vendor.domain matching the seller's own domain (example.com) or
-    the 'internal' marker is a buyer-relaxed term — accept."""
-    seller = _seller()
-    for domain in ("example.com", "internal"):
-        resp = await seller.create_media_buy(
-            {
-                "packages": [
-                    {
-                        "product_id": "premium-homepage",
-                        "pricing_option_id": "po-cpm-homepage",
-                        "budget": 10000,
-                        "measurement_terms": {
-                            "billing_measurement": {"vendor": {"domain": domain}},
-                        },
-                    }
-                ],
-            }
-        )
-        assert (
-            resp.get("media_buy_id") is not None
-        ), f"Seller-domain vendor {domain!r} should be accepted, got: {resp}"
-
-
-@pytest.mark.asyncio
-async def test_create_media_buy_accepts_common_measurement_windows() -> None:
-    """Common windows (live, c3, c7, final) are accepted; only strict
-    windows like post_sivt are rejected as unsupported."""
-    seller = _seller()
-    for window in ("live", "c3", "c7", "final"):
-        resp = await seller.create_media_buy(
-            {
-                "packages": [
-                    {
-                        "product_id": "premium-homepage",
-                        "pricing_option_id": "po-cpm-homepage",
-                        "budget": 10000,
-                        "measurement_terms": {
-                            "billing_measurement": {"measurement_window": window},
-                        },
-                    }
-                ],
-            }
-        )
-        assert (
-            resp.get("media_buy_id") is not None
-        ), f"Common window {window!r} should be accepted, got: {resp}"
+    assert (
+        resp.get("media_buy_id") is not None
+    ), f"Third-party vendor with workable terms should be accepted, got: {resp}"
 
 
 @pytest.mark.asyncio
 async def test_create_media_buy_terms_rejected_aggressive_variance() -> None:
-    """max_variance_percent < 10 is too tight for the demo seller."""
+    """max_variance_percent < 5 is unworkable — buyer dictating tighter
+    tolerance than the seller's internal counter can promise."""
     seller = _seller()
     resp = await seller.create_media_buy(
         {
@@ -404,12 +286,12 @@ async def test_create_media_buy_terms_rejected_aggressive_variance() -> None:
     rejected = next((e for e in errors if e.get("code") == "TERMS_REJECTED"), None)
     assert rejected is not None, f"Expected TERMS_REJECTED, got: {resp}"
     assert rejected["recovery"] == "correctable"
-    assert "variance" in rejected.get("field", "")
+    assert rejected.get("field") == "measurement_terms"
 
 
 @pytest.mark.asyncio
 async def test_create_media_buy_terms_rejected_aggressive_window() -> None:
-    """measurement_window not supported by the demo seller (no windows declared)."""
+    """measurement_window outside (c3, c7) is unworkable for the demo seller."""
     seller = _seller()
     resp = await seller.create_media_buy(
         {
@@ -419,7 +301,7 @@ async def test_create_media_buy_terms_rejected_aggressive_window() -> None:
                     "pricing_option_id": "po-cpm-homepage",
                     "budget": 10000,
                     "measurement_terms": {
-                        "billing_measurement": {"measurement_window": "post_sivt"},
+                        "billing_measurement": {"measurement_window": "c30"},
                     },
                 }
             ],
@@ -429,28 +311,34 @@ async def test_create_media_buy_terms_rejected_aggressive_window() -> None:
     rejected = next((e for e in errors if e.get("code") == "TERMS_REJECTED"), None)
     assert rejected is not None, f"Expected TERMS_REJECTED, got: {resp}"
     assert rejected["recovery"] == "correctable"
-    assert "window" in rejected.get("field", "")
+    assert rejected.get("field") == "measurement_terms"
 
 
 @pytest.mark.asyncio
-async def test_create_media_buy_terms_rejected_variance_at_boundary() -> None:
-    """max_variance_percent == 10 is exactly at the limit and accepted."""
+async def test_create_media_buy_accepts_workable_terms() -> None:
+    """variance >= 5 and window in (c3, c7) is the runner's 'relaxed terms' shape."""
     seller = _seller()
-    resp = await seller.create_media_buy(
-        {
-            "packages": [
-                {
-                    "product_id": "premium-homepage",
-                    "pricing_option_id": "po-cpm-homepage",
-                    "budget": 10000,
-                    "measurement_terms": {
-                        "billing_measurement": {"max_variance_percent": 10},
-                    },
-                }
-            ],
-        }
-    )
-    assert resp.get("media_buy_id") is not None, f"Expected success, got: {resp}"
+    for window in ("c3", "c7"):
+        resp = await seller.create_media_buy(
+            {
+                "packages": [
+                    {
+                        "product_id": "premium-homepage",
+                        "pricing_option_id": "po-cpm-homepage",
+                        "budget": 10000,
+                        "measurement_terms": {
+                            "billing_measurement": {
+                                "max_variance_percent": 5,
+                                "measurement_window": window,
+                            },
+                        },
+                    }
+                ],
+            }
+        )
+        assert (
+            resp.get("media_buy_id") is not None
+        ), f"Workable terms with window={window!r} should be accepted, got: {resp}"
 
 
 # ---------------------------------------------------------------------------

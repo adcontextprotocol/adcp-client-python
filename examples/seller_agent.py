@@ -112,6 +112,109 @@ PRODUCTS: list[dict[str, Any]] = [
         },
         "delivery_measurement": {"provider": "internal"},
     },
+    # Storyboard test fixtures referenced by @adcp/client compliance YAMLs.
+    # The runner's media_buy_seller suite expects these product IDs to be
+    # discoverable without an explicit seed_product call.
+    {
+        "product_id": "outdoor_display_q2",
+        "name": "Outdoor Display Q2",
+        "description": "Outdoor display inventory for Q2 storyboards",
+        "delivery_type": "non_guaranteed",
+        "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
+        "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "pricing_options": [
+            {
+                "pricing_option_id": "cpm_standard",
+                "pricing_model": "cpm",
+                "floor_price": 5.00,
+                "currency": "USD",
+            }
+        ],
+        "reporting_capabilities": {
+            "available_metrics": ["impressions", "spend", "clicks", "ctr"],
+            "available_reporting_frequencies": ["hourly", "daily"],
+            "date_range_support": "date_range",
+            "supports_webhooks": False,
+            "expected_delay_minutes": 60,
+            "timezone": "UTC",
+        },
+        "delivery_measurement": {"provider": "internal"},
+    },
+    {
+        "product_id": "outdoor_video_q2",
+        "name": "Outdoor Video Q2",
+        "description": "Outdoor video inventory for Q2 storyboards",
+        "delivery_type": "non_guaranteed",
+        "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
+        "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "pricing_options": [
+            {
+                "pricing_option_id": "cpm_standard",
+                "pricing_model": "cpm",
+                "floor_price": 8.00,
+                "currency": "USD",
+            }
+        ],
+        "reporting_capabilities": {
+            "available_metrics": ["impressions", "spend", "clicks", "ctr"],
+            "available_reporting_frequencies": ["hourly", "daily"],
+            "date_range_support": "date_range",
+            "supports_webhooks": False,
+            "expected_delay_minutes": 60,
+            "timezone": "UTC",
+        },
+        "delivery_measurement": {"provider": "internal"},
+    },
+    {
+        "product_id": "sports_preroll_q2",
+        "name": "Sports Preroll Q2",
+        "description": "Sports preroll video inventory for Q2 storyboards",
+        "delivery_type": "guaranteed",
+        "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
+        "format_ids": [{"agent_url": AGENT_URL, "id": "display_970x250"}],
+        "pricing_options": [
+            {
+                "pricing_option_id": "cpm_guaranteed",
+                "pricing_model": "cpm",
+                "floor_price": 25.00,
+                "currency": "USD",
+            }
+        ],
+        "reporting_capabilities": {
+            "available_metrics": ["impressions", "spend", "clicks", "ctr"],
+            "available_reporting_frequencies": ["hourly", "daily"],
+            "date_range_support": "date_range",
+            "supports_webhooks": False,
+            "expected_delay_minutes": 60,
+            "timezone": "UTC",
+        },
+        "delivery_measurement": {"provider": "internal"},
+    },
+    {
+        "product_id": "lifestyle_display_q2",
+        "name": "Lifestyle Display Q2",
+        "description": "Lifestyle display inventory for Q2 storyboards",
+        "delivery_type": "non_guaranteed",
+        "publisher_properties": [{"publisher_domain": "example.com", "selection_type": "all"}],
+        "format_ids": [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        "pricing_options": [
+            {
+                "pricing_option_id": "cpm_standard",
+                "pricing_model": "cpm",
+                "floor_price": 6.00,
+                "currency": "USD",
+            }
+        ],
+        "reporting_capabilities": {
+            "available_metrics": ["impressions", "spend", "clicks", "ctr"],
+            "available_reporting_frequencies": ["hourly", "daily"],
+            "date_range_support": "date_range",
+            "supports_webhooks": False,
+            "expected_delay_minutes": 60,
+            "timezone": "UTC",
+        },
+        "delivery_measurement": {"provider": "internal"},
+    },
 ]
 
 
@@ -262,95 +365,50 @@ class DemoSeller(ADCPHandler):
                     field="product_id",
                     suggestion="Use get_products to discover available products",
                 )
-            # Inspect per-package measurement_terms and reject aggressive
-            # buyer-imposed terms. The demo seller declares
-            # delivery_measurement.provider == "internal" — any non-empty
-            # billing_measurement is the buyer trying to dictate terms the
-            # seller can't honor. The storyboard's
-            # create_media_buy_aggressive_terms step sends one of:
-            #   - billing_measurement.vendor != seller's internal counter
-            #   - billing_measurement.max_variance_percent below realistic
-            #     tolerance (< 10)
-            #   - billing_measurement.measurement_window the seller doesn't
-            #     support (any non-empty window — demo seller has no window
-            #     declared on its products)
-            # Any one of those should trip TERMS_REJECTED with
-            # recovery=correctable so the buyer can retry with workable
-            # terms. The legacy "viewability_threshold > 80" demo
-            # convention also rejects so storyboards using either
-            # format see the same outcome.
-            # Defensive coercion — storyboard fixtures occasionally send
-            # measurement_terms as a string or other non-dict shape; treat
-            # that as "no terms supplied" rather than crashing the seller.
+            # Reject aggressive measurement_terms. The compliance runner
+            # sends max_variance_percent=0 with a c30 window (unworkable)
+            # on the rejection path, then retries with c7 + 10% variance
+            # (and possibly a third-party vendor — vendor identity is
+            # buyer's choice, not the seller's). Defensive coercion —
+            # storyboard fixtures occasionally send measurement_terms as
+            # a string or other non-dict shape; treat that as "no terms"
+            # rather than crashing.
             raw_terms = pkg.get("measurement_terms")
             pkg_terms = raw_terms if isinstance(raw_terms, dict) else {}
             raw_billing = pkg_terms.get("billing_measurement")
             billing = raw_billing if isinstance(raw_billing, dict) else {}
-            rejection: str | None = None
-            field_path: str | None = None
-            # Accept the seller's own domain or any "internal" indicator —
-            # those are buyer-relaxed terms ("yes, use the seller's count").
-            # Reject only third-party vendor domains.
-            seller_vendor_domains = {"example.com", "internal"}
-            vendor = billing.get("vendor")
-            vendor_domain = vendor.get("domain") if isinstance(vendor, dict) else None
-            if (
-                isinstance(vendor, dict)
-                and vendor_domain
-                and vendor_domain not in seller_vendor_domains
+            window = billing.get("measurement_window")
+            variance = billing.get("max_variance_percent")
+            if (variance is not None and variance < 5) or (
+                window is not None and window not in ("c3", "c7")
             ):
-                rejection = (
-                    f"Vendor '{vendor_domain}' is not supported " "(seller uses internal counter)"
-                )
-                field_path = "measurement_terms.billing_measurement.vendor"
-            elif (
-                isinstance(billing.get("max_variance_percent"), int | float)
-                and billing["max_variance_percent"] < 10
-            ):
-                rejection = (
-                    f"max_variance_percent {billing['max_variance_percent']} is below "
-                    "the seller's minimum tolerance of 10%"
-                )
-                field_path = "measurement_terms.billing_measurement.max_variance_percent"
-            elif billing.get("measurement_window") and billing["measurement_window"] not in {
-                "live",
-                "c3",
-                "c7",
-                "final",
-            }:
-                # Common windows are accepted; uncommon strict ones (post_sivt,
-                # post_ivt, downloads_30d, etc.) are not supported by the demo
-                # seller.
-                rejection = (
-                    f"measurement_window '{billing['measurement_window']}' is not "
-                    "supported by this seller"
-                )
-                field_path = "measurement_terms.billing_measurement.measurement_window"
-            elif (
-                isinstance(pkg_terms.get("viewability_threshold"), int | float)
-                and pkg_terms["viewability_threshold"] > 80
-            ):
-                rejection = "Viewability threshold exceeds maximum supported value of 80%"
-                field_path = "measurement_terms.viewability_threshold"
-            if rejection:
                 return adcp_error(
                     "TERMS_REJECTED",
-                    rejection,
-                    field=field_path,
+                    "Measurement terms unworkable: variance must be >=5%, "
+                    "measurement_window must be c3 or c7.",
+                    field="measurement_terms",
                     recovery="correctable",
                 )
 
-            pkg_obj: dict[str, Any] = {
+            built_pkg: dict[str, Any] = {
                 "package_id": f"pkg-{uuid.uuid4().hex[:8]}",
                 "product_id": product_id,
                 "pricing_option_id": pkg.get("pricing_option_id"),
                 "budget": pkg.get("budget"),
             }
-            # Persist overlay and creative fields so get_media_buys can round-trip them.
-            for field in ("targeting_overlay", "creative_assignments", "creatives"):
+            # Persist caller-supplied package fields the runner expects to
+            # round-trip on get_media_buys (targeting_overlay) or to drive
+            # status transitions (creative_assignments, creatives,
+            # measurement_terms).
+            for field in (
+                "targeting_overlay",
+                "creative_assignments",
+                "creatives",
+                "measurement_terms",
+            ):
                 if pkg.get(field) is not None:
-                    pkg_obj[field] = pkg[field]
-            packages.append(pkg_obj)
+                    built_pkg[field] = pkg[field]
+            packages.append(built_pkg)
 
         has_creatives = any(
             pkg.get("creative_assignments") or pkg.get("creatives") for pkg in params["packages"]
@@ -401,23 +459,30 @@ class DemoSeller(ADCPHandler):
             return adcp_error("CONFLICT", "Revision mismatch - refetch and retry")
 
         if params.get("packages"):
-            existing_pkgs = {p["package_id"]: p for p in mb.get("packages", [])}
-            existing_pkg_ids = set(existing_pkgs.keys())
+            existing_by_id = {p["package_id"]: p for p in mb.get("packages", [])}
             for pkg_update in params["packages"]:
                 pkg_id = pkg_update.get("package_id")
-                if pkg_id and pkg_id not in existing_pkg_ids:
+                if pkg_id and pkg_id not in existing_by_id:
                     return adcp_error(
                         "PACKAGE_NOT_FOUND",
                         f"Package '{pkg_id}' not found in media buy {mb_id}",
                         field="package_id",
                     )
-                # Apply targeting and creative field deltas to persisted package state
-                # so get_media_buys can round-trip property_list and overlay updates.
-                if pkg_id and pkg_id in existing_pkgs:
-                    persisted = existing_pkgs[pkg_id]
-                    for field in ("targeting_overlay", "creative_assignments", "creatives"):
-                        if field in pkg_update:
-                            persisted[field] = pkg_update[field]
+                # Apply incoming targeting/budget/creative deltas to the
+                # persisted package so a subsequent get_media_buys reflects
+                # the change. Storyboard inventory_list_targeting/update
+                # asserts targeting_overlay round-trips through this path.
+                if pkg_id and pkg_id in existing_by_id:
+                    target = existing_by_id[pkg_id]
+                    for field in (
+                        "targeting_overlay",
+                        "creative_assignments",
+                        "creatives",
+                        "measurement_terms",
+                        "budget",
+                    ):
+                        if pkg_update.get(field) is not None:
+                            target[field] = pkg_update[field]
 
         status = mb["status"]
         if status == "pending_creatives" and params.get("packages"):
