@@ -335,7 +335,7 @@ jobs:
     name: AdCP storyboard runner — examples/seller_agent.py
     runs-on: ubuntu-latest
     # Non-blocking until seller-agent content gaps in #304 are resolved.
-    # Promote to required once overall_status: pass and controller_detected: true.
+    # Promote to required once overall_status: passing and controller_detected: true.
     continue-on-error: true
 
     steps:
@@ -361,6 +361,8 @@ jobs:
           ADCP_PORT=3001 python examples/seller_agent.py &
           AGENT_PID=$!
           for i in $(seq 1 60); do
+            # Any HTTP response (including 405 on GET to a POST-only endpoint)
+            # means the server is up and accepting connections.
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
               http://localhost:3001/mcp 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" != "000" ]; then
@@ -381,6 +383,9 @@ jobs:
 
       - name: Run storyboard suite
         timeout-minutes: 5
+        # @adcp/client@latest is intentionally unpinned — this is AdCP's own CI
+        # running AdCP's own canonical runner. Tracking latest surfaces protocol
+        # drift as soon as it ships, which is the point of this job.
         run: |
           npx -y -p @adcp/client@latest adcp storyboard run \
             http://localhost:3001/mcp media_buy_seller \
@@ -395,9 +400,10 @@ jobs:
           if not p.exists() or p.stat().st_size == 0:
               print('storyboard-result.json missing or empty — runner produced no output')
               sys.exit(1)
-          d = json.load(p.open())
-          if d.get('overall_status') != 'pass':
-              print(json.dumps({k: d[k] for k in ('overall_status', 'summary', 'failures')}, indent=2))
+          with p.open() as f:
+              d = json.load(f)
+          if d.get('overall_status') != 'passing':
+              print(json.dumps(d, indent=2))
               sys.exit(1)
           if not d.get('controller_detected'):
               print('controller_detected was false; check DemoStore overrides (see #304)')
@@ -407,5 +413,6 @@ jobs:
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: storyboard-result
+          name: storyboard-result-${{ github.run_attempt }}
           path: storyboard-result.json
+          if-no-files-found: warn
