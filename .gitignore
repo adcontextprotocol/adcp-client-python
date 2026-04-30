@@ -177,3 +177,5 @@ IMPLEMENTATION_PLAN.md
 !.claude/
 !.claude/agents/
 .claude/settings*.json
+# Local Conductor / harness runtime state — written by /loop and similar
+.claude/scheduled_tasks.lock

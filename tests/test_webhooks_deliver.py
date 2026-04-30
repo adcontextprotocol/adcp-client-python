@@ -644,3 +644,55 @@ async def test_operator_supplied_client_skips_ssrf_guard() -> None:
         response = await deliver(config, payload, client=client)
 
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_owned_client_rejects_hostile_url_before_hmac_signing() -> None:
+    """Validate-before-sign defense in depth, parity with WebhookSender:
+    ``deliver()`` builds the pinned transport (which validates the URL)
+    before computing the HMAC over the body. A buyer-supplied URL
+    pointing at 127.0.0.1 raises SSRFValidationError BEFORE
+    ``get_adcp_signed_headers_for_webhook`` runs — the HMAC over the
+    buyer's body never sits in process memory waiting for the rejection
+    that would otherwise come at delivery time.
+
+    Regression guard for the validate-before-sign reorder (PR #303
+    follow-up). Mirrors test_owned_client_rejects_hostile_url_before_signing
+    in test_webhook_sender_e2e.py."""
+    config = PushNotificationConfig(
+        url="https://127.0.0.1/webhooks/adcp",
+        authentication=PNAuthentication(schemes=["HMAC-SHA256"], credentials=_SECRET),
+    )
+    payload = create_mcp_webhook_payload(
+        task_id="task_no_hmac",
+        task_type="create_media_buy",
+        status="completed",
+    )
+
+    with patch("adcp.webhooks.get_adcp_signed_headers_for_webhook") as mock_hmac:
+        with pytest.raises(SSRFValidationError):
+            await deliver(config, payload)
+    assert mock_hmac.called is False, (
+        "get_adcp_signed_headers_for_webhook was called even though SSRF "
+        "validation rejected the URL — the HMAC over the buyer body would "
+        "sit in process memory until the rejection. Validate-before-sign "
+        "ordering is broken; check deliver()."
+    )
+
+
+@pytest.mark.asyncio
+async def test_owned_client_rejects_loopback_destination_hmac_path() -> None:
+    """HMAC-SHA256 auth path goes through the same SSRF guard as Bearer.
+    Coverage parity for both legacy auth schemes."""
+    config = PushNotificationConfig(
+        url="https://127.0.0.1/webhooks/adcp",
+        authentication=PNAuthentication(schemes=["HMAC-SHA256"], credentials=_SECRET),
+    )
+    payload = create_mcp_webhook_payload(
+        task_id="task_hmac_ssrf",
+        task_type="create_media_buy",
+        status="completed",
+    )
+
+    with pytest.raises(SSRFValidationError):
+        await deliver(config, payload)

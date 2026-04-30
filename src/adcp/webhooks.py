@@ -819,6 +819,23 @@ async def deliver(
 
     _warn_auth_deprecation_once()
 
+    # Build the pinned transport up-front (owned-client path). SSRF
+    # validation runs synchronously inside ``build_async_ip_pinned_transport``
+    # — a hostile URL raises ``SSRFValidationError`` before we serialize
+    # the body or compute the HMAC, so a buyer-supplied 127.0.0.1 URL
+    # does not produce an HMAC-over-buyer-body sitting in process memory
+    # for fault-handlers / custom logging to capture on exception.
+    # Mirrors the WebhookSender._send_bytes ordering.
+    transport: Any = None
+    if client is None:
+        from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
+        transport = build_async_ip_pinned_transport(
+            url,
+            allow_private=allow_private,
+            allowed_ports=allowed_ports,
+        )
+
     body_dict = _payload_to_dict(payload)
     if token is not None and token_field is not None:
         _validate_header_value("config.token", token)
@@ -881,19 +898,11 @@ async def deliver(
 
     effective_timeout = timeout_seconds if timeout_seconds is not None else _DEFAULT_TIMEOUT_SECONDS
     if client is None:
-        # Owned-client path: build a per-request IP-pinned transport so
-        # the URL is SSRF-validated and pinned to the resolved IP, with
-        # follow_redirects=False (rebinding-via-redirect defense) and
-        # trust_env=False (HTTPS_PROXY env vars cannot route the request
-        # away from the pinned target). Mirrors the WebhookSender pattern
-        # — see adcp.webhook_sender._send_bytes for the same shape.
-        from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
-
-        transport = build_async_ip_pinned_transport(
-            url,
-            allow_private=allow_private,
-            allowed_ports=allowed_ports,
-        )
+        # Owned-client path. ``transport`` was built up-front so SSRF
+        # rejected before signing; here we just construct the per-request
+        # client. ``follow_redirects=False`` closes rebinding-via-redirect;
+        # ``trust_env=False`` blocks ``HTTPS_PROXY`` env-var bypass.
+        # Same shape as ``WebhookSender._send_bytes``.
         async with httpx.AsyncClient(
             transport=transport,
             timeout=effective_timeout,
