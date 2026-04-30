@@ -553,6 +553,7 @@
     "FormatCardDetailed",
     "FormatId",
     "FormatIdParameter",
+    "FormatReferenceStructuredObject",
     "FrequencyCap",
     "FrequencyCapScope",
     "GeneratedTaskStatus",

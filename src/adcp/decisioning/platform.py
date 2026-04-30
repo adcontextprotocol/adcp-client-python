@@ -44,6 +44,16 @@ class DecisioningCapabilities:
     :param config: Free-form adopter-defined config exposed on
         capabilities. Use sparingly — strongly-typed fields above are
         preferred.
+    :param governance_aware: Set ``True`` ONLY when the platform
+        implements ``governance-*`` specialisms AND has wired a custom
+        :class:`adcp.decisioning.state.StateReader` that returns real
+        :data:`adcp.decisioning.state.GovernanceContextJWS` values.
+        Setting this ``True`` with the v6.0 stub
+        ``StateReader`` is a fail-fast at server boot: silent
+        governance-gate skipping is a security regression the framework
+        refuses to allow. Defaults ``False`` — non-governance adopters
+        never touch this flag. See
+        ``docs/proposals/decisioning-platform-dispatch-design.md#d15``.
     """
 
     specialisms: list[str] = field(default_factory=list)
@@ -51,6 +61,22 @@ class DecisioningCapabilities:
     pricing_models: list[str] = field(default_factory=list)
     creative_agents: list[Any] = field(default_factory=list)
     config: dict[str, Any] = field(default_factory=dict)
+    governance_aware: bool = False
+
+
+#: Specialisms that depend on framework-supplied
+#: :data:`adcp.decisioning.state.GovernanceContextJWS` reads. Claiming
+#: any of these without setting ``governance_aware=True`` (and wiring
+#: a real :class:`StateReader`) trips the server-boot fail-fast in
+#: :func:`adcp.decisioning.dispatch.validate_platform` — silent
+#: governance-gate skipping is a security regression the framework
+#: refuses to ship.
+GOVERNANCE_SPECIALISMS: frozenset[str] = frozenset(
+    {
+        "governance-spend-authority",
+        "governance-delivery-monitor",
+    }
+)
 
 
 class DecisioningPlatform:

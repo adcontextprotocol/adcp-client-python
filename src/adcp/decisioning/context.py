@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any, Generic
 
 from typing_extensions import TypeVar
 
+from adcp.decisioning.resolve import ResourceResolver, _make_default_resolver
+from adcp.decisioning.state import StateReader, _make_default_state_reader
 from adcp.decisioning.types import Account, TaskHandoff
 from adcp.server.base import ToolContext
 
@@ -99,13 +101,32 @@ class RequestContext(ToolContext, Generic[TMeta]):
     HITL background-task path. The framework dispatcher detects the
     returned :class:`TaskHandoff` via type-identity and projects it
     to the wire ``Submitted`` envelope.
+
+    :param state: Sync reads of framework-owned in-flight workflow
+        state. Default is :class:`adcp.decisioning.state._NotYetWiredStateReader`
+        — returns empty values + emits one-time UserWarning per
+        method on first call. v6.1 wires the backing store.
+    :param resolve: Async framework-mediated fetches with cache +
+        validation. Default is
+        :class:`adcp.decisioning.resolve._NotYetWiredResolver` — raises
+        ``NotImplementedError`` on every call. v6.1 wires the backing
+        fetchers.
+    :param auth_principal: Typed convenience field carrying the
+        verified principal label (sourced from
+        :class:`AuthInfo.principal` when present). Distinct from
+        ``account.id`` (which the framework's idempotency middleware
+        uses for cache scope) — middleware reading "who authenticated
+        this request" gets a load-bearing field name.
     """
 
     # Default factories so ``RequestContext()`` works in tests; in
     # production the dispatch adapter populates every field.
     account: Account[TMeta] = field(default_factory=lambda: Account(id="<unset>"))
     auth_info: AuthInfo | None = None
+    auth_principal: str | None = None
     now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    state: StateReader = field(default_factory=_make_default_state_reader)
+    resolve: ResourceResolver = field(default_factory=_make_default_resolver)
 
     def handoff_to_task(
         self,

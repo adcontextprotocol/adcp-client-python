@@ -60,8 +60,24 @@ from adcp.decisioning.context import (
     RequestContext,
 )
 from adcp.decisioning.platform import (
+    GOVERNANCE_SPECIALISMS,
     DecisioningCapabilities,
     DecisioningPlatform,
+)
+from adcp.decisioning.resolve import (
+    CollectionList,
+    Format,
+    FormatReferenceStructuredObject,
+    PropertyList,
+    PropertyListReference,
+    ResourceResolver,
+)
+from adcp.decisioning.state import (
+    GovernanceContextJWS,
+    Proposal,
+    StateReader,
+    WorkflowObjectType,
+    WorkflowStep,
 )
 from adcp.decisioning.types import (
     Account,
@@ -76,13 +92,25 @@ __all__ = [
     "AccountStore",
     "AdcpError",
     "AuthInfo",
+    "CollectionList",
     "DecisioningCapabilities",
     "DecisioningPlatform",
     "ExplicitAccounts",
+    "Format",
+    "FormatReferenceStructuredObject",
     "FromAuthAccounts",
+    "GOVERNANCE_SPECIALISMS",
+    "GovernanceContextJWS",
     "MaybeAsync",
+    "Proposal",
+    "PropertyList",
+    "PropertyListReference",
     "RequestContext",
+    "ResourceResolver",
     "SalesResult",
     "SingletonAccounts",
+    "StateReader",
     "TaskHandoff",
+    "WorkflowObjectType",
+    "WorkflowStep",
 ]
