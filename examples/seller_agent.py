@@ -225,6 +225,7 @@ class DemoSeller(ADCPHandler):
                 }
             )
 
+        # check input packages (not the built output) — creatives live on the request pkg
         has_creatives = any(
             pkg.get("creatives") or pkg.get("creative_assignments")
             for pkg in params["packages"]
@@ -272,9 +273,12 @@ class DemoSeller(ADCPHandler):
                 if pkg_update.get("package_id") not in existing_pkg_ids:
                     return adcp_error(
                         "PACKAGE_NOT_FOUND",
-                        f"Package {pkg_update.get('package_id')!r} not found in media buy {mb_id}",
+                        "Package not found in this media buy",
                         field="packages",
                     )
+            # Note: this reference implementation validates package IDs but does not
+            # apply budget/targeting updates. A production seller should merge pkg_update
+            # fields back into mb["packages"] here.
 
         status = mb["status"]
         if params.get("paused") is True and status == "active":
@@ -341,7 +345,7 @@ class DemoSeller(ADCPHandler):
         # match on compound (agent_url, id) key — correct for multi-agent deployments
         requested = params.get("format_ids")
         if requested:
-            keys = {(r["agent_url"], r["id"]) for r in requested}
+            keys = {(r.get("agent_url"), r.get("id")) for r in requested}
             all_formats = [
                 fmt for fmt in all_formats
                 if (fmt["format_id"]["agent_url"], fmt["format_id"]["id"]) in keys
