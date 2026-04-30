@@ -89,6 +89,37 @@ def _resolve_identity(ctx: ToolContext | None) -> ResolvedIdentity:
     )
 ```
 
+### ResolvedIdentity with DB enrichment
+
+The `# … adapter config, feature flags, etc. from your DB` comment hides
+a second DB hop that most production handlers need. `context_factory`
+resolves `caller_identity` from the bearer token; `_resolve_identity`
+enriches it with per-principal config that isn't available at auth time:
+
+```python
+async def _resolve_identity(ctx: ToolContext | None) -> ResolvedIdentity:
+    if ctx is None or ctx.caller_identity is None:
+        raise AuthenticationRequired("unauthenticated call")
+    row = await pool.fetchrow(
+        "SELECT tenant_id, db_url, feature_flags "
+        "FROM principals WHERE id = $1",
+        ctx.caller_identity,
+    )
+    if row is None:
+        raise AuthenticationRequired(f"unknown principal: {ctx.caller_identity!r}")
+    return ResolvedIdentity(
+        principal_id=ctx.caller_identity,
+        tenant_id=row["tenant_id"],
+        db_url=row["db_url"],
+        feature_flags=frozenset(row["feature_flags"] or ()),
+    )
+```
+
+`_impl` functions receive `ResolvedIdentity` and have no knowledge of
+`ToolContext` or the transport. **Resolve once per request** at the top of
+the handler and pass the identity through — resolving inside each `_impl`
+function compounds the DB round-trips when a handler calls multiple `_impl`s.
+
 ## Typed handler params
 
 Handler methods may declare their `params` as a Pydantic model instead
@@ -209,6 +240,61 @@ middleware that populates `adcp.server.auth.current_principal` /
 `current_tenant` yourself and keep using `auth_context_factory` — the
 `ContextVar`s are the contract, not the middleware class.
 
+#### Pattern 2b — tenant routing via subdomain (nginx → bearer)
+
+Production multi-tenant deployments sometimes route to per-tenant
+databases by subdomain (`acme.ads.example.com` → Postgres for tenant
+`acme`) before validating the bearer token. The correct shape is two
+separate middleware layers — not subdomain logic inside `validate_token`:
+
+```python
+from contextvars import ContextVar
+from starlette.middleware.base import BaseHTTPMiddleware
+from adcp.server import BearerTokenAuthMiddleware, Principal
+
+# Populated by SubdomainTenantMiddleware before BearerTokenAuthMiddleware runs.
+_routing_tenant: ContextVar[str | None] = ContextVar("routing_tenant", default=None)
+
+
+class SubdomainTenantMiddleware(BaseHTTPMiddleware):
+    """Extracts tenant from the leftmost hostname label (acme.ads.example.com → 'acme')."""
+
+    async def dispatch(self, request, call_next):
+        host = request.headers.get("host", "")
+        tenant = host.split(".")[0] if host.count(".") >= 2 else None
+        token = _routing_tenant.set(tenant)
+        try:
+            return await call_next(request)
+        finally:
+            _routing_tenant.reset(token)
+
+
+async def validate_token(token: str) -> Principal | None:
+    routing_tenant = _routing_tenant.get()
+    row = await db.fetchrow(
+        "SELECT principal_id, tenant_id FROM tokens "
+        "WHERE token_hash = digest($1, 'sha256') AND revoked_at IS NULL",
+        token,
+    )
+    if row is None:
+        return None
+    # Reject if the subdomain tenant disagrees with the token's tenant —
+    # guards against cross-tenant token replay.
+    if routing_tenant and row["tenant_id"] != routing_tenant:
+        return None
+    return Principal(caller_identity=row["principal_id"], tenant_id=row["tenant_id"])
+
+
+app.add_middleware(BearerTokenAuthMiddleware, validate_token=validate_token)
+app.add_middleware(SubdomainTenantMiddleware)  # outermost → runs first
+```
+
+> **Middleware order.** Starlette applies `add_middleware` calls from
+> bottom to top — `SubdomainTenantMiddleware` is added last so it wraps
+> outermost and runs first, populating `_routing_tenant` before
+> `BearerTokenAuthMiddleware` calls `validate_token`. Invert the order
+> and `_routing_tenant.get()` returns `None` on every request.
+
 ### Discovery tools bypass auth
 
 Per AdCP spec, `get_adcp_capabilities` is the handshake — clients MUST
@@ -233,6 +319,19 @@ spec (e.g. a public `list_public_formats`); extend with `DISCOVERY_TOOLS
 | {"your_tool"}` rather than redefining the set. See also
 [tools/list is unauthenticated by default](#toolslist-is-unauthenticated-by-default)
 for the MCP-layer handshake methods this same gate covers.
+
+Call `validate_discovery_set` at import time to guard against accidentally
+including non-discovery tools in your extension (a common copy-paste error):
+
+```python
+from adcp.server import DISCOVERY_TOOLS, validate_discovery_set
+
+MY_DISCOVERY_TOOLS = DISCOVERY_TOOLS | {"list_public_formats", "get_vendor_catalog"}
+validate_discovery_set(MY_DISCOVERY_TOOLS)  # raises ValueError listing any unrecognised names
+```
+
+`validate_discovery_set` does not register the tools — it only validates
+the set you pass to your middleware's discovery bypass.
 
 ### `tools/list` is unauthenticated by default
 
@@ -371,29 +470,105 @@ of re-executing the handler.
 
 The store keys on `ToolContext.caller_identity` — if your transport
 doesn't populate it, per-principal scoping falls through and dedup is
-skipped (with a UserWarning). A2A populates it automatically from
+skipped (with a `UserWarning`). A2A populates it automatically from
 `ServerCallContext.user`; MCP requires you to wire `context_factory`.
 
 Don't rebuild idempotency in your handler. Import the middleware.
 
+### Wiring `@store.wrap` (production pattern)
+
+Decorate the mutating handler methods — `create_media_buy`,
+`update_media_buy`, and any other operation your agent implements that
+has side effects — with `@idempotency.wrap`:
+
+```python
+from adcp.server import ADCPHandler, IdempotencyStore, MemoryBackend, ToolContext
+from adcp.server.responses import capabilities_response
+
+idempotency = IdempotencyStore(backend=MemoryBackend(), ttl_seconds=86_400)
+
+
+class MySeller(ADCPHandler):
+    @idempotency.wrap
+    async def create_media_buy(self, params, context: ToolContext | None = None):
+        return my_create_logic(params)
+
+    @idempotency.wrap
+    async def update_media_buy(self, params, context: ToolContext | None = None):
+        return my_update_logic(params)
+
+    async def get_adcp_capabilities(self, params, context: ToolContext | None = None):
+        return capabilities_response(["media_buy"], idempotency=idempotency.capability())
+```
+
+For production, swap `MemoryBackend()` for `PgBackend` so the cache
+survives restarts and is shared across workers. `PgBackend` commits the
+cached response atomically with your handler's business write when both
+run inside the same transaction — no window where the side effect lands
+but the cache entry doesn't.
+
+**`caller_identity` + `tenant_id` must be populated.** The store keys
+its cache on `(tenant_id, caller_identity, idempotency_key)`. If
+`context.caller_identity` is `None`, the middleware emits a `UserWarning`
+and falls through to your handler with no dedup — repeated requests
+re-execute and can double-allocate. Always wire `context_factory` on MCP
+servers so the auth middleware populates these fields before the handler
+runs.
+
 ## Error handling
 
-Raise `AdCPError` (or a subclass: `ADCPTaskError`, `IdempotencyConflictError`)
-from handler code. The SDK translates to the wire-level error shape the
-AdCP spec mandates — MCP gets a `ToolError` with the spec error code in
-the message, A2A gets a `JSON-RPC error` with the code populated.
-
-Use the error classification helpers:
+**Handler methods return error dicts — they do not raise.** Use
+`adcp_error(code)` from `adcp.server`:
 
 ```python
 from adcp.server import adcp_error
 
-raise adcp_error("BUDGET_TOO_LOW")  # auto-classifies as correctable
-raise adcp_error("DOWNSTREAM_TIMEOUT")  # auto-classifies as transient
+async def create_media_buy(self, params, context=None):
+    if params.get("budget", 0) < 500:
+        return adcp_error("BUDGET_TOO_LOW", "Budget must be ≥ $500",
+                          field="budget", suggestion="Increase to at least $500")
+    if rate_limiter.is_over_limit(context.caller_identity):
+        return adcp_error("RATE_LIMITED", retry_after=30)
+    return my_create_logic(params)
 ```
 
-The recovery hint (transient / correctable / terminal) gets populated
-from 20+ standard codes — don't reinvent the table.
+`adcp_error` builds the spec-mandated `{"errors": [...]}` dict and
+auto-populates the `recovery` field from a 20+ code table — no
+hand-maintaining recovery hints. The SDK translates the returned dict to
+the correct wire shape: `ToolError` on MCP, `JSON-RPC error` on A2A.
+
+### Error-code taxonomy
+
+| Recovery | Codes (sample) | Client action |
+|---|---|---|
+| `transient` | `RATE_LIMITED`, `SERVICE_UNAVAILABLE` | Retry with backoff |
+| `correctable` | `BUDGET_TOO_LOW`, `INVALID_REQUEST`, `MEDIA_BUY_NOT_FOUND`, `CONFLICT` | Fix the request and resubmit |
+| `terminal` | `AUTH_REQUIRED`, `ACCOUNT_NOT_FOUND`, `ACCOUNT_SUSPENDED` | Stop; require human intervention |
+
+Full list: `adcp.server.helpers.STANDARD_ERROR_CODES`.
+
+### `adcp_error` vs `ADCPTaskError`
+
+`ADCPTaskError` is the exception the **client SDK** raises when it
+receives an error response. Server-side handler authors never construct
+or raise it. The distinction matters when you're writing both sides:
+
+```python
+# SERVER — return a structured error dict:
+async def create_media_buy(self, params, context=None):
+    return adcp_error("PRODUCT_NOT_FOUND", field="product_id",
+                      suggestion="Use get_products to discover available products")
+
+# CLIENT — catch the exception the SDK raises on your behalf:
+try:
+    await client.create_media_buy(params)
+except ADCPTaskError as exc:
+    if "PRODUCT_NOT_FOUND" in exc.error_codes:
+        products = await client.get_products(...)
+```
+
+Custom error codes (outside `STANDARD_ERROR_CODES`) default to
+`recovery="terminal"`. Override with `adcp_error("MY_CODE", recovery="correctable")`.
 
 ## Response builders
 
@@ -826,10 +1001,59 @@ Sellers typically need both.
   lives at `adcp.types` or `adcp` — and the internal paths renumber
   between releases (see `MIGRATION_v3_to_v4.md`).
 
+## Troubleshooting
+
+**Idempotency dedup isn't firing — repeated creates still execute.**
+
+Check that `context.caller_identity` is non-`None` when the handler
+runs. The idempotency middleware silently falls through (with a
+`UserWarning` in server logs) when it can't scope the cache namespace.
+On MCP servers, this means `context_factory` is absent or returns a
+`ToolContext` without `caller_identity`. On A2A servers, it means the
+request arrived without a `ServerCallContext.user`. Fix: wire
+`context_factory=auth_context_factory` on `create_mcp_server`, and
+ensure your `validate_token` returns a `Principal` with
+`caller_identity` set.
+
+**`context_factory` returned a plain `dict` and now the handler explodes
+with `AttributeError: 'dict' object has no attribute 'caller_identity'`.**
+
+`context_factory` must return a `ToolContext` instance (or a subclass),
+not a dict. The SDK's dispatcher reads `context.caller_identity`,
+`context.tenant_id`, and any subclass fields as attributes. Returning a
+dict is a type error at dispatch time. Fix: return
+`ToolContext(caller_identity=..., tenant_id=...)` or your own subclass.
+
+**`tools/list` returns an empty tool list (or just `get_adcp_capabilities`).**
+
+By default the SDK only advertises tools whose handler methods your
+subclass actually overrides. A handler that overrides only
+`get_adcp_capabilities` + `get_products` surfaces exactly those two.
+If you expect all 57 spec tools to appear for a storyboard client,
+pass `advertise_all=True` to `serve()` / `create_mcp_server()`.
+
+**`validate_discovery_set` raises `ValueError` listing a tool I know is valid.**
+
+The function checks that every name in the extended set is either in
+`DISCOVERY_TOOLS` or an AdCP-defined pre-auth name it recognises. If
+you added a vendor-specific handshake tool, the function can't
+auto-classify it. Pass the validated set directly to your middleware's
+discovery bypass and skip `validate_discovery_set` for your extension
+names, or file an issue to add the name to the shipped default.
+
+**Handler raises `AuthenticationRequired` but the client sees `500 Internal Server Error`.**
+
+`AuthenticationRequired` (or any exception that isn't an `ADCPError`
+subclass) is translated to an opaque 500 by the executor — intentional,
+to avoid leaking server internals. Return `adcp_error("AUTH_REQUIRED")`
+instead; the SDK maps it to an authenticated-but-rejected error shape the
+client can handle programmatically.
+
 ## Where to look next
 
 - `examples/minimal_sales_agent.py` — handler-only starting point.
-- `examples/mcp_with_auth_middleware.py` — full auth + typed context.
+- `examples/mcp_with_auth_middleware.py` — full auth + typed context,
+  including the tenant-routing middleware pattern from Pattern 2b above.
 - `src/adcp/server/responses.py` — response builder reference.
 - `src/adcp/server/helpers.py` — error codes, state machine, account
   resolution.

@@ -19,6 +19,10 @@ proxy that terminates TLS and handles rate limiting. Production
 agents also typically load tokens from a database — swap
 ``validator_from_token_map`` for an ``async def validate_token`` that
 hits your token store.
+
+For advanced production patterns — subdomain-based tenant routing
+(Pattern 2b), ResolvedIdentity DB enrichment, idempotency wiring, and
+error classification — see ``docs/handler-authoring.md``.
 """
 
 from __future__ import annotations
