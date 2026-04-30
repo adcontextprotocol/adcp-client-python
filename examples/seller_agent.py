@@ -116,6 +116,8 @@ class DemoSeller(ADCPHandler):
                     "simulate_budget_spend",
                 ],
             },
+            # adcp.idempotency is required by spec (get-adcp-capabilities-response.json)
+            idempotency={"supported": False},
         )
 
     async def sync_accounts(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
@@ -223,14 +225,16 @@ class DemoSeller(ADCPHandler):
                 }
             )
 
+        has_creatives = any(pkg.get("creatives") for pkg in params["packages"])
+        status = "active" if has_creatives else "pending_creatives"
         mb_id = f"mb-{uuid.uuid4().hex[:8]}"
         media_buys[mb_id] = {
-            "status": "active",
+            "status": status,
             "currency": "USD",
             "packages": packages,
             "revision": 1,
         }
-        return media_buy_response(mb_id, packages, status="active")
+        return media_buy_response(mb_id, packages, status=status)
 
     async def get_media_buys(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         requested_ids = params.get("media_buy_ids")
@@ -238,12 +242,14 @@ class DemoSeller(ADCPHandler):
         for mb_id, mb in media_buys.items():
             if requested_ids and mb_id not in requested_ids:
                 continue
+            pkgs = mb.get("packages", [])
             results.append(
                 {
                     "media_buy_id": mb_id,
                     "status": mb["status"],
                     "currency": mb.get("currency", "USD"),
-                    "packages": mb.get("packages", []),
+                    "total_budget": sum(pkg.get("budget") or 0 for pkg in pkgs),  # None for flat-rate pkgs
+                    "packages": pkgs,
                 }
             )
         return media_buys_response(results)
@@ -256,6 +262,16 @@ class DemoSeller(ADCPHandler):
 
         if params.get("revision") and params["revision"] != mb.get("revision", 1):
             return adcp_error("CONFLICT", "Revision mismatch - refetch and retry")
+
+        if params.get("packages"):
+            existing_pkg_ids = {pkg["package_id"] for pkg in mb.get("packages", [])}
+            for pkg_update in params["packages"]:
+                if pkg_update.get("package_id") not in existing_pkg_ids:
+                    return adcp_error(
+                        "PACKAGE_NOT_FOUND",
+                        f"Package {pkg_update.get('package_id')!r} not found in media buy {mb_id}",
+                        field="packages",
+                    )
 
         status = mb["status"]
         if params.get("paused") is True and status == "active":
@@ -274,50 +290,60 @@ class DemoSeller(ADCPHandler):
     async def list_creative_formats(
         self, params: dict[str, Any], context: Any = None
     ) -> dict[str, Any]:
-        return creative_formats_response(
-            [
-                {
-                    "format_id": {
-                        "agent_url": AGENT_URL,
-                        "id": "display_300x250",
-                    },
-                    "name": "Display 300x250",
-                    "renders": [{"width": 300, "height": 250}],
-                    "assets": [
-                        {
-                            "item_type": "individual",
-                            "asset_id": "image",
-                            "asset_type": "image",
-                            "required": True,
-                            "accepted_media_types": [
-                                "image/png",
-                                "image/jpeg",
-                            ],
-                        }
-                    ],
+        all_formats: list[dict[str, Any]] = [
+            {
+                "format_id": {
+                    "agent_url": AGENT_URL,
+                    "id": "display_300x250",
                 },
-                {
-                    "format_id": {
-                        "agent_url": AGENT_URL,
-                        "id": "display_970x250",
-                    },
-                    "name": "Display 970x250",
-                    "renders": [{"width": 970, "height": 250}],
-                    "assets": [
-                        {
-                            "item_type": "individual",
-                            "asset_id": "image",
-                            "asset_type": "image",
-                            "required": True,
-                            "accepted_media_types": [
-                                "image/png",
-                                "image/jpeg",
-                            ],
-                        }
-                    ],
+                "name": "Display 300x250",
+                # role is required; width/height must be nested under dimensions
+                "renders": [{"role": "primary", "dimensions": {"width": 300, "height": 250}}],
+                "assets": [
+                    {
+                        "item_type": "individual",
+                        "asset_id": "image",
+                        "asset_type": "image",
+                        "required": True,
+                        "accepted_media_types": [
+                            "image/png",
+                            "image/jpeg",
+                        ],
+                    }
+                ],
+            },
+            {
+                "format_id": {
+                    "agent_url": AGENT_URL,
+                    "id": "display_970x250",
                 },
+                "name": "Display 970x250",
+                # role is required; width/height must be nested under dimensions
+                "renders": [{"role": "primary", "dimensions": {"width": 970, "height": 250}}],
+                "assets": [
+                    {
+                        "item_type": "individual",
+                        "asset_id": "image",
+                        "asset_type": "image",
+                        "required": True,
+                        "accepted_media_types": [
+                            "image/png",
+                            "image/jpeg",
+                        ],
+                    }
+                ],
+            },
+        ]
+        # format_ids is optional per spec: absent means return all formats
+        # match on compound (agent_url, id) key — correct for multi-agent deployments
+        requested = params.get("format_ids")
+        if requested:
+            keys = {(r["agent_url"], r["id"]) for r in requested}
+            all_formats = [
+                fmt for fmt in all_formats
+                if (fmt["format_id"]["agent_url"], fmt["format_id"]["id"]) in keys
             ]
-        )
+        return creative_formats_response(all_formats)
 
     async def sync_creatives(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         results = []
