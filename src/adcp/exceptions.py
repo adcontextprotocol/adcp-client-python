@@ -415,18 +415,14 @@ class IdempotencyUnsupportedError(ADCPError):
 class ConfigurationError(ADCPError):
     """Invalid SDK configuration detected at construction time.
 
-    Raised when a value passed to a client/server constructor cannot be
-    reconciled with the SDK's compile-time pin. Currently used for
-    cross-major ``adcp_version`` pins — e.g. constructing an
-    ``ADCPClient`` with ``adcp_version="4.0"`` against an SDK built for
-    AdCP 3.x. Pre-release tags and unparseable strings also raise this.
+    Raised when a value passed to a client/server constructor cannot
+    be reconciled with the SDK's compile-time pin — most commonly a
+    cross-major ``adcp_version`` (e.g. ``adcp_version="4.0"`` against
+    an SDK built for AdCP 3.x), or an unparseable version string.
 
-    Construction-time validation is the right layer: a cross-major pin
-    has no recoverable runtime path in this SDK major. Stage 3 (per-
-    instance schema/validator selection across releases within the same
-    major) is what lifts the cross-major fence — until then, callers
-    pinning across majors should install the SDK major that speaks
-    their target wire version.
+    Recovery: install the SDK major that targets the wire version you
+    want to speak. Cross-major pinning is not supported within a
+    single SDK major.
     """
 
 

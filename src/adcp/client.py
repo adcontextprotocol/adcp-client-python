@@ -405,12 +405,13 @@ class ADCPClient:
                 both ``context_id`` AND ``active_task_id``.
 
                 Raises ``TypeError`` if passed with a non-A2A protocol.
-            force_a2a_version: A2A-only. Pin the wire version by
-                filtering the peer's advertised
-                ``supported_interfaces`` to entries whose
-                ``protocol_version`` matches. Intended for tests or
-                for forcing a 0.3-speaking path against a
-                dual-advertising peer. Raises
+            force_a2a_version: A2A-only. Pin the **A2A transport
+                version** (e.g. ``"0.3"``, ``"1.0"``) by filtering the
+                peer's advertised ``supported_interfaces`` to entries
+                whose ``protocol_version`` matches. Not for AdCP
+                protocol pinning — see ``adcp_version`` for that.
+                Intended for tests or for forcing a 0.3-speaking path
+                against a dual-advertising peer. Raises
                 :class:`ADCPConnectionError` on the first call if no
                 advertised interface matches. ``None`` (default) lets
                 the SDK's ``ClientFactory`` pick the most capable
@@ -443,6 +444,15 @@ class ADCPClient:
                 the default, not an override. Once Stage 3 threads
                 schema selection through, this becomes a supported
                 per-call override; today it's plumbing-level only.
+
+                Migration from ``adcp_major_version`` (legacy integer
+                wire field): generated request types still expose
+                ``adcp_major_version: int | None`` from the pre-#3493
+                schema. Both fields will coexist on the wire through
+                3.x; servers prefer the new ``adcp_version`` when both
+                are present. Stop populating ``adcp_major_version`` on
+                request models once your seller advertises 3.1 in
+                ``supported_versions``.
         """
         self._adcp_version: str = resolve_adcp_version(adcp_version)
         self.agent_config = agent_config
