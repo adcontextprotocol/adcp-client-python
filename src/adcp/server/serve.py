@@ -235,18 +235,29 @@ def _log_advertised_tools(
     _warn_if_unregistered_subclass(handler, advertise_all=advertise_all)
 
 
+#: Bases whose tool set is broad-by-design — when an adopter subclass
+#: lands on one of these via MRO without registering its own
+#: ``advertised_tools``, the result is over-advertisement (the broad
+#: base's full set inherited unintentionally). Naming the rule rather
+#: than checking ``base.__name__ != "ADCPHandler"`` inline so future
+#: broad bases (a hypothetical ``UniversalHandler``) get added to one
+#: place — and a reviewer's first question becomes "is this base
+#: broad-by-design?" not "what's special about ADCPHandler?".
+_BROAD_SURFACE_BASES: frozenset[str] = frozenset({"ADCPHandler"})
+
+
 def _warn_if_unregistered_subclass(handler: ADCPHandler[Any], *, advertise_all: bool) -> None:
     """Emit a one-time ``UserWarning`` when a custom handler base bypasses
     the tool-discovery registry.
 
     The trigger: the concrete handler class itself isn't in
     ``_HANDLER_TOOLS``, has no ``advertised_tools`` declaration of its
-    own, and inherits its tool set from ``ADCPHandler`` (the broadest
-    base) rather than a specialized base like ``GovernanceHandler``.
-    That combination almost always means the adopter meant to declare a
-    focused tool set but forgot to register it; the framework
-    over-advertises by silently falling through to ADCPHandler's full
-    surface.
+    own, and inherits its tool set from a broad-surface base (see
+    :data:`_BROAD_SURFACE_BASES`) rather than a specialized base like
+    ``GovernanceHandler``. That combination almost always means the
+    adopter meant to declare a focused tool set but forgot to register
+    it; the framework over-advertises by silently falling through to
+    the broad base's full surface.
 
     Suppressed when ``advertise_all=True`` — that's the explicit "yes,
     advertise everything" opt-in.
@@ -260,15 +271,21 @@ def _warn_if_unregistered_subclass(handler: ADCPHandler[Any], *, advertise_all: 
         # Should already have been auto-registered via __init_subclass__,
         # but defensively skip the warning if the attribute exists.
         return
-    # Walk MRO looking for a specialized SDK base (anything in the
-    # registry other than ADCPHandler itself). If one is found, the
-    # adopter is subclassing a focused base and inheriting its tool set
-    # — that's the documented pattern, no warning needed.
+    # Walk MRO looking for a specialized (non-broad-surface) SDK base.
+    # If one is found, the adopter is subclassing a focused base and
+    # inheriting its tool set — that's the documented pattern, no
+    # warning needed.
     has_specialized_parent = any(
-        base.__name__ in _HANDLER_TOOLS and base.__name__ != "ADCPHandler" for base in cls.__mro__
+        base.__name__ in _HANDLER_TOOLS and base.__name__ not in _BROAD_SURFACE_BASES
+        for base in cls.__mro__
     )
     if has_specialized_parent:
         return
+    # stacklevel=4 walks: warnings.warn → _warn_if_unregistered_subclass
+    # → _log_advertised_tools → _register_handler_tools → operator's
+    # serve()/create_mcp_server()/create_a2a_server() call site. If any
+    # of those frames are added or removed, recompute or refactor to
+    # use stacklevel=2 from a thin wrapper.
     warnings.warn(
         f"Handler class {cls.__name__!r} subclasses ADCPHandler directly "
         f"but isn't registered in the framework's tool-discovery "

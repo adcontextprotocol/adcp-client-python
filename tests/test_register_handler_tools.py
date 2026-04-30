@@ -18,7 +18,7 @@ only through ``register_handler_tools``.
 from __future__ import annotations
 
 import warnings
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import pytest
 
@@ -147,6 +147,65 @@ def test_init_subclass_skips_inherited_advertised_tools(cleanup_handler_registry
 
     assert "_ParentBase" in _HANDLER_TOOLS
     assert "_ChildBase" not in _HANDLER_TOOLS
+
+
+def test_init_subclass_three_level_chain_with_intermediate_declaration(
+    cleanup_handler_registry,
+):
+    """Three-level inheritance where the *intermediate* base declares
+    ``advertised_tools`` registers AT the intermediate level. The leaf
+    inherits via MRO and isn't separately registered. Regression for
+    middle-of-the-chain registration."""
+
+    class _Root(ADCPHandler):
+        # No advertised_tools — root level.
+        pass
+
+    class _Intermediate(_Root):
+        # Declares its own — registers at this level.
+        advertised_tools: ClassVar[set[str]] = {"get_products", "create_media_buy"}
+
+    class _Leaf(_Intermediate):
+        # Inherits from intermediate; no own declaration.
+        pass
+
+    assert "_Root" not in _HANDLER_TOOLS
+    assert "_Intermediate" in _HANDLER_TOOLS
+    assert _HANDLER_TOOLS["_Intermediate"] == {"get_products", "create_media_buy"}
+    assert "_Leaf" not in _HANDLER_TOOLS
+
+
+def test_init_subclass_forwards_kwargs_to_super(cleanup_handler_registry):
+    """``__init_subclass__`` calls ``super().__init_subclass__(**kwargs)``
+    so PEP 487-style metaclass kwargs (e.g. from
+    ``__init_subclass__`` declared on a custom metaclass) flow through.
+    Without this, a future subclass using ``class X(ADCPHandler, mixin_kw=...)``
+    would lose the kwarg silently. Regression coverage by declaring a
+    bystander base that inspects ``cls`` on subclass creation."""
+    seen: list[type] = []
+
+    class _Bystander:
+        def __init_subclass__(cls, **kwargs: Any) -> None:
+            super().__init_subclass__(**kwargs)
+            seen.append(cls)
+
+    class _MultiInheritHandler(ADCPHandler, _Bystander):
+        advertised_tools: ClassVar[set[str]] = {"get_products"}
+
+    # Bystander's __init_subclass__ saw the new class — proves the
+    # super() chain is intact even with ADCPHandler.__init_subclass__
+    # in the chain. Without `super().__init_subclass__(**kwargs)`, the
+    # bystander would never fire.
+    assert _MultiInheritHandler in seen
+
+
+def test_register_handler_tools_accepts_empty_iterable(cleanup_handler_registry):
+    """An empty tool set is allowed — represents "this handler claims
+    zero tool surface." Registering it makes the handler-name known to
+    the registry without claiming any AdCP verbs. Useful for handlers
+    that exist purely for typed test-context plumbing."""
+    register_handler_tools("_EmptySetHandler", set())
+    assert _HANDLER_TOOLS["_EmptySetHandler"] == set()
 
 
 def test_init_subclass_idempotent_on_module_reload(cleanup_handler_registry):
