@@ -79,6 +79,12 @@ from adcp.decisioning.state import (
     WorkflowObjectType,
     WorkflowStep,
 )
+from adcp.decisioning.task_registry import (
+    InMemoryTaskRegistry,
+    TaskHandoffContext,
+    TaskRegistry,
+    TaskState,
+)
 from adcp.decisioning.types import (
     Account,
     AdcpError,
@@ -101,6 +107,7 @@ __all__ = [
     "FromAuthAccounts",
     "GOVERNANCE_SPECIALISMS",
     "GovernanceContextJWS",
+    "InMemoryTaskRegistry",
     "MaybeAsync",
     "Proposal",
     "PropertyList",
@@ -111,6 +118,9 @@ __all__ = [
     "SingletonAccounts",
     "StateReader",
     "TaskHandoff",
+    "TaskHandoffContext",
+    "TaskRegistry",
+    "TaskState",
     "WorkflowObjectType",
     "WorkflowStep",
 ]
