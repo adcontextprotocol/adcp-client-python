@@ -318,14 +318,11 @@ async def test_register_test_controller_threads_context_factory():
     tool = mcp._tool_manager._tools["comply_test_controller"]
     # FastMCP's tool wrapper takes the function args as kwargs.
     fn = tool.fn  # type: ignore[attr-defined]
-    result_json = await fn(
+    result = await fn(
         scenario="force_account_status",
         params={"account_id": "acc-1", "status": "suspended"},
     )
 
-    import json
-
-    result = json.loads(result_json)
     assert result["success"] is True
     assert result["current_state"] == "suspended"
     # The factory ran, built a ToolContext, and the store saw the header-

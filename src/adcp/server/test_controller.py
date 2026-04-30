@@ -683,7 +683,7 @@ def register_test_controller(
     from adcp.server.base import ToolContext as _ToolContext
     from adcp.server.serve import RequestMetadata as _RequestMetadata
 
-    async def comply_test_controller(**kwargs: Any) -> str:
+    async def comply_test_controller(**kwargs: Any) -> dict[str, Any]:
         context: _ToolContext | None = None
         if context_factory is not None:
             meta = _RequestMetadata(tool_name="comply_test_controller", transport="mcp")
@@ -693,8 +693,7 @@ def register_test_controller(
                     "context_factory for comply_test_controller returned "
                     f"{type(context).__name__}, not a ToolContext instance"
                 )
-        result = await _handle_test_controller(store, kwargs, context=context)
-        return json.dumps(result)
+        return await _handle_test_controller(store, kwargs, context=context)
 
     tool = Tool.from_function(
         comply_test_controller,
