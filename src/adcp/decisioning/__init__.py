@@ -72,6 +72,10 @@ from adcp.decisioning.resolve import (
     PropertyListReference,
     ResourceResolver,
 )
+from adcp.decisioning.serve import (
+    create_adcp_server_from_platform,
+    serve,
+)
 from adcp.decisioning.state import (
     GovernanceContextJWS,
     Proposal,
@@ -121,6 +125,8 @@ __all__ = [
     "TaskHandoffContext",
     "TaskRegistry",
     "TaskState",
+    "create_adcp_server_from_platform",
+    "serve",
     "WorkflowObjectType",
     "WorkflowStep",
 ]
