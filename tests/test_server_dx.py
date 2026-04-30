@@ -438,6 +438,37 @@ class TestHandleTestController:
         assert "seed_creative_format" in result["scenarios"]
         assert "force_account_status" not in result["scenarios"]
 
+    @pytest.mark.asyncio
+    async def test_seed_creative_format_structured_fixture_id(self):
+        """format_id extracted from a structured fixture object must not become a dict key."""
+        received: list[Any] = []
+
+        class _FormatStore(TestControllerStore):
+            async def seed_creative_format(
+                self,
+                fixture: Any = None,
+                format_id: str | None = None,
+                *,
+                context: Any = None,
+            ) -> dict[str, Any]:
+                received.append(format_id)
+                return {"format_id": format_id or "fmt-structured"}
+
+        store = _FormatStore()
+        # Storyboard sends format_id only inside fixture (no top-level params.format_id).
+        result = await _handle_test_controller(
+            store,
+            {
+                "scenario": "seed_creative_format",
+                "params": {
+                    "fixture": {"format_id": {"agent_url": "http://localhost", "id": "display_300x250"}}
+                },
+            },
+        )
+        # The dispatcher passes format_id=None when it's absent from params.
+        assert result["success"] is True
+        assert received[0] is None
+
 
 # ============================================================================
 # serve() and create_mcp_server tests
