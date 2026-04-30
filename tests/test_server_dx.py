@@ -398,6 +398,46 @@ class TestHandleTestController:
         assert result["success"] is False
         assert result["error"] == "INVALID_PARAMS"
 
+    @pytest.mark.asyncio
+    async def test_seed_creative_format_dispatches(self):
+        """seed_creative_format is routed to the store method when implemented."""
+
+        class _FormatStore(TestControllerStore):
+            async def seed_creative_format(
+                self,
+                fixture: Any = None,
+                format_id: str | None = None,
+                *,
+                context: Any = None,
+            ) -> dict[str, Any]:
+                return {"format_id": format_id or "fmt-default"}
+
+        store = _FormatStore()
+        result = await _handle_test_controller(
+            store,
+            {"scenario": "seed_creative_format", "params": {"format_id": "video_30s"}},
+        )
+        assert result["success"] is True
+        assert result["format_id"] == "video_30s"
+
+    @pytest.mark.asyncio
+    async def test_seed_creative_format_in_list_scenarios(self):
+        """seed_creative_format appears in list_scenarios when overridden."""
+
+        class _FormatStore(TestControllerStore):
+            async def seed_creative_format(
+                self,
+                fixture: Any = None,
+                format_id: str | None = None,
+            ) -> dict[str, Any]:
+                return {"format_id": format_id or "fmt-x"}
+
+        store = _FormatStore()
+        result = await _handle_test_controller(store, {"scenario": "list_scenarios"})
+        assert result["success"] is True
+        assert "seed_creative_format" in result["scenarios"]
+        assert "force_account_status" not in result["scenarios"]
+
 
 # ============================================================================
 # serve() and create_mcp_server tests

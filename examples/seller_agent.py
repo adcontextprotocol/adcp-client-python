@@ -53,6 +53,9 @@ _DEFAULT_ACCOUNT_ID = "__default__"
 
 # Test-controller state (force_*/seed_* scenarios only)
 plans: dict[str, dict[str, Any]] = {}
+# Seeded creative formats keyed by the string format ID the storyboard supplies.
+# list_creative_formats merges these in so storyboard references resolve.
+seeded_creative_formats: dict[str, dict[str, Any]] = {}
 # Single-shot directives registered by force_create_media_buy_arm; keyed by account_id.
 pending_directives: dict[str, dict[str, Any]] = {}
 # Tasks registered when create_media_buy consumes a 'submitted' directive; keyed by task_id.
@@ -126,10 +129,15 @@ class DemoSeller(ADCPHandler):
                 # in 3.0.1) live on the dynamic list_scenarios response and
                 # are reported there — not advertised here. Once the
                 # capabilities schema's enum catches up, the rest land too.
+                # force_session_status is schema-allowed even for media_buy
+                # sellers; DemoStore provides a stub so list_scenarios
+                # includes it and the storyboard runner's controller
+                # detection check succeeds.
                 "scenarios": [
                     "force_account_status",
                     "force_media_buy_status",
                     "force_creative_status",
+                    "force_session_status",
                     "simulate_delivery",
                     "simulate_budget_spend",
                 ],
@@ -393,6 +401,7 @@ class DemoSeller(ADCPHandler):
                 ],
             },
         ]
+        all_formats = all_formats + list(seeded_creative_formats.values())
         filter_ids = params.get("format_ids")
         if filter_ids:
             wanted = {(fid.get("agent_url"), fid["id"]) for fid in filter_ids if "id" in fid}
@@ -531,6 +540,20 @@ class DemoStore(TestControllerStore):
     ) -> dict[str, Any]:
         return {"simulated": {"spend_percentage": spend_percentage}}
 
+    async def force_session_status(
+        self,
+        session_id: str,
+        status: str,
+        termination_reason: str | None = None,
+        *,
+        context: Any = None,
+    ) -> dict[str, Any]:
+        # DemoSeller has no SI session state; return a canned transition so
+        # the storyboard runner's controller-detection probe succeeds and the
+        # force_session_status storyboard can run (it will simply report the
+        # canned previous_state).
+        return {"previous_state": "active", "current_state": status}
+
     async def force_create_media_buy_arm(
         self,
         arm: str,
@@ -667,6 +690,22 @@ class DemoStore(TestControllerStore):
         data.setdefault("packages", [])
         media_buys[mb_id] = data
         return {"media_buy_id": mb_id}
+
+    async def seed_creative_format(
+        self,
+        fixture: dict[str, Any] | None = None,
+        format_id: str | None = None,
+        *,
+        context: Any = None,
+    ) -> dict[str, Any]:
+        data = dict(fixture or {})
+        fid = format_id or data.get("format_id") or f"fmt-seeded-{uuid.uuid4().hex[:8]}"
+        data.setdefault("format_id", {"agent_url": AGENT_URL, "id": fid})
+        data.setdefault("name", fid)
+        data.setdefault("renders", [])
+        data.setdefault("assets", [])
+        seeded_creative_formats[fid] = data
+        return {"format_id": fid}
 
 
 if __name__ == "__main__":

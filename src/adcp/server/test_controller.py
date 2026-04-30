@@ -60,6 +60,7 @@ SCENARIOS = [
     "seed_creative",
     "seed_plan",
     "seed_media_buy",
+    "seed_creative_format",
 ]
 
 _MAX_TASK_ID = 128
@@ -357,6 +358,23 @@ class TestControllerStore:
         """
         raise NotImplementedError
 
+    async def seed_creative_format(
+        self,
+        fixture: dict[str, Any] | None = None,
+        format_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate a creative format fixture for storyboard tests (AdCP 3.0.1).
+
+        The seller MUST expose the seeded format_id in list_creative_formats
+        responses for the duration of the compliance session.
+
+        Returns:
+            {"format_id": str}
+        """
+        raise NotImplementedError
+
 
 def _list_scenarios(store: TestControllerStore) -> list[str]:
     """Detect which scenarios a store actually implements.
@@ -615,6 +633,12 @@ async def _handle_test_controller(
             result = await method(
                 fixture=scenario_params.get("fixture"),
                 media_buy_id=scenario_params.get("media_buy_id"),
+                **extra,
+            )
+        elif scenario == "seed_creative_format":
+            result = await method(
+                fixture=scenario_params.get("fixture"),
+                format_id=scenario_params.get("format_id"),
                 **extra,
             )
         else:
