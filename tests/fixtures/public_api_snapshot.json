@@ -75,6 +75,7 @@
     "Checkpoint",
     "ComplyTestControllerRequest",
     "ComplyTestControllerResponse",
+    "ConfigurationError",
     "ConsentBasis",
     "ContentIdType",
     "ContextMatchRequest",
