@@ -110,6 +110,15 @@ class StateReader(Protocol):
     Mirrors the TS-side ``WorkflowStateReader`` interface in
     ``src/lib/server/decisioning/context.ts``. v6.0 ships the contract
     + the no-op stub; v6.1 lands the backing store.
+
+    .. note::
+       :class:`runtime_checkable` Protocols match by attribute *name*
+       only — return types (including :data:`GovernanceContextJWS`,
+       which is a :func:`typing.NewType` invisible at runtime) and
+       method signatures are NOT enforced by ``isinstance``. A custom
+       impl that returns ``int`` from ``governance_context()`` will
+       pass the structural check; mypy is the only enforcement for
+       return-type contracts. Coverage gap is acceptable for v6.0.
     """
 
     def find_by_object(
@@ -183,11 +192,28 @@ class _NotYetWiredStateReader:
         if method_name in _STATE_STUB_WARNED:
             return
         _STATE_STUB_WARNED.add(method_name)
+        # ``governance_context`` is a load-bearing security stub —
+        # adopters claiming governance-* specialisms get the fail-fast
+        # path at server boot before this branch is reached, so any
+        # code path that lands here is a non-governance flow where
+        # ``None`` is also the v6.1 answer (no governance threaded for
+        # this request). Other state methods will return real values
+        # in v6.1, so adopter branches on empty results would diverge.
+        if method_name == "governance_context":
+            tail = (
+                "Returning None — non-governance flows get the same answer "
+                "in v6.1; governance-claiming platforms hit the server-boot "
+                "fail-fast before this stub is invoked."
+            )
+        else:
+            tail = (
+                "Reading empty results — adopter code branching on this "
+                "state will see different values once the backing store is "
+                "wired."
+            )
         warnings.warn(
             f"ctx.state.{method_name}() called against the v6.0 stub "
-            "StateReader; backing store lands in v6.1. Reading empty "
-            "results — adopter code branching on this state will see "
-            "different values once the backing store is wired. See "
+            f"StateReader; backing store lands in v6.1. {tail} See "
             "docs/proposals/decisioning-platform-dispatch-design.md#d15",
             UserWarning,
             stacklevel=3,
@@ -237,6 +263,3 @@ __all__ = [
 # of the public adopter-facing surface — keep below ``__all__``.
 def _make_default_state_reader() -> StateReader:
     return _NotYetWiredStateReader()
-
-
-_make_default_state_reader.__module__ = __name__

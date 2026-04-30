@@ -39,9 +39,14 @@ from adcp.types import (
 
 # ``PropertyList`` is the resolved-list shape (vs.
 # ``PropertyListReference`` which is the wire-encoded reference). The
-# spec models the resolved list as the existing
-# ``PropertyListReference`` shape carrying the populated members; we
-# alias for clarity in adopter call sites.
+# spec currently models both as the same Pydantic class — the
+# reference carries populated members on the response — so we alias
+# for clarity in adopter call sites and on D15's StateReader contract.
+# If a future spec rev introduces a distinct resolved-list type,
+# adopter code typed against ``PropertyList`` would silently re-target;
+# the contract test ``test_property_list_alias_pinned_to_reference`` in
+# tests/test_decisioning_context_state_resolve.py tripwires that drift
+# so the rename is visible at CI time, not deploy time.
 PropertyList = PropertyListReference
 
 
@@ -67,6 +72,14 @@ class ResourceResolver(Protocol):
     ``src/lib/server/decisioning/context.ts``. v6.0 ships the contract
     + the no-op stub (raises ``NotImplementedError`` on every call);
     v6.1 lands the backing fetchers.
+
+    .. note::
+       :class:`runtime_checkable` Protocols only check attribute
+       *presence*. Whether a method is ``async def`` is irrelevant to
+       the runtime ``isinstance`` check — a sync method named
+       ``property_list`` would pass the structural check but fail at
+       ``await`` time. Use mypy to enforce ``async def`` signatures
+       across adopter impls.
     """
 
     async def property_list(self, list_id: str) -> PropertyList:

@@ -168,6 +168,57 @@ def test_state_stub_separate_methods_warn_independently() -> None:
     assert sorted(methods_warned) == ["find_by_object", "workflow_steps"]
 
 
+def test_state_stub_warned_once_is_cross_instance() -> None:
+    """``_STATE_STUB_WARNED`` is module-level so concurrent ``serve()``
+    instances share the warned-once state — emitting per process per
+    method, not per request. Two stub instances back-to-back must not
+    re-warn for the same method."""
+    first = _NotYetWiredStateReader()
+    second = _NotYetWiredStateReader()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        first.find_by_object("media_buy", "mb_1")
+        # Different instance, same method — must NOT re-warn.
+        second.find_by_object("media_buy", "mb_2")
+    matched = [w for w in caught if "find_by_object" in str(w.message)]
+    assert len(matched) == 1, (
+        f"Expected exactly one warning across instances; got {len(matched)}: "
+        f"{[str(w.message) for w in matched]}"
+    )
+
+
+def test_state_stub_governance_context_warning_text() -> None:
+    """The ``governance_context`` warning text is special-cased to
+    explain that ``None`` IS the v6.1 answer for non-governance flows
+    — not the generic "different values once wired" message that
+    applies to other methods. Adopters in non-governance flows
+    shouldn't be told the value will change when it won't."""
+    reader = _NotYetWiredStateReader()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        reader.governance_context()
+    msg = next(str(w.message) for w in caught if "governance_context" in str(w.message))
+    assert "non-governance flows get the same answer" in msg
+    assert "fail-fast" in msg
+
+
+def test_property_list_alias_pinned_to_reference() -> None:
+    """``adcp.decisioning.PropertyList`` aliases
+    ``PropertyListReference`` deliberately (the spec models both as
+    one Pydantic class). If a future spec rev introduces a distinct
+    resolved-list type, adopter code typed against ``PropertyList``
+    would silently re-target — this contract test trips first so the
+    rename is visible at CI time rather than deploy time."""
+    from adcp.decisioning import PropertyList, PropertyListReference
+
+    assert PropertyList is PropertyListReference, (
+        "PropertyList must alias PropertyListReference. If the spec has "
+        "introduced a distinct resolved-list type, update "
+        "adcp.decisioning.resolve to point PropertyList at the new class "
+        "and migrate adopter code accordingly."
+    )
+
+
 # ---- _NotYetWiredResolver: raises with design-doc anchor ----
 
 

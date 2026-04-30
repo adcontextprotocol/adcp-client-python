@@ -48,11 +48,16 @@ class DecisioningCapabilities:
         implements ``governance-*`` specialisms AND has wired a custom
         :class:`adcp.decisioning.state.StateReader` that returns real
         :data:`adcp.decisioning.state.GovernanceContextJWS` values.
-        Setting this ``True`` with the v6.0 stub
-        ``StateReader`` is a fail-fast at server boot: silent
-        governance-gate skipping is a security regression the framework
-        refuses to allow. Defaults ``False`` — non-governance adopters
-        never touch this flag. See
+        Defaults ``False`` — non-governance adopters never touch this
+        flag.
+
+        Stage 3 dispatch (foundation PR's ``validate_platform``) will
+        fail-fast at server boot when a platform claims a
+        ``governance-*`` specialism without setting this flag and
+        wiring a real ``StateReader`` — silent governance-gate
+        skipping is a security regression the framework refuses to
+        ship. The flag itself is the contract that lands now; the
+        enforcement lands in Stage 3. See
         ``docs/proposals/decisioning-platform-dispatch-design.md#d15``.
     """
 
