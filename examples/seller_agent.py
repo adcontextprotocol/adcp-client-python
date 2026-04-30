@@ -25,6 +25,7 @@ from adcp.server import (
     cancel_media_buy_response,
     serve,
 )
+from adcp.server.helpers import valid_actions_for_status
 from adcp.server.responses import (
     capabilities_response,
     creative_formats_response,
@@ -119,19 +120,18 @@ class DemoSeller(ADCPHandler):
             ["media_buy"],
             idempotency={"supported": False},
             compliance_testing={
+                # AdCP 3.0.1's capabilities-response schema constrains this
+                # enum to the original six scenarios. The new force_* and
+                # seed_* scenarios (added to comply-test-controller-request
+                # in 3.0.1) live on the dynamic list_scenarios response and
+                # are reported there — not advertised here. Once the
+                # capabilities schema's enum catches up, the rest land too.
                 "scenarios": [
                     "force_account_status",
                     "force_media_buy_status",
                     "force_creative_status",
-                    "force_create_media_buy_arm",
-                    "force_task_completion",
                     "simulate_delivery",
                     "simulate_budget_spend",
-                    "seed_product",
-                    "seed_pricing_option",
-                    "seed_creative",
-                    "seed_plan",
-                    "seed_media_buy",
                 ],
             },
         )
@@ -264,8 +264,7 @@ class DemoSeller(ADCPHandler):
             )
 
         has_creatives = any(
-            pkg.get("creative_assignments") or pkg.get("creatives")
-            for pkg in params["packages"]
+            pkg.get("creative_assignments") or pkg.get("creatives") for pkg in params["packages"]
         )
         status = "active" if has_creatives else "pending_creatives"
 
@@ -276,11 +275,13 @@ class DemoSeller(ADCPHandler):
             "packages": packages,
             "revision": 1,
         }
-        pending_actions = ["sync_creatives", "cancel", "update_budget", "update_dates",
-                           "update_packages", "add_packages"]
+        # Pull valid_actions from the SDK's authoritative state machine —
+        # tracks any future spec churn without manual list maintenance.
         return media_buy_response(
-            mb_id, packages, status=status,
-            valid_actions=pending_actions if status == "pending_creatives" else None,
+            mb_id,
+            packages,
+            status=status,
+            valid_actions=valid_actions_for_status(status) or None,
         )
 
     async def get_media_buys(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
@@ -340,13 +341,11 @@ class DemoSeller(ADCPHandler):
             return cancel_media_buy_response(mb_id, "buyer")
 
         mb["revision"] = mb.get("revision", 1) + 1
-        pending_actions = ["sync_creatives", "cancel", "update_budget", "update_dates",
-                           "update_packages", "add_packages"]
         return update_media_buy_response(
             mb_id,
             status=mb["status"],
             revision=mb["revision"],
-            valid_actions=pending_actions if mb["status"] == "pending_creatives" else None,
+            valid_actions=valid_actions_for_status(mb["status"]) or None,
         )
 
     async def list_creative_formats(
@@ -418,6 +417,14 @@ class DemoSeller(ADCPHandler):
                     "status": "approved",
                 }
             )
+        # Transition any media buys waiting on creatives to pending_start
+        # now that creatives are approved (storyboard creative_fate_after_sync
+        # asserts this). Real sellers would scope by media_buy_id linkage —
+        # the example uses a single-tenant simplification.
+        for mb in media_buys.values():
+            if mb.get("status") == "pending_creatives":
+                mb["status"] = "pending_start"
+                mb["revision"] = mb.get("revision", 1) + 1
         return sync_creatives_response(results)
 
     async def get_media_buy_delivery(

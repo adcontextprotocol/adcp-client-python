@@ -850,7 +850,6 @@ ADCP_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "enum": ["list_scenarios"] + _CONTROLLER_SCENARIOS,
                 },
                 "params": {"type": "object"},
-                "account": {"type": "object"},
                 "context": {"type": "object"},
             },
             "required": ["scenario"],

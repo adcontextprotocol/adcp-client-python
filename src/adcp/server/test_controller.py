@@ -508,9 +508,7 @@ async def _handle_test_controller(
                     "arm must be 'submitted' or 'input-required'",
                 )
             raw_task_id = scenario_params.get("task_id")
-            task_id: str | None = (
-                raw_task_id.strip() if isinstance(raw_task_id, str) else None
-            )
+            task_id: str | None = raw_task_id.strip() if isinstance(raw_task_id, str) else None
             if not task_id:
                 task_id = None
             if arm == "submitted" and not task_id:
@@ -716,7 +714,6 @@ def register_test_controller(
                 "enum": ["list_scenarios"] + SCENARIOS,
             },
             "params": {"type": "object"},
-            "account": {"type": "object"},
             "context": {"type": "object"},
         },
         "required": ["scenario"],
