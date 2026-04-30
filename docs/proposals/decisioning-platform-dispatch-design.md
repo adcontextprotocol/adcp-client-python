@@ -875,11 +875,25 @@ class ResourceResolver(Protocol):
     async def creative_format(
         self,
         format_id: FormatReferenceStructuredObject,
+        *,
+        revalidate: bool = False,
     ) -> Format:
         """Routes through ``capabilities.creative_agents`` declaration
-        with a 1h cache; self-hosted formats hit the local
-        CreativePlatform.list_formats(). Returns the resolved Format
-        with full asset slot definitions."""
+        with a framework-managed cache; self-hosted formats hit the
+        local CreativePlatform.list_formats(). Returns the resolved
+        Format with full asset slot definitions.
+
+        :param revalidate: If True, bypasses the framework cache and
+            re-fetches from the upstream creative-agent. Adopters with
+            freshness needs (e.g., creative submission validating
+            against the most-recent format spec) pass ``revalidate=True``;
+            most reads should use the default (False) to amortize the
+            agent round-trip.
+
+        Cache TTL is implementation detail (defaults to 1h on the
+        reference impl); adopters who need stricter freshness use
+        ``revalidate=True`` rather than depending on the TTL value.
+        """
         ...
 ```
 
@@ -904,42 +918,201 @@ adopters substitute test doubles in unit tests via dataclass replacement
 (`replace(ctx, state=fake_state_reader)`). Concrete classes would
 force monkey-patching.
 
-**v6.0 ship scope:** ship the `Protocol`-typed surface in the
-foundation PR with default impls that return empty / raise
-`NotImplementedError("landing in v6.1")`. Do NOT block foundation on
-the workflow-step backing store (that's a v6.1 concern — same gating
-as the TS side, where the round-2 review explicitly says "landing in
-rc.1"). The Protocol shape locks the contract; impls fill in.
+**v6.0 ship scope:** ship the `Protocol`-typed surface AND every type
+it references in the foundation PR. Backing impls land in v6.1; the
+typed *contract* (Protocol shape + every referenced type) is
+foundation-stable. Do NOT block foundation on the workflow-step
+backing store, BUT do NOT punt the type definitions to v6.1 either —
+adopters write the right shape from day one only if every type is
+locked.
+
+**Type-stability table (concern from round-4 review):**
+
+| Type | Source | v6.0 status |
+|---|---|---|
+| `Account[TMeta]` | `adcp.decisioning.types` | locked |
+| `AuthInfo` | `adcp.decisioning.context` | locked |
+| `WorkflowStep` | NEW in `adcp.decisioning.state` (framework-internal, not on the wire) | locked in foundation as a frozen `@dataclass` |
+| `WorkflowObjectType` | NEW in `adcp.decisioning.state` (framework-internal `Literal`) | locked in foundation |
+| `Proposal` | `adcp.types.generated_poc.core.proposal` (already exists from spec codegen) | locked (generated) |
+| `GovernanceContextJWS` | NEW in `adcp.decisioning.state` (`NewType('GovernanceContextJWS', str)`) | locked in foundation |
+| `PropertyList` | `adcp.types.generated_poc.core.property_list_ref` (re-export `PropertyListReference` + the resolved-list type) | locked (generated) |
+| `CollectionList` | `adcp.types.generated_poc.collection.collection_list` (already exists) | locked (generated) |
+| `Format` | `adcp.types.generated_poc.core.format` (already exists) | locked (generated) |
+| `FormatReferenceStructuredObject` | `adcp.types.generated_poc.core.format_id` (already exists) | locked (generated) |
+
+The framework-internal types (`WorkflowStep`, `WorkflowObjectType`,
+`GovernanceContextJWS`) ship as foundation-stable dataclasses /
+literals so adopter code that pattern-matches on them doesn't refactor
+when v6.1 lands. The wire-spec types are already in the generated
+`adcp.types` package — just re-exported under `adcp.decisioning.state`
+for one-stop import.
+
+**Stub posture (UserWarning on first call) — concern from round-4 review:**
+
+Two failure modes drove the design before round-4:
+1. *Silent-empty* (TS-side `findByObject: () => []`) reads an empty
+   sequence in v6.0; adopter writes
+   `if not state.workflow_steps(): proceed_without_history`; v6.1
+   wires the backing store and the platform's branch flips silently.
+2. *Eager-raise* (TS-side `resolve.propertyList: throw ...`) crashes
+   the request the moment any platform method touches the resolver,
+   forcing adopters to defensively guard every read.
+
+The round-4 fix splits the difference: **both `state` and `resolve`
+emit a one-time `UserWarning` on first call to a not-yet-wired stub
+method**, then return the type-correct empty value (state) or raise
+(resolve). The asymmetry between empty-return (state) and raise
+(resolve) is justified:
+
+* `state.*` reads are read-only inspections of framework-owned
+  in-flight state. An empty workflow-steps list IS the correct answer
+  when no steps have been emitted yet (a fresh tenant has no history).
+  Raising here would force adopters to wrap every audit-read in
+  try/except, including paths that are valid in production. The
+  UserWarning catches the "I forgot to wire the backing store"
+  deployment bug; the empty return preserves the legitimate
+  "no-history-yet" semantics.
+* `resolve.*` fetches are validated lookups. An empty PropertyList in
+  v6.0 vs. a real one in v6.1 is a divergence the framework cannot
+  silently paper over. Raising forces adopters to either (a) opt out
+  by not calling `resolve.*` on the v6.0 stub, or (b) wire a real
+  resolver themselves.
+
+Stub impls:
+
+```python
+import warnings
+
+_STATE_STUB_WARNED: set[str] = set()  # one-time per method-name
+
+class _NotYetWiredStateReader:
+    """v6.0 stub. Returns type-correct empty values; emits a
+    one-time UserWarning per method on first call so adopters notice
+    they're reading uninitialized state."""
+
+    def _warn_once(self, method_name: str) -> None:
+        if method_name in _STATE_STUB_WARNED:
+            return
+        _STATE_STUB_WARNED.add(method_name)
+        warnings.warn(
+            f"ctx.state.{method_name}() called against the v6.0 stub "
+            "StateReader; backing store lands in v6.1. Reading empty "
+            "results — adopter code branching on this state will see "
+            "different values once the backing store is wired. See "
+            "docs/proposals/decisioning-platform-dispatch-design.md#d15",
+            UserWarning,
+            stacklevel=3,
+        )
+
+    def find_by_object(self, type, id):
+        self._warn_once("find_by_object")
+        return ()
+
+    def find_proposal_by_id(self, proposal_id):
+        self._warn_once("find_proposal_by_id")
+        return None
+
+    def governance_context(self):
+        # See "governance opt-in" subsection below — this branch is
+        # only reachable when no specialism declares
+        # capabilities.governance_aware=True. Server boot fails fast
+        # otherwise.
+        self._warn_once("governance_context")
+        return None
+
+    def workflow_steps(self):
+        self._warn_once("workflow_steps")
+        return ()
+
+
+class _NotYetWiredResolver:
+    """v6.0 stub. Raises with a pointer to the wire-up follow-up so
+    adopters who reach for resolve.* know exactly which v6.1 task
+    unblocks them."""
+
+    async def property_list(self, list_id):
+        raise NotImplementedError(
+            f"ResourceResolver.property_list({list_id!r}) called against "
+            "the v6.0 stub. Backing fetcher lands in v6.1 — see "
+            "docs/proposals/decisioning-platform-dispatch-design.md#d15. "
+            "Foundation-PR adopters should not invoke ctx.resolve.* yet."
+        )
+
+    async def collection_list(self, list_id):
+        raise NotImplementedError(...)  # same shape
+
+    async def creative_format(self, format_id, *, revalidate=False):
+        raise NotImplementedError(...)  # same shape
+```
+
+The UserWarning emits via the same `warnings` filter chain as the
+unknown-specialism warning (D14) — adopters running pytest with
+`filterwarnings = error` get a hard-fail on accidental stub reads;
+production deployments get one log line per method per process.
+
+**`governance_context()` security stub (concern from round-4 review):**
+
+Returning `None` from `governance_context()` in v6.0 is a load-bearing
+security stub: governance-aware adopter code reads
+`ctx.state.governance_context()` to gate plan-binding / spend-authority
+checks, and a v6.0 `None` skips the gate. v6.1 wires the gate and the
+adopter's gate-skipping branch evaluates against real plans.
+
+**Fix: opt-in capability declaration with server-boot fail-fast.**
+Add `governance_aware: bool = False` to `DecisioningCapabilities`. At
+server boot, `validate_platform` walks specialisms; if any specialism
+that requires governance threading is claimed (`governance-spend-authority`,
+`governance-delivery-monitor`) AND `capabilities.governance_aware`
+is not explicitly True AND no real `StateReader` is wired,
+`validate_platform` raises:
+
+```python
+raise AdcpError(
+    "INVALID_REQUEST",
+    message=(
+        "Platform claims governance-* specialism(s) but the v6.0 "
+        "StateReader stub does not provide governance_context(). "
+        "Either: (a) set capabilities.governance_aware=False and drop "
+        "the governance-* specialism claim until v6.1, or (b) wire a "
+        "custom StateReader on serve(state_reader=...) that returns "
+        "real GovernanceContextJWS values, or (c) wait for the v6.1 "
+        "backing-store impl. Silent governance-gate skipping is a "
+        "security boundary; the framework refuses to ship that."
+    ),
+    recovery="terminal",
+    details={"specialisms": [...claimed governance specialisms...]},
+)
+```
+
+**Why the explicit opt-in:** the alternative (raise on every
+`governance_context()` call) is correct but louder than necessary for
+the 90% non-governance flow. The opt-in puts the decision at server
+boot (one place, fail-fast) rather than at every dispatched method.
+Non-governance adopters get the empty-return + UserWarning path
+unchanged; governance-claiming adopters fail to ship until they wire
+real governance threading.
+
+`capabilities.governance_aware` doc:
+```python
+@dataclass
+class DecisioningCapabilities:
+    # ... existing fields ...
+
+    governance_aware: bool = False
+    """Set True ONLY when the platform implements governance-* specialisms
+    AND has wired a custom StateReader that returns real
+    GovernanceContextJWS values. Setting this True with the v6.0 stub
+    StateReader is a fail-fast at server boot: silent governance-gate
+    skipping is a security regression the framework refuses to allow.
+    Defaults False — non-governance adopters never touch this flag."""
+```
 
 **Field ordering in `RequestContext`:** `state` and `resolve` come
 AFTER `account` / `auth_info` / `now` (existing fields) so existing
 test fixtures and downstream code that constructs `RequestContext`
 positionally don't break. New fields use `field(default_factory=...)`
-defaults pointing at no-op stub implementations:
-
-```python
-class _NotYetWiredStateReader:
-    def find_by_object(self, type, id):
-        return ()
-    def find_proposal_by_id(self, proposal_id):
-        return None
-    def governance_context(self):
-        return None
-    def workflow_steps(self):
-        return ()
-
-class _NotYetWiredResolver:
-    async def property_list(self, list_id):
-        raise NotImplementedError(
-            "ResourceResolver.property_list landing in v6.1 — "
-            "see docs/proposals/decisioning-platform-dispatch-design.md#d15"
-        )
-    # ... etc
-```
-
-The stubs let foundation-PR examples and tests construct
-`RequestContext()` without wiring a backend; production deployments
-get the v6.1 backing store when it lands.
+defaults pointing at the stub impls above.
 
 **Rationale for shipping the surface now even with stub backings:**
 adopters write platform method bodies that read `ctx.state.*` and
@@ -947,7 +1120,9 @@ adopters write platform method bodies that read `ctx.state.*` and
 every adopter's method bodies need to be rewritten to thread state
 through `ctx.account.metadata` (or worse, through their own
 re-implementation of the workflow store). Locking the typed surface
-in v6.0 lets adopters write the right shape from day one.
++ all referenced types in v6.0 lets adopters write the right shape
+from day one; the UserWarning + governance opt-in keep the silent-
+divergence failure modes off the table.
 
 **Framework-only construction (parity with TS `to-context.ts`).**
 The `RequestContext` is supplied by the framework, never by the
@@ -1024,13 +1199,13 @@ public surface — minor bump).
 | `tests/test_decisioning_handler_codegen.py` | ~80 | Regen-drift: regen `handler.py` into tempdir, `git diff --exit-code`. Mirrors `tests/test_mcp_schema_drift.py` pattern. **Drift error message asserts the prescriptive form** (round-3 finding) — names `uv run python scripts/generate_decisioning_handler.py` verbatim. Codegen-time fail-fast on missing Pydantic Request type. |
 | `tests/test_hello_seller_integration.py` | ~150 | End-to-end sync: boot example via ASGI, MCP `tools/call` hits sync `get_products` + sync `create_media_buy`, response round-trips. AdcpError path: hostile budget rejected with structured-error envelope. |
 | `tests/test_hello_seller_async_handoff_integration.py` | ~180 | End-to-end hybrid: boot the handoff example, MCP `tools/call` to `create_media_buy` returns `TaskHandoff`, Submitted envelope serializes correctly, `tasks/get` returns Submitted → Working → Completed lifecycle, registry has the terminal artifact. |
-| `tests/test_decisioning_context_state_resolve.py` | ~120 | **D15** — `StateReader` Protocol structural match (custom impl satisfies); `ResourceResolver` Protocol structural match; default `_NotYetWiredStateReader` returns empty sequences (NOT raise — adopters reading optimistic state shouldn't crash); default `_NotYetWiredResolver.property_list()` raises `NotImplementedError` with the design-doc anchor in the message; substituting test doubles via `dataclasses.replace(ctx, state=fake)` works (round-trip regression). |
+| `tests/test_decisioning_context_state_resolve.py` | ~150 | **D15** — `StateReader` / `ResourceResolver` Protocol structural match; default `_NotYetWiredStateReader` returns empty sequences AND emits one-time `UserWarning` per method on first call (warning suppressed on subsequent calls — module-level set); `_NotYetWiredResolver.*` raises `NotImplementedError` with the design-doc anchor; substituting test doubles via `dataclasses.replace(ctx, state=fake)` works; **governance opt-in fail-fast (D15 round-4):** platform claiming `governance-spend-authority` with default stub `StateReader` raises `AdcpError("INVALID_REQUEST")` at server boot; same platform with `capabilities.governance_aware=False` and no governance specialism passes; same platform with custom `StateReader` returning real `GovernanceContextJWS` passes; **`creative_format(revalidate=True)` parameter regression** — calling stub with `revalidate=True` raises with the same message as `revalidate=False` (parameter is part of Protocol contract, not gated on stub). |
 | `tests/test_decisioning_validate_platform_strict.py` | ~120 | **Round-4 (Emma #6 + #16):** specialism enum-coverage check (declaring a known specialism that has no `REQUIRED_METHODS_PER_SPECIALISM` entry must NOT silently pass — must fail server boot pointing at the spec drift); validator throws are caught and surface as `AdcpError("INVALID_REQUEST", ...)` rather than crashing the server boot. |
 | `tests/test_decisioning_in_memory_registry_prod_gate.py` | ~80 | **Round-4 (Emma #8):** `serve()` + `InMemoryTaskRegistry` + `production` env raises `AdcpError` unless `ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1` set. Sales-broadcast-tv adopter forced into HITL path is the regression case. |
 | `tests/test_decisioning_status_change_isolation.py` | ~80 | **Round-4 (Emma #17):** two `serve()` instances in the same process route their own `publish_status_change` events to per-instance subscribers, NOT a module-level singleton. Concurrent test files don't clobber each other's bus. |
 
-**Foundation PR total:** ~2475 lines (~250 generated, ~1100 tests).
-After prep PR + this lands: ~3850 lines on top of 1500-line foundation
+**Foundation PR total:** ~2510 lines (~250 generated, ~1130 tests).
+After prep PR + this lands: ~3885 lines on top of 1500-line foundation
 skeleton already committed.
 
 ## Things deferred (track separately)
@@ -1255,11 +1430,15 @@ unrepresentable in our hybrid `SalesResult[T]` design**:
   `test_decisioning_validate_platform_strict.py`.
 * **D7 + serve() (Emma #8) — production gate on `InMemoryTaskRegistry`.**
   `serve()` refuses to start when wired with `InMemoryTaskRegistry` and
-  `ADCP_ENV=production` (or equivalent) unless
-  `ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1` opt-in. Sales-broadcast-tv
-  adopters are *structurally forced* into the HITL path which depends on
-  the registry — silent in-memory fallback is a real prod foot-gun.
-  Test: `test_decisioning_in_memory_registry_prod_gate.py`.
+  the existing SDK convention `ADCP_ENV in {"prod", "production"}`
+  (case-insensitive — same logic as `adcp.validation.client_hooks._default_response_mode`
+  reads at `src/adcp/validation/client_hooks.py:68`) unless
+  `ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1` opt-in is set.
+  Sales-broadcast-tv adopters are *structurally forced* into the HITL
+  path which depends on the registry — silent in-memory fallback is a
+  real prod foot-gun. Reuses the existing prod-detection helper to
+  avoid drift between two env-var conventions; do not introduce a
+  new variable. Test: `test_decisioning_in_memory_registry_prod_gate.py`.
 * **Dispatch (Emma #10) — `AdcpError` projection consistency.**
   Every code path that can raise `AdcpError` (specialism methods,
   account resolver, validators, capability synthesis,
@@ -1321,6 +1500,56 @@ references the framework already validated. **Surface ships in v6.0
 with no-op stub backings; impls fill in for v6.1**, so adopters can
 write the right shape from day one without rewriting later. See D15
 above for the full Protocol definitions and rationale.
+
+**D15 round-4 review tightenings (post-publish):**
+
+* **Stub asymmetry fixed.** Original D15 had `state.*` returning empty
+  silently and `resolve.*` raising — different posture in two readers
+  doc'd in the same paragraph. Round-4 review caught the asymmetry as
+  a real adopter foot-gun (silent-empty masks the stub state until
+  v6.1 wires the backing store and the platform's branch flips
+  silently). Fix: both stubs emit a one-time `UserWarning` per method
+  on first call. `state.*` still returns type-correct empty values
+  (an empty workflow-steps list IS legitimate for fresh tenants);
+  `resolve.*` still raises (an empty `PropertyList` is divergence
+  the framework cannot silently paper over). The asymmetry is now
+  justified per-reader rather than left undocumented.
+* **`governance_context()` fail-fast at server boot.** Returning
+  `None` from `governance_context()` in v6.0 was a load-bearing
+  security stub — adopters claiming governance-* specialisms get
+  `None` and skip the gate; v6.1 wires the gate and the
+  gate-skipping branch evaluates against real plans. Fix: add
+  `capabilities.governance_aware: bool = False`. At server boot,
+  `validate_platform` raises `AdcpError("INVALID_REQUEST")` if any
+  `governance-*` specialism is claimed AND no real `StateReader` is
+  wired AND `governance_aware` isn't explicitly opted into. The
+  framework refuses to ship silent governance-gate skipping;
+  adopters must wire real governance threading or drop the claim.
+* **Type-stability table added.** Round-4 surfaced "lock all
+  D15-referenced types in v6.0, not just the Protocols." D15 now
+  includes a per-type table: `Account`, `AuthInfo`, `Proposal`,
+  `PropertyList`, `CollectionList`, `Format`,
+  `FormatReferenceStructuredObject` are all already in
+  `adcp.types.generated_poc/`; `WorkflowStep`, `WorkflowObjectType`,
+  `GovernanceContextJWS` are framework-internal types defined fresh
+  in `adcp.decisioning.state` and shipped foundation-stable. Adopter
+  code that pattern-matches on these types doesn't refactor when v6.1
+  lands.
+* **`creative_format(revalidate: bool = False)` parameter pinned in
+  the Protocol contract.** Round-4 caught the 1h cache TTL doc'd as
+  Protocol contract — adopters with freshness needs would be stuck.
+  Pinning `revalidate=` at the Protocol level moves the cache TTL
+  to impl detail and gives adopters an opt-out without depending on
+  any specific TTL value. Test: stub raises identically with
+  `revalidate=True` so the parameter contract is enforced even before
+  the v6.1 backing impl ships.
+* **Env var convention reused.** Original Round-4 referenced
+  `ADCP_ENV=production` as a free-form string; round-4 review caught
+  the drift risk vs. existing SDK convention. Fix: reuse
+  `_default_response_mode` logic from
+  `src/adcp/validation/client_hooks.py:68` —
+  `ADCP_ENV in {"prod", "production"}` (case-insensitive). One
+  prod-detection mechanism, no drift.
 
 ### File plan additions
 
