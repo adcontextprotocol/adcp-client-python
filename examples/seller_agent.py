@@ -237,7 +237,12 @@ class DemoSeller(ADCPHandler):
             "packages": packages,
             "revision": 1,
         }
-        return media_buy_response(mb_id, packages, status=status)
+        pending_actions = ["sync_creatives", "cancel", "update_budget", "update_dates",
+                           "update_packages", "add_packages"]
+        return media_buy_response(
+            mb_id, packages, status=status,
+            valid_actions=pending_actions if status == "pending_creatives" else None,
+        )
 
     async def get_media_buys(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         requested_ids = params.get("media_buy_ids")
@@ -296,7 +301,14 @@ class DemoSeller(ADCPHandler):
             return cancel_media_buy_response(mb_id, "buyer")
 
         mb["revision"] = mb.get("revision", 1) + 1
-        return update_media_buy_response(mb_id, status=mb["status"], revision=mb["revision"])
+        pending_actions = ["sync_creatives", "cancel", "update_budget", "update_dates",
+                           "update_packages", "add_packages"]
+        return update_media_buy_response(
+            mb_id,
+            status=mb["status"],
+            revision=mb["revision"],
+            valid_actions=pending_actions if mb["status"] == "pending_creatives" else None,
+        )
 
     async def list_creative_formats(
         self, params: dict[str, Any], context: Any = None
