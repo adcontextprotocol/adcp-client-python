@@ -107,6 +107,7 @@ class DemoSeller(ADCPHandler):
     ) -> dict[str, Any]:
         return capabilities_response(
             ["media_buy"],
+            idempotency={"supported": False},
             compliance_testing={
                 "scenarios": [
                     "force_account_status",
@@ -223,14 +224,20 @@ class DemoSeller(ADCPHandler):
                 }
             )
 
+        has_creatives = any(
+            pkg.get("creative_assignments") or pkg.get("creatives")
+            for pkg in params["packages"]
+        )
+        status = "active" if has_creatives else "pending_creatives"
+
         mb_id = f"mb-{uuid.uuid4().hex[:8]}"
         media_buys[mb_id] = {
-            "status": "active",
+            "status": status,
             "currency": "USD",
             "packages": packages,
             "revision": 1,
         }
-        return media_buy_response(mb_id, packages, status="active")
+        return media_buy_response(mb_id, packages, status=status)
 
     async def get_media_buys(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         requested_ids = params.get("media_buy_ids")
@@ -238,12 +245,14 @@ class DemoSeller(ADCPHandler):
         for mb_id, mb in media_buys.items():
             if requested_ids and mb_id not in requested_ids:
                 continue
+            total_budget = sum((pkg.get("budget") or 0) for pkg in mb.get("packages", []))
             results.append(
                 {
                     "media_buy_id": mb_id,
                     "status": mb["status"],
                     "currency": mb.get("currency", "USD"),
                     "packages": mb.get("packages", []),
+                    "total_budget": total_budget,
                 }
             )
         return media_buys_response(results)
@@ -257,7 +266,25 @@ class DemoSeller(ADCPHandler):
         if params.get("revision") and params["revision"] != mb.get("revision", 1):
             return adcp_error("CONFLICT", "Revision mismatch - refetch and retry")
 
+        if params.get("packages"):
+            existing_pkg_ids = {p["package_id"] for p in mb.get("packages", [])}
+            for pkg_update in params["packages"]:
+                pkg_id = pkg_update.get("package_id")
+                if pkg_id and pkg_id not in existing_pkg_ids:
+                    return adcp_error(
+                        "PACKAGE_NOT_FOUND",
+                        f"Package '{pkg_id}' not found in media buy {mb_id}",
+                        field="package_id",
+                    )
+
         status = mb["status"]
+        if status == "pending_creatives" and params.get("packages"):
+            if any(
+                pkg.get("creative_assignments") or pkg.get("creatives")
+                for pkg in params["packages"]
+            ):
+                mb["status"] = "active"
+                status = "active"
         if params.get("paused") is True and status == "active":
             mb["status"] = "paused"
         elif params.get("paused") is False and status == "paused":
@@ -274,50 +301,59 @@ class DemoSeller(ADCPHandler):
     async def list_creative_formats(
         self, params: dict[str, Any], context: Any = None
     ) -> dict[str, Any]:
-        return creative_formats_response(
-            [
-                {
-                    "format_id": {
-                        "agent_url": AGENT_URL,
-                        "id": "display_300x250",
-                    },
-                    "name": "Display 300x250",
-                    "renders": [{"width": 300, "height": 250}],
-                    "assets": [
-                        {
-                            "item_type": "individual",
-                            "asset_id": "image",
-                            "asset_type": "image",
-                            "required": True,
-                            "accepted_media_types": [
-                                "image/png",
-                                "image/jpeg",
-                            ],
-                        }
-                    ],
+        all_formats: list[dict[str, Any]] = [
+            {
+                "format_id": {
+                    "agent_url": AGENT_URL,
+                    "id": "display_300x250",
                 },
-                {
-                    "format_id": {
-                        "agent_url": AGENT_URL,
-                        "id": "display_970x250",
-                    },
-                    "name": "Display 970x250",
-                    "renders": [{"width": 970, "height": 250}],
-                    "assets": [
-                        {
-                            "item_type": "individual",
-                            "asset_id": "image",
-                            "asset_type": "image",
-                            "required": True,
-                            "accepted_media_types": [
-                                "image/png",
-                                "image/jpeg",
-                            ],
-                        }
-                    ],
+                "name": "Display 300x250",
+                "renders": [{"role": "primary", "dimensions": {"width": 300, "height": 250}}],
+                "assets": [
+                    {
+                        "item_type": "individual",
+                        "asset_id": "image",
+                        "asset_type": "image",
+                        "required": True,
+                        "accepted_media_types": [
+                            "image/png",
+                            "image/jpeg",
+                        ],
+                    }
+                ],
+            },
+            {
+                "format_id": {
+                    "agent_url": AGENT_URL,
+                    "id": "display_970x250",
                 },
+                "name": "Display 970x250",
+                "renders": [{"role": "primary", "dimensions": {"width": 970, "height": 250}}],
+                "assets": [
+                    {
+                        "item_type": "individual",
+                        "asset_id": "image",
+                        "asset_type": "image",
+                        "required": True,
+                        "accepted_media_types": [
+                            "image/png",
+                            "image/jpeg",
+                        ],
+                    }
+                ],
+            },
+        ]
+        filter_ids = params.get("format_ids")
+        if filter_ids:
+            wanted = {(fid.get("agent_url"), fid["id"]) for fid in filter_ids if "id" in fid}
+            formats = [
+                f
+                for f in all_formats
+                if (f["format_id"].get("agent_url"), f["format_id"]["id"]) in wanted
             ]
-        )
+        else:
+            formats = all_formats
+        return creative_formats_response(formats)
 
     async def sync_creatives(self, params: dict[str, Any], context: Any = None) -> dict[str, Any]:
         results = []
