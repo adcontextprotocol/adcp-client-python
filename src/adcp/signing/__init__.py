@@ -181,11 +181,16 @@ from adcp.signing.jws import (
     verify_detached_jws,
     verify_jws_document,
 )
-from adcp.signing.keygen import generate_signing_keypair
+from adcp.signing.keygen import generate_signing_keypair, pem_to_adcp_jwk
 from adcp.signing.middleware import (
     unauthorized_response_headers,
     verify_flask_request,
     verify_starlette_request,
+)
+from adcp.signing.provider import (
+    InMemorySigningProvider,
+    SigningAlgorithm,
+    SigningProvider,
 )
 from adcp.signing.replay import InMemoryReplayStore, ReplayStore
 from adcp.signing.revocation import RevocationChecker, RevocationList
@@ -205,6 +210,7 @@ from adcp.signing.revocation_fetcher import (
 )
 from adcp.signing.signer import (
     SignedHeaders,
+    async_sign_request,
     sign_request,
 )
 from adcp.signing.verifier import (
@@ -259,6 +265,7 @@ __all__ = [
     "DEFAULT_TAG",
     "FetchResult",
     "InMemoryReplayStore",
+    "InMemorySigningProvider",
     "IpPinnedTransport",
     "JwksResolver",
     "JwsError",
@@ -299,8 +306,10 @@ __all__ = [
     "SignatureInputLabel",
     "SignatureVerificationError",
     "SignedHeaders",
+    "SigningAlgorithm",
     "SigningConfig",
     "SigningDecision",
+    "SigningProvider",
     "StaticJwksResolver",
     "VerifiedSigner",
     "VerifierCapability",
@@ -310,6 +319,7 @@ __all__ = [
     "as_async_resolver",
     "async_default_jwks_fetcher",
     "async_default_revocation_list_fetcher",
+    "async_sign_request",
     "averify_detached_jws",
     "averify_jws_document",
     "b64url_decode",
@@ -330,6 +340,7 @@ __all__ = [
     "load_private_key_pem",
     "operation_needs_signing",
     "parse_signature_input_header",
+    "pem_to_adcp_jwk",
     "private_key_from_jwk",
     "public_key_from_jwk",
     "resolve_and_validate_host",
