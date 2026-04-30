@@ -262,14 +262,32 @@ class DemoSeller(ADCPHandler):
                     field="product_id",
                     suggestion="Use get_products to discover available products",
                 )
-            packages.append(
-                {
-                    "package_id": f"pkg-{uuid.uuid4().hex[:8]}",
-                    "product_id": product_id,
-                    "pricing_option_id": pkg.get("pricing_option_id"),
-                    "budget": pkg.get("budget"),
-                }
-            )
+            # Inspect per-package measurement_terms for aggressive viewability.
+            # The storyboard's create_media_buy_aggressive_terms step sends
+            # measurement_terms.viewability_threshold > 80 per package and expects
+            # TERMS_REJECTED. viewability_threshold is a storyboard demo convention
+            # (additionalProperties on measurement-terms.json); real sellers should
+            # map their own rejection criteria here.
+            pkg_terms = pkg.get("measurement_terms") or {}
+            if (pkg_terms.get("viewability_threshold") or 0) > 80:
+                return adcp_error(
+                    "TERMS_REJECTED",
+                    "Viewability threshold exceeds maximum supported value of 80%",
+                    field="measurement_terms.viewability_threshold",
+                    recovery="correctable",
+                )
+
+            pkg_obj: dict[str, Any] = {
+                "package_id": f"pkg-{uuid.uuid4().hex[:8]}",
+                "product_id": product_id,
+                "pricing_option_id": pkg.get("pricing_option_id"),
+                "budget": pkg.get("budget"),
+            }
+            # Persist overlay and creative fields so get_media_buys can round-trip them.
+            for field in ("targeting_overlay", "creative_assignments", "creatives"):
+                if pkg.get(field) is not None:
+                    pkg_obj[field] = pkg[field]
+            packages.append(pkg_obj)
 
         has_creatives = any(
             pkg.get("creative_assignments") or pkg.get("creatives") for pkg in params["packages"]
@@ -320,7 +338,8 @@ class DemoSeller(ADCPHandler):
             return adcp_error("CONFLICT", "Revision mismatch - refetch and retry")
 
         if params.get("packages"):
-            existing_pkg_ids = {p["package_id"] for p in mb.get("packages", [])}
+            existing_pkgs = {p["package_id"]: p for p in mb.get("packages", [])}
+            existing_pkg_ids = set(existing_pkgs.keys())
             for pkg_update in params["packages"]:
                 pkg_id = pkg_update.get("package_id")
                 if pkg_id and pkg_id not in existing_pkg_ids:
@@ -329,6 +348,13 @@ class DemoSeller(ADCPHandler):
                         f"Package '{pkg_id}' not found in media buy {mb_id}",
                         field="package_id",
                     )
+                # Apply targeting and creative field deltas to persisted package state
+                # so get_media_buys can round-trip property_list and overlay updates.
+                if pkg_id and pkg_id in existing_pkgs:
+                    persisted = existing_pkgs[pkg_id]
+                    for field in ("targeting_overlay", "creative_assignments", "creatives"):
+                        if field in pkg_update:
+                            persisted[field] = pkg_update[field]
 
         status = mb["status"]
         if status == "pending_creatives" and params.get("packages"):
@@ -615,6 +641,26 @@ class DemoStore(TestControllerStore):
         data = dict(fixture or {})
         pid = product_id or data.get("product_id") or f"seeded-{uuid.uuid4().hex[:8]}"
         data["product_id"] = pid
+        # Ensure schema-required fields are present so downstream validation passes
+        # even when the runner sends a minimal fixture with only product_id.
+        data.setdefault("name", pid)
+        data.setdefault("description", "")
+        data.setdefault("delivery_type", "non_guaranteed")
+        data.setdefault("publisher_properties", [])
+        data.setdefault("format_ids", [])
+        data.setdefault("pricing_options", [])
+        data.setdefault(
+            "reporting_capabilities",
+            {
+                "available_metrics": [],
+                "available_reporting_frequencies": [],
+                "date_range_support": "date_range",
+                "supports_webhooks": False,
+                "expected_delay_minutes": 0,
+                "timezone": "UTC",
+            },
+        )
+        data.setdefault("delivery_measurement", {"provider": "internal"})
         for i, p in enumerate(PRODUCTS):
             if p.get("product_id") == pid:
                 PRODUCTS[i] = data
