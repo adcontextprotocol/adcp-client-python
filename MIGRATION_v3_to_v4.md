@@ -46,6 +46,58 @@ dependencies = [
 ]
 ```
 
+## Fix removed-type imports first — they cascade
+
+Real-adopter feedback (salesagent v3→v4 experiment, 270 files scanned, 161
+test-collection failures): consumers tend to centralize SDK imports in one
+schema module, so a single broken import there crashes test collection across
+the whole codebase. salesagent re-exported through `src/core/schemas/_base.py`
+— **one missing `FormatCategory` import there cascaded into ~140 test failures
+during pytest collect-only**, and stubbing it revealed the next ~140-test
+cascade from `BrandManifest`, then the next from the `generated_poc` reach-ins.
+
+The codemod's static finding count understates this by 100x+. To minimize the
+felt blast radius, work in this order:
+
+1. **Removed types in central re-export modules first.** Find every
+   `BrandManifest`, `FormatCategory`, `DeliverTo`, `PromotedProducts`,
+   `PromotedOfferings`, `Pricing`, `PackageStatus` import in modules that
+   re-export to the rest of your codebase (e.g. a `_base.py` schema barrel).
+   Fix those before anything else — most of your test-collection failures
+   disappear.
+2. **`adcp.types.generated_poc` reach-ins.** The codemod's per-symbol mapping
+   tells you the public alias for each (`ContextObject` →
+   `adcp.types.ContextObject`, etc.). Mechanical lookup once you know the
+   pattern.
+3. **Numbered `Assets<N>` imports.** Switch to the semantic alias from
+   `adcp.types`. See [Numbered discriminated-union classes
+   shifted](#numbered-discriminated-union-classes-shifted) below.
+4. **Per-call-site shape changes** (e.g. `BrandManifest(name=..., logo_url=...)`
+   → `BrandReference(domain=...)`). The codemod can't auto-rewrite these —
+   the data is different.
+
+## a2a-sdk transitive bump (only matters if you have direct `a2a` imports)
+
+v4 of this SDK requires `a2a-sdk>=1.0.0`. If your codebase has any direct
+imports from the `a2a` package — typically `a2a.utils.errors.ServerError`,
+`a2a.types.DataPart`, or other surface — those are a separate migration that
+this SDK forces on you transitively.
+
+Symptoms during pytest collection after upgrading:
+
+- `cannot import name 'ServerError' from 'a2a.utils.errors'`
+- `cannot import name 'DataPart' from 'a2a.types'`
+
+If you don't import from `a2a` directly (only via `adcp.server` /
+`adcp.protocols.a2a`), this section doesn't apply — the SDK's wrapper layer
+absorbs the change.
+
+If you do, see the [a2a-sdk
+1.0 release notes](https://github.com/a2aproject/a2a-python/releases) for the
+import-path moves. The most common pattern is `a2a.utils.errors.ServerError`
+→ `a2a.types.A2AError` and `a2a.types.DataPart` → `a2a.types.MessagePart`,
+but verify against your specific usage.
+
 ## Removed types
 
 The following types were removed from the AdCP spec and have no replacement

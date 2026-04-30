@@ -114,6 +114,50 @@ PRIVATE_IMPORT_PATHS: dict[str, str] = {
 }
 
 
+# Per-symbol mapping for the most common ``generated_poc`` reach-ins
+# salesagent surfaced during their v3→v4 experiment (and any other
+# adopter would hit). The codemod scans for ``from
+# adcp.types.generated_poc.<path> import <Symbol>`` lines and emits an
+# explicit "before → after" hint per symbol so adopters don't have to
+# hand-grep the public-API module to find the canonical alias.
+#
+# Mapping shape: ``<symbol-name> → adcp.types.<symbol-name>``. Every
+# symbol listed here is already exported from ``adcp.types``; the
+# ``test_generated_poc_symbol_map_covers_publicly_exported_names`` test
+# guards drift between this map and the SDK's public surface.
+#
+# Intentionally NOT in the map (yet): ``CreditLimit``, ``Setup``,
+# ``GovernanceAgent``. These names appear in 8+ generated files
+# (``core/account.py``, ``account/sync_accounts_response.py``,
+# ``media_buy/sync_event_sources_response.py``, ``bundled/...``) — the
+# codegen emits one independent class per containing schema, so a
+# blanket "import from adcp.types" hint would be ambiguous about
+# which variant. Adopters reaching for these get the generic
+# private-module flag; landing them in the public API is a separate
+# design decision (which canonical variant to expose / whether to
+# expose schema-namespaced aliases like ``AccountSetup``).
+GENERATED_POC_SYMBOL_MAP: dict[str, str] = {
+    "AccountReference": "adcp.types.AccountReference",
+    "BrandReference": "adcp.types.BrandReference",
+    "ContextObject": "adcp.types.ContextObject",
+    "CreativeAsset": "adcp.types.CreativeAsset",
+    "Error": "adcp.types.Error",
+    "MediaBuyStatus": "adcp.types.MediaBuyStatus",
+    "ProductFilters": "adcp.types.ProductFilters",
+    "ReportingWebhook": "adcp.types.ReportingWebhook",
+}
+
+
+# ``from adcp.types.generated_poc.<...> import <Symbol[, ...]>`` —
+# captures the symbol list so we can emit per-symbol replacement hints.
+# Multiline imports (parenthesized) aren't covered by this regex; they
+# fall through to the generic "private module" flag, which still
+# surfaces the issue and prints the migration anchor.
+_GENERATED_POC_FROM_IMPORT = re.compile(
+    r"from\s+adcp\.types\.generated_poc(?:\.[\w.]+)?\s+import\s+([\w\s,]+)"
+)
+
+
 # Regex for numbered Assets direct imports (``Assets5``, ``Assets14``, etc).
 # Bare ``Assets`` (no digits) is a legitimate base class alias; the
 # regex requires at least one digit to avoid false positives.
@@ -283,10 +327,51 @@ def scan_file(path: Path, *, apply_changes: bool) -> tuple[list[Finding], str | 
                 )
             )
 
-        # adcp.types.generated_poc imports.
+        # adcp.types.generated_poc imports. When the line is a
+        # single-line ``from adcp.types.generated_poc.<path> import
+        # <symbols>`` and any of the imported symbols are in
+        # GENERATED_POC_SYMBOL_MAP, emit one per-symbol Finding with the
+        # public-API replacement (e.g. "ContextObject → adcp.types.ContextObject").
+        # Otherwise fall back to the generic "private module" flag so
+        # multiline / star imports still surface.
         for private_path, hint in PRIVATE_IMPORT_PATHS.items():
-            if private_path in line:
-                col = line.index(private_path) + 1
+            if private_path not in line:
+                continue
+            col = line.index(private_path) + 1
+            from_match = _GENERATED_POC_FROM_IMPORT.search(line)
+            mapped_any = False
+            if from_match:
+                # Symbols list — handles ``A``, ``A, B``, ``A as X``.
+                # ``as`` aliases are rare in practice for these reach-ins
+                # but treat the LHS as the canonical symbol when present.
+                raw_symbols = [s.strip() for s in from_match.group(1).split(",")]
+                for raw in raw_symbols:
+                    if not raw:
+                        continue
+                    symbol = raw.split(" as ")[0].strip()
+                    replacement = GENERATED_POC_SYMBOL_MAP.get(symbol)
+                    if replacement is None:
+                        continue
+                    sym_col = line.find(symbol, from_match.start(1)) + 1
+                    findings.append(
+                        Finding(
+                            kind="flag_private",
+                            path=str(path),
+                            line=lineno,
+                            column=sym_col,
+                            before=symbol,
+                            after=replacement,
+                            hint=(
+                                f"private module — import {symbol} from "
+                                "adcp.types (stable public API) instead"
+                            ),
+                        )
+                    )
+                    mapped_any = True
+            if not mapped_any:
+                # Generic flag — multiline imports, star imports, or
+                # symbols without a known public alias. Adopter does the
+                # lookup; codemod still surfaces the issue.
                 findings.append(
                     Finding(
                         kind="flag_private",
@@ -373,7 +458,17 @@ def _format_text_report(report: Report, *, apply_changes: bool) -> str:
         for f in report.flagged:
             by_name.setdefault(f.before, []).append(f)
         for name, hits in sorted(by_name.items()):
-            lines.append(f"  {name}  ({len(hits)} hit{'s' if len(hits) != 1 else ''})")
+            # Per-symbol mapping ("ContextObject → adcp.types.ContextObject")
+            # — print the explicit replacement on the header line so
+            # adopters fix without leaving the report. Falls back to
+            # bare name when no replacement is mapped.
+            replacement = hits[0].after
+            header = (
+                f"  {name} → {replacement}  ({len(hits)} hit{'s' if len(hits) != 1 else ''})"
+                if replacement
+                else f"  {name}  ({len(hits)} hit{'s' if len(hits) != 1 else ''})"
+            )
+            lines.append(header)
             hint = hits[0].hint
             if hint:
                 lines.append(f"    → {hint}")

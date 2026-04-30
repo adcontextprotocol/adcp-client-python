@@ -160,13 +160,16 @@ def test_bare_assets_is_not_flagged_as_numbered(tmp_path: Path) -> None:
     assert numbered == []
 
 
-def test_flags_generated_poc_imports(tmp_path: Path) -> None:
-    """``adcp.types.generated_poc`` is a private module — flag imports
-    from it and point at the public alias path."""
+def test_flags_generated_poc_imports_unknown_symbol_falls_back_to_generic_hint(
+    tmp_path: Path,
+) -> None:
+    """A ``generated_poc`` import for a symbol not in the per-symbol map
+    falls back to the generic 'private module' flag — still surfaces the
+    issue, adopter does the lookup."""
     _write(
         tmp_path,
         "code.py",
-        "from adcp.types.generated_poc.core.account import Account\n",
+        "from adcp.types.generated_poc.core.something import Unknown\n",
     )
 
     report = v3_to_v4.run(tmp_path, apply_changes=False)
@@ -174,6 +177,82 @@ def test_flags_generated_poc_imports(tmp_path: Path) -> None:
     private = [f for f in report.flagged if f.kind == "flag_private"]
     assert len(private) == 1
     assert private[0].before == "adcp.types.generated_poc"
+
+
+def test_flags_generated_poc_imports_per_symbol_mapping(tmp_path: Path) -> None:
+    """Round-5 adopter feedback (salesagent v3→v4 experiment): the
+    ``generated_poc`` flag-only output forced 82 of 156 findings into
+    hand-grep territory. Each known reach-in now emits an explicit
+    "Symbol → adcp.types.Symbol" replacement so adopters apply the fix
+    without leaving the codemod report."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.context import ContextObject\n"
+        "from adcp.types.generated_poc.core.brand_ref import BrandReference\n"
+        "from adcp.types.generated_poc.enums.media_buy_status import MediaBuyStatus\n"
+        "from adcp.types.generated_poc.core.error import Error as AdCPResponseError\n",
+    )
+
+    report = v3_to_v4.run(tmp_path, apply_changes=False)
+
+    private = [f for f in report.flagged if f.kind == "flag_private"]
+    by_symbol = {f.before: f for f in private}
+
+    # Each known symbol gets a per-symbol replacement, NOT the generic
+    # "adcp.types.generated_poc" flag.
+    assert by_symbol["ContextObject"].after == "adcp.types.ContextObject"
+    assert by_symbol["BrandReference"].after == "adcp.types.BrandReference"
+    assert by_symbol["MediaBuyStatus"].after == "adcp.types.MediaBuyStatus"
+    # ``import Error as AdCPResponseError`` — codemod keys off the LHS
+    # canonical name, ignoring the local alias.
+    assert by_symbol["Error"].after == "adcp.types.Error"
+    # The generic private-module flag MUST NOT also fire when the
+    # per-symbol mapping handled the line — would double-count and
+    # confuse the report.
+    assert "adcp.types.generated_poc" not in by_symbol
+
+
+def test_flags_generated_poc_multiple_symbols_one_line(tmp_path: Path) -> None:
+    """``from adcp.types.generated_poc.core.x import A, B, C`` emits
+    one Finding per symbol so the report surfaces every replacement."""
+    _write(
+        tmp_path,
+        "code.py",
+        "from adcp.types.generated_poc.core.x import "
+        "BrandReference, ContextObject, MediaBuyStatus\n",
+    )
+
+    report = v3_to_v4.run(tmp_path, apply_changes=False)
+
+    private = [f for f in report.flagged if f.kind == "flag_private"]
+    by_symbol = {f.before: f.after for f in private}
+    assert by_symbol == {
+        "BrandReference": "adcp.types.BrandReference",
+        "ContextObject": "adcp.types.ContextObject",
+        "MediaBuyStatus": "adcp.types.MediaBuyStatus",
+    }
+
+
+def test_generated_poc_symbol_map_covers_publicly_exported_names() -> None:
+    """Every entry in ``GENERATED_POC_SYMBOL_MAP`` MUST point at a real
+    public-API symbol on ``adcp.types`` — otherwise the hint sends
+    adopters to a NameError. Guards against drift between the codemod's
+    map and the SDK's __all__."""
+    import importlib
+
+    types_module = importlib.import_module("adcp.types")
+    for symbol, replacement in v3_to_v4.GENERATED_POC_SYMBOL_MAP.items():
+        # Every replacement is exactly ``adcp.types.<symbol>``.
+        assert replacement == f"adcp.types.{symbol}", (
+            f"GENERATED_POC_SYMBOL_MAP[{symbol!r}] = {replacement!r} but "
+            f"the convention is adcp.types.{symbol}"
+        )
+        assert hasattr(types_module, symbol), (
+            f"GENERATED_POC_SYMBOL_MAP claims adcp.types.{symbol} exists "
+            "but it's not on the public types module — drop the entry "
+            "or add the public alias."
+        )
 
 
 def test_flags_removed_attribute_accesses(tmp_path: Path) -> None:
