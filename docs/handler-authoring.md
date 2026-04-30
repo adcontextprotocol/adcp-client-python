@@ -77,17 +77,25 @@ from myagent.identity import ResolvedIdentity
 class MyAgent(ADCPHandler):
     async def get_products(self, params, context: ToolContext | None = None):
         identity = _resolve_identity(context)
+        if identity is None:
+            return adcp_error("AUTH_REQUIRED", "Authentication required")
         return await get_products_impl(params, identity=identity)
 
-def _resolve_identity(ctx: ToolContext | None) -> ResolvedIdentity:
+def _resolve_identity(ctx: ToolContext | None) -> ResolvedIdentity | None:
     if ctx is None or ctx.caller_identity is None:
-        raise AuthenticationRequired()
+        return None
     return ResolvedIdentity(
         principal_id=ctx.caller_identity,
         tenant_id=ctx.tenant_id,
         # … adapter config, feature flags, etc. from your DB
     )
 ```
+
+**Why `return None`, not raise.** Raising a non-``ADCPError`` exception
+produces a 500 to the client (see *Error handling* below); the
+``return None`` shape lets the handler turn the failure into a
+spec-compliant ``adcp_error`` envelope. The next section shows the
+DB-enrichment variant of the same pattern.
 
 ### ResolvedIdentity with DB enrichment
 
@@ -513,10 +521,19 @@ class MySeller(ADCPHandler):
         return capabilities_response(["media_buy"], idempotency=idempotency.capability())
 ```
 
-For production, swap `MemoryBackend()` for `PgBackend` so the cache
-survives restarts and is shared across workers. `PgBackend` commits the
-cached response atomically with your handler's business write when both
-run inside the same transaction — no window where the side effect lands
+For production, swap `MemoryBackend()` for `PgBackend` (note the
+import path — `PgBackend` lives in `adcp.server.idempotency`, not the
+top-level `adcp.server`):
+
+```python
+from adcp.server.idempotency import PgBackend
+idempotency = IdempotencyStore(backend=PgBackend(pool=pg_pool), ttl_seconds=86_400)
+```
+
+The Pg-backed store survives restarts and is shared across workers.
+`PgBackend` commits the cached response atomically with your handler's
+business write when both run inside the same transaction — no window
+where the side effect lands
 but the cache entry doesn't.
 
 **`caller_identity` + `tenant_id` must be populated.** The store keys
@@ -1064,8 +1081,9 @@ client can handle programmatically.
 ## Where to look next
 
 - `examples/minimal_sales_agent.py` — handler-only starting point.
-- `examples/mcp_with_auth_middleware.py` — full auth + typed context,
-  including the tenant-routing middleware pattern from Pattern 2b above.
+- `examples/mcp_with_auth_middleware.py` — full auth + typed context
+  via `BearerTokenAuthMiddleware`. Foundation for Pattern 2b; bring
+  your own subdomain-routing middleware on top.
 - `src/adcp/server/responses.py` — response builder reference.
 - `src/adcp/server/helpers.py` — error codes, state machine, account
   resolution.
