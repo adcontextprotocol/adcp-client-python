@@ -1,5 +1,67 @@
 # Changelog
 
+## [4.1.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v4.0.0...v4.1.0) (2026-04-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **migration:** ``FormatId.__name__`` and ``__qualname__`` change from ``"FormatId"`` to ``"FormatReferenceStructuredObject"`` because AdCP 3.0.1 polished the schema title on ``core/format-id.json``. The public ``adcp.FormatId`` alias keeps working — ``Format(format_id= FormatId(...))`` and ``isinstance(x, FormatId)`` are unchanged. Two niche cases break: pickled ``FormatId`` instances from 4.0 fail to unpickle on 4.1, and snapshot tests / log scrapers asserting on ``__name__`` see the rename. See MIGRATION_v4.0_to_v4.1.md.
+* **a2a:** `ADCPClient.pending_task_id` is now `ADCPClient.active_task_id` (same for `A2AAdapter`). The constructor's `context_id=` kwarg and `reset_context()` now raise `TypeError` (was `ValueError`) on non-A2A protocols — the string value is fine, the operation doesn't apply to MCP.
+
+### Features
+
+* **a2a:** checkpoint/from_checkpoint API, harden context-id retention ([a17ffb3](https://github.com/adcontextprotocol/adcp-client-python/commit/a17ffb382aa1d777e5e98fdc26c6cc9efd4898c0))
+* **a2a:** expose peer protocol versions, add force_a2a_version pin ([3898c53](https://github.com/adcontextprotocol/adcp-client-python/commit/3898c536fb08dd088ff1074216a8c56ae727dc63))
+* **a2a:** migrate to a2a-sdk 1.0 with 0.3 wire-compat shim ([c07db7d](https://github.com/adcontextprotocol/adcp-client-python/commit/c07db7df96b1744b0660ecf367375178ef87defc))
+* **a2a:** migrate to a2a-sdk 1.0 with 0.3 wire-compat shim (Release-As: 4.1.0) ([28a4a13](https://github.com/adcontextprotocol/adcp-client-python/commit/28a4a13867adb039504fde59ceab48e2d961380a))
+* **adcp:** support ADCP_BASE_URL env override in sync_schemas.py ([#285](https://github.com/adcontextprotocol/adcp-client-python/issues/285)) ([a2bc977](https://github.com/adcontextprotocol/adcp-client-python/commit/a2bc9770dfb86a5b2cca94b671af8cb899224ce5))
+* **adcp:** sync canonical agent skills from protocol tarball ([#275](https://github.com/adcontextprotocol/adcp-client-python/issues/275)) ([5312f05](https://github.com/adcontextprotocol/adcp-client-python/commit/5312f05df25d8b6ad240f497e88a4c15f58990a8))
+* **agents:** /claude-triage comment nudge ([5af8b47](https://github.com/adcontextprotocol/adcp-client-python/commit/5af8b4736516b986045717d62da94e700aa57cca))
+* **agents:** /claude-triage comment nudge ([d3b8b28](https://github.com/adcontextprotocol/adcp-client-python/commit/d3b8b28d8dc9cbf1ab2df86b1a0c7f619ad3c332))
+* **agents:** add Claude Code routines scaffolding ([aa23ef3](https://github.com/adcontextprotocol/adcp-client-python/commit/aa23ef3d35de8b7740924b4ae1ec6ec7b8a832a7))
+* **agents:** add Claude Code routines scaffolding ([d312abf](https://github.com/adcontextprotocol/adcp-client-python/commit/d312abff8e63af7a36b23073e33d8976dd9214aa))
+* **agents:** add silent-triage path to triage prompt ([6abb495](https://github.com/adcontextprotocol/adcp-client-python/commit/6abb49529d79a3947fd95c675c9f48852c8adff3))
+* **agents:** commit .claude/agents/ experts for cloud routine access ([55144f2](https://github.com/adcontextprotocol/adcp-client-python/commit/55144f273513479ba64f3c95682a84ef69847815))
+* **agents:** migrate manual triage nudge to /triage slash-command-dispatch ([#267](https://github.com/adcontextprotocol/adcp-client-python/issues/267)) ([6bd434d](https://github.com/adcontextprotocol/adcp-client-python/commit/6bd434d488f480eb75f8dba075a22fcfa544d44a))
+* **agents:** security + product review fixes for triage routine ([cbafef5](https://github.com/adcontextprotocol/adcp-client-python/commit/cbafef5c76d2c59328139e743194c216a5dc5d51))
+* **agents:** switch triage nudge prefix to [@claude-triage](https://github.com/claude-triage) ([#265](https://github.com/adcontextprotocol/adcp-client-python/issues/265)) ([77bfce2](https://github.com/adcontextprotocol/adcp-client-python/commit/77bfce298e7fc879ea409dc97f6975e72511dd1e))
+* **agents:** triage bundles ready items, never splits issues ([#266](https://github.com/adcontextprotocol/adcp-client-python/issues/266)) ([2227a6b](https://github.com/adcontextprotocol/adcp-client-python/commit/2227a6bb23e4c7486388c3663f9b87611d39914f))
+* **agents:** triage default — execute when outcome is clear ([e3f8a6c](https://github.com/adcontextprotocol/adcp-client-python/commit/e3f8a6c8787f623881d3b3a2c9e8df43b126c4c5))
+* **agents:** triage defer subtypes + partial-rollout linkage rule ([#273](https://github.com/adcontextprotocol/adcp-client-python/issues/273)) ([c97aa95](https://github.com/adcontextprotocol/adcp-client-python/commit/c97aa95e1e9e8325802a71f92f807306128556e5))
+* **agents:** triage fires on comments + claude-triaging lifecycle label ([#277](https://github.com/adcontextprotocol/adcp-client-python/issues/277)) ([604d795](https://github.com/adcontextprotocol/adcp-client-python/commit/604d79587be99af4a08e815c1dddc527d3b36721))
+* **agents:** triage PR ergonomics — refs adcp[#3121](https://github.com/adcontextprotocol/adcp-client-python/issues/3121) ([#279](https://github.com/adcontextprotocol/adcp-client-python/issues/279)) ([31606eb](https://github.com/adcontextprotocol/adcp-client-python/commit/31606eb2230267fe9de7c5149ac716af239ff33a))
+* **agents:** triage prompt handles RFC/epic/scope bucket/milestone ([cac3525](https://github.com/adcontextprotocol/adcp-client-python/commit/cac35250b8a57a978bb481aa5134f38d1731fe5f))
+* **agents:** triage runs pre-PR build+test gate before expert review ([#271](https://github.com/adcontextprotocol/adcp-client-python/issues/271)) ([8fcc5ee](https://github.com/adcontextprotocol/adcp-client-python/commit/8fcc5ee220a0f4792fec9b724e7b602b99596024))
+* **agents:** triage runs pre-PR expert review on diff before opening PR ([#269](https://github.com/adcontextprotocol/adcp-client-python/issues/269)) ([46dd708](https://github.com/adcontextprotocol/adcp-client-python/commit/46dd708f7dcc6a241b655745ab281001b6a1dbc7))
+* **agents:** triage v2 — expert consultation + race + coverage ([bf6e18b](https://github.com/adcontextprotocol/adcp-client-python/commit/bf6e18bdacebdf69f959bb7c915ef34cd6333a13))
+* **client:** ADCPClient.from_mcp_client() factory for in-process MCP transport ([#293](https://github.com/adcontextprotocol/adcp-client-python/issues/293)) ([d83aa53](https://github.com/adcontextprotocol/adcp-client-python/commit/d83aa53981c80b9e50a84b5a745e85d5837e0d1a))
+* **signing:** close 4 SSRF gaps and add opt-in port hardening (foundation audit) ([84b837e](https://github.com/adcontextprotocol/adcp-client-python/commit/84b837e0e093dff041254781bb12b4a416150bd2))
+* **signing:** default replay store, signed-fetch preset, migration guide ([#272](https://github.com/adcontextprotocol/adcp-client-python/issues/272)) ([52019b8](https://github.com/adcontextprotocol/adcp-client-python/commit/52019b8942383ca9ec79a4bd4c0f7579f7aa1ffc))
+* **signing:** drain three foundation-audit deferreds ([#298](https://github.com/adcontextprotocol/adcp-client-python/issues/298), [#299](https://github.com/adcontextprotocol/adcp-client-python/issues/299), [#300](https://github.com/adcontextprotocol/adcp-client-python/issues/300)) ([072998a](https://github.com/adcontextprotocol/adcp-client-python/commit/072998a8fd7b33097b7e6ab0496c2ecadf33a691))
+* **validation:** schema-driven validation with client hooks and opt-in server middleware ([5cbac87](https://github.com/adcontextprotocol/adcp-client-python/commit/5cbac871e222eaf037346632fd4ddf1354bfd6ee))
+* **validation:** schema-driven validation with client hooks and opt-in server middleware ([a38ff57](https://github.com/adcontextprotocol/adcp-client-python/commit/a38ff57c934eded647ac84a470bb79a4a1b8bca6))
+
+
+### Bug Fixes
+
+* **a2a:** address expert-review feedback on 1.0 migration ([7e54b97](https://github.com/adcontextprotocol/adcp-client-python/commit/7e54b97859321b8c9ed43bd87e899820cafcfc3d))
+* **adcp:** skip eager httpx.AsyncClient alloc in WebhookSender.__aenter__ on owned-client path ([#301](https://github.com/adcontextprotocol/adcp-client-python/issues/301)) ([4bd45d1](https://github.com/adcontextprotocol/adcp-client-python/commit/4bd45d1c059ceeddfd184793a3f477f915c98446)), closes [#300](https://github.com/adcontextprotocol/adcp-client-python/issues/300)
+* **agents:** already-engaged check + tighten label creation ([02baa89](https://github.com/adcontextprotocol/adcp-client-python/commit/02baa891ad0ccfd6ec392ae0350dd07671d65a0c))
+* **agents:** triage already-engaged + ship-more (missed in [#259](https://github.com/adcontextprotocol/adcp-client-python/issues/259)) ([ca42d29](https://github.com/adcontextprotocol/adcp-client-python/commit/ca42d2911bc07108e726bc6227e666ff97eb6724))
+* **agents:** webhook-miss sweep grace period (no double-fire) ([#280](https://github.com/adcontextprotocol/adcp-client-python/issues/280)) ([3a5f1c2](https://github.com/adcontextprotocol/adcp-client-python/commit/3a5f1c2a25f59ae485f90a5aa47c3e7119ad11ad))
+* **deps:** add types-protobuf to pip dev extras ([801ac16](https://github.com/adcontextprotocol/adcp-client-python/commit/801ac1688309497d71823163098a7449e5c082e4))
+* **handlers:** sync MEDIA_BUY_STATE_MACHINE with spec v3 enum ([#289](https://github.com/adcontextprotocol/adcp-client-python/issues/289)) ([54fd18b](https://github.com/adcontextprotocol/adcp-client-python/commit/54fd18b45cbef587db0d6ce48531c5b35e3c302b))
+* **signing:** validate-before-sign symmetry in deliver() + HMAC SSRF coverage + 4.1 migration notes ([bc8da3a](https://github.com/adcontextprotocol/adcp-client-python/commit/bc8da3aa52a8eae61fab20da6a57359dfb96a2f2))
+* **triage:** drop apostrophe from MODE text (port of adcp[#3325](https://github.com/adcontextprotocol/adcp-client-python/issues/3325)) ([#287](https://github.com/adcontextprotocol/adcp-client-python/issues/287)) ([2efa423](https://github.com/adcontextprotocol/adcp-client-python/commit/2efa4238006b2feccfa253099d1cc6bf4dd07b84))
+* **validation:** address code + security review feedback ([5bf9434](https://github.com/adcontextprotocol/adcp-client-python/commit/5bf9434da477140768a9aa55cde493e89adfcf0e))
+
+
+### Documentation
+
+* **migration:** add v4.0 → v4.1 migration guide ([#302](https://github.com/adcontextprotocol/adcp-client-python/issues/302)) ([01a1068](https://github.com/adcontextprotocol/adcp-client-python/commit/01a106891df33e8409bf95a63f11eec08ebbcf15))
+* **readme:** note AAO IPR Policy requirement for contributors ([43d77f9](https://github.com/adcontextprotocol/adcp-client-python/commit/43d77f9d4e1fc35bd6579f985f7907fbb430ed25))
+* **readme:** note AAO IPR Policy requirement for contributors ([ba03ecb](https://github.com/adcontextprotocol/adcp-client-python/commit/ba03ecbf3e6c3132003a6646af9ad623779c5e92))
+
 ## [4.0.0](https://github.com/adcontextprotocol/adcp-client-python/compare/v3.12.0...v4.0.0) (2026-04-22)
 
 
