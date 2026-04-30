@@ -1,12 +1,16 @@
 # DecisioningPlatform dispatch design (post-review)
 
 Pre-implementation reference for the `adcp.decisioning.{handler, dispatch,
-serve, task_registry}` modules. Synthesizes 6 reviewer passes:
+serve, task_registry}` modules. Synthesizes 7 reviewer passes:
 
 * **Round 1** (initial design): agentic-product-architect, python-expert
 * **Round 2** (post-codegen-and-framing additions): agentic-product-architect
   (framing), python-expert (codegen mechanics), dx-expert (handler
   registration UX), code-reviewer (consistency)
+* **Round 3** (post-design-doc-published, on PR #316): user feedback on
+  Account.id leak boundary, cross-tenant probe regression, validation
+  noise, codegen DX, executor configurability, field-name semantics,
+  example coverage, kwarg unpacking
 
 Authoritative through D14. Tracks "things deferred" for v6.1 and beyond.
 
@@ -51,6 +55,34 @@ handful of tools where wire-shape differs from Python-method-shape.
 Path: shim accepts `params: UpdateMediaBuyRequest`, dispatch helper
 splits to `(media_buy_id, patch, ctx)` before calling the platform
 method. Preserve the Protocol surface as adopters see it.
+
+**Arg-projection MUST emit explicit kwargs, not positional**, so
+adopters refactoring Protocol method signatures don't silently break
+the shim. The codegen produces:
+
+```python
+# Generated arg-projection lookup — kwargs only
+ARG_PROJECTION: dict[str, Callable[[BaseModel], dict[str, Any]]] = {
+    "update_media_buy": lambda req: {
+        "media_buy_id": req.media_buy_id,
+        "patch": req,  # the full request minus media_buy_id, modeled per spec
+    },
+    # ... other arg-projecting tools
+}
+
+# Inside _invoke_platform_method:
+projector = ARG_PROJECTION.get(method_name)
+if projector is not None:
+    method_kwargs = projector(params)
+    method_kwargs["ctx"] = ctx
+    result = await _call(method, **method_kwargs)
+else:
+    result = await _call(method, params, ctx)
+```
+
+If an adopter refactors `update_media_buy(self, media_buy_id, patch,
+ctx)` to `(self, *, media_buy_id, patch, ctx)`, the kwargs path keeps
+working; positional dispatch would silently break.
 
 **Wire-name → Python-name mapping.** Add a `_WIRE_TO_PYTHON: dict[str,
 str]` constant in the generator, default identity. Generator MUST fail
@@ -107,6 +139,23 @@ pre-commit / etc.).
 helper). Diff-and-fail, NOT auto-write. Auto-write loses the explicit
 commit signal. One combined check is fine — drift in any artifact is
 equally a problem.
+
+**Drift error message MUST be prescriptive.** A generic
+`git diff --exit-code` failure forces every contributor to learn the
+regen story from scratch. The pytest assertion message names the
+exact regen command verbatim:
+
+```
+AssertionError: src/adcp/decisioning/handler.py is out of sync with the
+per-specialism Protocols. Run:
+
+    uv run python scripts/generate_decisioning_handler.py
+
+then commit the result. Drift detected in: <list of changed methods>
+```
+
+Mirror the precedent at `tests/test_mcp_schema_drift.py` (which uses
+the same prescriptive shape).
 
 **Don't make `PlatformHandler` generic over `TMeta`.** Concrete base
 typed as `DecisioningPlatform`; method bodies cast/narrow as needed.
@@ -282,7 +331,7 @@ Reviewer's exact words: "splitting *this* piece is the highest-leverage
 split available because it's the one piece that touches framework-
 shared code."
 
-### D5. Sync-method dispatch — explicit executor + contextvars
+### D5. Sync-method dispatch — explicit executor + contextvars + configurable
 
 **Decision:** allocate a `ThreadPoolExecutor` in `adcp.decisioning.serve`.
 Pass it explicitly via `loop.run_in_executor(executor, ctx_snapshot.run, ...)`.
@@ -298,6 +347,45 @@ result = await loop.run_in_executor(
 
 **Detection:** `asyncio.iscoroutinefunction`, not `inspect.iscoroutinefunction`
 (the latter doesn't unwrap `functools.partial` until 3.12).
+
+**Configurable on `serve()` — three knobs, mutually exclusive:**
+
+```python
+def serve(
+    platform: DecisioningPlatform,
+    *,
+    executor: ThreadPoolExecutor | None = None,    # custom executor (operator escape hatch)
+    thread_pool_size: int | None = None,            # size the default executor
+    # ... other kwargs
+) -> None:
+    if executor is not None and thread_pool_size is not None:
+        raise ValueError(
+            "Pass either executor= or thread_pool_size=, not both. "
+            "thread_pool_size sizes the default executor; executor= is for "
+            "operators who need a vetted threadpool (e.g., audit-instrumented)."
+        )
+    if executor is None:
+        # Default: min(32, cpu+4) — fine for hello-world, surprises adopters
+        # under load. thread_pool_size= bumps the ceiling for high-fanout
+        # sync deployments (salesagent's Flask + sync DB drivers profile).
+        size = thread_pool_size if thread_pool_size is not None else min(32, (os.cpu_count() or 1) + 4)
+        executor = ThreadPoolExecutor(max_workers=size, thread_name_prefix="adcp-decisioning")
+    # ... wire executor into dispatch middleware
+```
+
+**Default surprises adopters under load.** `ThreadPoolExecutor()` with
+no args defaults to `min(32, cpu+4)` per Python 3.13 stdlib. That's
+fine for local dev / hello-world; production deployments running
+salesagent-style sync DB drivers will saturate the pool quickly.
+Document on `thread_pool_size`: "Bump for high-fanout sync deployments
+(SQLAlchemy + Flask + per-request sessions). For async-everywhere
+deployments, the default is fine."
+
+**Lifecycle:** `executor.shutdown(wait=True)` registered via the
+existing framework shutdown hook so it cleans up on graceful exit.
+Operator-supplied executors are NOT shut down by the framework — the
+operator owns the lifecycle on their side (matches the
+`WebhookSender(client=...)` operator-trust contract from PR #297).
 
 ### D6. TaskHandoff — `asyncio.create_task` already snapshots contextvars; sync path needs explicit copy
 
@@ -420,21 +508,81 @@ and `adcp.decisioning.create_adcp_server_from_platform(platform) -> (handler, mi
 adopter middleware composition + test ergonomics. Wrapper docstring
 points at the seam for advanced cases.
 
-### D9. `caller_identity = account.id` — semantic shift acknowledged
+### D9. Account-scoped cache key — structural isolation, not adopter discipline
 
-**Decision:**
+**Decision:** stop treating `Account.id` uniqueness as adopter
+responsibility. The failure mode is silent cross-tenant data leakage
+through the idempotency cache; documentation alone is too hands-off
+for a security boundary.
 
-- Set `context.caller_identity = account.id` in dispatch middleware.
-  This is the layering correction — idempotency cache scopes per
-  resolved account, not per raw auth principal.
-- Document the invariant on `Account.id`: "MUST be unique across the
-  deployment's full account-resolution surface; collisions silently
-  leak responses across accounts."
-- Set `context.metadata["adcp_decisioning.auth_principal"] = auth_info.principal`
-  so observability middleware that wants the original auth principal
-  can read it.
-- Log at DEBUG: `dispatched skill=%s account_id=%s caller_identity_pre=%s`
-  for grep-on-leak-report.
+**Compose the cache scope key from `(account_store qualname,
+account.id)`**, not `account.id` alone. Two adopters using different
+`AccountStore` impls — or the same impl with colliding `account.id`
+values across deployments sharing infra — cannot cross-leak through
+the framework's cache.
+
+```python
+# Inside decisioning_dispatch_middleware:
+account = await _maybe_await(platform.accounts.resolve(ref, auth_info))
+store_qualname = type(platform.accounts).__qualname__
+context.caller_identity = f"{store_qualname}:{account.id}"
+context.account = account                       # typed access (D2)
+context.auth_principal = auth_info.principal if auth_info else None
+context.metadata["adcp_decisioning.auth_principal"] = auth_info.principal if auth_info else None
+context.metadata["adcp_decisioning.account_store"] = store_qualname
+```
+
+**What this prevents:**
+
+* Cross-store leakage: `SingletonAccounts(account_id="hello")`
+  resolving to `account.id="hello:buyer-a"` and `ExplicitAccounts`
+  resolving (via a buggy loader) to `account.id="hello:buyer-a"`
+  produce different scope keys (`SingletonAccounts:hello:buyer-a`
+  vs `ExplicitAccounts:hello:buyer-a`). Cache hits cannot cross.
+* Within-store collision (one adopter, identical `account.id` for
+  two distinct accounts) is still an adopter bug at
+  `AccountStore.resolve`. The framework can't structurally prevent
+  this case without a runtime registry that costs more than it buys.
+
+**Why not a runtime uniqueness registry:** distributed registries are
+hard to implement correctly across processes, require coordination,
+and don't help when the same store class is used by cooperating
+processes with different account spaces. The composite scope key
+gets the same protection at zero coordination cost.
+
+**Belt-and-suspenders defense in depth:**
+
+* `Account.id` docstring: "MUST be unique within the adopter's
+  deployment surface. Best practice: prefix with a deployment-stable
+  namespace (`f'acme-prod-{tenant_id}'`) rather than raw tenant
+  slugs. The framework composes the idempotency cache scope key as
+  `(AccountStore.__qualname__, account.id)`, so cross-store
+  collisions are structurally blocked; within-store collisions are
+  the adopter's responsibility."
+* DEBUG log line on every dispatch:
+  `dispatched skill=%s scope_key=%s account_store=%s`. Operators
+  investigating a leak report grep across account-store boundaries.
+
+**Field-name clarification (round-3 concern that `caller_identity`
+now misleads):** `caller_identity` carries the composite scope key
+(framework-internal, read by `IdempotencyStore`). Adopter platform
+methods that want the auth principal read **`ctx.auth_principal`**
+(typed `str | None` attribute on `RequestContext`); adopter
+middleware that consumes the raw `ToolContext` reads
+`ctx.metadata["adcp_decisioning.auth_principal"]` (string key for
+non-decisioning code paths).
+
+**`RequestContext` schema gains `auth_principal`** as a typed
+attribute alongside `account: Account[TMeta]`:
+
+```python
+@dataclass
+class RequestContext(ToolContext, Generic[TMeta]):
+    account: Account[TMeta] = field(default_factory=lambda: Account(id="<unset>"))
+    auth_info: AuthInfo | None = None
+    auth_principal: str | None = None  # ← NEW: typed access for adopter methods
+    now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+```
 
 ### D10. Idempotency middleware ordering — wrapper builds correctly; runtime assert dropped
 
@@ -518,19 +666,48 @@ async def get_adcp_capabilities(
     )
 ```
 
-### D13. Vertical-slice example: `examples/hello_seller.py` + integration test
+### D13. Vertical-slice examples: two runnable files + integration tests
 
-**Decision:** ship a runnable single-file example
-(`examples/hello_seller.py`) plus an integration test
-(`tests/test_hello_seller_integration.py`) that boots the example via
-ASGI transport, makes an MCP `tools/call` to a sync `get_products`,
-asserts the response round-trips. Plus async-handoff path coverage and
-AdcpError wire-projection coverage.
+**Decision:** ship **two** runnable single-file examples plus matching
+integration tests. The TaskHandoff projection (D6) is the most novel
+piece of the foundation and the highest-risk for adopter
+mis-implementation; covering it via a single integration test inside
+`hello_seller.py` is too thin a guard.
+
+**`examples/hello_seller.py`** — sync flow only. Demonstrates:
+
+* `DecisioningPlatform` subclass with `capabilities` + `accounts`
+* `get_products` sync read returning typed `GetProductsResponse`
+* `create_media_buy` sync success returning typed
+  `CreateMediaBuySuccessResponse`
+* `serve()` boot
+
+**`examples/hello_seller_async_handoff.py`** — hybrid flow.
+Demonstrates:
+
+* `create_media_buy` returns `ctx.handoff_to_task(self._review)` for
+  unfamiliar buyers, sync success for pre-approved
+* The `_review` async handoff fn updates progress mid-flight, then
+  completes
+* Buyer can poll `tasks/get` and see `Submitted` → `Working` →
+  `Completed` lifecycle
+* `AdcpError` raise from inside the platform method gets projected to
+  the wire `adcp_error` envelope
+
+**Two integration tests:**
+
+* `tests/test_hello_seller_integration.py` — boots
+  `hello_seller.py` via ASGI, MCP `tools/call` round-trip
+* `tests/test_hello_seller_async_handoff_integration.py` — boots the
+  handoff example, exercises the full `Submitted` envelope
+  serialization, registry has the task, terminal-completion path
+  surfaces via `tasks/get`
 
 **Rationale:** the foundation PR's value claim is "the seams compose
-end-to-end." Without a working example the claim is unverified.
-Integration test is the seam-composition regression guard for every
-subsequent change.
+end-to-end." Without working examples the claim is unverified. Two
+examples instead of one because TaskHandoff is the headline novel
+feature; one example exercising both sync + handoff would mix
+concerns and be harder for adopters to read as a template.
 
 ### D14. `_invoke_platform_method` contract + `REQUIRED_METHODS_PER_SPECIALISM` tolerance
 
@@ -587,17 +764,21 @@ def validate_platform(platform: DecisioningPlatform) -> None:
     missing: list[tuple[str, str]] = []
     for specialism in platform.capabilities.specialisms:
         # Tolerate unknown specialisms (forward-compat with v6.1+ specs)
-        # — log at debug, don't KeyError. validate_platform's job is to
-        # catch missing methods for KNOWN specialisms; unknown ones get
-        # a pass-through with a debug log so spec evolution doesn't
-        # break server boot.
+        # — but UserWarning, not DEBUG. A typo like "sales-non-guarateed"
+        # (missing 'n') silently disables required-method checking
+        # otherwise. UserWarning gets the forward-compat benefit AND
+        # catches typos at server boot. Same severity as the
+        # missing-handler-registration UserWarning in D4.
         required = REQUIRED_METHODS_PER_SPECIALISM.get(specialism)
         if required is None:
-            logger.debug(
-                "validate_platform: specialism %r is not known to this "
-                "framework version; skipping required-method check. "
-                "Upgrade adcp-server if buyers expect this specialism.",
-                specialism,
+            warnings.warn(
+                f"DecisioningPlatform claims unknown specialism {specialism!r}. "
+                "Either this is a typo (compare against the AdCP 3.0 specialism "
+                f"enum: {sorted(REQUIRED_METHODS_PER_SPECIALISM.keys())}), "
+                "or your framework version predates the spec. Required-method "
+                "validation is skipped for this specialism.",
+                UserWarning,
+                stacklevel=3,
             )
             continue
         for method_name in required:
@@ -651,13 +832,16 @@ public surface — minor bump).
 | `adcp/decisioning/serve.py` | ~150 | Wrapper around `adcp.server.serve`. Builds handler + middleware + context_factory (returns `RequestContext`, NOT `ToolContext`) + executor. `create_adcp_server_from_platform` seam returns `(handler, middleware, context_factory)` 3-tuple. |
 | `adcp/decisioning/specialisms/sales.py` | (existing, +10) | Add `TOOLS: set[str]` constant. |
 | `adcp/decisioning/platform.py` | (existing, +25) | Add `__init_subclass__` validator (D11) + `BaseModel` MRO-conflict docstring note. |
-| `examples/hello_seller.py` | ~50 | Runnable single-file example exercising the full vertical slice (D13). |
-| `tests/test_decisioning_dispatch.py` | ~450 | Middleware-mutation correctness; D9 `caller_identity = account.id` + `metadata["adcp_decisioning.auth_principal"]` retains raw principal; AdcpError catch + wire projection (including from sync executor branch); TaskHandoff projection (sync + async paths); sync handoff body sees ContextVar set in request scope (D6 sync-context propagation regression); validate_platform fail-fast; tolerant unknown-specialism path; `_invoke_platform_method` contract (D14). |
-| `tests/test_decisioning_task_registry.py` | ~100 | `TaskRegistry` Protocol shape; `InMemoryTaskRegistry` issue/update/complete/fail; account-scoped `get` returns None on cross-tenant probe; concurrent issue (no task_id collision). |
+| `examples/hello_seller.py` | ~50 | Sync flow vertical slice (D13). |
+| `examples/hello_seller_async_handoff.py` | ~80 | Hybrid flow vertical slice — TaskHandoff projection + Submitted envelope round-trip + AdcpError path (D13). |
+| `tests/test_decisioning_dispatch.py` | ~500 | Middleware-mutation correctness; D9 composite `caller_identity = f"{store_qualname}:{account.id}"` (cross-store leak regression); D9 `auth_principal` typed attribute population; AdcpError catch + wire projection (including from sync executor branch); TaskHandoff projection (sync + async paths); sync handoff body sees ContextVar set in request scope (D6 sync-context propagation regression); validate_platform fail-fast; D14 unknown-specialism `UserWarning` (typo regression); `_invoke_platform_method` contract (D14); arg-projection kwargs path (D1 — verifies `update_media_buy` shim refactor-safety). |
+| `tests/test_decisioning_task_registry.py` | ~100 | `TaskRegistry` Protocol shape; `InMemoryTaskRegistry` issue/update/complete/fail; concurrent issue (no task_id collision). |
+| `tests/test_decisioning_task_registry_cross_tenant.py` | ~80 | **Hostile-probe regression (round-3 finding):** account A creates a task; account B with different `account_id` probes for it via `get(task_id=A's_id, account_id=B)`; expect None, NOT raw_record. Adopter regressing to `if not found: return raw_record` would surface in production without this test. Plus: `complete()` then cross-tenant `get` still returns None; `fail()` then cross-tenant `get` still returns None. |
 | `tests/test_decisioning_platform_validation.py` | ~50 | D11: platform without `capabilities` fails at class definition; platform without `accounts` fails at class definition; valid platform passes. |
 | `tests/test_decisioning_capabilities_synthesis.py` | ~80 | D12 unit test: synthesized `get_adcp_capabilities` response matches `platform.capabilities` field-for-field. Cheaper than driving via integration test. |
-| `tests/test_decisioning_handler_codegen.py` | ~80 | Regen-drift: regen `handler.py` into tempdir, `git diff --exit-code`. Mirrors `tests/test_mcp_schema_drift.py` pattern. Codegen-time fail-fast on missing Pydantic Request type. |
-| `tests/test_hello_seller_integration.py` | ~150 | End-to-end: boot example via ASGI, MCP `tools/call` hits sync `get_products`, response round-trips. Async handoff path: `create_media_buy` returns `TaskHandoff`, Submitted envelope serializes correctly, registry has the task. AdcpError path: hostile budget rejected with structured-error envelope. |
+| `tests/test_decisioning_handler_codegen.py` | ~80 | Regen-drift: regen `handler.py` into tempdir, `git diff --exit-code`. Mirrors `tests/test_mcp_schema_drift.py` pattern. **Drift error message asserts the prescriptive form** (round-3 finding) — names `uv run python scripts/generate_decisioning_handler.py` verbatim. Codegen-time fail-fast on missing Pydantic Request type. |
+| `tests/test_hello_seller_integration.py` | ~150 | End-to-end sync: boot example via ASGI, MCP `tools/call` hits sync `get_products` + sync `create_media_buy`, response round-trips. AdcpError path: hostile budget rejected with structured-error envelope. |
+| `tests/test_hello_seller_async_handoff_integration.py` | ~180 | End-to-end hybrid: boot the handoff example, MCP `tools/call` to `create_media_buy` returns `TaskHandoff`, Submitted envelope serializes correctly, `tasks/get` returns Submitted → Working → Completed lifecycle, registry has the terminal artifact. |
 
 **Foundation PR total:** ~2100 lines (~250 generated, ~700 tests).
 After prep PR + this lands: ~3500 lines on top of 1500-line foundation
@@ -753,3 +937,83 @@ code-reviewer) revised or strengthened from the round-1 design:
   unknown specialisms (forward-compat with v6.1+ specs).
 * **File plan split** into prep PR + foundation PR. Total grew from
   ~1900 to ~2275 lines (extra tests for round-2-surfaced cases).
+
+## Round-3 review changelog
+
+User feedback on the published design doc (PR #316). Eight items in
+priority order; all resolved by tightening D1 / D5 / D9 / D13 / D14
+and adding cross-tenant + arg-projection regression tests.
+
+* **D9 (Item 1) — Account.id uniqueness elevated to a framework-enforced
+  security boundary.** Round-2 left global uniqueness as adopter
+  responsibility; one buggy `AccountStore` would silently leak
+  idempotency-cache entries across stores. Cache scope key composed as
+  `f"{account_store.__class__.__qualname__}:{account.id}"` so two stores
+  collision-prone on `id` alone (e.g. `SingletonAccounts(account_id="x")`
+  vs. `ExplicitAccounts` returning `Account(id="x")`) get structural
+  isolation. The framework enforces; adopters can't downgrade.
+* **D9 (Item 6) — `RequestContext.auth_principal` typed attribute.**
+  `caller_identity = account.id` is correct *semantically* but the
+  middleware-facing field name now misleads (it's the cache scope key,
+  not the auth principal). Added typed `auth_principal: str | None` on
+  `RequestContext` (sourced from `AuthInfo.principal` when present) so
+  middleware reading "who authenticated this request" has a
+  load-bearing field name.
+* **D14 (Item 3) — Unknown specialisms now `UserWarning`, not DEBUG.**
+  Round-2 made `REQUIRED_METHODS_PER_SPECIALISM.get(s, set())` tolerant
+  for forward-compat. But typos like `sales-non-guarateed` (missing 'n')
+  silently pass tolerance and reach buyers as a no-method platform.
+  `UserWarning` at boot catches typos in CI without breaking
+  v6.1+ forward compat (warnings are non-fatal and logged once per
+  specialism per process).
+* **D1 (Item 4) — Codegen drift error is prescriptive.**
+  `tests/test_decisioning_codegen_drift.py` failure message names the
+  exact command (`uv run python scripts/generate_decisioning_handler.py`)
+  and links the rationale (`docs/proposals/decisioning-platform-dispatch-design.md#d1`).
+  CI failures should tell a contributor *what to type next*, not just
+  *what's wrong*.
+* **D1 (Item 8) — Arg-projection emits explicit kwargs.** `**kwargs`
+  unpack would silently swallow Pydantic field renames. The generator
+  emits the kwargs by name (`platform.update_media_buy(media_buy_id=req.media_buy_id, patch=req, ctx=ctx)`)
+  so a future Pydantic field rename trips a `NameError` at codegen time
+  rather than a runtime KeyError post-deploy.
+* **D5 (Item 5) — `ThreadPoolExecutor` configurability.** Three knobs
+  on `create_adcp_server_from_platform`:
+
+  * `executor=` — bring-your-own (instrumentation, custom pool)
+  * `thread_pool_size=int` — convenience override
+  * default — `ThreadPoolExecutor(max_workers=min(32, os.cpu_count() * 4))`
+    with `thread_name_prefix="adcp-decisioning-"`
+
+  `executor` and `thread_pool_size` are mutually exclusive (raises
+  `ValueError` at server construction). Lifecycle: framework-owned
+  pools shut down via the existing serve-loop teardown hook; BYO pools
+  are the adopter's responsibility (documented).
+* **D13 (Item 7) — Two example files, not one.** Original plan had a
+  single `examples/hello_seller.py` covering the sync path. Added
+  `examples/hello_seller_async_handoff.py` exercising:
+
+  * The hybrid `SalesResult[T]` return shape (sync fast path *or*
+    `ctx.handoff_to_task(fn)`)
+  * `AdcpError(code='BUDGET_TOO_LOW', recovery='correctable',
+    field='total_budget')` raise-and-catch round-trip through the
+    dispatcher
+
+  Two examples make the hybrid pattern concrete; one example would
+  bury the harder case in commentary.
+* **File plan additions for items 1, 2, 3, 6, 8:**
+
+  * `tests/test_decisioning_task_registry_cross_tenant.py` — hostile
+    probe regression: account A creates task `t_xyz`, account B calls
+    `tasks_get(task_id="t_xyz")`, must get 404 not B's view of A's
+    task. (Item 2.)
+  * `tests/test_hello_seller_async_handoff_integration.py` — wire-shape
+    assertions for both hybrid arms + AdcpError envelope. (Item 7.)
+  * `tests/test_decisioning_dispatch.py` extended with: composite
+    `caller_identity` cache-scope-key construction (Item 1),
+    `auth_principal` attribute population from `AuthInfo` (Item 6),
+    UserWarning emission for unknown specialism (Item 3), arg-projection
+    explicit-kwargs path including Pydantic field-rename simulation
+    (Item 8).
+
+  Foundation PR total grew from ~2275 to ~2475 lines.
