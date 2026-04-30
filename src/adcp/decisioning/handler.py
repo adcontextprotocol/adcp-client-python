@@ -197,7 +197,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         principal/scope info. Adopter conventions vary; this helper checks
         for an ``adcp.auth_info`` key — Stage 3 ``serve()`` wiring sets
         this from the canonical principal. Returns None when no auth key
-        is present (dev / singleton fixtures).
+        is present (dev / ``'derived'`` fixtures).
         """
         raw = ctx.metadata.get("adcp.auth_info") if ctx.metadata else None
         if isinstance(raw, AuthInfo):

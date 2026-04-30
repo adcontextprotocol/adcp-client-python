@@ -26,15 +26,22 @@ Spec-agent vs auth-layer principal:
    well-known URL acting as a global identifier) and a key id (``kid``)
    on the request signature. The framework's ``AuthInfo.principal``
    is the verified-principal opaque string the auth layer surfaces —
-   typically the ``agent_url`` for signed-request agents, or the
-   subject claim for OAuth bearer tokens, or the mTLS subject for
-   client-cert flows. Adopters wiring ``FromAuthAccounts`` MUST decide
-   what string the auth middleware projects onto
-   ``ctx.auth_info.principal``; the framework treats it opaquely. For
-   AdCP v3 signed-request flows, the convention is the calling agent's
-   ``agent_url``; that's what your loader callable sees as the lookup
-   key. See ``adcp.adagents`` for the spec validator that ties an
-   ``agent_url`` to a seller's published ``adagents.json`` whitelist.
+   the documented convention is ``agent_url`` for signed-request
+   agents, OAuth subject claim for bearer tokens, mTLS subject for
+   client-cert flows. Adopters wiring ``FromAuthAccounts`` decide
+   what string their auth middleware projects onto
+   ``ctx.auth_info.principal``; the framework treats it opaquely.
+
+   The SDK's signing primitives in :mod:`adcp.signing` verify the
+   request signature against a JWKS provider; it's the adopter's
+   middleware (today) or the framework's built-in
+   ``SignedRequestAuth`` adapter wrapper (Tier 2, lands in 4.5.0)
+   that takes the verified result and writes ``AuthInfo.principal =
+   agent_url`` onto the dispatch context. Adopters wiring this
+   manually before 4.5.0 ships should follow that convention to keep
+   ``adcp.adagents`` (the spec validator that ties an ``agent_url``
+   to a seller's published ``adagents.json`` whitelist) reading the
+   right key.
 """
 
 from __future__ import annotations
@@ -84,10 +91,10 @@ class AccountStore(Protocol, Generic[TMeta]):
         :param ref: The wire reference object (typically
             ``request.account`` carrying ``account_id`` /
             ``account_ref``). ``None`` for tools that don't carry an
-            explicit account ref — adopters in ``'singleton'`` /
-            ``'from_auth'`` modes ignore it.
+            explicit account ref — adopters in ``'derived'`` /
+            ``'implicit'`` modes ignore it.
         :param auth_info: Verified principal info. ``None`` for
-            unauthenticated requests (dev / ``'singleton'`` fixtures).
+            unauthenticated requests (dev / ``'derived'`` fixtures).
         :raises adcp.decisioning.AdcpError: ``code='ACCOUNT_NOT_FOUND'``
             when the resolution can't produce a valid account.
 

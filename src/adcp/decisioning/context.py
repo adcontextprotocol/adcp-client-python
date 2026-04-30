@@ -92,7 +92,7 @@ class RequestContext(ToolContext, Generic[TMeta]):
         sets ``caller_identity = account.id`` so caching scopes per
         resolved account, not per raw auth principal.
     :param auth_info: Optional verified principal info. ``None`` when
-        the request is unauthenticated (dev / 'singleton' fixtures).
+        the request is unauthenticated (dev / ``'derived'`` fixtures).
     :param now: Monotonic timestamp for the request — adopters use
         this rather than ``datetime.now()`` directly so tests can
         inject deterministic clocks.
@@ -107,35 +107,36 @@ class RequestContext(ToolContext, Generic[TMeta]):
     The context carries four identifier-shaped fields. Each has a
     distinct role; mixing them up is the most common adopter bug.
 
-    +---------------------+-----------------------------+--------------------------------+
-    | Field               | What it answers             | Read it for                    |
-    +=====================+=============================+================================+
-    | ``account.id``      | "Whose data is this?"       | Routing the request to the     |
-    |                     | The resolved tenant /       | right adapter, scoping DB      |
-    |                     | account that owns the call. | reads, audit logs.             |
-    +---------------------+-----------------------------+--------------------------------+
-    | ``auth_principal``  | "Who's calling?"            | Per-principal ACLs within an   |
-    |                     | The verified caller's       | account ("can principal X      |
-    |                     | identity label              | mutate this buy?").            |
-    |                     | (``agent_url`` for AdCP v3  |                                |
-    |                     | signed-request agents,      |                                |
-    |                     | OAuth subject for bearer    |                                |
-    |                     | flows, mTLS subject for     |                                |
-    |                     | client-cert flows).         |                                |
-    +---------------------+-----------------------------+--------------------------------+
-    | ``caller_identity`` | "What's the cache scope?"   | NEVER read directly in adopter |
-    |                     | Composite framework-set key | code. The framework's          |
-    |                     | (``store.qualname:           | idempotency middleware reads   |
-    |                     | account.id``) used by the   | this. Mutating it breaks       |
-    |                     | idempotency middleware.     | replay-cache scoping.          |
-    +---------------------+-----------------------------+--------------------------------+
-    | ``tenant_id``       | "Which transport tenant?"   | Multi-tenant transport routing |
-    |                     | Inherited from              | (host header, URL path).       |
-    |                     | :class:`ToolContext`. Set   | Usually equals ``account.id``  |
-    |                     | by the transport layer      | for explicit-resolution        |
-    |                     | before dispatch.            | adopters; can diverge for      |
-    |                     |                             | derived/implicit modes.        |
-    +---------------------+-----------------------------+--------------------------------+
+    ``account.id`` — "whose data is this?"
+        The resolved tenant / account that owns the call. Read it to
+        route the request to the right adapter instance, scope your
+        DB queries, and stamp audit logs.
+
+    ``auth_principal`` — "who's calling?"
+        The verified caller's identity label. The string varies by
+        auth shape: ``agent_url`` for AdCP v3 signed-request agents
+        (the documented convention; the SDK's signed-request adapter
+        wrappers ship in 4.5.0), OAuth subject claim for bearer
+        flows, mTLS subject for client-cert flows. Read it for
+        per-principal ACLs *within* an account ("can principal X
+        mutate this buy?").
+
+    ``caller_identity`` — "what's the cache scope key?"
+        Composite framework-set key
+        (``<store_module>.<store_qualname>:<account_id>``) used by
+        the idempotency middleware to scope the replay cache.
+        Treat as opaque. Adopter code may log or forward it
+        (rate-limiting, audit) but should not parse, compare, or
+        rewrite it — the format is framework-internal and any
+        adopter assumption about its shape will break when the
+        scope-key composition changes.
+
+    ``tenant_id`` — "which transport tenant?"
+        Inherited from :class:`ToolContext`; set by the transport
+        layer before dispatch (typically from the host header or URL
+        path on multi-tenant deployments). Usually equals
+        ``account.id`` for ``'explicit'``-resolution adopters; can
+        diverge for ``'derived'`` / ``'implicit'`` modes.
 
     Common patterns:
 

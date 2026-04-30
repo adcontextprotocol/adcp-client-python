@@ -187,18 +187,27 @@ class TaskHandoff(Generic[T]):
 
     1. Adopter persists the in-flight buy in their own DB and returns
        ``input-required`` (NOT a TaskHandoff) on the synchronous arm,
-       carrying a stable ``task_id`` they allocated.
+       carrying a stable ``task_id`` they allocated. The
+       ``input-required`` status is in the spec task-status enum
+       (``schemas/cache/enums/task-status.json``); the per-tool
+       ``*_async_response_input_required`` envelopes are in
+       :mod:`adcp.types`.
     2. Trafficker UI flips the row to approved/rejected on its own
        schedule.
-    3. Adopter's webhook emitter (or a polling worker) fires the
-       terminal webhook to the buyer when the human acts.
+    3. Adopter's webhook emitter fires the terminal webhook to the
+       buyer when the human acts. Use the SDK's webhook primitives in
+       :mod:`adcp.webhooks` (payload builders) +
+       :mod:`adcp.webhook_sender` (HMAC-SHA256 signing + IP-pinned
+       transport delivery) — same wire shape the framework uses on the
+       TaskHandoff path.
 
     The adopter owns the whole lifecycle in the human-driven case; the
     framework's TaskHandoff projector exists only for the "fn returns
     terminal artifact within a reasonable wall-clock" shape. v6.1 may
     add a richer ``ctx.handoff_to_human()`` primitive for the queued-
-    approval pattern; for v6.0, keep human approvals out of the
-    TaskHandoff path.
+    approval pattern; a worked end-to-end example lands with the
+    multi-tenant ``hello_publisher.py`` example in 4.5.0. For v6.0,
+    keep human approvals out of the TaskHandoff path.
     """
 
     __slots__ = ("_fn",)
