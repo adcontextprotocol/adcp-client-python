@@ -699,7 +699,7 @@ class DemoStore(TestControllerStore):
         context: Any = None,
     ) -> dict[str, Any]:
         data = dict(fixture or {})
-        fid = format_id or data.get("format_id") or f"fmt-seeded-{uuid.uuid4().hex[:8]}"
+        fid = format_id or (data.get("format_id") or {}).get("id") or f"fmt-seeded-{uuid.uuid4().hex[:8]}"
         data.setdefault("format_id", {"agent_url": AGENT_URL, "id": fid})
         data.setdefault("name", fid)
         data.setdefault("renders", [])
