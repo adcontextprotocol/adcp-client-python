@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import difflib
 import functools
 import logging
 import warnings
@@ -267,18 +268,59 @@ def validate_platform(platform: DecisioningPlatform) -> None:
                 missing.append((specialism, method_name))
 
     if unknown:
-        warnings.warn(
-            (
-                f"DecisioningPlatform claims unknown specialism(s) "
-                f"{sorted(unknown)!r}. Either typos (compare against the AdCP "
-                f"specialism enum: {sorted(REQUIRED_METHODS_PER_SPECIALISM.keys())}), "
-                "or your framework version predates the spec. Required-method "
-                "validation is skipped for these specialisms; tools/list will "
-                "advertise the spec set this framework version knows."
-            ),
-            UserWarning,
-            stacklevel=2,
-        )
+        # Round-4 DX review: an unknown specialism that's a close
+        # spelling match to a known one is almost always a typo (e.g.,
+        # "sales-non-guarateed" missing the second 'n'). Adopters running
+        # python hello_seller.py won't see UserWarning + 0 tools as a
+        # red flag — the server boots, advertises nothing, silently 404s.
+        # Promote close matches to a hard fail with a "Did you mean…"
+        # hint; truly novel slugs still get the soft UserWarning for
+        # forward-compat with v6.x+ specs.
+        known = sorted(REQUIRED_METHODS_PER_SPECIALISM.keys())
+        typo_suggestions: list[tuple[str, str]] = []
+        novel: list[str] = []
+        for slug in unknown:
+            close = difflib.get_close_matches(slug, known, n=1, cutoff=0.7)
+            if close:
+                typo_suggestions.append((slug, close[0]))
+            else:
+                novel.append(slug)
+
+        if typo_suggestions:
+            hints = "; ".join(
+                f"{slug!r} → did you mean {match!r}?" for slug, match in sorted(typo_suggestions)
+            )
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    f"DecisioningPlatform claims unknown specialism(s) "
+                    f"that look like typos: {hints}. "
+                    "Forward-compat tolerance applies only to genuinely "
+                    "novel specialism slugs (not close spelling matches). "
+                    f"Known v6.0 specialisms: {known}"
+                ),
+                recovery="terminal",
+                details={
+                    "typo_suggestions": [
+                        {"claimed": slug, "did_you_mean": match} for slug, match in typo_suggestions
+                    ],
+                    "known_specialisms": known,
+                },
+            )
+
+        if novel:
+            warnings.warn(
+                (
+                    f"DecisioningPlatform claims novel specialism(s) "
+                    f"{sorted(novel)!r}. Your framework version predates "
+                    f"the spec, OR you're piloting a future specialism. "
+                    f"Required-method validation skipped; tools/list will "
+                    f"advertise the spec set this framework version knows. "
+                    f"Known v6.0 specialisms: {known}"
+                ),
+                UserWarning,
+                stacklevel=2,
+            )
 
     if missing:
         raise AdcpError(

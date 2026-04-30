@@ -39,11 +39,11 @@ import asyncio
 import logging
 import time
 import uuid
-
-logger = logging.getLogger(__name__)
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
+
+logger = logging.getLogger(__name__)
 
 #: Terminal task states per AdCP 3.0 spec (``enums/task-status.json``).
 #: ``submitted`` = task created but not yet started; ``working`` = adopter

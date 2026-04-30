@@ -170,6 +170,11 @@ async def test_create_media_buy_large_budget_returns_submitted_envelope(
     assert rec is not None
     assert rec["state"] == "completed"
     assert rec["result"]["media_buy_id"].startswith("mb_reviewed_")
+    # DON'T cross-leak the framework's task_id namespace into the
+    # adopter's media_buy_id namespace — buyers reading the response
+    # shouldn't see a raw task UUID embedded in media_buy_id
+    # (round-4 reviewer P1).
+    assert task_id not in rec["result"]["media_buy_id"]
     assert rec["result"]["status"] == "active"
 
 

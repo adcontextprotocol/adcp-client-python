@@ -206,17 +206,31 @@ class HelloSellerHybrid(DecisioningPlatform):
         Slack / approval system; here we simulate a brief review and
         return the success.
 
-        ``task_ctx.id`` is framework-allocated BEFORE this fn runs
-        — adopters persist it to their queue so the trafficker's
+        ``task_ctx.id`` is framework-allocated BEFORE this fn runs —
+        adopters persist it to their queue so the trafficker's
         approve/reject action can call back into the registry.
+
+        ``task_ctx.update(progress)`` writes the progress payload AND
+        transitions the task to ``working`` state on first call.
+        Registry write failures are suppressed (logged at WARNING with
+        traceback) so a transient registry hiccup doesn't abort the
+        handoff fn — buyer-facing impact is a missed progress event,
+        not a failed task.
         """
         await task_ctx.update({"step": "queued for trafficker review"})
         # Simulate review latency. Real adopters wait on an external
         # signal (Slack approval, queue message, etc.).
         await asyncio.sleep(0.05)
         await task_ctx.update({"step": "trafficker approved"})
+        # Adopter media_buy_id allocation — DON'T leak the framework's
+        # task_id namespace here. Buyers reading
+        # ``media_buy_id.startswith("task_")`` would conflate the two
+        # IDs. Real adopters mint media_buy_id from their own backend
+        # store; the example just synthesizes a stable string.
+        import uuid
+
         return {
-            "media_buy_id": f"mb_reviewed_{task_ctx.id}",
+            "media_buy_id": f"mb_reviewed_{uuid.uuid4().hex[:8]}",
             "status": "active",
             "packages": [],
         }

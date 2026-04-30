@@ -125,21 +125,46 @@ def test_validate_platform_raises_on_missing_specialism_method() -> None:
     assert "get_media_buy_delivery" in missing_methods
 
 
-def test_validate_platform_warns_on_unknown_specialism() -> None:
-    """Unknown specialism — typo or future spec — emits UserWarning,
-    NOT an AdcpError raise. Forward-compat with v6.x+ specs (round-3
-    D14)."""
+def test_validate_platform_warns_on_novel_specialism() -> None:
+    """Truly novel specialism (no close spelling match to any known
+    slug) emits UserWarning, NOT a raise. Forward-compat with v6.x+
+    specs (round-3 D14)."""
 
-    class _UnknownSpecialismPlatform(DecisioningPlatform):
+    class _NovelSpecialismPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["this-does-not-exist-yet"])
         accounts = SingletonAccounts(account_id="hello")
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always", UserWarning)
-        validate_platform(_UnknownSpecialismPlatform())
+        validate_platform(_NovelSpecialismPlatform())
     matched = [w for w in caught if "this-does-not-exist-yet" in str(w.message)]
     assert len(matched) == 1
-    assert "typos" in str(matched[0].message)
+    assert "novel specialism" in str(matched[0].message)
+
+
+def test_validate_platform_raises_on_typo_specialism() -> None:
+    """Round-4 DX review: a typo close-match to a known slug
+    (e.g. "sales-non-guarateed" missing the second 'n') raises
+    AdcpError with a "Did you mean..." hint, NOT a silent UserWarning.
+    Adopters running ``python hello_seller.py`` would otherwise see
+    a server boot with 0 tools advertised and silently 404 every
+    buyer call."""
+
+    class _TypoPlatform(DecisioningPlatform):
+        # Missing 'n' in "non-guaranteed".
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guarateed"],
+        )
+        accounts = SingletonAccounts(account_id="hello")
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_platform(_TypoPlatform())
+    assert exc_info.value.code == "INVALID_REQUEST"
+    msg = str(exc_info.value)
+    assert "did you mean 'sales-non-guaranteed'" in msg.lower()
+    # Details carry the structured suggestion for tooling.
+    suggestions = exc_info.value.details["typo_suggestions"]
+    assert {"claimed": "sales-non-guarateed", "did_you_mean": "sales-non-guaranteed"} in suggestions
 
 
 def test_validate_platform_governance_aware_required_for_governance_specialism() -> None:
