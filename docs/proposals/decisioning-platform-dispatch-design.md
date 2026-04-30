@@ -1017,3 +1017,172 @@ and adding cross-tenant + arg-projection regression tests.
     (Item 8).
 
   Foundation PR total grew from ~2275 to ~2475 lines.
+
+---
+
+## Round-3 review changelog (2026-04-30)
+
+The TypeScript SDK shipped `@adcp/sdk` 6.1.0 with `ctx_metadata` opaque-blob round-trip and a handful of additional learnings the Python implementation should adopt before the foundation PR un-drafts. This section enumerates the deltas; the dispatch-design body above describes the **previous** design contract.
+
+### R3-1. `ctx_metadata` opaque-blob round-trip cache (NEW SUBSYSTEM)
+
+**Background.** Publishers carry per-resource platform-specific state (GAM `ad_unit_ids` per product, `gam_order_id` per media buy, line item ID per package, custom creative template config per creative). The AdCP wire spec doesn't model these. Today's options are (a) re-derive on every call, (b) maintain a side-DB indexed by AdCP IDs (Prebid `salesagent`'s `implementation_config` JSON column pattern). Both push boilerplate onto every adopter.
+
+**The pattern.** SDK ships an account-scoped opaque-blob cache. Publishers attach `ctx_metadata` to any returned resource (`{ product_id, ctx_metadata: { gam: {...} } }`); SDK persists keyed by `(account_id, kind, id)` and threads back into the publisher's request context on subsequent calls referencing the same resource ID. Buyers never see it — wire-stripped before egress.
+
+**Python module sketch:**
+
+```python
+# src/adcp/decisioning/ctx_metadata/__init__.py
+from typing import Protocol, Literal, Mapping, Sequence
+
+ResourceKind = Literal[
+    "product", "media_buy", "package", "creative",
+    "audience", "signal", "rights_grant",
+    "property_list", "collection_list",
+]
+
+class CtxMetadataBackend(Protocol):
+    async def get(self, scoped_key: str) -> Mapping | None: ...
+    async def bulk_get(self, scoped_keys: Sequence[str]) -> Mapping[str, Mapping]: ...
+    async def put(self, scoped_key: str, value: Mapping, expires_at: int | None) -> None: ...
+    async def delete(self, scoped_key: str) -> None: ...
+    async def probe(self) -> None: ...
+
+class CtxMetadataStore:
+    """Mirrors the @adcp/sdk 6.1 surface."""
+    async def get(self, account_id: str, kind: ResourceKind, id: str) -> Mapping | None: ...
+    async def bulk_get(
+        self, account_id: str, refs: Sequence[tuple[ResourceKind, str]]
+    ) -> Mapping[tuple[ResourceKind, str], Mapping]: ...
+    async def set(
+        self,
+        account_id: str,
+        kind: ResourceKind,
+        id: str,
+        value: Mapping,
+        ttl_seconds: int | None = None,
+    ) -> None: ...
+```
+
+**Backends to ship in foundation PR follow-up:**
+
+- `memory_ctx_metadata_store()` — single-process default
+- `pg_ctx_metadata_store(pool)` — cluster, mirrors the `pg_idempotency_backend` pattern with `scoped_key TEXT PRIMARY KEY` flat key (`{account_id}\x1f{kind}\x1f{id}`), JSONB `value`, optional `expires_at`. Uses `WHERE scoped_key = ANY($1::text[])` for `bulk_get` (no IN-list expansion).
+
+**Safety requirements (Python-port-relevant):**
+
+- `account_id` null/empty → hard-fail at the store boundary. No-account tools (`provide_performance_feedback`, `list_creative_formats`) cannot use `ctx_metadata`.
+- `value` size cap: 16KB serialized (configurable). Throw `CtxMetadataTooLarge` when exceeded.
+- TTL cap: 30 days max; reject longer TTLs at `set()`.
+- No auto-eviction by default — adopter-driven cleanup via `cleanup_expired_ctx_metadata(pool)` for opt-in row-level TTLs.
+- Symbol-tag the retrieved value (Python equivalent: a non-pickled `__adcp_internal__` attribute on a wrapper, OR a `frozenset` `_internal_marker` in `__slots__`) to defeat accidental `json.dumps` in error envelopes / log lines.
+- Wire-strip at framework chokepoint, not per-transport. Strip runs **before** the idempotency cache write so cached replays don't leak.
+
+**`RequestContext` extension:**
+
+```python
+class RequestContext(Generic[TMeta]):
+    account: Account[TMeta]
+    state: WorkflowStateReader
+    resolve: ResourceResolver
+    ctx_metadata: CtxMetadataAccessor | None  # bound when store wired AND account scope present
+    
+    def handoff_to_task(self, fn: Callable[[TaskHandoffContext], Awaitable[T]]) -> TaskHandoff[T]: ...
+
+class CtxMetadataAccessor(Protocol):
+    """Account-scoped accessor — framework binds account.id automatically."""
+    async def get(self, kind: ResourceKind, id: str) -> Mapping | None: ...
+    async def bulk_get(self, refs: Sequence[tuple[ResourceKind, str]]) -> Mapping[tuple, Mapping]: ...
+    async def set(self, kind: ResourceKind, id: str, value: Mapping, ttl_seconds: int | None = None) -> None: ...
+    async def delete(self, kind: ResourceKind, id: str) -> None: ...
+    
+    # Per-kind shorthand readers
+    async def product(self, id: str) -> Mapping | None: ...
+    async def media_buy(self, id: str) -> Mapping | None: ...
+    async def package(self, id: str) -> Mapping | None: ...
+    async def creative(self, id: str) -> Mapping | None: ...
+    async def audience(self, id: str) -> Mapping | None: ...
+    async def signal(self, id: str) -> Mapping | None: ...
+```
+
+**Field-name interop.** The TS SDK reserves `ctx_metadata` as the convention; spec note filed at `adcontextprotocol/adcp#3640`. Python SDK MUST use the same name — divergence creates ecosystem fragmentation.
+
+### R3-2. Default `resolve_idempotency_principal` synthesis
+
+The TS SDK landed: when adopters don't wire `resolveIdempotencyPrincipal`, framework synthesizes `auth_info.client_id ?? session_key ?? account.id ?? None`. Without this, every mutating call returns `SERVICE_UNAVAILABLE` for v6 platform adopters who skipped the hook — a brutal first-30-minutes UX surfaced in the Emma matrix.
+
+Python equivalent: `serve.py` should fall back through the same chain when `resolve_idempotency_principal` is `None`. Document in JSDoc/docstring as the v6 default; adopters override by passing the kwarg.
+
+### R3-3. `WebhooksConfig` named type (TS-only — Python unaffected)
+
+TS adopters previously passed an inline object literal for `serve({ webhooks: {...} })`; we extracted a named `WebhooksConfig` type for adopter-side type aliases. Python uses dataclasses end-to-end so the equivalent is already in place — no delta.
+
+### R3-4. F11 `allow_private_webhook_urls`
+
+Sandbox / local-testing adopters need to point `push_notification_config.url` at loopback (`127.0.0.1:<ephemeral>`). Default rejects (SSRF / cloud-metadata exfil defense). Add `allow_private_webhook_urls: bool` kwarg on `create_adcp_server_from_platform`; document the NODE_ENV-equivalent env-flag escape hatch (`ADCP_DECISIONING_ALLOW_HTTP_WEBHOOKS=1`).
+
+### R3-5. F12 fire-and-forget webhook auto-emit
+
+When the buyer's mutating request includes `push_notification_config.url`, framework auto-fires a completion webhook on the sync-success arm (mirrors HITL completion shape with `task_type`, `status: 'completed'`, `result`). Slowloris-DOS defense: emission is fire-and-forget — the dispatcher doesn't await the webhook delivery. `auto_emit_completion_webhooks: bool` kwarg, default `True`.
+
+### R3-6. F13 — `CreativeBuilderPlatform` (Template + Generative merged)
+
+Originally split into `CreativeTemplatePlatform` and `CreativeGenerativePlatform`. Merged: one `CreativeBuilderPlatform` covers both — adopters claim either `creative-template` or `creative-generative` specialism and implement the same interface. Less per-specialism boilerplate.
+
+### R3-7. F16 — `build_creative` multi-format return type
+
+`build_creative` returns a discriminated union: single-format → `BuildCreativeSuccess`, multi-format → `BuildCreativeMultiSuccess`. Adopter returns the native shape; framework projects to the wire arm. Update the Python `CreativeBuilderPlatform.build_creative` Protocol to reflect the discriminated return.
+
+### R3-8. Error code discipline (CRITICAL for matrix pass rate)
+
+Empirical baseline (TS Emma matrix v17): LLM-generated platforms throw generic `Exception` instead of `AdcpError(code, ...)` because the code catalog isn't surfaced at the throw site. Recurring storyboard failures cluster on:
+
+- `PACKAGE_NOT_FOUND` not thrown when expected
+- `BUDGET_TOO_LOW` not thrown
+- Generic 500s where structured rejection was the right answer
+
+Python equivalent: typed error constructors. Instead of `raise AdcpError(code='PACKAGE_NOT_FOUND', ...)`, ship:
+
+```python
+class PackageNotFoundError(AdcpError):
+    def __init__(self, package_id: str, *, recovery: Literal["permanent", "correctable"] = "permanent"):
+        super().__init__(code="PACKAGE_NOT_FOUND", recovery=recovery, message=f"Package not found: {package_id}", field="package_id")
+```
+
+Per-handler JSDoc (Python: `Raises:` docstring section) listing which error codes apply to that method. LLMs scaffolding the platform see the typed errors in autocomplete and use them correctly.
+
+### R3-9. Drop `platformMetadata` blob → `ctx_metadata` is the unification
+
+Earlier dispatch-design draft proposed `ctx.platform_metadata: dict` as a generic per-request scratchpad. Strike that — `ctx_metadata` (R3-1) is the unification. There's no separate `platform_metadata` concept; the cache is the storage layer.
+
+### R3-10. `getMediaBuys` is optional but flagged
+
+The `SalesPlatform.get_media_buys` Protocol method is **optional** (publishers without a list-buys API surface omit). Stays optional in 6.1 / Python foundation. The 6.2 redesign work (atomic-verb decomposition for `update_media_buy`, tracked at `adcontextprotocol/adcp-client#1071`) will require a `get_media_buy(id)` singular-read primitive — not `get_media_buys`. Don't conflate the two; add the singular form when the 6.2 work lands.
+
+### R3-11. F17 — mention `brand` alongside `account` in TOOL_INPUT_SHAPE example
+
+Documentation polish: when describing the TOOL_INPUT_SHAPE extension surface, list both `account` and `brand` as top-level keys handlers may extend. Adopters reading the doc only saw `account` and missed the brand path. Apply the same callout in Python `docs/dispatch.md` once it lands.
+
+---
+
+## Round-3 file plan additions
+
+Foundation PR follow-up scope:
+
+- `src/adcp/decisioning/ctx_metadata/__init__.py` — store + accessor protocols
+- `src/adcp/decisioning/ctx_metadata/backends/memory.py`
+- `src/adcp/decisioning/ctx_metadata/backends/pg.py` + `migrations.py`
+- `src/adcp/decisioning/ctx_metadata/wire_shape.py` — strip helper
+- Extend `src/adcp/decisioning/context.py` with `ctx_metadata: CtxMetadataAccessor | None`
+- Extend `src/adcp/decisioning/dispatch.py` to bind the accessor + thread strip-on-wire chokepoint
+- Update `src/adcp/decisioning/serve.py` with default `resolve_idempotency_principal` synthesis
+- Tests:
+  - `tests/test_ctx_metadata_store.py` — round-trip across kinds, cross-tenant isolation, size cap, TTL bounds
+  - `tests/test_ctx_metadata_dispatch.py` — accessor binding, wire-strip invariant
+  - `tests/test_default_idempotency_principal.py` — synthesized fallback chain
+- Examples:
+  - `examples/hello_seller_with_ctx_metadata.py` — GAM-shaped publisher attaching adapter-internal IDs
+
+Foundation PR estimated grew from ~2475 to ~3100 lines.
+
