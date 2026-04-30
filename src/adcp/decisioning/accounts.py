@@ -157,10 +157,19 @@ class ExplicitAccounts(Generic[TMeta]):
 
     The framework passes ``ref`` from the parsed request body
     (typically ``request.account``); ``resolve`` reads
-    ``ref["account_id"]`` and looks up the account via the adopter-
-    supplied ``loader``. Auth-info is available for scope checks
-    (e.g., reject if principal lacks access to the requested account)
-    but does not drive resolution.
+    ``ref["account_id"]`` and routes through the adopter-supplied
+    ``loader``. The wire ref is the source of truth for *which*
+    account to resolve.
+
+    Auth scope checks (does this principal have access to the
+    requested account?) are NOT performed by ``ExplicitAccounts.resolve``
+    — the default loader signature only takes ``account_id``. Adopters
+    needing principal-vs-account scope enforcement implement the
+    :class:`AccountStore` Protocol directly with a custom resolve that
+    reads ``auth_info``, OR add a request middleware that runs before
+    the handler. The framework does NOT silently bind ``auth_info`` to
+    the lookup; if your loader returns an account a principal shouldn't
+    see, you've shipped a cross-tenant data leak.
 
     Example::
 
@@ -185,7 +194,12 @@ class ExplicitAccounts(Generic[TMeta]):
         ref: dict[str, Any] | None,
         auth_info: AuthInfo | None = None,
     ) -> Awaitable[Account[TMeta]] | Account[TMeta]:
-        del auth_info  # explicit mode ignores auth (scope checks happen elsewhere)
+        # Explicit mode resolves purely off the wire ref. Adopters
+        # needing principal-vs-account scope checks implement
+        # AccountStore directly (see class docstring). The loader
+        # signature is account_id-only by contract, so auth_info isn't
+        # threaded through here.
+        del auth_info
         if not ref or not ref.get("account_id"):
             from adcp.decisioning.types import AdcpError
 

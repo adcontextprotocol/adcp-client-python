@@ -14,8 +14,14 @@ Each shim:
 4. Calls :func:`_invoke_platform_method` to invoke the platform method,
    which projects ``TaskHandoff`` and wraps non-``AdcpError`` exceptions
    to the wire envelope.
-5. Returns the typed response (or raises :class:`AdcpError` which the
-   framework's existing wire-projection codepath catches).
+5. Returns whatever the platform method returned — typed Pydantic
+   response, plain dict matching the wire shape, or the ``Submitted``
+   envelope dict from a TaskHandoff projection. The ``cast()`` on each
+   shim is a static-typing hint for callers; it is NOT a runtime
+   validation pass. The framework's transport layer
+   (``adcp.server.serve``) handles wire serialization for both Pydantic
+   and dict returns. Adopters relying on Pydantic round-trip validation
+   can opt in via ``response_validator`` middleware.
 
 The class-level ``advertised_tools: ClassVar[set[str]]`` declaration is
 auto-registered with the framework's tool-discovery seam via

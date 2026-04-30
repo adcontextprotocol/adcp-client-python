@@ -70,8 +70,10 @@ class TaskRecord:
         :meth:`TaskRegistry.complete` / :meth:`TaskRegistry.fail` at
         the end of the handoff fn.
     :param task_type: Wire-spec task type (``'create_media_buy'``,
-        ``'sync_creatives'``, etc.). Mirrors the Submitted envelope's
-        ``task_type`` field so ``tasks/get`` round-trips correctly.
+        ``'sync_creatives'``, etc.). Stored on the registry record so
+        ``tasks/get`` can return it on the response payload; NOT part
+        of the synchronous Submitted envelope (per
+        ``schemas/cache/core/protocol-envelope.json``).
     :param progress: Latest progress payload written by
         :meth:`TaskHandoffContext.update`. Buyers see this on
         ``tasks/get`` while the task is in the ``working`` state.
@@ -192,8 +194,9 @@ class TaskRegistry(Protocol):
         :param account_id: Account that owns the task. Drives the
             cross-tenant access check on subsequent reads.
         :param task_type: Wire-spec task type (``'create_media_buy'``,
-            etc.). Surfaced on the Submitted envelope and on
-            ``tasks/get`` reads.
+            etc.). Persisted on the row and surfaced on ``tasks/get``
+            reads; NOT included in the synchronous Submitted envelope
+            (per ``schemas/cache/core/protocol-envelope.json``).
         :returns: The framework-allocated task_id (string UUID).
         """
         ...
@@ -338,6 +341,21 @@ class InMemoryTaskRegistry:
                 # Silent no-op — the dispatch wrapper expects this method
                 # to never raise on transient lookup failure (see Protocol
                 # docstring).
+                return
+            if record.state in ("completed", "failed"):
+                # Terminal-state guard: a late progress update from a
+                # straggler coroutine MUST NOT mutate a finalized record
+                # — it would resurrect "working" appearance against
+                # ``tasks/get`` reads that already saw the terminal
+                # state. Log + drop is the safe choice (the dispatch
+                # wrapper is expected to swallow update failures
+                # anyway).
+                logger.warning(
+                    "InMemoryTaskRegistry.update_progress(task_id=%s) "
+                    "dropped: task is already in terminal state %r",
+                    task_id,
+                    record.state,
+                )
                 return
             record.progress = dict(progress)
             if record.state == "submitted":

@@ -392,13 +392,19 @@ def test_capabilities_governance_aware_defaults_false() -> None:
 
 
 def test_governance_specialisms_pinned() -> None:
-    """The constant tracks the AdCP 3.0 governance-* specialism set.
-    Drift here is a foundation-PR-level decision; this test is the
-    locked contract."""
+    """The constant tracks every ``governance-*`` slug in the spec
+    enum (``schemas/cache/enums/specialism.json``). Drift here is a
+    foundation-PR-level decision; this test is the locked contract.
+
+    Includes ``governance-aware-seller`` — a seller agent that
+    composes with a buyer's governance agent reads governance context
+    per-request, so the gate must catch it claiming the specialism
+    without wiring the StateReader (round-5 Emma P0)."""
     assert GOVERNANCE_SPECIALISMS == frozenset(
         {
-            "governance-spend-authority",
+            "governance-aware-seller",
             "governance-delivery-monitor",
+            "governance-spend-authority",
         }
     )
 

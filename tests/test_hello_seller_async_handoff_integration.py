@@ -147,10 +147,13 @@ async def test_create_media_buy_large_budget_returns_submitted_envelope(
     req = _build_request(total_budget=100_000.0, idem_suffix="enterprise")
     resp = await handler.create_media_buy(req, ToolContext())
 
-    # Sync return is the Submitted envelope.
+    # Sync return is the Submitted envelope per
+    # ``schemas/cache/core/protocol-envelope.json`` — {task_id, status}
+    # only. ``task_type`` is registry-internal (tasks/get reads it but
+    # the wire never carries it).
     assert isinstance(resp, dict)
     assert resp["status"] == "submitted"
-    assert resp["task_type"] == "create_media_buy"
+    assert "task_type" not in resp
     task_id = resp["task_id"]
     assert task_id.startswith("task_")
 

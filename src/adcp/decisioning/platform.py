@@ -76,10 +76,19 @@ class DecisioningCapabilities:
 #: :func:`adcp.decisioning.dispatch.validate_platform` — silent
 #: governance-gate skipping is a security regression the framework
 #: refuses to ship.
+#:
+#: Mirrors every ``governance-*`` slug in
+#: ``schemas/cache/enums/specialism.json`` — including
+#: ``governance-aware-seller``. A seller agent that composes with a
+#: buyer's governance agent reads governance context per-request; the
+#: gate must catch it claiming the specialism without wiring the
+#: StateReader, just like the spend-authority and delivery-monitor
+#: governance agents themselves.
 GOVERNANCE_SPECIALISMS: frozenset[str] = frozenset(
     {
-        "governance-spend-authority",
+        "governance-aware-seller",
         "governance-delivery-monitor",
+        "governance-spend-authority",
     }
 )
 

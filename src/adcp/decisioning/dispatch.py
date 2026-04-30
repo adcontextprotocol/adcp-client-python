@@ -66,6 +66,47 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Specialism enum — spec slugs known to the framework
+# ---------------------------------------------------------------------------
+
+#: Canonical spec specialism enum, mirrored verbatim from
+#: ``schemas/cache/enums/specialism.json``. Used by
+#: :func:`validate_platform` for typo suggestions: an unknown slug that
+#: close-matches anything in ``SPEC_SPECIALISM_ENUM`` is treated as a
+#: typo (hard fail with "did you mean…"); a slug that doesn't close-match
+#: any spec value is forward-compat-tolerated via UserWarning.
+#:
+#: Drift policy: when the spec adds a specialism, bump this constant.
+#: A unit test (``test_spec_specialism_enum_matches_schema_cache``) reads
+#: the on-disk enum and asserts equality, so out-of-band drift surfaces
+#: in CI.
+SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
+    {
+        "audience-sync",
+        "brand-rights",
+        "collection-lists",
+        "content-standards",
+        "creative-ad-server",
+        "creative-generative",
+        "creative-template",
+        "governance-aware-seller",
+        "governance-delivery-monitor",
+        "governance-spend-authority",
+        "property-lists",
+        "sales-broadcast-tv",
+        "sales-catalog-driven",
+        "sales-guaranteed",
+        "sales-non-guaranteed",
+        "sales-proposal-mode",
+        "sales-social",
+        "signal-marketplace",
+        "signal-owned",
+        "signed-requests",
+    }
+)
+
+
+# ---------------------------------------------------------------------------
 # REQUIRED_METHODS_PER_SPECIALISM — what each specialism must implement
 # ---------------------------------------------------------------------------
 
@@ -73,16 +114,20 @@ logger = logging.getLogger(__name__)
 #: ``capabilities.specialisms`` against this map at server boot and
 #: fail-fasts when a claimed specialism is missing methods.
 #:
-#: Keyed by specialism slug (matches the AdCP wire enum in
-#: ``schemas/cache/enums/specialism.json``). v6.0 ships ``sales-*``;
-#: v6.1 adds the rest as new specialism Protocols land.
+#: Keyed by specialism slug — every key MUST also appear in
+#: :data:`SPEC_SPECIALISM_ENUM` (the on-disk spec enum). v6.0 ships
+#: enforced method coverage for the sales-* slugs the framework provides
+#: a Protocol for; non-sales spec slugs (audience-sync, signal-*,
+#: creative-*, governance-*, brand-rights, collection-lists,
+#: content-standards, property-lists) emit an "unenforced specialism"
+#: UserWarning until their per-Protocol coverage lands in v6.1+.
 #:
 #: Drift policy: when a specialism Protocol gains a required method,
-#: bump this map AND add a v6.x migration note. ``validate_platform``
-#: tolerates *unknown* specialisms (forward-compat with v6.x+ specs)
-#: but only via UserWarning — see D14 round-3.
+#: bump this map AND add a v6.x migration note. The v6.0 enforced subset
+#: is intentionally narrow — adding a method here without a Protocol
+#: behind it would break adopters mid-version.
 REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
-    # All nine sales-* specialisms share the unified hybrid SalesPlatform
+    # Five sales-* specialisms share the unified hybrid SalesPlatform
     # surface. Per the SalesPlatform docstring, every sales-* claim
     # requires the five core methods. The four optional methods
     # (get_media_buys, provide_performance_feedback,
@@ -116,25 +161,7 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "get_media_buy_delivery",
         }
     ),
-    "sales-streaming-tv": frozenset(
-        {
-            "get_products",
-            "create_media_buy",
-            "update_media_buy",
-            "sync_creatives",
-            "get_media_buy_delivery",
-        }
-    ),
     "sales-social": frozenset(
-        {
-            "get_products",
-            "create_media_buy",
-            "update_media_buy",
-            "sync_creatives",
-            "get_media_buy_delivery",
-        }
-    ),
-    "sales-exchange": frozenset(
         {
             "get_products",
             "create_media_buy",
@@ -152,22 +179,9 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "get_media_buy_delivery",
         }
     ),
-    # Catalog-driven and retail-media require the sales core PLUS
-    # sync_catalogs (to push the inventory taxonomy). v6.1 adds
-    # log_event + sync_event_sources for retail-media; for v6.0 alpha
-    # we leave those off the required list so adopters can ship sales
-    # core first.
+    # Catalog-driven requires the sales core PLUS sync_catalogs (to push
+    # the inventory taxonomy).
     "sales-catalog-driven": frozenset(
-        {
-            "get_products",
-            "create_media_buy",
-            "update_media_buy",
-            "sync_creatives",
-            "get_media_buy_delivery",
-            "sync_catalogs",
-        }
-    ),
-    "sales-retail-media": frozenset(
         {
             "get_products",
             "create_media_buy",
@@ -268,19 +282,27 @@ def validate_platform(platform: DecisioningPlatform) -> None:
                 missing.append((specialism, method_name))
 
     if unknown:
-        # Round-4 DX review: an unknown specialism that's a close
-        # spelling match to a known one is almost always a typo (e.g.,
-        # "sales-non-guarateed" missing the second 'n'). Adopters running
-        # python hello_seller.py won't see UserWarning + 0 tools as a
-        # red flag — the server boots, advertises nothing, silently 404s.
-        # Promote close matches to a hard fail with a "Did you mean…"
-        # hint; truly novel slugs still get the soft UserWarning for
-        # forward-compat with v6.x+ specs.
-        known = sorted(REQUIRED_METHODS_PER_SPECIALISM.keys())
+        # Three buckets:
+        #   - typo: close-match to any spec slug → hard fail with hint
+        #   - unenforced: spec-recognized but no method-coverage rules in
+        #     this framework version → soft UserWarning (Protocol lands
+        #     in v6.1+)
+        #   - novel: not in spec at all → forward-compat UserWarning
+        # The typo detector compares against the full spec enum (not just
+        # REQUIRED_METHODS keys) so misspelling a spec slug we don't yet
+        # enforce still surfaces as a typo.
+        spec_known = sorted(SPEC_SPECIALISM_ENUM)
         typo_suggestions: list[tuple[str, str]] = []
+        unenforced: list[str] = []
         novel: list[str] = []
         for slug in unknown:
-            close = difflib.get_close_matches(slug, known, n=1, cutoff=0.7)
+            if slug in SPEC_SPECIALISM_ENUM:
+                # Spec-recognized but not in REQUIRED_METHODS — adopter
+                # claimed a real spec slug whose Protocol hasn't shipped
+                # method-coverage rules yet.
+                unenforced.append(slug)
+                continue
+            close = difflib.get_close_matches(slug, spec_known, n=1, cutoff=0.7)
             if close:
                 typo_suggestions.append((slug, close[0]))
             else:
@@ -297,26 +319,40 @@ def validate_platform(platform: DecisioningPlatform) -> None:
                     f"that look like typos: {hints}. "
                     "Forward-compat tolerance applies only to genuinely "
                     "novel specialism slugs (not close spelling matches). "
-                    f"Known v6.0 specialisms: {known}"
+                    f"Known spec specialisms: {spec_known}"
                 ),
                 recovery="terminal",
                 details={
                     "typo_suggestions": [
                         {"claimed": slug, "did_you_mean": match} for slug, match in typo_suggestions
                     ],
-                    "known_specialisms": known,
+                    "spec_specialisms": spec_known,
                 },
+            )
+
+        if unenforced:
+            warnings.warn(
+                (
+                    f"DecisioningPlatform claims spec-recognized specialism(s) "
+                    f"{sorted(unenforced)!r} that this framework version "
+                    f"doesn't yet enforce method coverage for. The claim is "
+                    f"valid; required-method validation is skipped until the "
+                    f"per-Protocol coverage lands. Implement the spec methods "
+                    f"on your platform subclass so buyers don't 404."
+                ),
+                UserWarning,
+                stacklevel=2,
             )
 
         if novel:
             warnings.warn(
                 (
                     f"DecisioningPlatform claims novel specialism(s) "
-                    f"{sorted(novel)!r}. Your framework version predates "
-                    f"the spec, OR you're piloting a future specialism. "
-                    f"Required-method validation skipped; tools/list will "
-                    f"advertise the spec set this framework version knows. "
-                    f"Known v6.0 specialisms: {known}"
+                    f"{sorted(novel)!r} that aren't in the spec enum at "
+                    f"schemas/cache/enums/specialism.json. Your framework "
+                    f"version predates the spec, OR you're piloting a future "
+                    f"specialism. Required-method validation skipped. "
+                    f"Known spec specialisms: {spec_known}"
                 ),
                 UserWarning,
                 stacklevel=2,
@@ -750,11 +786,16 @@ async def _project_handoff(
     _BACKGROUND_HANDOFF_TASKS.add(bg_task)
     bg_task.add_done_callback(_BACKGROUND_HANDOFF_TASKS.discard)
 
-    # Wire ``Submitted`` envelope per spec.
+    # Wire ``Submitted`` envelope per
+    # ``schemas/cache/core/protocol-envelope.json``: only ``task_id`` +
+    # ``status`` are framework-emitted at this layer; the per-tool
+    # ``payload`` is empty for the submitted state. ``task_type`` is
+    # deliberately NOT on the wire — it lives on TaskRecord for
+    # ``tasks/get`` reads only, since the Python method name leaking to
+    # buyers would couple the wire to handler-internal naming.
     return {
         "task_id": task_id,
         "status": "submitted",
-        "task_type": method_name,
     }
 
 
@@ -768,6 +809,7 @@ _BACKGROUND_HANDOFF_TASKS: set[asyncio.Task[None]] = set()
 
 __all__ = [
     "REQUIRED_METHODS_PER_SPECIALISM",
+    "SPEC_SPECIALISM_ENUM",
     "compose_caller_identity",
     "validate_platform",
 ]

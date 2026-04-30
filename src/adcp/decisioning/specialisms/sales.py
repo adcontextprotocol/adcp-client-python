@@ -1,13 +1,14 @@
-"""SalesPlatform Protocol — covers all nine ``sales-*`` specialisms.
+"""SalesPlatform Protocol — covers every ``sales-*`` specialism.
 
-A platform claiming any of ``sales-non-guaranteed``, ``sales-guaranteed``,
-``sales-broadcast-tv``, ``sales-streaming-tv``, ``sales-social``,
-``sales-exchange``, ``sales-proposal-mode``, ``sales-catalog-driven``,
-``sales-retail-media`` implements the methods on this Protocol. The
-unified hybrid shape collapses 14 method names from v1's dual-method
-design (``createMediaBuy`` + ``createMediaBuyTask``) into 7: each
-mutating tool returns ``SalesResult[TSuccess]`` so adopters branch per
-call between the sync fast path and the HITL slow path.
+A platform claiming any of the spec ``sales-*`` slugs
+(``sales-non-guaranteed``, ``sales-guaranteed``, ``sales-broadcast-tv``,
+``sales-social``, ``sales-proposal-mode``, ``sales-catalog-driven``)
+implements the methods on this Protocol. The slugs mirror
+``schemas/cache/enums/specialism.json``. The unified hybrid shape
+collapses 14 method names from v1's dual-method design
+(``createMediaBuy`` + ``createMediaBuyTask``) into 7: each mutating
+tool returns ``SalesResult[TSuccess]`` so adopters branch per call
+between the sync fast path and the HITL slow path.
 
 Required methods (every sales-* specialism):
 
@@ -24,11 +25,8 @@ docstrings):
 * :meth:`provide_performance_feedback`
 * :meth:`list_creative_formats`
 * :meth:`list_creatives`
-* :meth:`sync_catalogs` — required when claiming ``sales-catalog-driven``
-  or ``sales-retail-media``
-* :meth:`log_event` — required when claiming ``sales-retail-media``
-* :meth:`sync_event_sources` — required when claiming
-  ``sales-retail-media``
+* :meth:`sync_catalogs` — required when claiming
+  ``sales-catalog-driven``
 
 The framework's :func:`validate_platform` walks ``capabilities.specialisms``
 and confirms each specialism's required methods exist on the platform

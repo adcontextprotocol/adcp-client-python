@@ -27,6 +27,7 @@ from adcp.decisioning import (
 )
 from adcp.decisioning.dispatch import (
     REQUIRED_METHODS_PER_SPECIALISM,
+    SPEC_SPECIALISM_ENUM,
     _build_request_context,
     _invoke_platform_method,
     _project_handoff,
@@ -222,7 +223,11 @@ def test_validate_platform_empty_specialisms_passes() -> None:
 
 def test_required_methods_per_specialism_pinned_for_sales() -> None:
     """Contract test — locks the sales core method set so future
-    spec churn surfaces as a visible test failure."""
+    spec churn surfaces as a visible test failure. Slugs covered are
+    only those in the spec enum that the v6.0 framework enforces
+    method coverage for; non-sales spec slugs (signal-*, audience-sync,
+    creative-*, governance-*) emit "unenforced specialism" UserWarning
+    until their per-Protocol coverage lands in v6.1+."""
     expected_core = {
         "get_products",
         "create_media_buy",
@@ -234,12 +239,76 @@ def test_required_methods_per_specialism_pinned_for_sales() -> None:
         "sales-non-guaranteed",
         "sales-guaranteed",
         "sales-broadcast-tv",
-        "sales-streaming-tv",
         "sales-social",
-        "sales-exchange",
         "sales-proposal-mode",
     ):
         assert REQUIRED_METHODS_PER_SPECIALISM[slug] == expected_core, f"sales core drift on {slug}"
+
+
+def test_required_methods_only_contains_spec_slugs() -> None:
+    """Every key in REQUIRED_METHODS_PER_SPECIALISM MUST be a real
+    spec specialism slug. Round-5 Emma review: shipping invented slugs
+    (e.g. ``sales-streaming-tv``) made adopters claiming non-spec
+    specialisms pass validation — silent buyer compatibility break."""
+    invented = set(REQUIRED_METHODS_PER_SPECIALISM.keys()) - SPEC_SPECIALISM_ENUM
+    assert invented == set(), (
+        f"REQUIRED_METHODS_PER_SPECIALISM contains slugs not in the spec "
+        f"enum: {sorted(invented)}. Either drop them or add the slug to "
+        f"schemas/cache/enums/specialism.json upstream."
+    )
+
+
+def test_spec_specialism_enum_matches_schema_cache() -> None:
+    """SPEC_SPECIALISM_ENUM mirrors ``schemas/cache/enums/specialism.json``
+    verbatim. CI catches out-of-band drift when the schema cache
+    refreshes from upstream."""
+    import json
+    from pathlib import Path
+
+    schema_path = Path(__file__).parent.parent / "schemas" / "cache" / "enums" / "specialism.json"
+    with schema_path.open() as f:
+        on_disk = frozenset(json.load(f)["enum"])
+    assert SPEC_SPECIALISM_ENUM == on_disk, (
+        f"SPEC_SPECIALISM_ENUM drifted from on-disk spec enum. "
+        f"Missing from constant: {sorted(on_disk - SPEC_SPECIALISM_ENUM)}; "
+        f"extra in constant: {sorted(SPEC_SPECIALISM_ENUM - on_disk)}."
+    )
+
+
+def test_validate_platform_warns_on_unenforced_spec_specialism() -> None:
+    """Spec-recognized specialism that the v6.0 framework doesn't yet
+    enforce (e.g. ``signal-marketplace``) emits an "unenforced
+    specialism" UserWarning — distinct from the "novel" warning, since
+    it's a real claim, just not method-checked."""
+
+    class _UnenforcedSpecPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["signal-marketplace"])
+        accounts = SingletonAccounts(account_id="hello")
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        validate_platform(_UnenforcedSpecPlatform())
+    matched = [w for w in caught if "signal-marketplace" in str(w.message)]
+    assert len(matched) == 1
+    assert "spec-recognized" in str(matched[0].message)
+
+
+def test_validate_platform_typo_check_uses_spec_enum() -> None:
+    """Typo detector matches against the full spec enum, not just
+    REQUIRED_METHODS keys. A typo of ``signal-marketplace`` (a spec
+    slug we don't yet enforce coverage for) still trips the hard fail
+    with a "did you mean…" hint."""
+
+    class _TypoOfSpecSlugPlatform(DecisioningPlatform):
+        # Missing 'l' in "marketplace".
+        capabilities = DecisioningCapabilities(specialisms=["signal-marketpace"])
+        accounts = SingletonAccounts(account_id="hello")
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_platform(_TypoOfSpecSlugPlatform())
+    assert exc_info.value.code == "INVALID_REQUEST"
+    msg = str(exc_info.value).lower()
+    assert "did you mean 'signal-marketplace'" in msg
 
 
 # ---- compose_caller_identity (D9 round-3) ----
@@ -630,8 +699,11 @@ async def test_invoke_with_arg_projector_uses_kwargs(
 async def test_handoff_returns_submitted_envelope(
     executor: ThreadPoolExecutor,
 ) -> None:
-    """The synchronous return is the wire Submitted envelope —
-    {task_id, status, task_type}. Buyer pattern-matches on shape."""
+    """The synchronous return is the wire Submitted envelope per
+    ``schemas/cache/core/protocol-envelope.json`` — only ``task_id`` +
+    ``status``. ``task_type`` lives on TaskRecord (for tasks/get
+    reads) but never on the wire envelope; leaking the Python method
+    name would couple the wire to handler-internal naming."""
     registry = InMemoryTaskRegistry()
     ctx = _build_request_context(ToolContext(), Account(id="acct_a"), None)
     completed = asyncio.Event()
@@ -649,8 +721,10 @@ async def test_handoff_returns_submitted_envelope(
         executor=executor,
     )
     assert envelope["status"] == "submitted"
-    assert envelope["task_type"] == "create_media_buy"
     assert envelope["task_id"].startswith("task_")
+    # Spec: Submitted wire envelope is {task_id, status} only.
+    assert "task_type" not in envelope
+    assert set(envelope.keys()) == {"task_id", "status"}
 
     # Wait for the background task to complete so the assertion below
     # is deterministic. (CI may schedule background tasks slowly.)
@@ -658,9 +732,12 @@ async def test_handoff_returns_submitted_envelope(
     # Yield once more so the registry.complete() call lands.
     await asyncio.sleep(0.05)
 
+    # task_type IS on TaskRecord (registry surface) — buyer-side
+    # tasks/get round-trips it; handler-internal use only.
     rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
     assert rec is not None
     assert rec["state"] == "completed"
+    assert rec["task_type"] == "create_media_buy"
     assert rec["result"] == {"media_buy_id": "mb_1"}
 
 
@@ -859,7 +936,9 @@ async def test_handoff_invoked_via_invoke_platform_method(
         executor=executor,
         registry=registry,
     )
-    # Returned the wire envelope, NOT the handoff marker.
+    # Returned the wire envelope, NOT the handoff marker. The wire
+    # shape is {task_id, status} only — task_type lives on the
+    # registry for tasks/get reads.
     assert isinstance(result, dict)
     assert result["status"] == "submitted"
-    assert result["task_type"] == "create_media_buy"
+    assert "task_type" not in result

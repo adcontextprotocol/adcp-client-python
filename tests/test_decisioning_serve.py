@@ -231,12 +231,55 @@ def test_create_raises_when_inmemory_subclass_used_in_production() -> None:
     assert "_InstrumentedInMemoryRegistry" in str(exc_info.value)
 
 
-def test_create_raises_when_duck_typed_non_durable_used_in_production() -> None:
-    """Custom registry with no is_durable marker (defaults False via
-    getattr) trips the gate. Adopters MUST explicitly opt into
-    is_durable=True; safe-by-default."""
+def test_create_raises_when_registry_missing_is_durable_marker() -> None:
+    """Round-5 Emma P1: a custom registry without the ``is_durable``
+    marker fails fast at server boot — the framework refuses to guess
+    whether the registry is durable. The diagnostic distinguishes
+    "marker absent" (programmer error) from "marker=False in prod"
+    (deployment misconfig). Without this guard, the prod gate's
+    ``getattr(..., False)`` would treat the missing marker as
+    non-durable and emit a misleading "non-durable refused" error."""
 
     class _BareRegistry:
+        # NO is_durable declared — programmer error.
+
+        async def issue(self, *, account_id, task_type):
+            return "task_x"
+
+        async def update_progress(self, task_id, progress):
+            pass
+
+        async def complete(self, task_id, result):
+            pass
+
+        async def fail(self, task_id, error):
+            pass
+
+        async def get(self, task_id, *, expected_account_id=None):
+            return None
+
+    platform = _BarePlatform()
+    # Fires regardless of env — the marker is the programmer-facing
+    # contract, not the deployment gate.
+    with patch.dict(os.environ, {"ADCP_ENV": "dev"}):
+        os.environ.pop("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", None)
+        with pytest.raises(AdcpError) as exc_info:
+            create_adcp_server_from_platform(
+                platform, registry=_BareRegistry()  # type: ignore[arg-type]
+            )
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert "is_durable" in str(exc_info.value)
+    assert "missing" in str(exc_info.value).lower()
+
+
+def test_create_raises_when_duck_typed_non_durable_used_in_production() -> None:
+    """Custom registry that explicitly declares is_durable=False trips
+    the prod gate. Distinct from the missing-marker case above — this
+    one is a deployment misconfig, not a programmer error."""
+
+    class _ExplicitlyNonDurableRegistry:
+        is_durable = False  # explicit opt-out, just no opt-in env var
+
         async def issue(self, *, account_id, task_type):
             return "task_x"
 
@@ -257,9 +300,11 @@ def test_create_raises_when_duck_typed_non_durable_used_in_production() -> None:
         os.environ.pop("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", None)
         with pytest.raises(AdcpError) as exc_info:
             create_adcp_server_from_platform(
-                platform, registry=_BareRegistry()  # type: ignore[arg-type]
+                platform,
+                registry=_ExplicitlyNonDurableRegistry(),  # type: ignore[arg-type]
             )
     assert exc_info.value.code == "INVALID_REQUEST"
+    assert "Non-durable" in str(exc_info.value)
 
 
 def test_create_passes_in_dev_env_with_default_registry() -> None:

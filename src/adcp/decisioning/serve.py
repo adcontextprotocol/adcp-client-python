@@ -151,7 +151,32 @@ def create_adcp_server_from_platform(
     #      defaulting safe.
     if registry is None:
         registry = InMemoryTaskRegistry()
+    # Round-5 Emma P1: an adopter duck-typing TaskRegistry without the
+    # is_durable marker would treat the missing attribute as False and
+    # silently trip the production gate — operator sees "non-durable
+    # registry refused" with no clear cause. Distinguish "marker
+    # absent" from "marker present and False" so the diagnostic
+    # points at the real problem.
+    has_marker = hasattr(type(registry), "is_durable") or hasattr(registry, "is_durable")
     is_durable = bool(getattr(registry, "is_durable", False))
+    if not has_marker:
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                f"TaskRegistry impl {type(registry).__name__!r} is missing "
+                "the ``is_durable: ClassVar[bool]`` marker. The framework's "
+                "production-mode gate requires every registry to declare "
+                "durability explicitly — set ``is_durable = True`` (durable "
+                "backing store like Postgres/Redis) or ``is_durable = False`` "
+                "(in-memory / lossy). Without the marker, the gate would "
+                "silent-deny the registry with a confusing 'non-durable' "
+                "error."
+            ),
+            recovery="terminal",
+            details={
+                "registry": type(registry).__name__,
+            },
+        )
     if not is_durable and _is_production_env():
         opt_in = os.environ.get("ADCP_DECISIONING_ALLOW_INMEMORY_TASKS", "").strip()
         if opt_in != "1":

@@ -213,6 +213,49 @@ async def test_complete_unknown_task_raises() -> None:
         await reg.complete("nonexistent", {"x": 1})
 
 
+@pytest.mark.asyncio
+async def test_update_progress_after_completed_is_dropped(caplog) -> None:
+    """Round-5 Emma P1: a straggler progress update arriving after
+    ``complete`` MUST NOT mutate the record. ``tasks/get`` already
+    returned the terminal payload; rewriting the row would resurrect
+    a "working" appearance against any reader holding the prior
+    state."""
+    reg = InMemoryTaskRegistry()
+    tid = await reg.issue(account_id="acct_a", task_type="create_media_buy")
+    await reg.complete(tid, {"media_buy_id": "mb_1"})
+
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="adcp.decisioning.task_registry"):
+        await reg.update_progress(tid, {"step": 99})
+
+    rec = await reg.get(tid, expected_account_id="acct_a")
+    assert rec is not None
+    assert rec["state"] == "completed"
+    assert rec["progress"] is None  # drop, not write
+    assert rec["result"] == {"media_buy_id": "mb_1"}
+    # Operator-visible signal — drop without trace would hide
+    # programmer bugs.
+    assert any("terminal state" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_update_progress_after_failed_is_dropped() -> None:
+    """Same guard as completed: a straggler progress write against a
+    failed task is dropped, not applied."""
+    reg = InMemoryTaskRegistry()
+    tid = await reg.issue(account_id="acct_a", task_type="create_media_buy")
+    await reg.fail(tid, {"code": "INTERNAL_ERROR", "message": "boom"})
+
+    await reg.update_progress(tid, {"step": 50})
+
+    rec = await reg.get(tid, expected_account_id="acct_a")
+    assert rec is not None
+    assert rec["state"] == "failed"
+    assert rec["progress"] is None
+    assert rec["error"] == {"code": "INTERNAL_ERROR", "message": "boom"}
+
+
 # ---- fail ----
 
 

@@ -237,10 +237,11 @@ async def test_create_media_buy_handoff_path_returns_submitted_envelope(
         ),
         ToolContext(),
     )
-    # Wire envelope, not Pydantic.
+    # Wire envelope, not Pydantic. Spec submitted shape is
+    # {task_id, status} only.
     assert isinstance(result, dict)
     assert result["status"] == "submitted"
-    assert result["task_type"] == "create_media_buy"
+    assert "task_type" not in result
 
 
 # ---- update_media_buy — arg-projected (media_buy_id, patch, ctx) ----
