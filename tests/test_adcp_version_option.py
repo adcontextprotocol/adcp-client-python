@@ -109,6 +109,10 @@ def test_resolve_same_major_normalized(version: str, expected: str) -> None:
         ("3.1.0-rc.1", "3.1-rc.1"),
         ("3.1.2-beta.5", "3.1-beta.5"),
         ("10.20.30", "10.20"),
+        # Build metadata stripped (not part of contract).
+        ("3.0.1+canary", "3.0"),
+        ("3.0+exp.sha.5114f85", "3.0"),
+        ("3.1.0-beta+sha.5", "3.1-beta"),
     ],
 )
 def test_normalize_strips_patch_keeps_prerelease(input: str, expected: str) -> None:

@@ -23,10 +23,6 @@ spec's three-tier model. See specs/version-negotiation.md upstream.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 # Release-precision versions this SDK can speak. Patch-level pinning is
 # intentionally absent — patches don't change the wire contract by
@@ -39,29 +35,38 @@ COMPATIBLE_ADCP_VERSIONS: tuple[str, ...] = ("3.0", "3.1")
 ADCP_MAJOR_VERSION: int = 3
 
 # Matches release-precision (3.0, 3.1) and patch-precision (3.0.0,
-# 3.0.1) semver, with optional pre-release tag (3.1-beta, 3.1.0-rc.1).
+# 3.0.1) semver, with optional pre-release tag (3.1-beta, 3.1.0-rc.1)
+# and optional build metadata (3.0.1+canary, 3.1.0-beta+exp.sha.5114f85).
 # Captures the major as group 1.
-_VERSION_RE: re.Pattern[str] = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?(?:-[a-zA-Z0-9.-]+)?$")
+_VERSION_RE: re.Pattern[str] = re.compile(
+    r"^(\d+)\.(\d+)(?:\.(\d+))?(?:-[a-zA-Z0-9.-]+)?(?:\+[a-zA-Z0-9.-]+)?$"
+)
 
 
 def normalize_to_release_precision(version: str) -> str:
-    """Strip the patch component from a semver string for wire emission.
+    """Strip patch component (and build metadata) for wire emission.
 
     Per the AdCP version-negotiation spec
-    (`core/version-envelope.json`), wire values for ``adcp_version``
+    (``core/version-envelope.json``), wire values for ``adcp_version``
     are release-precision only. SDKs that read full-semver values
     from bundle metadata (``ADCP_VERSION`` file, ``published_version``,
     etc.) MUST normalize before emitting on the wire — meta-field
     values are not valid wire values.
 
+    Pre-release tags are preserved (they describe the release line);
+    build metadata is dropped (it's purely a build identifier, never
+    part of a contract).
+
     Examples:
 
-    - ``"3.0"``       → ``"3.0"`` (already release-precision)
-    - ``"3.0.0"``     → ``"3.0"``
-    - ``"3.0.1"``     → ``"3.0"``
-    - ``"3.1-beta"``  → ``"3.1-beta"``
-    - ``"3.1.0-beta"`` → ``"3.1-beta"``
-    - ``"3.1.0-rc.1"`` → ``"3.1-rc.1"``
+    - ``"3.0"``              → ``"3.0"`` (already release-precision)
+    - ``"3.0.0"``            → ``"3.0"``
+    - ``"3.0.1"``            → ``"3.0"``
+    - ``"3.1-beta"``         → ``"3.1-beta"``
+    - ``"3.1.0-beta"``       → ``"3.1-beta"``
+    - ``"3.1.0-rc.1"``       → ``"3.1-rc.1"``
+    - ``"3.0.1+canary"``     → ``"3.0"``
+    - ``"3.1.0-beta+sha.5"`` → ``"3.1-beta"``
 
     Raises :class:`ValueError` on unparseable strings.
     """
@@ -69,10 +74,13 @@ def normalize_to_release_precision(version: str) -> str:
     if match is None:
         raise ValueError(f"adcp_version {version!r} is not a valid semver-shaped string.")
     major, release = match.group(1), match.group(2)
-    # Pre-release tag is whatever comes after the optional patch.
-    suffix_start = match.end(3) if match.group(3) is not None else match.end(2)
-    pre_release = version[suffix_start:]  # includes leading "-" or ""
-    return f"{major}.{release}{pre_release}"
+    # Skip past patch component (group 3) if present, then take whatever's
+    # left (pre-release tag and/or build metadata) and drop the +build half.
+    rest_start = match.end(3) if match.group(3) is not None else match.end(2)
+    rest = version[rest_start:]
+    if "+" in rest:
+        rest = rest.split("+", 1)[0]
+    return f"{major}.{release}{rest}"
 
 
 def parse_adcp_major_version(version: str) -> int:

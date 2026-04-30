@@ -431,9 +431,18 @@ class ADCPClient:
                 packaged with the wheel). Cross-major pins raise
                 :class:`ConfigurationError` at construction; install
                 the SDK major that targets your wire version instead.
-                Patch-precision strings (``"3.0.1"``) are accepted but
-                patches are not part of the negotiation contract per
-                spec — use release-precision in production.
+                Patch-precision strings (``"3.0.1"``) and build
+                metadata (``"3.0.1+canary"``) are accepted at construction
+                but normalized to release-precision before wire emission
+                per the spec — patches and build metadata are not part
+                of the negotiation contract. ``get_adcp_version()``
+                returns the normalized form.
+
+                Caller-supplied ``adcp_version`` on a per-call params
+                dict wins over the constructor pin: the enricher is
+                the default, not an override. Once Stage 3 threads
+                schema selection through, this becomes a supported
+                per-call override; today it's plumbing-level only.
         """
         self._adcp_version: str = resolve_adcp_version(adcp_version)
         self.agent_config = agent_config

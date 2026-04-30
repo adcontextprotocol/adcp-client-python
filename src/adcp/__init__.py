@@ -43,6 +43,7 @@ from adcp.exceptions import (  # noqa: F401
     ADCPToolNotFoundError,
     ADCPWebhookError,
     ADCPWebhookSignatureError,
+    ConfigurationError,
     IdempotencyConflictError,
     IdempotencyExpiredError,
     IdempotencyUnsupportedError,
@@ -838,6 +839,7 @@ __all__ = [
     "AdagentsValidationError",
     "AdagentsNotFoundError",
     "AdagentsTimeoutError",
+    "ConfigurationError",
     "RegistryError",
     # Validation utilities
     "SchemaValidationError",
