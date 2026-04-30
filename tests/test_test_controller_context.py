@@ -187,6 +187,76 @@ def test_dispatcher_finds_override_on_intermediate_base():
 # ---------------------------------------------------------------------------
 
 
+async def test_dispatch_echoes_wire_context_to_response():
+    """Per the comply-test-controller-response schema, the seller MUST
+    echo the wire ``context`` field on every response. Storyboards
+    thread state across steps via the context object — sellers that
+    don't echo break the runner's ``$context.<field>`` resolution for
+    downstream steps. The dispatcher injects the wire context after
+    the store returns; stores that explicitly populate ``context``
+    themselves win."""
+
+    class _Store(TestControllerStore):
+        async def force_account_status(self, account_id: str, status: str) -> dict[str, Any]:
+            return {"previous_state": "active", "current_state": status}
+
+    wire_context = {"correlation_id": "story-123", "forced_task_id": "t_abc"}
+    result = await _handle_test_controller(
+        _Store(),
+        {
+            "scenario": "force_account_status",
+            "params": {"account_id": "acc-1", "status": "suspended"},
+            "context": wire_context,
+        },
+    )
+    assert (
+        result["context"] == wire_context
+    ), f"context must be echoed verbatim; got: {result.get('context')}"
+
+
+async def test_dispatch_does_not_overwrite_store_supplied_context():
+    """A store that explicitly populates ``context`` in its result
+    overrides the auto-echo — e.g., when the store wants to mutate
+    correlation_id for instrumentation purposes."""
+
+    class _Store(TestControllerStore):
+        async def force_account_status(self, account_id: str, status: str) -> dict[str, Any]:
+            return {
+                "previous_state": "active",
+                "current_state": status,
+                "context": {"correlation_id": "store-overrode-it"},
+            }
+
+    result = await _handle_test_controller(
+        _Store(),
+        {
+            "scenario": "force_account_status",
+            "params": {"account_id": "acc-1", "status": "suspended"},
+            "context": {"correlation_id": "wire-original"},
+        },
+    )
+    assert result["context"] == {"correlation_id": "store-overrode-it"}
+
+
+async def test_dispatch_skips_context_echo_when_request_has_no_context():
+    """When the wire request has no ``context`` field, the dispatcher
+    must NOT inject a phantom ``context: {}``. Storyboards relying on
+    presence-detection get the right answer."""
+
+    class _Store(TestControllerStore):
+        async def force_account_status(self, account_id: str, status: str) -> dict[str, Any]:
+            return {"previous_state": "active", "current_state": status}
+
+    result = await _handle_test_controller(
+        _Store(),
+        {
+            "scenario": "force_account_status",
+            "params": {"account_id": "acc-1", "status": "suspended"},
+        },
+    )
+    assert "context" not in result
+
+
 async def test_store_with_context_kwarg_receives_the_context():
     """The primary #227 scenario: a store method that accepts ``context``
     receives the ToolContext the caller passed into the dispatcher."""
@@ -318,14 +388,11 @@ async def test_register_test_controller_threads_context_factory():
     tool = mcp._tool_manager._tools["comply_test_controller"]
     # FastMCP's tool wrapper takes the function args as kwargs.
     fn = tool.fn  # type: ignore[attr-defined]
-    result_json = await fn(
+    result = await fn(
         scenario="force_account_status",
         params={"account_id": "acc-1", "status": "suspended"},
     )
 
-    import json
-
-    result = json.loads(result_json)
     assert result["success"] is True
     assert result["current_state"] == "suspended"
     # The factory ran, built a ToolContext, and the store saw the header-
@@ -338,6 +405,27 @@ async def test_register_test_controller_threads_context_factory():
     }
     # And the tool name was populated by RequestMetadata.
     assert received[0].metadata["tool_name"] == "comply_test_controller"
+
+
+async def test_register_test_controller_list_scenarios_returns_dict():
+    """Regression for #314 — comply_test_controller must return a dict (not a
+    JSON string) through the FastMCP registration path so the JS runner's
+    structuredContent unwrapper can read data.success and data.scenarios."""
+
+    class _Store(TestControllerStore):
+        async def force_account_status(self, account_id: str, status: str) -> dict[str, Any]:
+            return {"previous_state": "active", "current_state": status}
+
+    mcp = create_mcp_server(_MinimalHandler(), name="test-agent")
+    register_test_controller(mcp, _Store())
+
+    tool = mcp._tool_manager._tools["comply_test_controller"]
+    fn = tool.fn  # type: ignore[attr-defined]
+    result = await fn(scenario="list_scenarios")
+
+    assert isinstance(result, dict), "must be a dict, not a JSON string"
+    assert result["success"] is True
+    assert "force_account_status" in result["scenarios"]
 
 
 async def test_register_test_controller_rejects_non_toolcontext_from_factory():

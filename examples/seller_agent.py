@@ -53,6 +53,9 @@ _DEFAULT_ACCOUNT_ID = "__default__"
 
 # Test-controller state (force_*/seed_* scenarios only)
 plans: dict[str, dict[str, Any]] = {}
+# Seeded creative formats keyed by the string format ID the storyboard supplies.
+# list_creative_formats merges these in so storyboard references resolve.
+seeded_creative_formats: dict[str, dict[str, Any]] = {}
 # Single-shot directives registered by force_create_media_buy_arm; keyed by account_id.
 pending_directives: dict[str, dict[str, Any]] = {}
 # Tasks registered when create_media_buy consumes a 'submitted' directive; keyed by task_id.
@@ -126,10 +129,15 @@ class DemoSeller(ADCPHandler):
                 # in 3.0.1) live on the dynamic list_scenarios response and
                 # are reported there — not advertised here. Once the
                 # capabilities schema's enum catches up, the rest land too.
+                # force_session_status is schema-allowed even for media_buy
+                # sellers; DemoStore provides a stub so list_scenarios
+                # includes it and the storyboard runner's controller
+                # detection check succeeds.
                 "scenarios": [
                     "force_account_status",
                     "force_media_buy_status",
                     "force_creative_status",
+                    "force_session_status",
                     "simulate_delivery",
                     "simulate_budget_spend",
                 ],
@@ -254,14 +262,95 @@ class DemoSeller(ADCPHandler):
                     field="product_id",
                     suggestion="Use get_products to discover available products",
                 )
-            packages.append(
-                {
-                    "package_id": f"pkg-{uuid.uuid4().hex[:8]}",
-                    "product_id": product_id,
-                    "pricing_option_id": pkg.get("pricing_option_id"),
-                    "budget": pkg.get("budget"),
-                }
-            )
+            # Inspect per-package measurement_terms and reject aggressive
+            # buyer-imposed terms. The demo seller declares
+            # delivery_measurement.provider == "internal" — any non-empty
+            # billing_measurement is the buyer trying to dictate terms the
+            # seller can't honor. The storyboard's
+            # create_media_buy_aggressive_terms step sends one of:
+            #   - billing_measurement.vendor != seller's internal counter
+            #   - billing_measurement.max_variance_percent below realistic
+            #     tolerance (< 10)
+            #   - billing_measurement.measurement_window the seller doesn't
+            #     support (any non-empty window — demo seller has no window
+            #     declared on its products)
+            # Any one of those should trip TERMS_REJECTED with
+            # recovery=correctable so the buyer can retry with workable
+            # terms. The legacy "viewability_threshold > 80" demo
+            # convention also rejects so storyboards using either
+            # format see the same outcome.
+            # Defensive coercion — storyboard fixtures occasionally send
+            # measurement_terms as a string or other non-dict shape; treat
+            # that as "no terms supplied" rather than crashing the seller.
+            raw_terms = pkg.get("measurement_terms")
+            pkg_terms = raw_terms if isinstance(raw_terms, dict) else {}
+            raw_billing = pkg_terms.get("billing_measurement")
+            billing = raw_billing if isinstance(raw_billing, dict) else {}
+            rejection: str | None = None
+            field_path: str | None = None
+            # Accept the seller's own domain or any "internal" indicator —
+            # those are buyer-relaxed terms ("yes, use the seller's count").
+            # Reject only third-party vendor domains.
+            seller_vendor_domains = {"example.com", "internal"}
+            vendor = billing.get("vendor")
+            vendor_domain = vendor.get("domain") if isinstance(vendor, dict) else None
+            if (
+                isinstance(vendor, dict)
+                and vendor_domain
+                and vendor_domain not in seller_vendor_domains
+            ):
+                rejection = (
+                    f"Vendor '{vendor_domain}' is not supported " "(seller uses internal counter)"
+                )
+                field_path = "measurement_terms.billing_measurement.vendor"
+            elif (
+                isinstance(billing.get("max_variance_percent"), int | float)
+                and billing["max_variance_percent"] < 10
+            ):
+                rejection = (
+                    f"max_variance_percent {billing['max_variance_percent']} is below "
+                    "the seller's minimum tolerance of 10%"
+                )
+                field_path = "measurement_terms.billing_measurement.max_variance_percent"
+            elif billing.get("measurement_window") and billing["measurement_window"] not in {
+                "live",
+                "c3",
+                "c7",
+                "final",
+            }:
+                # Common windows are accepted; uncommon strict ones (post_sivt,
+                # post_ivt, downloads_30d, etc.) are not supported by the demo
+                # seller.
+                rejection = (
+                    f"measurement_window '{billing['measurement_window']}' is not "
+                    "supported by this seller"
+                )
+                field_path = "measurement_terms.billing_measurement.measurement_window"
+            elif (
+                isinstance(pkg_terms.get("viewability_threshold"), int | float)
+                and pkg_terms["viewability_threshold"] > 80
+            ):
+                rejection = "Viewability threshold exceeds maximum supported value of 80%"
+                field_path = "measurement_terms.viewability_threshold"
+            if rejection:
+                return adcp_error(
+                    "TERMS_REJECTED",
+                    rejection,
+                    field=field_path,
+                    recovery="correctable",
+                )
+
+            pkg_obj: dict[str, Any] = {
+                "package_id": f"pkg-{uuid.uuid4().hex[:8]}",
+                "product_id": product_id,
+                "pricing_option_id": pkg.get("pricing_option_id"),
+                "budget": pkg.get("budget"),
+            }
+            # Persist overlay and creative fields so get_media_buys can round-trip them.
+            for field in ("targeting_overlay", "creative_assignments", "creatives"):
+                if pkg.get(field) is not None:
+                    pkg_obj[field] = pkg[field]
+            packages.append(pkg_obj)
 
         has_creatives = any(
             pkg.get("creative_assignments") or pkg.get("creatives") for pkg in params["packages"]
@@ -312,7 +401,8 @@ class DemoSeller(ADCPHandler):
             return adcp_error("CONFLICT", "Revision mismatch - refetch and retry")
 
         if params.get("packages"):
-            existing_pkg_ids = {p["package_id"] for p in mb.get("packages", [])}
+            existing_pkgs = {p["package_id"]: p for p in mb.get("packages", [])}
+            existing_pkg_ids = set(existing_pkgs.keys())
             for pkg_update in params["packages"]:
                 pkg_id = pkg_update.get("package_id")
                 if pkg_id and pkg_id not in existing_pkg_ids:
@@ -321,6 +411,13 @@ class DemoSeller(ADCPHandler):
                         f"Package '{pkg_id}' not found in media buy {mb_id}",
                         field="package_id",
                     )
+                # Apply targeting and creative field deltas to persisted package state
+                # so get_media_buys can round-trip property_list and overlay updates.
+                if pkg_id and pkg_id in existing_pkgs:
+                    persisted = existing_pkgs[pkg_id]
+                    for field in ("targeting_overlay", "creative_assignments", "creatives"):
+                        if field in pkg_update:
+                            persisted[field] = pkg_update[field]
 
         status = mb["status"]
         if status == "pending_creatives" and params.get("packages"):
@@ -393,6 +490,7 @@ class DemoSeller(ADCPHandler):
                 ],
             },
         ]
+        all_formats = all_formats + list(seeded_creative_formats.values())
         filter_ids = params.get("format_ids")
         if filter_ids:
             wanted = {(fid.get("agent_url"), fid["id"]) for fid in filter_ids if "id" in fid}
@@ -531,6 +629,20 @@ class DemoStore(TestControllerStore):
     ) -> dict[str, Any]:
         return {"simulated": {"spend_percentage": spend_percentage}}
 
+    async def force_session_status(
+        self,
+        session_id: str,
+        status: str,
+        termination_reason: str | None = None,
+        *,
+        context: Any = None,
+    ) -> dict[str, Any]:
+        # DemoSeller has no SI session state; return a canned transition so
+        # the storyboard runner's controller-detection probe succeeds and the
+        # force_session_status storyboard can run (it will simply report the
+        # canned previous_state).
+        return {"previous_state": "active", "current_state": status}
+
     async def force_create_media_buy_arm(
         self,
         arm: str,
@@ -592,6 +704,49 @@ class DemoStore(TestControllerStore):
         data = dict(fixture or {})
         pid = product_id or data.get("product_id") or f"seeded-{uuid.uuid4().hex[:8]}"
         data["product_id"] = pid
+        # Ensure schema-required fields are present so downstream validation
+        # passes even when the runner sends a minimal fixture with only
+        # product_id. Defaults are spec-valid (non-empty arrays where
+        # ``minItems: 1`` applies, format_ids carrying agent_url) so the
+        # storyboard runner's get-products-response.json validation succeeds
+        # against any product the runner seeds.
+        data.setdefault("name", pid)
+        data.setdefault("description", f"Seeded product {pid}")
+        data.setdefault("delivery_type", "non_guaranteed")
+        data.setdefault(
+            "publisher_properties",
+            [{"publisher_domain": "example.com", "selection_type": "all"}],
+        )
+        data.setdefault(
+            "format_ids",
+            [{"agent_url": AGENT_URL, "id": "display_300x250"}],
+        )
+        # Normalize any caller-supplied format_ids items that omit
+        # agent_url. Storyboard fixtures commonly send
+        # ``format_ids: [{"id": "..."}]`` — the bare id without the
+        # canonical agent_url. The schema requires both fields, so fill
+        # in the local AGENT_URL when missing.
+        data["format_ids"] = [
+            (
+                {**fmt, "agent_url": fmt.get("agent_url") or AGENT_URL}
+                if isinstance(fmt, dict)
+                else fmt
+            )
+            for fmt in data["format_ids"]
+        ]
+        data.setdefault("pricing_options", [])
+        data.setdefault(
+            "reporting_capabilities",
+            {
+                "available_metrics": ["impressions", "spend"],
+                "available_reporting_frequencies": ["hourly", "daily"],
+                "date_range_support": "date_range",
+                "supports_webhooks": False,
+                "expected_delay_minutes": 60,
+                "timezone": "UTC",
+            },
+        )
+        data.setdefault("delivery_measurement", {"provider": "internal"})
         for i, p in enumerate(PRODUCTS):
             if p.get("product_id") == pid:
                 PRODUCTS[i] = data
@@ -667,6 +822,26 @@ class DemoStore(TestControllerStore):
         data.setdefault("packages", [])
         media_buys[mb_id] = data
         return {"media_buy_id": mb_id}
+
+    async def seed_creative_format(
+        self,
+        fixture: dict[str, Any] | None = None,
+        format_id: str | None = None,
+        *,
+        context: Any = None,
+    ) -> dict[str, Any]:
+        data = dict(fixture or {})
+        fid = (
+            format_id
+            or (data.get("format_id") or {}).get("id")
+            or f"fmt-seeded-{uuid.uuid4().hex[:8]}"
+        )
+        data.setdefault("format_id", {"agent_url": AGENT_URL, "id": fid})
+        data.setdefault("name", fid)
+        data.setdefault("renders", [])
+        data.setdefault("assets", [])
+        seeded_creative_formats[fid] = data
+        return {"format_id": fid}
 
 
 if __name__ == "__main__":

@@ -60,6 +60,7 @@ SCENARIOS = [
     "seed_creative",
     "seed_plan",
     "seed_media_buy",
+    "seed_creative_format",
 ]
 
 _MAX_TASK_ID = 128
@@ -357,6 +358,23 @@ class TestControllerStore:
         """
         raise NotImplementedError
 
+    async def seed_creative_format(
+        self,
+        fixture: dict[str, Any] | None = None,
+        format_id: str | None = None,
+        *,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Pre-populate a creative format fixture for storyboard tests (AdCP 3.0.1).
+
+        The seller MUST expose the seeded format_id in list_creative_formats
+        responses for the duration of the compliance session.
+
+        Returns:
+            {"format_id": str}
+        """
+        raise NotImplementedError
+
 
 def _list_scenarios(store: TestControllerStore) -> list[str]:
     """Detect which scenarios a store actually implements.
@@ -617,6 +635,12 @@ async def _handle_test_controller(
                 media_buy_id=scenario_params.get("media_buy_id"),
                 **extra,
             )
+        elif scenario == "seed_creative_format":
+            result = await method(
+                fixture=scenario_params.get("fixture"),
+                format_id=scenario_params.get("format_id"),
+                **extra,
+            )
         else:
             return _controller_error("UNKNOWN_SCENARIO", f"Unknown scenario: {scenario}")
     except TestControllerError as e:
@@ -634,6 +658,16 @@ async def _handle_test_controller(
     # Wrap in success=True if the store didn't include it
     if isinstance(result, dict) and "success" not in result:
         result["success"] = True
+
+    # Echo the wire ``context`` field per the spec's
+    # comply-test-controller-response shape. Storyboards thread state
+    # across steps via the context object; sellers that don't echo
+    # break the storyboard runner's ``$context.<field>`` resolution
+    # for downstream steps. Skip when the store already populated
+    # ``context`` itself (an explicit override wins).
+    wire_context = params.get("context")
+    if isinstance(result, dict) and "context" not in result and isinstance(wire_context, dict):
+        result["context"] = dict(wire_context)
 
     return dict(result)
 
@@ -683,7 +717,7 @@ def register_test_controller(
     from adcp.server.base import ToolContext as _ToolContext
     from adcp.server.serve import RequestMetadata as _RequestMetadata
 
-    async def comply_test_controller(**kwargs: Any) -> str:
+    async def comply_test_controller(**kwargs: Any) -> dict[str, Any]:
         context: _ToolContext | None = None
         if context_factory is not None:
             meta = _RequestMetadata(tool_name="comply_test_controller", transport="mcp")
@@ -693,8 +727,7 @@ def register_test_controller(
                     "context_factory for comply_test_controller returned "
                     f"{type(context).__name__}, not a ToolContext instance"
                 )
-        result = await _handle_test_controller(store, kwargs, context=context)
-        return json.dumps(result)
+        return await _handle_test_controller(store, kwargs, context=context)
 
     tool = Tool.from_function(
         comply_test_controller,
