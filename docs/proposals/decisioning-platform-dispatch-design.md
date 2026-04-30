@@ -949,6 +949,39 @@ through `ctx.account.metadata` (or worse, through their own
 re-implementation of the workflow store). Locking the typed surface
 in v6.0 lets adopters write the right shape from day one.
 
+**Framework-only construction (parity with TS `to-context.ts`).**
+The `RequestContext` is supplied by the framework, never by the
+adopter. The TS port pins this in `to-context.ts`'s file docstring
+("Adopters should never construct a `RequestContext` themselves; the
+framework supplies one to every specialism method call."). Mirror in
+Python:
+
+* `RequestContext.__init__` is left as the dataclass-generated default
+  (necessary for `dataclasses.replace(ctx, ...)` in tests), but the
+  class docstring carries an `@internal-construction` note: "Adopter
+  code receives a `RequestContext` from the framework on every dispatch.
+  Direct construction is supported for tests only — production code that
+  builds one from outside the dispatch seam is a bug."
+* The dispatch seam's hydration helper —
+  `_build_request_context(tool_ctx, account)` in `dispatch.py` — is the
+  ONE production path. Adopter wrappers / middleware that need to
+  modify the context use `dataclasses.replace(ctx, ...)`, not raw
+  construction. Documented on the helper's docstring with a worked
+  example for the `state` / `resolve` test-double substitution case.
+* The `_NotYetWiredStateReader` and `_NotYetWiredResolver` defaults
+  exist *only* so test fixtures and `examples/hello_seller.py` can
+  construct a `RequestContext()` without the framework. Production
+  dispatch always supplies real (or real-stub-but-framework-instantiated)
+  readers via the hydration helper. This matches the TS shape where
+  the stub resolvers/readers live inside `buildRequestContext`, not
+  on adopter-construction paths.
+
+This pin matters because adopters who construct their own `RequestContext`
+get neither the framework's `auth_principal` plumbing (D9) nor the
+hydration helper's future v6.1 backing store. Silent divergence between
+the framework path and ad-hoc adopter path is exactly the failure mode
+the typing-driven safety principle is supposed to prevent.
+
 ## File plan
 
 **Two PRs**, splitting the framework-shared code from the

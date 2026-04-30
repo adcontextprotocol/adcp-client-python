@@ -74,6 +74,16 @@ class RequestContext(ToolContext, Generic[TMeta]):
     A2A executor) consume it as a ``ToolContext`` while adopter
     Protocol methods read the typed :attr:`account` directly.
 
+    **Framework-only construction.** Adopter code receives a
+    ``RequestContext`` from the framework on every dispatch via the
+    hydration helper in ``adcp.decisioning.dispatch``. Direct
+    construction is supported for tests only — production code that
+    builds a ``RequestContext`` from outside the dispatch seam is a
+    bug. Adopters who need to modify the context (custom middleware,
+    test doubles for ``state`` / ``resolve``) should use
+    :func:`dataclasses.replace`, not raw construction. Mirrors the
+    TS-side ``to-context.ts:buildRequestContext`` contract.
+
     :param account: The resolved account, with typed ``metadata: TMeta``.
         The framework's idempotency middleware reads
         ``ctx.caller_identity`` for cache scoping; the dispatch adapter
