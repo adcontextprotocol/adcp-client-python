@@ -296,16 +296,25 @@ async def test_handoff_context_update_routes_to_registry() -> None:
 
 
 @pytest.mark.asyncio
-async def test_handoff_context_update_swallows_registry_errors() -> None:
+async def test_handoff_context_update_swallows_registry_errors(caplog) -> None:
     """A transient registry write failure must not abort the handoff
     fn. ``update`` swallows; the buyer-facing impact is a missed
-    progress event, not a failed task."""
+    progress event, not a failed task. Round-4 review: the swallow
+    now logs at WARNING with traceback so transient failures aren't
+    silently invisible to operators."""
     failing_registry = AsyncMock(spec=TaskRegistry)
     failing_registry.update_progress.side_effect = RuntimeError("DB down")
     handoff_ctx = TaskHandoffContext(id="task_x", _registry=failing_registry)
-    # Must NOT raise.
-    await handoff_ctx.update({"step": 1})
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        # Must NOT raise.
+        await handoff_ctx.update({"step": 1})
     failing_registry.update_progress.assert_called_once_with("task_x", {"step": 1})
+    # Round-4 review: swallow now logs WARNING with traceback.
+    assert any(
+        "task_x" in r.message and "registry transient" in r.message for r in caplog.records
+    ), "TaskHandoffContext.update suppression must log WARNING with task_id"
 
 
 @pytest.mark.asyncio

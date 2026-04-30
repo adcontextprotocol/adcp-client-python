@@ -202,6 +202,38 @@ def test_state_stub_governance_context_warning_text() -> None:
     assert "fail-fast" in msg
 
 
+def test_default_state_reader_is_module_singleton() -> None:
+    """Round-4 review: ``_make_default_state_reader`` returns the same
+    instance across calls (module-level singleton). Per-RequestContext
+    stub allocation buys nothing since the warned-once set is also
+    module-level — singleton matches the contract and avoids stub
+    churn."""
+    from adcp.decisioning.state import _make_default_state_reader
+
+    a = _make_default_state_reader()
+    b = _make_default_state_reader()
+    assert a is b
+
+
+def test_default_resolver_is_module_singleton() -> None:
+    """Same singleton pattern for ``_make_default_resolver``."""
+    from adcp.decisioning.resolve import _make_default_resolver
+
+    a = _make_default_resolver()
+    b = _make_default_resolver()
+    assert a is b
+
+
+def test_request_context_default_factories_share_singleton() -> None:
+    """Each RequestContext instance shares the same default stub
+    instances — no per-context allocation. Verifies the field
+    default_factory plumbing reads the singletons correctly."""
+    a = RequestContext()
+    b = RequestContext()
+    assert a.state is b.state
+    assert a.resolve is b.resolve
+
+
 def test_property_list_alias_pinned_to_reference() -> None:
     """``adcp.decisioning.PropertyList`` aliases
     ``PropertyListReference`` deliberately (the spec models both as

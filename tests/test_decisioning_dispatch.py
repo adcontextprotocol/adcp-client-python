@@ -525,6 +525,47 @@ async def test_invoke_wraps_unexpected_exceptions_to_internal_error(
 
 
 @pytest.mark.asyncio
+async def test_invoke_arg_projector_signature_drift_projects_invalid_request(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """When an adopter renames a Pydantic field projected via
+    arg_projector (e.g., ``patch`` → ``update``), the framework's
+    kwargs-unpack hits TypeError. Round-4 review P1: project to
+    INVALID_REQUEST with a hint, NOT bare INTERNAL_ERROR — adopters
+    fix the signature without a server-log dive."""
+    from pydantic import BaseModel
+
+    class _PatchModel(BaseModel):
+        media_buy_id: str
+
+    class _DriftedPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        # Adopter renamed `patch` → `update_data`. Wire shape still
+        # has both fields, but our arg_projector kwargs key mismatches.
+        async def update_media_buy(self, media_buy_id, update_data, ctx):
+            return {}
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    patch = _PatchModel(media_buy_id="mb_1")
+    with pytest.raises(AdcpError) as exc_info:
+        await _invoke_platform_method(
+            _DriftedPlatform(),
+            "update_media_buy",
+            patch,
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+            arg_projector={"media_buy_id": "mb_1", "patch": patch},
+        )
+    assert exc_info.value.code == "INVALID_REQUEST"
+    msg = str(exc_info.value)
+    assert "signature mismatch" in msg
+    assert "update_media_buy" in msg
+
+
+@pytest.mark.asyncio
 async def test_invoke_with_arg_projector_uses_kwargs(
     executor: ThreadPoolExecutor,
 ) -> None:

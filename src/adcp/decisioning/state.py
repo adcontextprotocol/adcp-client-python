@@ -259,7 +259,22 @@ __all__ = [
 ]
 
 
+# Module-level singleton — one stub instance per process. The
+# warned-once set ``_STATE_STUB_WARNED`` is also module-level, so
+# per-instance allocation buys nothing AND the docstring promises
+# "per process per method, not per request". Using a singleton
+# matches the contract and avoids per-RequestContext stub churn
+# (round-4 review).
+_DEFAULT_STATE_READER: StateReader = _NotYetWiredStateReader()
+
+
 # Re-exports needed by ``RequestContext`` field defaults but not part
 # of the public adopter-facing surface — keep below ``__all__``.
 def _make_default_state_reader() -> StateReader:
-    return _NotYetWiredStateReader()
+    """Return the module-level :class:`_NotYetWiredStateReader` singleton.
+
+    Each :class:`RequestContext` shares the same stub instance; the
+    warned-once set is module-level so the visibility behavior is
+    correct across all requests in a process.
+    """
+    return _DEFAULT_STATE_READER

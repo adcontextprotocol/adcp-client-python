@@ -164,8 +164,15 @@ class _NotYetWiredResolver:
         )
 
 
+#: Module-level singleton — one stub instance per process. The stub
+#: methods always raise (no warned-once state to share, but consistency
+#: with state.py's pattern + avoiding per-RequestContext allocation).
+_DEFAULT_RESOLVER: ResourceResolver = _NotYetWiredResolver()
+
+
 def _make_default_resolver() -> ResourceResolver:
-    return _NotYetWiredResolver()
+    """Return the module-level :class:`_NotYetWiredResolver` singleton."""
+    return _DEFAULT_RESOLVER
 
 
 __all__ = [

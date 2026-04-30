@@ -36,8 +36,11 @@ the registry — silent in-memory fallback is a real prod foot-gun.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 import uuid
+
+logger = logging.getLogger(__name__)
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
@@ -438,16 +441,23 @@ class TaskHandoffContext:
         """Write a progress payload. Transitions ``submitted`` →
         ``working`` on first call.
 
-        Errors are swallowed: a transient registry write failure must
-        not abort the handoff. Buyer-facing impact is a missed
-        progress event, not a failed task.
+        Errors are swallowed (logged at WARNING with traceback):
+        a transient registry write failure must not abort the handoff.
+        Buyer-facing impact is a missed progress event, not a failed
+        task. Adopters who need delivery guarantees plug a durable
+        registry; the warning surfaces the transient via existing
+        observability hooks so silent loss isn't truly invisible.
         """
         try:
             await self._registry.update_progress(self.id, progress)
         except Exception:
-            # Swallow — preserve the handoff fn's progress in the
-            # face of registry transients. Adopters who need
-            # delivery guarantees plug a durable registry.
+            logger.warning(
+                "TaskHandoffContext.update(task_id=%s) suppressed "
+                "registry transient — progress event lost; handoff "
+                "continues",
+                self.id,
+                exc_info=True,
+            )
             return
 
     async def heartbeat(self) -> None:
