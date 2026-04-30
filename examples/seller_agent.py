@@ -450,7 +450,7 @@ class DemoStore(TestControllerStore):
         impressions: int | None = None,
         clicks: int | None = None,
         conversions: int | None = None,
-        reported_spend: float | None = None,
+        reported_spend: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if media_buy_id not in media_buys:
             raise TestControllerError("NOT_FOUND", f"Media buy {media_buy_id} not found")
