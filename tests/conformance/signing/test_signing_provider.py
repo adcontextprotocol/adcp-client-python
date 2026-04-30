@@ -388,6 +388,67 @@ def test_sign_request_rejects_key_id_with_non_ascii() -> None:
         )
 
 
+def test_sign_request_rejects_label_with_crlf() -> None:
+    """``label`` lands unquoted in both Signature-Input and Signature
+    headers; a CRLF here would inject extra header bytes. RFC 8941
+    §3.1.2 sf-keys are restricted to a token grammar."""
+    private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
+    with pytest.raises(ValueError, match="not a valid RFC 8941 sf-key"):
+        sign_request(
+            method="POST",
+            url="https://seller.example.com/x",
+            headers={},
+            body=b"{}",
+            private_key=private_key,
+            key_id="ok",
+            alg="ed25519",
+            label="sig1\r\nX-Injected: 1",
+        )
+
+
+def test_sign_request_rejects_label_starting_with_uppercase() -> None:
+    """RFC 8941 §3.1.2 sf-keys must start with lowercase letter or '*'."""
+    private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
+    with pytest.raises(ValueError, match="must start with a lowercase letter"):
+        sign_request(
+            method="POST",
+            url="https://seller.example.com/x",
+            headers={},
+            body=b"{}",
+            private_key=private_key,
+            key_id="ok",
+            alg="ed25519",
+            label="Sig1",
+        )
+
+
+def test_sign_request_rejects_empty_label() -> None:
+    private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
+    with pytest.raises(ValueError, match="label must be a non-empty"):
+        sign_request(
+            method="POST",
+            url="https://seller.example.com/x",
+            headers={},
+            body=b"{}",
+            private_key=private_key,
+            key_id="ok",
+            alg="ed25519",
+            label="",
+        )
+
+
+def test_pem_to_adcp_jwk_rejects_rsa_public_pem() -> None:
+    """The SPKI public-PEM path through `load_pem_public_key` must
+    reject RSA the same way the private-PEM path does."""
+    rsa_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    rsa_spki = rsa_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    with pytest.raises(ValueError, match="unsupported public key type"):
+        pem_to_adcp_jwk(rsa_spki, kid="x", purpose="request-signing")
+
+
 def test_sign_request_rejects_tag_with_control_characters() -> None:
     private_key = private_key_from_jwk(ED25519_KEY, d_field="_private_d_for_test_only")
     with pytest.raises(ValueError, match="tag contains character"):

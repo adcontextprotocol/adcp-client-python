@@ -65,6 +65,36 @@ class SignedHeaders:
 
 _SF_STRING_ALLOWED: frozenset[str] = frozenset(chr(c) for c in range(0x20, 0x7F))
 
+# RFC 8941 §3.1.2 key grammar: ( lcalpha / "*" ) *( lcalpha / DIGIT / "_" / "-" / "." / "*" )
+_SF_KEY_HEAD_ALLOWED: frozenset[str] = frozenset("abcdefghijklmnopqrstuvwxyz*")
+_SF_KEY_TAIL_ALLOWED: frozenset[str] = frozenset("abcdefghijklmnopqrstuvwxyz0123456789_-.*")
+
+
+def _validate_sf_key(value: str, *, field: str) -> str:
+    """Validate ``value`` as an RFC 8941 §3.1.2 sf-key (token).
+
+    Sig-labels are emitted unquoted in both ``Signature-Input`` and
+    ``Signature`` headers, so they cannot use sf-string escaping —
+    they must be valid tokens. Anything outside the §3.1.2 grammar
+    would either inject extra header bytes (CRLF) or produce a
+    label conformant verifiers parse differently.
+    """
+    if not value:
+        raise ValueError(f"{field} must be a non-empty RFC 8941 sf-key")
+    if value[0] not in _SF_KEY_HEAD_ALLOWED:
+        raise ValueError(
+            f"{field}={value!r} is not a valid RFC 8941 sf-key — must start with "
+            "a lowercase letter or '*'"
+        )
+    bad = next((c for c in value[1:] if c not in _SF_KEY_TAIL_ALLOWED), None)
+    if bad is not None:
+        raise ValueError(
+            f"{field}={value!r} is not a valid RFC 8941 sf-key — character "
+            f"{bad!r} (codepoint {ord(bad):#06x}) is not allowed; "
+            "only [a-z0-9_-.*] permitted after the first character"
+        )
+    return value
+
 
 def _escape_sf_string(value: str, *, field: str) -> str:
     """Escape ``value`` for embedding in an RFC 8941 §3.3.3 sf-string.
@@ -128,6 +158,7 @@ def _prepare_signature(
         )
     if not key_id:
         raise ValueError("key_id must be a non-empty string")
+    _validate_sf_key(label, field="label")
 
     if created is None:
         created = int(time.time())
