@@ -1746,6 +1746,13 @@ def create_tool_caller(
                 errors_list = exc.errors(
                     include_input=False, include_context=False, include_url=False
                 )
+                # Narrow discriminated-union failures to the variant
+                # the user actually intended (Stability AI Emma P2:
+                # 60-line dump → focused error). For non-union
+                # failures the function is a no-op.
+                from adcp.types.error_narrowing import narrow_union_errors
+
+                errors_list = narrow_union_errors(errors_list)
                 first: dict[str, Any] = dict(errors_list[0]) if errors_list else {}
                 field_path = ".".join(str(loc) for loc in first.get("loc", ()))
                 message = first.get("msg", "validation failed")
