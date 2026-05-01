@@ -355,29 +355,65 @@ def _internal_error_message(method_name: str, exc: BaseException) -> str:
 
 
 def _internal_error_details(exc: BaseException) -> dict[str, Any]:
-    """Build the wire-side ``details.caused_by`` for an INTERNAL_ERROR
+    """Build the wire-side ``details`` payload for an INTERNAL_ERROR
     wrap.
 
-    Exposes only the exception class name + truncated str — no
-    traceback, no module path, no chained ``__cause__``. The class
-    name lets adopters distinguish ``AttributeError`` (typo-shaped)
-    from ``KeyError`` (missing-config-shaped) from
+    ``details.caused_by`` carries the exception class name + truncated
+    str — no traceback, no module path, no chained ``__cause__``.
+    The class name lets adopters distinguish ``AttributeError``
+    (typo-shaped) from ``KeyError`` (missing-config-shaped) from
     ``ConnectionError`` (network-shaped) at a glance.
 
     Truncation is defense-in-depth against an adopter who throws on
     secret material and ends up with a repr that includes the secret
     value verbatim. The full traceback is in the server log via
     ``logger.exception``; only the wire response is sanitized.
+
+    **ValidationError special case** (Stability AI Emma P1 from the
+    post-#340 matrix): when the platform method raises a pydantic
+    ``ValidationError`` directly — typically because the seller's
+    code constructed an invalid response model — the wire used to
+    say "see details for cause" with no actual details. We now also
+    emit ``details.validation_errors`` carrying the narrowed
+    field-path list (using
+    :func:`adcp.types.error_narrowing.narrow_union_errors` to filter
+    discriminated-union noise). The buyer agent gets actionable
+    field paths; the seller dev sees the same in their wire log.
+    Pydantic ValidationError is the only common adopter exception
+    where a structured field list is meaningful, so we don't
+    generalize this to other exception types.
     """
     raw = str(exc)
     if len(raw) > _INTERNAL_ERROR_DETAIL_CHARS:
         raw = raw[: _INTERNAL_ERROR_DETAIL_CHARS - 3] + "..."
-    return {
+    details: dict[str, Any] = {
         "caused_by": {
             "type": type(exc).__name__,
             "message": raw,
         }
     }
+    # Try to import lazily so a future refactor that splits the
+    # validation tooling can't ripple through the dispatch layer.
+    try:
+        from pydantic import ValidationError
+
+        from adcp.types.error_narrowing import narrow_union_errors
+    except Exception:
+        return details
+    if isinstance(exc, ValidationError):
+        try:
+            errors_list = exc.errors(
+                include_input=False,
+                include_context=False,
+                include_url=False,
+            )
+            details["validation_errors"] = list(narrow_union_errors(errors_list))
+        except Exception:
+            # Defensive — never let a narrowing bug 500 the wire.
+            # The caused_by.message already carries the truncated
+            # repr; adopters can still triage via server logs.
+            pass
+    return details
 
 
 # ---------------------------------------------------------------------------

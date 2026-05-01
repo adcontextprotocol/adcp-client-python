@@ -67,8 +67,9 @@ class HelloCreativeSeller(DecisioningPlatform):
 
         Returns a bare :class:`CreativeManifest` — the framework's
         projection layer wraps it into the wire envelope. The brief
-        is on ``req.brief``; the requested format is on
-        ``req.format_id``.
+        message is on ``req.message``; the requested format is on
+        ``req.target_format_id`` (or ``req.target_format_ids`` for
+        multi-format builds).
         """
         # Real adopters call their generation API here; this stub
         # synthesizes a placeholder URL for the example.

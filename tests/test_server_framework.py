@@ -628,11 +628,19 @@ class TestMCPToolSet:
 
     @pytest.mark.asyncio
     async def test_call_tool_invokes_handler(self):
-        """Test calling a tool invokes the handler method."""
+        """Test calling a tool invokes the handler method.
+
+        Sends a minimum-valid ``GetProductsRequest`` payload (just
+        ``buying_mode``) so the framework's typed-dispatch path actually
+        invokes the handler. Pre-fix, the framework's TYPE_CHECKING bug
+        meant the resolver fell back to dict dispatch and any payload
+        flowed through; post-fix the handler IS reached but typed
+        validation rejects empty dicts (which is the correct
+        spec-compliant behavior for ``GetProductsRequest``)."""
         handler = ADCPHandler()
         tools = create_mcp_tools(handler)
 
-        result = await tools.call_tool("get_products", {})
+        result = await tools.call_tool("get_products", {"buying_mode": "brief"})
 
         # Should return the not_supported response as a dict
         assert result["supported"] is False

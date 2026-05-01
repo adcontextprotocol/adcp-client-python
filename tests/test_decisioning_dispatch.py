@@ -687,6 +687,57 @@ async def test_invoke_internal_error_message_truncated_long_repr(
 
 
 @pytest.mark.asyncio
+async def test_invoke_validation_error_surfaces_narrowed_field_paths(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """When the platform method raises ``pydantic.ValidationError``
+    directly — typically because the seller constructed an invalid
+    response model — the wire ``details`` MUST carry the narrowed
+    field-path list so the buyer agent sees what failed (Stability AI
+    Emma P1: pre-fix wire said "see details for cause" with empty
+    details). Field paths are pulled from
+    ``ValidationError.errors()`` and run through
+    ``narrow_union_errors`` to filter discriminated-union noise."""
+    from pydantic import BaseModel
+
+    class _ResponseModel(BaseModel):
+        creative_id: str
+        width: int
+        height: int
+
+    class _CrashingPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req, ctx):
+            # Seller-side bug: building a response with missing fields.
+            # Realistic shape: an adopter calling
+            # CreativeManifest(...) with a missing required ``url`` on
+            # ImageContent.
+            _ResponseModel.model_validate({"creative_id": "cr-1"})
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    with pytest.raises(AdcpError) as exc_info:
+        await _invoke_platform_method(
+            _CrashingPlatform(),
+            "get_products",
+            _ProductsRequest(),
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+        )
+    assert exc_info.value.code == "INTERNAL_ERROR"
+    # ``caused_by`` still surfaces the exception class for triage.
+    assert exc_info.value.details["caused_by"]["type"] == "ValidationError"
+    # NEW: ``validation_errors`` is populated with structured field
+    # paths so the buyer agent (and the seller's wire log) see the
+    # actual missing fields.
+    validation_errors = exc_info.value.details["validation_errors"]
+    missing_fields = {err["loc"][-1] for err in validation_errors if err["type"] == "missing"}
+    assert "width" in missing_fields and "height" in missing_fields
+
+
+@pytest.mark.asyncio
 async def test_invoke_arg_projector_signature_drift_projects_invalid_request(
     executor: ThreadPoolExecutor,
 ) -> None:

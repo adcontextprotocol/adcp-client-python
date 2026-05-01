@@ -18,6 +18,44 @@ Then:
   framework's protocol tools
 * Call ``get_products``: returns one product
 * Call ``create_media_buy``: returns the success envelope
+
+# Minimum valid buyer payloads
+
+The seller-side stubs below ARE valid; the bit that's not obvious is
+what the BUYER must send. Each AdCP request type has fields the
+schema requires that aren't on the example response. Common ones:
+
+* ``idempotency_key`` (mutating tools) — string, ``min_length=16``,
+  buyer-chosen replay-window key. Pad shorter test values with a
+  random suffix (``"emma-test-create-media-buy-001"``).
+* ``buying_mode`` on ``GetProductsRequest`` — ``"brief"`` |
+  ``"signal"`` | ``"audience"`` | ``"performance"``.
+* ``account`` on most mutating tools — ``{"account_id": "..."}``.
+* ``packages`` on ``CreateMediaBuyRequest`` — non-empty list with
+  ``buyer_ref`` + ``products`` + ``budget``.
+* ``destinations`` on ``ActivateSignalRequest`` — non-empty list of
+  ``{"type": "platform", "platform": "..."}``.
+
+Minimum valid ``create_media_buy`` payload::
+
+    {
+      "account": {"account_id": "hello"},
+      "buyer_ref": "buyer-1",
+      "promoted_offering": "shoes",
+      "packages": [{
+        "buyer_ref": "pkg-1",
+        "products": ["display-rotation"],
+        "budget": {"total": 100, "currency": "USD"}
+      }],
+      "po_number": "PO-1",
+      "idempotency_key": "buyer-create-mb-001-padding",
+      "start_time": "2026-06-01T00:00:00Z",
+      "end_time": "2026-06-30T23:59:59Z"
+    }
+
+For the full set of required fields per tool, see
+``schemas/cache/media-buy/create-media-buy-request.json`` (and the
+corresponding files for each tool) in the SDK distribution.
 """
 
 from __future__ import annotations

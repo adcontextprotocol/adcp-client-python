@@ -8,72 +8,86 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
-from adcp.types import Error
-
-if TYPE_CHECKING:
-    from adcp.types import (
-        AcquireRightsRequest,
-        ActivateSignalRequest,
-        BuildCreativeRequest,
-        CalibrateContentRequest,
-        CheckGovernanceRequest,
-        ComplyTestControllerRequest,
-        ContextMatchRequest,
-        CreateCollectionListRequest,
-        CreateContentStandardsRequest,
-        CreateMediaBuyRequest,
-        CreatePropertyListRequest,
-        DeleteCollectionListRequest,
-        DeletePropertyListRequest,
-        GetAccountFinancialsRequest,
-        GetAdcpCapabilitiesRequest,
-        GetBrandIdentityRequest,
-        GetCollectionListRequest,
-        GetContentStandardsRequest,
-        GetCreativeDeliveryRequest,
-        GetCreativeFeaturesRequest,
-        GetMediaBuyArtifactsRequest,
-        GetMediaBuyDeliveryRequest,
-        GetMediaBuysRequest,
-        GetPlanAuditLogsRequest,
-        GetProductsRequest,
-        GetPropertyListRequest,
-        GetRightsRequest,
-        GetSignalsRequest,
-        IdentityMatchRequest,
-        ListAccountsRequest,
-        ListCollectionListsRequest,
-        ListContentStandardsRequest,
-        ListCreativeFormatsRequest,
-        ListCreativesRequest,
-        ListPropertyListsRequest,
-        LogEventRequest,
-        PreviewCreativeRequest,
-        ProvidePerformanceFeedbackRequest,
-        ReportPlanOutcomeRequest,
-        ReportUsageRequest,
-        SiGetOfferingRequest,
-        SiInitiateSessionRequest,
-        SiSendMessageRequest,
-        SiTerminateSessionRequest,
-        SyncAccountsRequest,
-        SyncAudiencesRequest,
-        SyncCatalogsRequest,
-        SyncCreativesRequest,
-        SyncEventSourcesRequest,
-        SyncGovernanceRequest,
-        SyncPlansRequest,
-        UpdateCollectionListRequest,
-        UpdateContentStandardsRequest,
-        UpdateMediaBuyRequest,
-        UpdatePropertyListRequest,
-        UpdateRightsRequest,
-        ValidateContentDeliveryRequest,
-    )
+# Request types are imported at module scope (NOT under TYPE_CHECKING)
+# so that ``typing.get_type_hints(method)`` resolves every ADCPHandler
+# baseline method's ``params`` annotation at runtime. The dispatcher's
+# ``adcp.server.mcp_tools._resolve_params_pydantic_model`` walks these
+# hints to deserialise wire-shape dicts into typed Pydantic models;
+# without runtime visibility, ``get_type_hints`` raises ``NameError``,
+# the resolver swallows the exception (warning + dict-fallback), and
+# the framework's own ``get_adcp_capabilities`` warns on every cold
+# boot about an annotation NO ADOPTER CAN FIX (Emma cross-cutting P1
+# from the post-#340 matrix run — sales/signals/stability all flagged
+# this).
+#
+# Same root cause as PR #338's handler.py fix; we missed base.py
+# because the framework methods inherit ``not_supported`` defaults
+# and the wire-dispatch failure mode wasn't visible until the
+# resolver-warning bump in #338 surfaced it as console noise.
+from adcp.types import (
+    AcquireRightsRequest,
+    ActivateSignalRequest,
+    BuildCreativeRequest,
+    CalibrateContentRequest,
+    CheckGovernanceRequest,
+    ComplyTestControllerRequest,
+    ContextMatchRequest,
+    CreateCollectionListRequest,
+    CreateContentStandardsRequest,
+    CreateMediaBuyRequest,
+    CreatePropertyListRequest,
+    DeleteCollectionListRequest,
+    DeletePropertyListRequest,
+    Error,
+    GetAccountFinancialsRequest,
+    GetAdcpCapabilitiesRequest,
+    GetBrandIdentityRequest,
+    GetCollectionListRequest,
+    GetContentStandardsRequest,
+    GetCreativeDeliveryRequest,
+    GetCreativeFeaturesRequest,
+    GetMediaBuyArtifactsRequest,
+    GetMediaBuyDeliveryRequest,
+    GetMediaBuysRequest,
+    GetPlanAuditLogsRequest,
+    GetProductsRequest,
+    GetPropertyListRequest,
+    GetRightsRequest,
+    GetSignalsRequest,
+    IdentityMatchRequest,
+    ListAccountsRequest,
+    ListCollectionListsRequest,
+    ListContentStandardsRequest,
+    ListCreativeFormatsRequest,
+    ListCreativesRequest,
+    ListPropertyListsRequest,
+    LogEventRequest,
+    PreviewCreativeRequest,
+    ProvidePerformanceFeedbackRequest,
+    ReportPlanOutcomeRequest,
+    ReportUsageRequest,
+    SiGetOfferingRequest,
+    SiInitiateSessionRequest,
+    SiSendMessageRequest,
+    SiTerminateSessionRequest,
+    SyncAccountsRequest,
+    SyncAudiencesRequest,
+    SyncCatalogsRequest,
+    SyncCreativesRequest,
+    SyncEventSourcesRequest,
+    SyncGovernanceRequest,
+    SyncPlansRequest,
+    UpdateCollectionListRequest,
+    UpdateContentStandardsRequest,
+    UpdateMediaBuyRequest,
+    UpdatePropertyListRequest,
+    UpdateRightsRequest,
+    ValidateContentDeliveryRequest,
+)
 
 
 @dataclass

@@ -98,13 +98,28 @@ class HelloSignalsSeller(DecisioningPlatform):
         ``{task_id, status: "submitted"}`` envelope synchronously, and
         runs ``_async_activation`` in the background.
         """
+        # ``ActivateSignalRequest`` carries the signal reference on
+        # ``signal_agent_segment_id`` (the canonical spec field — the
+        # segment ID a buyer activates against). The catalog returned
+        # by ``get_signals`` may use ``signal_id`` for the buyer-facing
+        # name, but the activation request keys on
+        # ``signal_agent_segment_id``.
+        segment_id = getattr(req, "signal_agent_segment_id", "unknown")
+        # Buyer-supplied destinations list — required (min_length=1)
+        # and unbounded; we echo back one deployment per destination.
+        destinations = getattr(req, "destinations", []) or []
         return {
             "deployments": [
                 {
-                    "destination_platform": getattr(req, "destination_platform", "the-trade-desk"),
-                    "deployment_id": f"dep-{getattr(req, 'signal_id', 'unknown')}",
+                    "destination_platform": (
+                        getattr(d, "platform", None)
+                        or (d.get("platform") if isinstance(d, dict) else None)
+                        or "the-trade-desk"
+                    ),
+                    "deployment_id": f"dep-{segment_id}",
                     "status": "active",
                 }
+                for d in (destinations or [{"platform": "the-trade-desk"}])
             ]
         }
 
