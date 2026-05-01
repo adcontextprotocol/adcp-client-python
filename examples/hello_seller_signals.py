@@ -118,8 +118,16 @@ class HelloSignalsSeller(DecisioningPlatform):
 
 
 def main() -> None:
-    """Boot the seller on http://localhost:3001/mcp."""
-    serve(HelloSignalsSeller())
+    """Boot the seller on http://localhost:3001/mcp.
+
+    ``auto_emit_completion_webhooks=False`` opts out of the sync
+    completion-webhook auto-emit so this example boots without a
+    ``webhook_sender``. In production, wire ``webhook_sender=`` so
+    buyers who register ``push_notification_config.url`` on
+    ``activate_signal`` get notifications when a TaskHandoff
+    completes.
+    """
+    serve(HelloSignalsSeller(), auto_emit_completion_webhooks=False)
 
 
 if __name__ == "__main__":

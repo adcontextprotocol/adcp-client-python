@@ -285,4 +285,12 @@ if __name__ == "__main__":
     # for local dev. In production, set
     # ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1 (single-process pilot)
     # OR pass registry= a durable impl (Postgres-backed v6.1).
-    serve(HelloSellerHybrid(), name="hello-seller-hybrid")
+    serve(
+        HelloSellerHybrid(),
+        name="hello-seller-hybrid",
+        # Opt out of F12 auto-emit so the example boots without a
+        # ``webhook_sender``. Production sellers wire ``webhook_sender=``
+        # so buyers who register ``push_notification_config.url`` get
+        # completion notifications when their TaskHandoff finishes.
+        auto_emit_completion_webhooks=False,
+    )

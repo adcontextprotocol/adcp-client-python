@@ -556,6 +556,45 @@ def serve(
         raise ValueError(f"Unknown transport {transport!r}. Valid: {valid}")
 
 
+def _wrap_with_path_normalize(app: Any) -> Any:
+    """Wrap an ASGI app so trailing-slash variants of the same path
+    route to the same handler instead of returning 307.
+
+    The FastMCP streamable-http app mounts the JSON-RPC endpoint at
+    ``/mcp`` (no trailing slash). Buyer libraries that POST to
+    ``/mcp/`` get a 307 redirect, which:
+
+    1. Costs an extra RTT per call (visible in the access log;
+       Emma signals + AudioStack reports both noted this).
+    2. Silently breaks buyer libs that don't follow redirects on POST
+       (most HTTP clients don't, by default — POSTing to a redirect
+       reverts to GET on the redirected URL, losing the body).
+
+    Stripping a single trailing slash before dispatch is the standard
+    fix; this middleware mutates ``scope["path"]`` and
+    ``scope["raw_path"]`` in-place so downstream routing sees the
+    canonical form. Only applies to non-root paths so we don't
+    accidentally route ``/`` to ``''``.
+    """
+
+    async def _middleware(scope: Any, receive: Any, send: Any) -> None:
+        if scope.get("type") in {"http", "websocket"}:
+            path = scope.get("path", "")
+            if len(path) > 1 and path.endswith("/"):
+                # Mutate the scope's mutable copy — Starlette guarantees
+                # a fresh dict per request so this doesn't leak across
+                # connections.
+                new_scope = dict(scope)
+                new_scope["path"] = path.rstrip("/")
+                raw_path = new_scope.get("raw_path")
+                if isinstance(raw_path, bytes) and len(raw_path) > 1 and raw_path.endswith(b"/"):
+                    new_scope["raw_path"] = raw_path.rstrip(b"/")
+                scope = new_scope
+        await app(scope, receive, send)
+
+    return _middleware
+
+
 def _wrap_with_size_limit(app: Any, max_request_size: int | None) -> Any:
     """Wrap an ASGI app with the request-body size cap.
 
@@ -612,6 +651,13 @@ def _bind_reusable_socket(host: str, port: int) -> Any:
     support Windows, so we guard with ``SO_EXCLUSIVEADDRUSE`` there —
     but since the ADCP server primarily targets Linux/macOS and the
     Windows path is rarely exercised, the guard is best-effort.
+
+    EADDRINUSE collisions (port already bound by another process) are
+    re-raised as ``OSError`` with a friendly remediation hint —
+    every Emma backend test reported being lost in a raw ``[Errno 48]
+    Address already in use`` with no pointer to the fix. The wrapped
+    error tells adopters exactly what to do (set ``port=`` or
+    ``ADCP_PORT``).
     """
     import socket
 
@@ -627,6 +673,29 @@ def _bind_reusable_socket(host: str, port: int) -> Any:
         sock.bind((host, port))
         sock.listen(128)
         sock.set_inheritable(True)
+    except OSError as exc:
+        sock.close()
+        # EADDRINUSE on Linux/macOS = errno 98/48 (per platform). The
+        # raw message is opaque ("[Errno 48] Address already in use"
+        # — Emma reports flagged this as P1 friction). Project to a
+        # remediation-bearing message that points adopters at the
+        # ``port=`` / ``ADCP_PORT`` knobs.
+        import errno
+
+        if exc.errno in (errno.EADDRINUSE, getattr(errno, "WSAEADDRINUSE", -1)):
+            raise OSError(
+                exc.errno,
+                (
+                    f"Port {port} on {host} is already in use — another process "
+                    "is bound there (a stale dev server, a peer agent, or your "
+                    "previous run). Pick a different port: pass ``port=<N>`` to "
+                    "``adcp.decisioning.serve.serve(...)`` (or "
+                    "``adcp.server.serve(...)``), or set the ``ADCP_PORT`` "
+                    "environment variable. Default ADCP port is 3001 — common "
+                    "alternates are 3011, 3021, 8080."
+                ),
+            ) from exc
+        raise
     except Exception:
         sock.close()
         raise
@@ -695,6 +764,7 @@ def _run_mcp_http(mcp: Any, *, transport: str, max_request_size: int | None = No
     else:
         app = mcp.sse_app()
 
+    app = _wrap_with_path_normalize(app)
     app = _wrap_with_size_limit(app, max_request_size)
 
     sock = _bind_reusable_socket(host, port)

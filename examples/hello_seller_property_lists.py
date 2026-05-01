@@ -80,7 +80,7 @@ class HelloPropertyListsSeller(DecisioningPlatform):
 
 def main() -> None:
     """Boot the seller on http://localhost:3001/mcp."""
-    serve(HelloPropertyListsSeller())
+    serve(HelloPropertyListsSeller(), auto_emit_completion_webhooks=False)
 
 
 if __name__ == "__main__":

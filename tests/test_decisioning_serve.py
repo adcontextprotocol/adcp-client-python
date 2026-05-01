@@ -431,14 +431,25 @@ def test_serve_fails_fast_when_sales_platform_missing_webhook_sender() -> None:
     both in SPEC_WEBHOOK_TASK_TYPES. With no webhook_sender wired and
     auto_emit on (the default), the framework MUST fail at boot —
     otherwise buyers register push_notification_config.url and silently
-    never get notifications. Emma sales-direct verdict 2/10 root cause."""
+    never get notifications. Emma sales-direct verdict 2/10 root cause.
+
+    The gate raises ``AdcpError("INVALID_REQUEST")`` for parity with
+    ``validate_platform``'s sibling boot-time gates (governance opt-in,
+    missing required methods) so adopter ``except AdcpError`` clauses
+    catch all platform-config failures uniformly (per
+    adtech-product-expert review on PR #339)."""
     platform = _SalesPlatformWithRequiredMethods()
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(AdcpError) as exc_info:
         create_adcp_server_from_platform(platform)
+    assert exc_info.value.code == "INVALID_REQUEST"
     msg = str(exc_info.value)
     assert "webhook_sender" in msg
     assert "silently dropped" in msg
     assert "create_media_buy" in msg
+    # Structured details so adopter harnesses can programmatically
+    # surface the exact missing piece + eligible tool list.
+    assert exc_info.value.details["missing"] == "webhook_sender"
+    assert "create_media_buy" in exc_info.value.details["webhook_eligible_tools"]
 
 
 def test_serve_passes_with_webhook_sender_wired() -> None:

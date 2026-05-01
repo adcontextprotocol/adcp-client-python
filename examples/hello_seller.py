@@ -207,4 +207,10 @@ if __name__ == "__main__":
     # registry, validates the platform at boot, and starts the MCP
     # server. Default port 3001 over streamable-http; override via
     # ``serve(seller, port=...)``.
-    serve(HelloSeller(), name="hello-seller")
+    #
+    # ``auto_emit_completion_webhooks=False`` opts out of the F12
+    # sync-completion webhook auto-emit so the example boots without
+    # a ``webhook_sender``. Wire ``webhook_sender=`` in production so
+    # buyers who register ``push_notification_config.url`` get
+    # notifications.
+    serve(HelloSeller(), name="hello-seller", auto_emit_completion_webhooks=False)

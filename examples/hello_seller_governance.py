@@ -78,7 +78,7 @@ class HelloGovernanceSeller(DecisioningPlatform):
 
 def main() -> None:
     """Boot the seller on http://localhost:3001/mcp."""
-    serve(HelloGovernanceSeller())
+    serve(HelloGovernanceSeller(), auto_emit_completion_webhooks=False)
 
 
 if __name__ == "__main__":

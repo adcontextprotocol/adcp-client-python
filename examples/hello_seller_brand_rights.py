@@ -85,8 +85,13 @@ class HelloBrandRightsSeller(DecisioningPlatform):
 
 
 def main() -> None:
-    """Boot the seller on http://localhost:3001/mcp."""
-    serve(HelloBrandRightsSeller())
+    """Boot the seller on http://localhost:3001/mcp.
+
+    ``auto_emit_completion_webhooks=False`` opts out so this example
+    boots without a ``webhook_sender``. In production, wire
+    ``webhook_sender=`` for buyer notification.
+    """
+    serve(HelloBrandRightsSeller(), auto_emit_completion_webhooks=False)
 
 
 if __name__ == "__main__":

@@ -149,3 +149,46 @@ def test_example_advertises_only_its_specialism(
         f"{class_name}: leaked forbidden tools to advertised set "
         f"{sorted(leaked)} — per-specialism filter regressed"
     )
+
+
+@pytest.mark.parametrize("filename,class_name,_,__", _CASES)
+def test_example_boots_via_create_adcp_server_from_platform(
+    filename: str,
+    class_name: str,
+    _: set[str],
+    __: set[str],
+) -> None:
+    """Each example's platform must boot via the public
+    ``create_adcp_server_from_platform`` path without raising. Catches
+    P0s like the F12 boot-time webhook gate rejecting an example whose
+    Run instructions don't pass ``webhook_sender`` (code-reviewer found
+    this on initial PR #339 — examples shipped with ``serve(...)``
+    that crashed at boot when their advertised tools were
+    webhook-eligible).
+
+    Also catches schema drift: every example uses concrete typed
+    constructors (``CreativeManifest(format_id=...)``) that break at
+    import if the schema renames a field. ``_load_example_class``
+    runs the module body via ``importlib.exec_module``, so schema
+    drift fails this test before the per-specialism assertion runs.
+    """
+    from adcp.decisioning.serve import create_adcp_server_from_platform
+
+    cls = _load_example_class(filename, class_name)
+    # Mirror the example's main(): opt out of auto-emit since none of
+    # them wire a real webhook_sender. The example's *intent* is
+    # captured in the test by assertion; production wiring is shown
+    # in each example's docstring.
+    handler, executor, _ = create_adcp_server_from_platform(
+        cls(),
+        auto_emit_completion_webhooks=False,
+    )
+    try:
+        # Smoke: the per-instance advertised set is non-empty (the
+        # example actually claims a recognized specialism).
+        assert handler.advertised_tools_for_instance(), (
+            f"{class_name}: advertised_tools_for_instance() empty — "
+            "platform claims no recognized specialism"
+        )
+    finally:
+        executor.shutdown(wait=True)

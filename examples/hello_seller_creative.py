@@ -102,11 +102,19 @@ def main() -> None:
 
     * ``tools/list`` advertises ``build_creative`` and the framework's
       always-on protocol/discovery tools — NOT the sales / signals /
-      governance tools (per-specialism filter from PR #338's
-      follow-up).
+      governance tools (per-specialism filter).
     * ``tools/call build_creative`` returns the synthesized manifest.
+
+    The ``auto_emit_completion_webhooks=False`` opt-out keeps this
+    example minimal. In production, wire ``webhook_sender=`` so
+    buyers who register ``push_notification_config.url`` get
+    completion notifications:
+
+        from adcp.webhook_sender import WebhookSender
+        sender = WebhookSender.from_jwk(...)
+        serve(HelloCreativeSeller(), webhook_sender=sender)
     """
-    serve(HelloCreativeSeller())
+    serve(HelloCreativeSeller(), auto_emit_completion_webhooks=False)
 
 
 if __name__ == "__main__":
