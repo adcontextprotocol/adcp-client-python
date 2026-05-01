@@ -642,9 +642,48 @@ async def test_invoke_wraps_unexpected_exceptions_to_internal_error(
     assert exc_info.value.code == "INTERNAL_ERROR"
     assert exc_info.value.recovery == "terminal"
     # Original exception preserved as __cause__ for server-side
-    # debugging — wire response stays opaque.
+    # debugging.
     assert isinstance(exc_info.value.__cause__, ValueError)
-    assert "oops, internal-state bug" not in str(exc_info.value)
+    # Wire ``message`` cites the exception class so adopters get a
+    # breadcrumb without having to grep server logs (Emma AudioStack
+    # P2: "An internal error occurred" was a dead end).
+    assert "ValueError" in str(exc_info.value)
+    assert "get_products" in str(exc_info.value)
+    # Wire ``details.caused_by`` carries the truncated message — full
+    # traceback stays in server logs only.
+    assert exc_info.value.details["caused_by"]["type"] == "ValueError"
+    assert "oops, internal-state bug" in exc_info.value.details["caused_by"]["message"]
+
+
+@pytest.mark.asyncio
+async def test_invoke_internal_error_message_truncated_long_repr(
+    executor: ThreadPoolExecutor,
+) -> None:
+    """Defense-in-depth: an exception whose ``str()`` is huge (or
+    contains secret material because the adopter's repr is sloppy)
+    is truncated on the wire so secret-shaped values don't leak via
+    ``details.caused_by.message``. Full repr stays in server logs."""
+
+    class _BlowupPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="x")
+
+        async def get_products(self, req, ctx):
+            raise RuntimeError("X" * 1000)
+
+    ctx = _build_request_context(ToolContext(), Account(id="x"), None)
+    with pytest.raises(AdcpError) as exc_info:
+        await _invoke_platform_method(
+            _BlowupPlatform(),
+            "get_products",
+            _ProductsRequest(),
+            ctx,
+            executor=executor,
+            registry=InMemoryTaskRegistry(),
+        )
+    truncated = exc_info.value.details["caused_by"]["message"]
+    assert len(truncated) <= 200, f"got {len(truncated)} chars; expected ≤200"
+    assert truncated.endswith("...")
 
 
 @pytest.mark.asyncio

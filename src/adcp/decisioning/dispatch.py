@@ -333,6 +333,54 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
 
 
 # ---------------------------------------------------------------------------
+# INTERNAL_ERROR breadcrumbs (Emma AudioStack P2)
+# ---------------------------------------------------------------------------
+
+#: Cap on the message+repr we expose to the wire. Long stack traces or
+#: secret-shaped repr (e.g., a ``Credential`` repr that includes the
+#: token) get truncated. Stack trace lives in server logs only.
+_INTERNAL_ERROR_DETAIL_CHARS = 200
+
+
+def _internal_error_message(method_name: str, exc: BaseException) -> str:
+    """Build the wire-side ``message`` for an INTERNAL_ERROR wrap.
+
+    Adopters debugging "An internal error occurred" with no breadcrumb
+    have to grep server logs to even see which exception fired (Emma
+    AudioStack P2). Surfacing the exception class name in the wire
+    message gives them a starting point without leaking the traceback.
+    """
+    cls_name = type(exc).__name__
+    return f"Platform method {method_name!r} raised {cls_name}; see details for cause"
+
+
+def _internal_error_details(exc: BaseException) -> dict[str, Any]:
+    """Build the wire-side ``details.caused_by`` for an INTERNAL_ERROR
+    wrap.
+
+    Exposes only the exception class name + truncated str — no
+    traceback, no module path, no chained ``__cause__``. The class
+    name lets adopters distinguish ``AttributeError`` (typo-shaped)
+    from ``KeyError`` (missing-config-shaped) from
+    ``ConnectionError`` (network-shaped) at a glance.
+
+    Truncation is defense-in-depth against an adopter who throws on
+    secret material and ends up with a repr that includes the secret
+    value verbatim. The full traceback is in the server log via
+    ``logger.exception``; only the wire response is sanitized.
+    """
+    raw = str(exc)
+    if len(raw) > _INTERNAL_ERROR_DETAIL_CHARS:
+        raw = raw[: _INTERNAL_ERROR_DETAIL_CHARS - 3] + "..."
+    return {
+        "caused_by": {
+            "type": type(exc).__name__,
+            "message": raw,
+        }
+    }
+
+
+# ---------------------------------------------------------------------------
 # validate_platform — server-boot fail-fast
 # ---------------------------------------------------------------------------
 
@@ -785,23 +833,31 @@ async def _invoke_platform_method(
         )
         raise AdcpError(
             "INTERNAL_ERROR",
-            message="An internal error occurred",
+            message=_internal_error_message(method_name, exc),
             recovery="terminal",
+            details=_internal_error_details(exc),
         ) from exc
     except Exception as exc:
         # Wrap unexpected exceptions so the wire never sees a stack
         # trace. Adopter logs the original via observability hooks;
-        # __cause__ is preserved for server-side debugging (the wire
-        # ``AdcpError.to_wire()`` projection deliberately omits
-        # __cause__ — middleware MUST NOT format it into the response).
+        # __cause__ is preserved for server-side debugging.
+        #
+        # The ``details.caused_by`` shape (Emma AudioStack P2) gives
+        # adopters a breadcrumb on the wire — without it, "An internal
+        # error occurred" is a dead end and adopters have to grep
+        # server logs. We expose only the exception class name + str
+        # (not the traceback) so a misconfigured platform that throws
+        # on secret material doesn't leak the secret value through
+        # the wire response.
         logger.exception(
             "Unhandled exception in platform.%s — wrapping to INTERNAL_ERROR",
             method_name,
         )
         raise AdcpError(
             "INTERNAL_ERROR",
-            message="An internal error occurred",
+            message=_internal_error_message(method_name, exc),
             recovery="terminal",
+            details=_internal_error_details(exc),
         ) from exc
 
     if is_task_handoff(result):
@@ -889,15 +945,19 @@ async def _project_handoff(
         except AdcpError as exc:
             await registry.fail(task_id, exc.to_wire())
             return
-        except Exception:
+        except Exception as exc:
             logger.exception(
                 "Unhandled exception in handoff fn for task %s — wrapping",
                 task_id,
             )
             wrapped = AdcpError(
                 "INTERNAL_ERROR",
-                message="An internal error occurred during background task",
+                message=(
+                    f"Background task for {method_name!r} raised "
+                    f"{type(exc).__name__}; see details for cause"
+                ),
                 recovery="terminal",
+                details=_internal_error_details(exc),
             )
             await registry.fail(task_id, wrapped.to_wire())
             return
