@@ -202,29 +202,55 @@ def maybe_emit_sync_completion(
     try:
         if not enabled:
             return
-        extracted = _extract_push_notification_url_and_token(params)
-        if extracted is None:
-            return
-        url, token = extracted
+
+        # Cheap pre-check: did the buyer register ANY
+        # ``push_notification_config``? Done BEFORE the full
+        # extraction so the sender=None warning fires even on weird
+        # ``params`` shapes that would have made
+        # ``_extract_push_notification_url_and_token`` raise. The
+        # outer ``try/except Exception`` would otherwise swallow such
+        # extraction errors and we'd reproduce the very silent-drop
+        # behavior this gate is supposed to eliminate.
+        config = getattr(params, "push_notification_config", None)
+        if config is None and isinstance(params, dict):
+            config = params.get("push_notification_config")
+        if config is None:
+            return  # buyer didn't register — nothing to do
+
         if sender is None:
-            # Buyer registered a webhook URL but the adopter didn't
+            # Buyer registered a webhook config but the adopter didn't
             # wire a sender. Without this branch, the buyer's
             # notification quietly disappears — they think they
             # registered for completion webhooks and just never
             # receive any. Surfacing a warning on first call gives
             # the adopter a fast path to the misconfig.
+            #
+            # Try to surface the URL for actionable error context;
+            # fall back to the config repr when extraction raises
+            # mid-traversal (still better than silent skip).
+            try:
+                url_for_log = getattr(config, "url", None)
+                if url_for_log is None and isinstance(config, dict):
+                    url_for_log = config.get("url")
+            except Exception:
+                url_for_log = None
             logger.warning(
                 "[adcp.decisioning] buyer registered "
-                "push_notification_config.url=%s for %s but auto-emit "
+                "push_notification_config (url=%s) for %s but auto-emit "
                 "webhook_sender is None — webhook silently dropped. "
                 "Pass webhook_sender to "
                 "adcp.decisioning.serve.create_adcp_server_from_platform, "
                 "or set auto_emit_completion_webhooks=False to silence "
                 "this warning.",
-                url,
+                url_for_log if url_for_log else "<unextractable>",
                 method_name,
             )
             return
+
+        extracted = _extract_push_notification_url_and_token(params)
+        if extracted is None:
+            return
+        url, token = extracted
         if method_name not in SPEC_WEBHOOK_TASK_TYPES:
             logger.warning(
                 "[adcp.decisioning] sync completion webhook for %s skipped — "

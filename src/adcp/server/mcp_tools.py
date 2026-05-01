@@ -1552,8 +1552,12 @@ def _resolve_params_pydantic_model(method: Any) -> type[Any] | None:
     references that fail to resolve — the dispatcher then falls back
     to the legacy dict path.
 
-    Cached per method object via the returned value being computed once
-    at ``create_tool_caller`` setup time.
+    The result is computed once at ``create_tool_caller`` setup time
+    (not per request) and captured in the closure returned to the
+    transport layer; warnings fire at server boot, not per call.
+    Forward-compat with PEP 749 (3.14 lazy annotations): ``get_type_hints``
+    is the supported migration target for runtime annotation
+    resolution, so this code keeps working as the language evolves.
     """
     import typing
     from types import UnionType
@@ -1563,25 +1567,27 @@ def _resolve_params_pydantic_model(method: Any) -> type[Any] | None:
     try:
         hints = typing.get_type_hints(method)
     except Exception as exc:  # forward-ref failure, missing import, etc.
-        # WARNING (not debug): silent dict-path fallback was the root
-        # cause of the wire-dispatch regression Emma's sales-direct
-        # backend test surfaced (handler.py kept Request types under
-        # ``if TYPE_CHECKING:`` so PEP 563 forward refs couldn't resolve
-        # at runtime; resolver returned None; shims crashed on
-        # ``params.account``). Author's choice: declare ``params: dict``
-        # for the dict path, or ensure the typed annotation's class is
-        # importable at the method's module scope. A debug log is too
-        # quiet for a footgun this expensive — bumping to WARNING ensures
-        # adopters see it on first server boot.
+        # WARNING (not debug): silent dict-path fallback hides shim
+        # crashes on ``params.<field>`` access when the typed annotation
+        # didn't resolve. Author's choice: declare ``params: dict`` for
+        # the dict path, or ensure the typed annotation's class is
+        # importable at the method's module scope (not under
+        # ``TYPE_CHECKING``).
+        #
+        # Surface the failing name explicitly so adopters don't have to
+        # parse the method repr — ``NameError`` exposes it on
+        # ``.name`` on 3.10+. Falls back to ``str(exc)`` for other
+        # exception classes (rare).
+        failing_name = getattr(exc, "name", None) or str(exc)
         logger.warning(
-            "typed params annotation failed to resolve for %r: %s; "
-            "falling back to dict dispatch. If this method declares "
-            "``params: <PydanticModel>``, import that model at the "
-            "method's module scope (not under ``TYPE_CHECKING``); "
-            "otherwise declare ``params: dict[str, Any]`` to silence "
-            "this warning.",
+            "typed params annotation failed to resolve for %r "
+            "(unresolved name: %s); falling back to dict dispatch. "
+            "If this method declares ``params: <PydanticModel>``, "
+            "import that model at the method's module scope (not "
+            "under ``TYPE_CHECKING``); otherwise declare "
+            "``params: dict[str, Any]`` to silence this warning.",
             method,
-            exc,
+            failing_name,
         )
         return None
     annotation = hints.get("params")

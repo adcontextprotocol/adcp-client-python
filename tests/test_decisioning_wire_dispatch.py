@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import typing
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 import pytest
 
@@ -41,28 +42,17 @@ def executor():
     pool.shutdown(wait=True)
 
 
+# Compute the shim list dynamically from the class's ``advertised_tools``
+# so any new shim added in a future PR auto-extends regression coverage —
+# a contributor can't add a new tool with its Request type stuck under
+# ``TYPE_CHECKING`` and have CI miss it.
+_ALL_SHIMS = sorted(PlatformHandler.advertised_tools)
+
+
 # ---- Direct unit-level repro ----
 
 
-@pytest.mark.parametrize(
-    "tool_name",
-    [
-        "get_products",
-        "create_media_buy",
-        "update_media_buy",
-        "sync_creatives",
-        "get_media_buy_delivery",
-        "build_creative",
-        "get_signals",
-        "activate_signal",
-        "sync_audiences",
-        "check_governance",
-        "get_brand_identity",
-        "list_content_standards",
-        "create_property_list",
-        "create_collection_list",
-    ],
-)
+@pytest.mark.parametrize("tool_name", _ALL_SHIMS)
 def test_get_type_hints_resolves_for_every_shim(tool_name: str) -> None:
     """``typing.get_type_hints`` must succeed on every shim. Without
     this, the dispatcher's typed-params resolver silently falls back to
@@ -73,30 +63,14 @@ def test_get_type_hints_resolves_for_every_shim(tool_name: str) -> None:
     assert "params" in hints, f"{tool_name} missing 'params' annotation"
 
 
-@pytest.mark.parametrize(
-    "tool_name,expected_request",
-    [
-        ("get_products", "GetProductsRequest"),
-        ("create_media_buy", "CreateMediaBuyRequest"),
-        ("update_media_buy", "UpdateMediaBuyRequest"),
-        ("sync_creatives", "SyncCreativesRequest"),
-        ("get_media_buy_delivery", "GetMediaBuyDeliveryRequest"),
-        ("build_creative", "BuildCreativeRequest"),
-        ("get_signals", "GetSignalsRequest"),
-        ("sync_audiences", "SyncAudiencesRequest"),
-        ("check_governance", "CheckGovernanceRequest"),
-        ("get_brand_identity", "GetBrandIdentityRequest"),
-        ("list_content_standards", "ListContentStandardsRequest"),
-        ("create_property_list", "CreatePropertyListRequest"),
-        ("create_collection_list", "CreateCollectionListRequest"),
-    ],
-)
-def test_resolver_returns_typed_request_class_not_none(
-    tool_name: str, expected_request: str
-) -> None:
-    """The dispatcher's resolver must return the Pydantic request class,
+@pytest.mark.parametrize("tool_name", _ALL_SHIMS)
+def test_resolver_returns_typed_request_class_not_none(tool_name: str) -> None:
+    """The dispatcher's resolver must return a Pydantic request class,
     NOT ``None``. ``None`` triggers the dict-fallback dispatch path that
-    causes the wire-side 500."""
+    causes the wire-side 500. Asserts a Pydantic ``BaseModel`` subclass
+    rather than a specific class name so this auto-covers new shims."""
+    from pydantic import BaseModel
+
     method = getattr(PlatformHandler, tool_name)
     resolved = _resolve_params_pydantic_model(method)
     assert resolved is not None, (
@@ -104,9 +78,13 @@ def test_resolver_returns_typed_request_class_not_none(
         "dispatcher will fall back to dict path and shim will crash on "
         "params.account"
     )
-    assert (
-        resolved.__name__ == expected_request
-    ), f"{tool_name}: expected {expected_request}, got {resolved.__name__}"
+    assert issubclass(resolved, BaseModel), (
+        f"{tool_name}: resolver returned {resolved!r} which is not a " "Pydantic BaseModel subclass"
+    )
+    assert resolved.__name__.endswith("Request"), (
+        f"{tool_name}: resolved class {resolved.__name__!r} doesn't look "
+        "like a wire Request type"
+    )
 
 
 # ---- End-to-end wire path ----
@@ -164,6 +142,19 @@ async def test_wire_dispatch_get_products_does_not_crash(executor) -> None:
     }
     result = await caller(wire_payload)
     assert platform.calls and platform.calls[0][0] == "get_products"
+    # Pin the typed-dispatch contract: the platform method MUST receive
+    # a Pydantic ``GetProductsRequest`` instance, NOT a raw dict. The
+    # wire-dispatch regression this PR fixes was fundamentally about the
+    # dispatcher silently handing a dict through the typed annotation
+    # path; without this assertion, a future re-break of the resolver
+    # that still routes the dict through would pass.
+    from adcp.types import GetProductsRequest
+
+    received = platform.calls[0][1]
+    assert isinstance(received, GetProductsRequest), (
+        f"platform got {type(received).__name__}, expected GetProductsRequest "
+        "— resolver regressed to dict-fallback path"
+    )
     assert "products" in result
 
 
@@ -186,7 +177,27 @@ async def test_wire_dispatch_non_sales_tool_does_not_crash(executor) -> None:
         registry=InMemoryTaskRegistry(),
     )
     caller = create_tool_caller(handler, "build_creative")
+    received_req: list[Any] = []
+    # Wrap the platform method via __dict__ so we capture what the
+    # dispatcher actually delivered post-resolution, before
+    # ``_invoke_platform_method`` consumes it.
+    orig_build = handler._platform.build_creative
+
+    def _capture(req: Any, ctx: Any) -> Any:
+        received_req.append(req)
+        return orig_build(req, ctx)
+
+    handler._platform.build_creative = _capture  # type: ignore[method-assign]
+
     result = await caller(
         {"brief": "synthesize a 30s spot", "idempotency_key": "emma-test-build-creative-001"}
     )
     assert "creative_manifest" in result
+    # Same regression guard as get_products — the platform must see a
+    # typed ``BuildCreativeRequest``, not the raw wire dict.
+    from adcp.types import BuildCreativeRequest
+
+    assert received_req and isinstance(received_req[0], BuildCreativeRequest), (
+        f"platform got {type(received_req[0] if received_req else None).__name__}, "
+        "expected BuildCreativeRequest"
+    )
