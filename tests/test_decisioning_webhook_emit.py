@@ -148,8 +148,16 @@ async def test_maybe_emit_skips_when_disabled() -> None:
 
 
 @pytest.mark.asyncio
-async def test_maybe_emit_skips_when_sender_none() -> None:
-    """``sender=None`` → silent skip (no emitter wired)."""
+async def test_maybe_emit_warns_when_sender_none_but_buyer_registered_url(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``sender=None`` while buyer DID register
+    ``push_notification_config.url`` → log a WARNING. Adopters often
+    ship without wiring ``webhook_sender`` and only discover the
+    misconfig when buyers complain about missing notifications. The
+    warning surfaces this on first call. Regression for Emma
+    sales-direct backend test (verdict 2/10) — the prior silent-skip
+    branch hid the gap entirely."""
 
     class _Config:
         url = "https://buyer.example.com/wh"
@@ -158,12 +166,35 @@ async def test_maybe_emit_skips_when_sender_none() -> None:
     class _Params:
         push_notification_config = _Config()
 
-    # Smoke — must not raise.
+    with caplog.at_level("WARNING", logger="adcp.decisioning.webhook_emit"):
+        maybe_emit_sync_completion(
+            sender=None,
+            enabled=True,
+            method_name="create_media_buy",
+            params=_Params(),
+            result={"media_buy_id": "mb_1"},
+        )
+    messages = [r.message for r in caplog.records]
+    assert any(
+        "webhook_sender is None" in m and "buyer.example.com/wh" in m for m in messages
+    ), f"expected sender-None warning citing the buyer URL; got {messages}"
+
+
+@pytest.mark.asyncio
+async def test_maybe_emit_skips_silently_when_sender_none_and_no_url() -> None:
+    """``sender=None`` AND no ``push_notification_config.url`` → silent
+    skip. Buyers who don't register webhooks aren't a misconfig — no
+    point warning."""
+
+    class _Bare:
+        pass
+
+    # Smoke — must not raise, must not warn (no caplog capture).
     maybe_emit_sync_completion(
         sender=None,
         enabled=True,
         method_name="create_media_buy",
-        params=_Params(),
+        params=_Bare(),
         result={"media_buy_id": "mb_1"},
     )
 

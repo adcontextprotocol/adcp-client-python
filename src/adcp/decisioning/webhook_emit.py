@@ -176,11 +176,18 @@ def maybe_emit_sync_completion(
     Skips silently when:
 
     * ``enabled`` is False (operator opted out).
-    * ``sender`` is None (no emitter wired).
     * The request didn't carry ``push_notification_config.url``.
-    * ``method_name`` isn't in :data:`SPEC_WEBHOOK_TASK_TYPES` (logged
-      as a warning so adopters notice they extended the tool surface
-      beyond the spec enum).
+
+    Logs a WARNING when:
+
+    * ``sender`` is None but the buyer DID register
+      ``push_notification_config.url`` — the buyer's notification
+      registration is being silently dropped, which the adopter
+      almost certainly didn't intend. Wire ``webhook_sender`` into
+      :func:`adcp.decisioning.serve` or pass
+      ``auto_emit_completion_webhooks=False`` to silence this.
+    * ``method_name`` isn't in :data:`SPEC_WEBHOOK_TASK_TYPES` (the
+      adopter extended the tool surface beyond the spec enum).
 
     Schedules the actual delivery via the running event loop's
     ``create_task`` so the sync response path is non-blocking.
@@ -193,12 +200,31 @@ def maybe_emit_sync_completion(
     logged-and-swallowed.
     """
     try:
-        if not enabled or sender is None:
+        if not enabled:
             return
         extracted = _extract_push_notification_url_and_token(params)
         if extracted is None:
             return
         url, token = extracted
+        if sender is None:
+            # Buyer registered a webhook URL but the adopter didn't
+            # wire a sender. Without this branch, the buyer's
+            # notification quietly disappears — they think they
+            # registered for completion webhooks and just never
+            # receive any. Surfacing a warning on first call gives
+            # the adopter a fast path to the misconfig.
+            logger.warning(
+                "[adcp.decisioning] buyer registered "
+                "push_notification_config.url=%s for %s but auto-emit "
+                "webhook_sender is None — webhook silently dropped. "
+                "Pass webhook_sender to "
+                "adcp.decisioning.serve.create_adcp_server_from_platform, "
+                "or set auto_emit_completion_webhooks=False to silence "
+                "this warning.",
+                url,
+                method_name,
+            )
+            return
         if method_name not in SPEC_WEBHOOK_TASK_TYPES:
             logger.warning(
                 "[adcp.decisioning] sync completion webhook for %s skipped — "

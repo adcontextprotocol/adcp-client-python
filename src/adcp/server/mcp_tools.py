@@ -1563,13 +1563,23 @@ def _resolve_params_pydantic_model(method: Any) -> type[Any] | None:
     try:
         hints = typing.get_type_hints(method)
     except Exception as exc:  # forward-ref failure, missing import, etc.
-        # Log at debug so an author whose typed annotation silently
-        # failed to resolve (typo in the class name, import not at
-        # module top-level, PEP 563 name bound in a local scope) can
-        # find out why their handler is dispatching via the dict path.
-        logger.debug(
+        # WARNING (not debug): silent dict-path fallback was the root
+        # cause of the wire-dispatch regression Emma's sales-direct
+        # backend test surfaced (handler.py kept Request types under
+        # ``if TYPE_CHECKING:`` so PEP 563 forward refs couldn't resolve
+        # at runtime; resolver returned None; shims crashed on
+        # ``params.account``). Author's choice: declare ``params: dict``
+        # for the dict path, or ensure the typed annotation's class is
+        # importable at the method's module scope. A debug log is too
+        # quiet for a footgun this expensive — bumping to WARNING ensures
+        # adopters see it on first server boot.
+        logger.warning(
             "typed params annotation failed to resolve for %r: %s; "
-            "falling back to dict dispatch",
+            "falling back to dict dispatch. If this method declares "
+            "``params: <PydanticModel>``, import that model at the "
+            "method's module scope (not under ``TYPE_CHECKING``); "
+            "otherwise declare ``params: dict[str, Any]`` to silence "
+            "this warning.",
             method,
             exc,
         )
