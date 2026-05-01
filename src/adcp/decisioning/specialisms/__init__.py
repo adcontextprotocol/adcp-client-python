@@ -18,16 +18,38 @@ Public surface re-exported from :mod:`adcp.decisioning.specialisms`:
 * :class:`AudiencePlatform` — covers ``audience-sync``. Two methods:
   ``sync_audiences`` (push first-party CRM audiences with delta
   upsert) and ``poll_audience_statuses`` (batch state read).
+* :class:`CreativeBuilderPlatform` — covers ``creative-template`` +
+  ``creative-generative``. Required ``build_creative``; optional
+  ``preview_creative``, ``refine_creative``, ``sync_creatives``.
+  Unified shape per JS commit ``841616d7`` (F13) — wire spec doesn't
+  distinguish template-driven transform from brief-to-creative
+  generation.
+* :class:`CreativeAdServerPlatform` — covers ``creative-ad-server``.
+  Stateful library + per-creative pricing + tag generation. Required
+  ``build_creative``, ``preview_creative``, ``list_creatives``,
+  ``get_creative_delivery``; optional ``sync_creatives``.
 
-Remaining specialism Protocols (creative-*, governance-*,
-brand-rights, content-standards, property-lists, collection-lists)
-are added in subsequent breadth-sprint PRs as adopters need them.
+Remaining specialism Protocols (governance-*, brand-rights,
+content-standards, property-lists, collection-lists) are added in
+subsequent breadth-sprint PRs.
 """
 
 from __future__ import annotations
 
 from adcp.decisioning.specialisms.audience import AudiencePlatform
+from adcp.decisioning.specialisms.creative import (
+    CreativeBuilderPlatform,
+    RefinementMessage,
+)
+from adcp.decisioning.specialisms.creative_ad_server import CreativeAdServerPlatform
 from adcp.decisioning.specialisms.sales import SalesPlatform
 from adcp.decisioning.specialisms.signals import SignalsPlatform
 
-__all__ = ["AudiencePlatform", "SalesPlatform", "SignalsPlatform"]
+__all__ = [
+    "AudiencePlatform",
+    "CreativeAdServerPlatform",
+    "CreativeBuilderPlatform",
+    "RefinementMessage",
+    "SalesPlatform",
+    "SignalsPlatform",
+]

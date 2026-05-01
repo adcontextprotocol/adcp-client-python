@@ -214,6 +214,36 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "sync_audiences",
         }
     ),
+    # Creative builder specialisms — template-driven transform AND
+    # brief-driven generation share the unified
+    # ``CreativeBuilderPlatform`` Protocol per JS commit ``841616d7``
+    # (F13). ``build_creative`` is the only wire-required method;
+    # ``preview_creative``, ``refine_creative``, ``sync_creatives`` are
+    # optional and surface ``UNSUPPORTED_FEATURE`` to buyers when
+    # missing.
+    "creative-template": frozenset(
+        {
+            "build_creative",
+        }
+    ),
+    "creative-generative": frozenset(
+        {
+            "build_creative",
+        }
+    ),
+    # Creative-ad-server — stateful library, per-creative pricing, tag
+    # generation, per-creative delivery. ``preview_creative`` is
+    # required here (distinct from CreativeBuilderPlatform where it's
+    # optional) — buyers expect preview surface from any stateful
+    # library.
+    "creative-ad-server": frozenset(
+        {
+            "build_creative",
+            "preview_creative",
+            "list_creatives",
+            "get_creative_delivery",
+        }
+    ),
 }
 
 
