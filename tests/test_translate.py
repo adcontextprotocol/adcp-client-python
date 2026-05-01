@@ -370,3 +370,112 @@ class TestNormalizeGeneral:
         assert "brand_manifest" not in result
         assert "promoted_offerings" not in result
         assert "campaign_ref" not in result
+
+
+# ---- AdcpError details surfacing on MCP wire (AudioStack Emma P0) ----
+
+
+class TestAdcpErrorDetailsOnMCP:
+    """Pre-#341: ``adcp.decisioning.types.AdcpError`` was NOT a subclass
+    of ``adcp.exceptions.ADCPError``, so ``except ADCPError`` in
+    ``serve.py`` didn't catch it. The exception propagated to FastMCP's
+    default handler and ``details`` (carrying ``caused_by`` from the
+    INTERNAL_ERROR wrap, ``validation_errors`` from #341's narrowing)
+    was silently dropped.
+
+    Post-fix: ``translate_error`` recognizes decisioning ``AdcpError``,
+    extracts ``details``, and ``_to_mcp`` serialises them as a
+    ``\\nDetails: <json>`` line in the ToolError text payload. Buyer
+    libs can split on the prefix and ``json.loads`` the tail."""
+
+    def test_adcp_error_details_serialized_on_mcp_wire(self) -> None:
+        """When dispatch raises ``AdcpError(INTERNAL_ERROR,
+        details={"caused_by": ...})``, the MCP ToolError payload
+        carries ``\\nDetails: {"caused_by": ...}`` so buyer agents can
+        parse the structured breadcrumb."""
+        import json as _json
+
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+        from adcp.server.translate import translate_error
+
+        exc = DecisioningAdcpError(
+            "INTERNAL_ERROR",
+            message="Platform method 'build_creative' raised AttributeError",
+            recovery="terminal",
+            details={
+                "caused_by": {
+                    "type": "AttributeError",
+                    "message": "'dict' object has no attribute 'message'",
+                }
+            },
+        )
+        tool_err = translate_error(exc, protocol="mcp")
+        text = str(tool_err.args[0]) if tool_err.args else str(tool_err)
+        assert "INTERNAL_ERROR:" in text
+        assert "build_creative" in text
+        # The structured breadcrumb is parseable from the text payload.
+        assert "\nDetails: " in text
+        details_json = text.split("\nDetails: ", 1)[1]
+        parsed = _json.loads(details_json)
+        assert parsed["caused_by"]["type"] == "AttributeError"
+
+    def test_validation_errors_reach_mcp_buyer_via_details(self) -> None:
+        """#341's ``ValidationError`` narrowing populates
+        ``details.validation_errors`` on the dispatch's wrap. That
+        list now flows through to MCP buyers — pre-fix it only reached
+        A2A buyers because the MCP path dropped ``details``."""
+        import json as _json
+
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+        from adcp.server.translate import translate_error
+
+        exc = DecisioningAdcpError(
+            "INTERNAL_ERROR",
+            message="Platform method 'build_creative' raised ValidationError",
+            recovery="terminal",
+            details={
+                "caused_by": {"type": "ValidationError", "message": "..."},
+                "validation_errors": [
+                    {
+                        "type": "missing",
+                        "loc": ["assets", "hero", "ImageAsset", "width"],
+                        "msg": "Field required",
+                    },
+                    {
+                        "type": "missing",
+                        "loc": ["assets", "hero", "ImageAsset", "height"],
+                        "msg": "Field required",
+                    },
+                ],
+            },
+        )
+        tool_err = translate_error(exc, protocol="mcp")
+        text = str(tool_err.args[0]) if tool_err.args else str(tool_err)
+        details_json = text.split("\nDetails: ", 1)[1]
+        parsed = _json.loads(details_json)
+        # Both narrowed errors reach the buyer with full field paths.
+        assert len(parsed["validation_errors"]) == 2
+        loc_fields = {err["loc"][-1] for err in parsed["validation_errors"]}
+        assert loc_fields == {"width", "height"}
+
+    def test_huge_details_truncated_at_8kb(self) -> None:
+        """A pathological ``details`` payload (huge repr, DB query
+        string) gets truncated to 8KB so the MCP error response stays
+        bounded. Defense-in-depth against an adopter who fills
+        ``details`` with raw debug payloads."""
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+        from adcp.server.translate import translate_error
+
+        # Build a details dict that JSON-encodes to >8 KB.
+        big = {"blob": "X" * 10_000}
+        exc = DecisioningAdcpError(
+            "INTERNAL_ERROR",
+            message="huge",
+            recovery="terminal",
+            details=big,
+        )
+        tool_err = translate_error(exc, protocol="mcp")
+        text = str(tool_err.args[0]) if tool_err.args else str(tool_err)
+        details_part = text.split("\nDetails: ", 1)[1]
+        assert len(details_part) <= 8192
+        assert details_part.endswith("...")

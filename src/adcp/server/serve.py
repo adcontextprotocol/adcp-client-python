@@ -1036,6 +1036,16 @@ def _register_tool(
     from adcp.exceptions import ADCPError
     from adcp.server.translate import translate_error
 
+    # Lazy import — decisioning is optional for non-platform handlers,
+    # but when present its ``AdcpError`` carries structured ``details``
+    # (caused_by, validation_errors) that ``translate_error`` now
+    # understands. AudioStack Emma P0: pre-fix this exception class
+    # propagated to FastMCP's default handler and ``details`` was lost.
+    try:
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
+    except Exception:
+        DecisioningAdcpError = None  # type: ignore[assignment,misc]  # noqa: N806
+
     async def fn(**kwargs: Any) -> dict[str, Any]:
         # Caller identity: FastMCP does not expose an authenticated principal
         # at the SDK level (``Context.client_id`` is a session hint, not an
@@ -1082,6 +1092,19 @@ def _register_tool(
             # the code via either structuredContent.adcp_error (if populated)
             # or the text-fallback path.
             raise translate_error(exc, protocol="mcp") from exc
+        except Exception as exc:
+            # Decisioning ``AdcpError`` is NOT a subclass of
+            # ``adcp.exceptions.ADCPError`` (different class hierarchy
+            # — ``adcp.decisioning.types.AdcpError``). Without this
+            # branch it propagated to FastMCP's default exception
+            # handler and ``details`` was lost on the wire. AudioStack
+            # Emma P0 confirmed pre-fix.
+            if DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
+                # ``# type: ignore[arg-type]`` because mypy can't see
+                # that ``translate_error`` accepts decisioning AdcpError
+                # via the lazy-import branch.
+                raise translate_error(exc, protocol="mcp") from exc  # type: ignore[arg-type]
+            raise
         if hasattr(result, "model_dump"):
             return result.model_dump(mode="json", exclude_none=True)  # type: ignore[no-any-return]
         if isinstance(result, dict):

@@ -25,6 +25,7 @@ Not exported from ``adcp.server`` — import directly::
 
 from __future__ import annotations
 
+import json
 from typing import Any, Literal
 from urllib.parse import urlparse
 
@@ -143,6 +144,15 @@ def translate_error(
     if proto not in ("mcp", "a2a"):
         raise ValueError(f"protocol must be 'mcp' or 'a2a', got {protocol!r}")
 
+    # Lazy import — ``adcp.decisioning.types`` pulls in the decisioning
+    # graph, which translate.py shouldn't load at module-import time.
+    # Match against ``BaseException`` here and let the elif body do the
+    # actual isinstance check via the imported name.
+    try:
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError  # noqa: N813
+    except Exception:
+        DecisioningAdcpError = None  # type: ignore[assignment,misc]  # noqa: N806
+
     # Extract structured fields from the input
     field: str | None = None
     if isinstance(exc, Error):
@@ -151,6 +161,21 @@ def translate_error(
         suggestion = exc.suggestion
         details = exc.details
         recovery = _recovery_for_code(code)
+        errors = None
+        field = exc.field
+    elif DecisioningAdcpError is not None and isinstance(exc, DecisioningAdcpError):
+        # Decisioning-layer ``AdcpError`` (distinct from
+        # ``adcp.exceptions.ADCPError``) carries its own structured
+        # ``details`` (e.g. ``caused_by`` from the INTERNAL_ERROR wrap,
+        # ``validation_errors`` from #341's narrowing). AudioStack Emma
+        # P0: pre-fix this branch was missing entirely, so AdcpError
+        # propagated to FastMCP's default exception path and ``details``
+        # never reached the wire.
+        code = exc.code
+        message = exc.args[0] if exc.args else ""
+        suggestion = exc.suggestion
+        recovery = exc.recovery
+        details = exc.details or None
         errors = None
         field = exc.field
     elif isinstance(exc, ADCPError):
@@ -167,11 +192,17 @@ def translate_error(
         if errors:
             first = errors[0]
             field = getattr(first, "field", None)
+            # ADCPTaskError errors[0].details (e.g. validation_errors
+            # from create_tool_caller's INVALID_REQUEST projection)
+            # should also reach MCP — A2A already passes them via the
+            # ``errors`` array, but MCP only sees the first error's
+            # field/message. Embed details too.
+            details = getattr(first, "details", None)
     else:
         raise TypeError(f"Expected ADCPError or Error, got {type(exc).__name__}")
 
     if proto == "mcp":
-        return _to_mcp(code, message, suggestion=suggestion, field=field)
+        return _to_mcp(code, message, suggestion=suggestion, field=field, details=details)
     return _to_a2a(
         code,
         message,
@@ -188,6 +219,7 @@ def _to_mcp(
     *,
     suggestion: str | None = None,
     field: str | None = None,
+    details: dict[str, Any] | None = None,
 ) -> ToolError:
     """Format error as a ToolError for MCP servers.
 
@@ -199,6 +231,14 @@ def _to_mcp(
     (``^([A-Z_]+)(?:\\[([^\\]]+)\\])?:``) to recover both the AdCP code
     and the field path — same shape the spec suggests for the JS
     client.
+
+    When ``details`` is non-empty, the JSON-serialised payload is
+    appended after a ``\\nDetails: `` line. Buyer agents can split on
+    that prefix and ``json.loads`` the rest. AudioStack Emma P0:
+    pre-fix the wire said "see details for cause" but the dispatch's
+    ``details.caused_by`` (and #341's ``validation_errors``) never
+    reached MCP buyers — only A2A. Now both transports surface the
+    structured breadcrumb.
     """
     if field:
         text = f"{code}[{field}]: {message}"
@@ -206,6 +246,20 @@ def _to_mcp(
         text = f"{code}: {message}"
     if suggestion:
         text += f"\nSuggestion: {suggestion}"
+    if details:
+        # Truncation: the entire MCP error is one ``text`` field, so a
+        # huge details dict bloats every error response. Cap the JSON
+        # payload at 8 KB — generous enough for the structured
+        # breadcrumb shapes (caused_by + validation_errors typically
+        # under 2 KB) but bounded against an adopter who fills details
+        # with raw repr or DB query strings.
+        try:
+            details_json = json.dumps(details, separators=(",", ":"), default=str)
+        except Exception:
+            details_json = str(details)
+        if len(details_json) > 8192:
+            details_json = details_json[:8189] + "..."
+        text += f"\nDetails: {details_json}"
     return ToolError(text)
 
 
