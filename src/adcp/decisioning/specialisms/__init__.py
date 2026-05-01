@@ -39,26 +39,49 @@ Public surface re-exported from :mod:`adcp.decisioning.specialisms`:
   does NOT implement this Protocol; it integrates WITH a platform
   that does. That slug stays unenforced until sync_governance
   handler shim wiring lands for sales adopters.
+* :class:`BrandRightsPlatform` — covers ``brand-rights``. Required
+  ``get_brand_identity``, ``get_rights``, ``acquire_rights`` (3-arm
+  discriminated success union: acquired / pending / rejected).
+* :class:`ContentStandardsPlatform` — covers ``content-standards``.
+  6 required CRUD + calibration + validation methods; 2 optional
+  analyzer reads (``get_media_buy_artifacts``,
+  ``get_creative_features``).
+* :class:`PropertyListsPlatform` — covers ``property-lists``.
+  Standard 5-method CRUD with fetch-token issuance.
+* :class:`CollectionListsPlatform` — covers ``collection-lists``.
+  Parallel CRUD shape on collection-list types.
 
-Remaining specialism Protocols (brand-rights, content-standards,
-property-lists, collection-lists) are added in subsequent
-breadth-sprint PRs.
+The breadth sprint is now COMPLETE — every spec specialism slug
+except ``governance-aware-seller`` has REQUIRED_METHODS coverage
+and a Protocol class. ``governance-aware-seller`` stays unenforced
+by design (it's a SELLER composition claim, not a wire-implementor
+claim — see :class:`CampaignGovernancePlatform` docstring).
 """
 
 from __future__ import annotations
 
 from adcp.decisioning.specialisms.audience import AudiencePlatform
+from adcp.decisioning.specialisms.brand_rights import BrandRightsPlatform
+from adcp.decisioning.specialisms.content_standards import ContentStandardsPlatform
 from adcp.decisioning.specialisms.creative import CreativeBuilderPlatform
 from adcp.decisioning.specialisms.creative_ad_server import CreativeAdServerPlatform
 from adcp.decisioning.specialisms.governance import CampaignGovernancePlatform
+from adcp.decisioning.specialisms.lists import (
+    CollectionListsPlatform,
+    PropertyListsPlatform,
+)
 from adcp.decisioning.specialisms.sales import SalesPlatform
 from adcp.decisioning.specialisms.signals import SignalsPlatform
 
 __all__ = [
     "AudiencePlatform",
+    "BrandRightsPlatform",
     "CampaignGovernancePlatform",
+    "CollectionListsPlatform",
+    "ContentStandardsPlatform",
     "CreativeAdServerPlatform",
     "CreativeBuilderPlatform",
+    "PropertyListsPlatform",
     "SalesPlatform",
     "SignalsPlatform",
 ]

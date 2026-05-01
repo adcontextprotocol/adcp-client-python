@@ -273,6 +273,56 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "get_plan_audit_logs",
         }
     ),
+    # Brand-rights — identity discovery + licensing for branded
+    # inventory. Three required methods, all sync. ``acquire_rights``
+    # has 3-arm discriminated success union (acquired / pending /
+    # rejected) — rejection-as-data, not AdcpError.
+    "brand-rights": frozenset(
+        {
+            "get_brand_identity",
+            "get_rights",
+            "acquire_rights",
+        }
+    ),
+    # Content-standards — brand safety policies, content adjacency
+    # rules, per-creative compliance. Six required methods (CRUD +
+    # calibration + delivery validation); analyzer reads
+    # (``get_media_buy_artifacts``, ``get_creative_features``) are
+    # optional and surface ``UNSUPPORTED_FEATURE`` to buyers when
+    # missing.
+    "content-standards": frozenset(
+        {
+            "list_content_standards",
+            "get_content_standards",
+            "create_content_standards",
+            "update_content_standards",
+            "calibrate_content",
+            "validate_content_delivery",
+        }
+    ),
+    # Property-lists / Collection-lists — list-publishing specialisms
+    # with parallel CRUD shapes. Each has 5 required methods (create,
+    # update, get, list, delete) on its respective list type. Tokens
+    # are scoped per-seller for revocation; compromise-driven
+    # revocation MUST trigger the delete path.
+    "property-lists": frozenset(
+        {
+            "create_property_list",
+            "update_property_list",
+            "get_property_list",
+            "list_property_lists",
+            "delete_property_list",
+        }
+    ),
+    "collection-lists": frozenset(
+        {
+            "create_collection_list",
+            "update_collection_list",
+            "get_collection_list",
+            "list_collection_lists",
+            "delete_collection_list",
+        }
+    ),
 }
 
 

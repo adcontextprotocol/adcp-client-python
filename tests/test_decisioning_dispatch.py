@@ -288,29 +288,36 @@ def test_spec_specialism_enum_matches_schema_cache() -> None:
 
 
 def test_validate_platform_warns_on_unenforced_spec_specialism() -> None:
-    """Spec-recognized specialism that the v6.0 framework doesn't yet
-    enforce (e.g. ``brand-rights``) emits an "unenforced specialism"
+    """Spec-recognized specialism that the v6.0 framework doesn't
+    enforce method coverage for emits an "unenforced specialism"
     UserWarning — distinct from the "novel" warning, since it's a
     real claim, just not method-checked.
 
-    Use ``brand-rights`` here because ``signal-*`` / ``audience-sync``
-    got method-coverage rules in Batch 1, ``creative-*`` got
-    coverage in Batch 2, and ``governance-spend-authority`` /
-    ``governance-delivery-monitor`` got coverage in Batch 3.
-    Brand-rights, content-standards, property-lists,
-    collection-lists, and ``governance-aware-seller`` (a SELLER
-    claim, not a governance-AGENT slug — distinct from the two
-    governance-AGENT slugs covered by CampaignGovernancePlatform)
-    are still pending until subsequent breadth-sprint batches."""
+    After breadth-sprint Batch 4, ``governance-aware-seller`` is the
+    ONLY spec specialism slug staying unenforced — by design, since
+    it's a SELLER composition claim (a sales-* archetype that
+    integrates with a governance agent via sync_governance +
+    check_governance), NOT a wire-implementor claim. Adopters claim
+    it to signal "this seller composes with governance" without
+    implementing CampaignGovernancePlatform themselves.
+
+    Note: ``governance-aware-seller`` is also in
+    GOVERNANCE_SPECIALISMS, so a platform claiming it without
+    ``governance_aware=True`` ALSO trips the security gate. This
+    test sets ``governance_aware=True`` so we hit the unenforced
+    warning path cleanly, isolated from the security gate."""
 
     class _UnenforcedSpecPlatform(DecisioningPlatform):
-        capabilities = DecisioningCapabilities(specialisms=["brand-rights"])
+        capabilities = DecisioningCapabilities(
+            specialisms=["governance-aware-seller"],
+            governance_aware=True,
+        )
         accounts = SingletonAccounts(account_id="hello")
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always", UserWarning)
         validate_platform(_UnenforcedSpecPlatform())
-    matched = [w for w in caught if "brand-rights" in str(w.message)]
+    matched = [w for w in caught if "governance-aware-seller" in str(w.message)]
     assert len(matched) == 1
     assert "spec-recognized" in str(matched[0].message)
 

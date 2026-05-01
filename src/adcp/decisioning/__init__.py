@@ -78,9 +78,13 @@ from adcp.decisioning.serve import (
 )
 from adcp.decisioning.specialisms import (
     AudiencePlatform,
+    BrandRightsPlatform,
     CampaignGovernancePlatform,
+    CollectionListsPlatform,
+    ContentStandardsPlatform,
     CreativeAdServerPlatform,
     CreativeBuilderPlatform,
+    PropertyListsPlatform,
     SalesPlatform,
     SignalsPlatform,
 )
@@ -111,8 +115,11 @@ __all__ = [
     "AdcpError",
     "AudiencePlatform",
     "AuthInfo",
+    "BrandRightsPlatform",
     "CampaignGovernancePlatform",
     "CollectionList",
+    "CollectionListsPlatform",
+    "ContentStandardsPlatform",
     "CreativeAdServerPlatform",
     "CreativeBuilderPlatform",
     "DecisioningCapabilities",
@@ -128,6 +135,7 @@ __all__ = [
     "Proposal",
     "PropertyList",
     "PropertyListReference",
+    "PropertyListsPlatform",
     "RequestContext",
     "ResourceResolver",
     "SalesPlatform",

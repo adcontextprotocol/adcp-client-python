@@ -23,11 +23,15 @@ import pytest
 
 from adcp.decisioning import (
     AudiencePlatform,
+    BrandRightsPlatform,
     CampaignGovernancePlatform,
+    CollectionListsPlatform,
+    ContentStandardsPlatform,
     CreativeAdServerPlatform,
     CreativeBuilderPlatform,
     DecisioningCapabilities,
     DecisioningPlatform,
+    PropertyListsPlatform,
     SalesPlatform,
     SignalsPlatform,
     SingletonAccounts,
@@ -42,10 +46,14 @@ from adcp.decisioning.types import AdcpError
 
 
 def test_specialism_protocols_are_publicly_exported() -> None:
-    """All six Protocol classes (Batches 0–3) are on
+    """All ten Protocol classes (Batches 0–4) are on
     ``adcp.decisioning.__all__`` so adopters import from the canonical
     public surface, not the internal ``adcp.decisioning.specialisms.*``
-    modules."""
+    modules.
+
+    Breadth sprint complete: every spec specialism slug except
+    ``governance-aware-seller`` now has a Protocol class +
+    REQUIRED_METHODS coverage."""
     import adcp.decisioning as dx
 
     assert "SalesPlatform" in dx.__all__
@@ -54,11 +62,19 @@ def test_specialism_protocols_are_publicly_exported() -> None:
     assert "CreativeBuilderPlatform" in dx.__all__
     assert "CreativeAdServerPlatform" in dx.__all__
     assert "CampaignGovernancePlatform" in dx.__all__
+    assert "BrandRightsPlatform" in dx.__all__
+    assert "ContentStandardsPlatform" in dx.__all__
+    assert "PropertyListsPlatform" in dx.__all__
+    assert "CollectionListsPlatform" in dx.__all__
     assert dx.SignalsPlatform is SignalsPlatform
     assert dx.AudiencePlatform is AudiencePlatform
     assert dx.CreativeBuilderPlatform is CreativeBuilderPlatform
     assert dx.CreativeAdServerPlatform is CreativeAdServerPlatform
     assert dx.CampaignGovernancePlatform is CampaignGovernancePlatform
+    assert dx.BrandRightsPlatform is BrandRightsPlatform
+    assert dx.ContentStandardsPlatform is ContentStandardsPlatform
+    assert dx.PropertyListsPlatform is PropertyListsPlatform
+    assert dx.CollectionListsPlatform is CollectionListsPlatform
 
 
 # ---- SignalsPlatform ----
@@ -696,3 +712,304 @@ def test_governance_aware_seller_is_not_a_governance_agent_protocol() -> None:
     assert "governance-aware-seller" not in REQUIRED_METHODS_PER_SPECIALISM
     assert "governance-spend-authority" in REQUIRED_METHODS_PER_SPECIALISM
     assert "governance-delivery-monitor" in REQUIRED_METHODS_PER_SPECIALISM
+
+
+# ---- BrandRightsPlatform ----
+
+
+def test_brand_rights_runtime_checkable() -> None:
+    """A class with the three brand-rights methods passes
+    ``isinstance`` against :class:`BrandRightsPlatform`."""
+
+    class _BrandRightsImpl:
+        def get_brand_identity(self, req, ctx):
+            return {}
+
+        def get_rights(self, req, ctx):
+            return {"rights": []}
+
+        def acquire_rights(self, req, ctx):
+            return {}
+
+    assert isinstance(_BrandRightsImpl(), BrandRightsPlatform)
+
+
+def test_validate_platform_enforces_brand_rights_methods() -> None:
+    """A platform claiming ``brand-rights`` without all three
+    required methods fails fast at server boot."""
+
+    class _PartialBrandRightsPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["brand-rights"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        # Missing get_brand_identity + acquire_rights.
+        def get_rights(self, req, ctx):
+            return {}
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_platform(_PartialBrandRightsPlatform())
+    missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
+    assert "get_brand_identity" in missing_methods
+    assert "acquire_rights" in missing_methods
+
+
+def test_brand_rights_required_methods_pinned() -> None:
+    """Contract test — ``brand-rights`` requires the three sync wire
+    tools per ``schemas/cache/brand/*``."""
+    assert REQUIRED_METHODS_PER_SPECIALISM["brand-rights"] == {
+        "get_brand_identity",
+        "get_rights",
+        "acquire_rights",
+    }
+
+
+# ---- ContentStandardsPlatform ----
+
+
+def test_content_standards_runtime_checkable_full() -> None:
+    """A class with all 8 content-standards methods (6 required + 2
+    optional analyzer reads) passes the strict structural match."""
+
+    class _ContentStandardsImpl:
+        def list_content_standards(self, req, ctx):
+            return {}
+
+        def get_content_standards(self, req, ctx):
+            return {}
+
+        def create_content_standards(self, req, ctx):
+            return {}
+
+        def update_content_standards(self, req, ctx):
+            return {}
+
+        def calibrate_content(self, req, ctx):
+            return {}
+
+        def validate_content_delivery(self, req, ctx):
+            return {}
+
+        def get_media_buy_artifacts(self, req, ctx):
+            return {}
+
+        def get_creative_features(self, req, ctx):
+            return {}
+
+    assert isinstance(_ContentStandardsImpl(), ContentStandardsPlatform)
+
+
+def test_validate_platform_enforces_content_standards_required_methods() -> None:
+    """A platform claiming ``content-standards`` without all six
+    required methods fails fast. Analyzer reads
+    (``get_media_buy_artifacts``, ``get_creative_features``) are
+    optional and don't gate server boot."""
+
+    class _PartialContentStandardsPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["content-standards"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        # Missing 4 of 6 required methods.
+        def list_content_standards(self, req, ctx):
+            return {}
+
+        def get_content_standards(self, req, ctx):
+            return {}
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_platform(_PartialContentStandardsPlatform())
+    missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
+    assert "create_content_standards" in missing_methods
+    assert "update_content_standards" in missing_methods
+    assert "calibrate_content" in missing_methods
+    assert "validate_content_delivery" in missing_methods
+
+
+def test_validate_platform_passes_content_standards_minimal() -> None:
+    """Minimal compliant ``content-standards`` adopter — implements
+    only the 6 required methods, no analyzer reads. Validates."""
+
+    class _MinimalContentStandardsPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["content-standards"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def list_content_standards(self, req, ctx):
+            return {}
+
+        def get_content_standards(self, req, ctx):
+            return {}
+
+        def create_content_standards(self, req, ctx):
+            return {}
+
+        def update_content_standards(self, req, ctx):
+            return {}
+
+        def calibrate_content(self, req, ctx):
+            return {}
+
+        def validate_content_delivery(self, req, ctx):
+            return {}
+
+    validate_platform(_MinimalContentStandardsPlatform())
+
+
+def test_content_standards_required_methods_pinned() -> None:
+    """Contract test — ``content-standards`` requires 6 methods.
+    Analyzer reads are optional."""
+    expected = {
+        "list_content_standards",
+        "get_content_standards",
+        "create_content_standards",
+        "update_content_standards",
+        "calibrate_content",
+        "validate_content_delivery",
+    }
+    assert REQUIRED_METHODS_PER_SPECIALISM["content-standards"] == expected
+
+
+# ---- PropertyListsPlatform / CollectionListsPlatform ----
+
+
+def test_property_lists_runtime_checkable() -> None:
+    """A class with the 5 property-list CRUD methods passes the
+    structural match."""
+
+    class _PropertyListsImpl:
+        def create_property_list(self, req, ctx):
+            return {}
+
+        def update_property_list(self, req, ctx):
+            return {}
+
+        def get_property_list(self, req, ctx):
+            return {}
+
+        def list_property_lists(self, req, ctx):
+            return {}
+
+        def delete_property_list(self, req, ctx):
+            return {}
+
+    assert isinstance(_PropertyListsImpl(), PropertyListsPlatform)
+
+
+def test_collection_lists_runtime_checkable() -> None:
+    """A class with the 5 collection-list CRUD methods passes."""
+
+    class _CollectionListsImpl:
+        def create_collection_list(self, req, ctx):
+            return {}
+
+        def update_collection_list(self, req, ctx):
+            return {}
+
+        def get_collection_list(self, req, ctx):
+            return {}
+
+        def list_collection_lists(self, req, ctx):
+            return {}
+
+        def delete_collection_list(self, req, ctx):
+            return {}
+
+    assert isinstance(_CollectionListsImpl(), CollectionListsPlatform)
+
+
+def test_validate_platform_enforces_property_lists_methods() -> None:
+    """``property-lists`` requires all 5 CRUD methods (no optional)."""
+
+    class _PartialPropertyListsPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["property-lists"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        # Missing delete_property_list — security-critical revocation
+        # path. The required-methods gate catches this at server boot
+        # so an adopter can't ship a list-publishing surface without
+        # the revocation primitive.
+        def create_property_list(self, req, ctx):
+            return {}
+
+        def update_property_list(self, req, ctx):
+            return {}
+
+        def get_property_list(self, req, ctx):
+            return {}
+
+        def list_property_lists(self, req, ctx):
+            return {}
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_platform(_PartialPropertyListsPlatform())
+    missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
+    assert "delete_property_list" in missing_methods
+
+
+def test_validate_platform_enforces_collection_lists_methods() -> None:
+    """``collection-lists`` mirrors ``property-lists`` — same 5-method
+    CRUD shape on collection-list types."""
+
+    class _MinimalCollectionListsPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["collection-lists"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def create_collection_list(self, req, ctx):
+            return {}
+
+        def update_collection_list(self, req, ctx):
+            return {}
+
+        def get_collection_list(self, req, ctx):
+            return {}
+
+        def list_collection_lists(self, req, ctx):
+            return {}
+
+        def delete_collection_list(self, req, ctx):
+            return {}
+
+    validate_platform(_MinimalCollectionListsPlatform())
+
+
+def test_lists_required_methods_pinned() -> None:
+    """Contract test — both list specialisms require their respective
+    5-method CRUD set. Drift here surfaces as a visible failure
+    since the Protocol surfaces should track together."""
+    assert REQUIRED_METHODS_PER_SPECIALISM["property-lists"] == {
+        "create_property_list",
+        "update_property_list",
+        "get_property_list",
+        "list_property_lists",
+        "delete_property_list",
+    }
+    assert REQUIRED_METHODS_PER_SPECIALISM["collection-lists"] == {
+        "create_collection_list",
+        "update_collection_list",
+        "get_collection_list",
+        "list_collection_lists",
+        "delete_collection_list",
+    }
+
+
+# ---- Breadth-sprint completeness pin ----
+
+
+def test_every_spec_slug_except_governance_aware_seller_is_enforced() -> None:
+    """Breadth sprint complete: every spec specialism slug except
+    ``governance-aware-seller`` has a REQUIRED_METHODS_PER_SPECIALISM
+    entry. ``governance-aware-seller`` stays unenforced by design —
+    it's a SELLER composition claim (sales-* archetype that
+    integrates with a governance agent), NOT a wire-implementor
+    claim."""
+    from adcp.decisioning.dispatch import SPEC_SPECIALISM_ENUM
+
+    enforced = set(REQUIRED_METHODS_PER_SPECIALISM.keys())
+    spec = set(SPEC_SPECIALISM_ENUM)
+    # ``signed-requests`` is deprecated per spec (moved to universal
+    # storyboards); not a Protocol-implementor claim.
+    unenforced = spec - enforced
+    assert unenforced == {"governance-aware-seller", "signed-requests"}, (
+        f"Unexpected unenforced spec slugs: {unenforced}. After the "
+        "breadth sprint, only ``governance-aware-seller`` (SELLER "
+        "composition claim) and ``signed-requests`` (deprecated, "
+        "moved to universal storyboards) should be unenforced."
+    )
