@@ -37,20 +37,15 @@ if TYPE_CHECKING:
 #: ``Account[TMeta]`` upstream.
 TMeta = TypeVar("TMeta", default=dict[str, Any])
 
-#: Adopter-facing audience-row shape. Wire schema doesn't export a
-#: top-level ``Audience`` type; the spec defines it inline on
-#: ``SyncAudiencesRequest.audiences[]``. The SDK re-exports the
-#: extracted shape as :class:`SyncAudiencesAudience` from
-#: :mod:`adcp.types`.
-Audience = "SyncAudiencesAudience"
-
-#: Adopter-facing per-audience response-row shape. The wire success
-#: response wraps these in ``{audiences: [...]}``; adopters return the
-#: list and the framework wraps. ``status`` enum is the wire spec's
-#: ``'created' | 'updated' | 'unchanged' | 'deleted' | 'failed'``.
-#: Note: ``'rejected'`` is NOT a valid wire status — use ``'failed'``
-#: for buyer-rejected audiences.
-SyncAudiencesRow = "SyncAudiencesSuccessResponse.audiences[number]"
+# Note on adopter-facing row types: the wire schema doesn't export a
+# top-level ``Audience`` type — the row shape is defined inline on
+# ``SyncAudiencesRequest.audiences[]``. Adopters import
+# :class:`adcp.types.SyncAudiencesAudience` directly for typing.
+# The wire success response is :class:`adcp.types.SyncAudiencesSuccessResponse`,
+# which wraps per-audience result rows in ``{audiences: [...]}`` with
+# the spec's status enum (``created`` / ``updated`` / ``unchanged`` /
+# ``deleted`` / ``failed``; note ``rejected`` is NOT a valid wire
+# status — use ``failed`` for buyer-rejected audiences).
 
 
 @runtime_checkable

@@ -279,6 +279,38 @@ def test_sales_platform_protocol_still_runtime_checkable() -> None:
         "sync_creatives",
         "get_media_buy_delivery",
     }
-    # Smoke check that SalesPlatform symbol is still importable as a
-    # Protocol (not redefined or shadowed).
-    assert hasattr(SalesPlatform, "_is_protocol")
+
+    # Smoke check that SalesPlatform symbol is still a runtime-checkable
+    # Protocol (not redefined or shadowed). We verify by isinstance
+    # against a minimal-but-complete impl rather than checking
+    # ``_is_protocol`` (a private CPython typing internal — brittle
+    # against typing-module changes).
+    class _SalesShim:
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {}
+
+        def sync_creatives(self, req, ctx):
+            return {}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {}
+
+        def get_media_buys(self, req, ctx):
+            return {}
+
+        def provide_performance_feedback(self, req, ctx):
+            return {}
+
+        def list_creative_formats(self, req, ctx):
+            return {}
+
+        def list_creatives(self, req, ctx):
+            return {}
+
+    assert isinstance(_SalesShim(), SalesPlatform)
