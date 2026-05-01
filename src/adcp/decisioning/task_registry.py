@@ -267,6 +267,28 @@ class TaskRegistry(Protocol):
         """
         ...
 
+    async def discard(self, task_id: str) -> None:
+        """Remove a task_id from the registry — rollback path.
+
+        Used by the WorkflowHandoff dispatch projection
+        (:func:`adcp.decisioning.dispatch._project_workflow_handoff`)
+        when the adopter's enqueue fn raises after the task_id has
+        been allocated. Without rollback, the buyer would receive a
+        Submitted envelope referencing an orphan task_id their
+        external workflow never registered.
+
+        Idempotent: discarding an unknown task_id is a no-op (no
+        raise). The discard window is tightly scoped — between
+        ``issue()`` and the framework's projection step, with the
+        adopter's enqueue fn in between. In practice this is a few
+        milliseconds.
+
+        Adopters MUST NOT call ``discard`` on a task that has
+        progressed past ``submitted`` — that's the wrong recovery
+        path; use ``fail()`` instead.
+        """
+        ...
+
 
 # ---------------------------------------------------------------------------
 # In-memory reference implementation — v6.0 ships this; v6.1 lands a
@@ -416,6 +438,13 @@ class InMemoryTaskRegistry:
                 # MUST preserve this behavior.
                 return None
             return record.to_dict()
+
+    async def discard(self, task_id: str) -> None:
+        async with self._lock:
+            # Idempotent: pop with default. The Protocol contract
+            # tolerates discarding an unknown id (no raise) so the
+            # WorkflowHandoff projection's rollback can be unconditional.
+            self._records.pop(task_id, None)
 
 
 # ---------------------------------------------------------------------------

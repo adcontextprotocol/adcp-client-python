@@ -53,7 +53,13 @@ from adcp.decisioning.task_registry import (
     TaskHandoffContext,
     TaskRegistry,
 )
-from adcp.decisioning.types import AdcpError, TaskHandoff, is_task_handoff
+from adcp.decisioning.types import (
+    AdcpError,
+    TaskHandoff,
+    WorkflowHandoff,
+    is_task_handoff,
+    is_workflow_handoff,
+)
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -806,6 +812,14 @@ async def _invoke_platform_method(
             registry=registry,
             executor=executor,
         )
+    if is_workflow_handoff(result):
+        return await _project_workflow_handoff(
+            result,
+            ctx,
+            method_name=method_name,
+            registry=registry,
+            executor=executor,
+        )
     return result
 
 
@@ -937,6 +951,83 @@ async def _project_handoff(
 #: Module-level so the set survives across requests; framework-internal,
 #: never exported.
 _BACKGROUND_HANDOFF_TASKS: set[asyncio.Task[None]] = set()
+
+
+async def _project_workflow_handoff(
+    handoff: WorkflowHandoff,
+    ctx: RequestContext[Any],
+    *,
+    method_name: str,
+    registry: TaskRegistry,
+    executor: ThreadPoolExecutor,
+) -> dict[str, Any]:
+    """Project a :class:`WorkflowHandoff` to the wire Submitted envelope.
+
+    Distinct from :func:`_project_handoff`: NO background coroutine
+    runs. The framework allocates a ``task_id`` via
+    :meth:`TaskRegistry.issue` and calls the adopter's enqueue fn
+    ONCE — synchronously if it's a sync callable, awaited if it's a
+    coroutine. The enqueue fn registers the work into the adopter's
+    external system (trafficker UI queue, batch DB, Airflow trigger,
+    etc.) and returns; the framework then returns the Submitted
+    envelope to the buyer.
+
+    The adopter's external workflow later calls
+    ``registry.complete(task_id, result)`` or
+    ``registry.fail(task_id, error)`` directly — minutes, hours, or
+    days later. The registry is the long-lived control surface; the
+    framework's role ends after enqueue.
+
+    **Rollback.** If the enqueue fn raises, the just-allocated
+    task_id is discarded from the registry via
+    :meth:`TaskRegistry.discard` so the buyer never sees a Submitted
+    envelope referencing an orphan id their external workflow never
+    registered. The exception is re-raised; the dispatch wrapper
+    catches it and projects to ``AdcpError`` per the handler
+    contract.
+
+    :param method_name: Wire-spec verb name — used as ``task_type``
+        on the registry row so ``tasks/get`` round-trips correctly.
+    """
+    fn = handoff._fn
+
+    task_id = await registry.issue(
+        account_id=ctx.account.id,
+        task_type=method_name,
+    )
+    handoff_ctx = TaskHandoffContext(id=task_id, _registry=registry)
+
+    try:
+        if asyncio.iscoroutinefunction(fn):
+            await fn(handoff_ctx)
+        else:
+            ctx_snapshot = contextvars.copy_context()
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                executor,
+                functools.partial(ctx_snapshot.run, fn, handoff_ctx),
+            )
+    except BaseException:
+        # Rollback: the buyer can't be left with a Submitted envelope
+        # referencing a task_id the adopter's external workflow never
+        # registered. Discard the just-allocated registry row, then
+        # re-raise so the outer dispatch wrapper projects the
+        # exception to AdcpError. ``BaseException`` (not Exception)
+        # so KeyboardInterrupt / SystemExit also clean up the
+        # registry side; framework state should never strand on
+        # interpreter teardown.
+        await registry.discard(task_id)
+        raise
+
+    # Wire ``Submitted`` envelope — same shape as the TaskHandoff
+    # path. Buyers can't tell which path the seller took; that's
+    # intentional. ``task_type`` lives on the registry row (for
+    # ``tasks/get``), not on the wire envelope, per the same posture
+    # as :func:`_project_handoff`.
+    return {
+        "task_id": task_id,
+        "status": "submitted",
+    }
 
 
 __all__ = [

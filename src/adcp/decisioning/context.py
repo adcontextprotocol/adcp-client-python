@@ -23,7 +23,7 @@ from typing_extensions import TypeVar
 
 from adcp.decisioning.resolve import ResourceResolver, _make_default_resolver
 from adcp.decisioning.state import StateReader, _make_default_state_reader
-from adcp.decisioning.types import Account, TaskHandoff
+from adcp.decisioning.types import Account, TaskHandoff, WorkflowHandoff
 from adcp.server.base import ToolContext
 
 if TYPE_CHECKING:
@@ -195,5 +195,85 @@ class RequestContext(ToolContext, Generic[TMeta]):
         Adopter code passes either a coroutine function (``async def
         review_async(task_ctx): ...``) or a sync callable; the
         dispatcher detects which and runs it appropriately.
+
+        For external workflows that complete on their own schedule
+        (human queue review, batch jobs, Airflow DAGs, ML pipelines)
+        — use :meth:`handoff_to_workflow` instead. The split is purely
+        about where the work runs (in-process / framework-managed vs.
+        adopter-owned external system).
         """
         return TaskHandoff(fn)
+
+    def handoff_to_workflow(
+        self,
+        fn: Callable[[Any], Awaitable[None] | None],
+    ) -> WorkflowHandoff:
+        """Promote this call to an externally-completed task.
+
+        For workflows that run OUTSIDE the framework's process —
+        human queue review (trafficker UI), nightly batch jobs,
+        Airflow DAGs, ML pipelines, scheduled cron. The framework
+        allocates a ``task_id``, calls ``fn`` ONCE synchronously
+        (or awaits it if a coroutine) to register the work into the
+        adopter's external system, persists ``submitted`` state, and
+        returns the wire envelope. NO background coroutine runs in
+        the framework.
+
+        ``fn`` receives a :class:`TaskHandoffContext` carrying
+        ``id`` (framework-allocated task_id) and ``_registry``
+        (adopter can stash a reference for later completion). The
+        adopter's external workflow later calls
+        ``registry.complete(task_id, result)`` or
+        ``registry.fail(task_id, error)`` directly when the work
+        finishes — minutes, hours, or days later.
+
+        Buyer experience is identical to :meth:`handoff_to_task` —
+        same ``{task_id, status: 'submitted'}`` wire envelope, same
+        ``tasks/get`` polling, same push-notification webhook on
+        terminal state.
+
+        **Rollback.** If ``fn`` raises during enqueue, the framework
+        discards the just-allocated task_id from the registry and
+        propagates the exception (wrapped to ``AdcpError`` per the
+        dispatch contract). Adopter enqueue fns that need
+        transactional persistence wrap their own DB write in their
+        own transaction; the framework's rollback is registry-side
+        only.
+
+        Example::
+
+            class TraffickerSeller(DecisioningPlatform):
+                def __init__(self, review_queue, task_registry):
+                    self.review_queue = review_queue
+                    # Stash for later completion when human acts
+                    self.task_registry = task_registry
+
+                def create_media_buy(self, req, ctx):
+                    if self._needs_human_approval(req):
+                        return ctx.handoff_to_workflow(
+                            lambda task_ctx: self._enqueue(task_ctx, req)
+                        )
+                    return CreateMediaBuySuccess(media_buy_id="mb_1", ...)
+
+                def _enqueue(self, task_ctx, req):
+                    self.review_queue.add(
+                        task_id=task_ctx.id,
+                        request_snapshot=req.model_dump(),
+                    )
+
+                # Elsewhere — Flask handler for the trafficker UI:
+                async def on_decision(self, task_id, decision):
+                    if decision.approved:
+                        await self.task_registry.complete(
+                            task_id,
+                            CreateMediaBuySuccess(...).model_dump(),
+                        )
+                    else:
+                        await self.task_registry.fail(
+                            task_id, AdcpError(...).to_wire(),
+                        )
+
+        See :class:`adcp.decisioning.WorkflowHandoff` for the full
+        semantics.
+        """
+        return WorkflowHandoff(fn)

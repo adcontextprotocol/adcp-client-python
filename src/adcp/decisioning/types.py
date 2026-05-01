@@ -178,36 +178,23 @@ class TaskHandoff(Generic[T]):
     artifact, and emits a webhook on completion. Typical wall-clock:
     seconds to minutes.
 
-    **What TaskHandoff is NOT for** — human-driven HITL workflows where
-    a real person eventually clicks "approve" in a queue. The handoff
-    fn would either block the framework's background runner indefinitely
-    (until the human acts), or poll an external queue (which doesn't
-    fit the "fn returns terminal artifact" contract). For human-approval
-    workflows, the recommended pattern is:
+    **What TaskHandoff is NOT for** — external workflows that complete
+    on their own schedule (human queue review, nightly batch jobs,
+    Airflow DAGs, ML pipelines that run hours later). The handoff fn
+    would either block the framework's background runner indefinitely
+    (until the external system acts), or poll an external queue (which
+    doesn't fit the "fn returns terminal artifact" contract). Use
+    :class:`WorkflowHandoff` instead — obtained via
+    :meth:`RequestContext.handoff_to_workflow`. The framework allocates
+    a ``task_id``, persists ``submitted`` state, and returns the wire
+    envelope; the adopter's external system later calls
+    ``registry.complete(task_id, result)`` or
+    ``registry.fail(task_id, error)`` directly.
 
-    1. Adopter persists the in-flight buy in their own DB and returns
-       ``input-required`` (NOT a TaskHandoff) on the synchronous arm,
-       carrying a stable ``task_id`` they allocated. The
-       ``input-required`` status is in the spec task-status enum
-       (``schemas/cache/enums/task-status.json``); the per-tool
-       ``*_async_response_input_required`` envelopes are in
-       :mod:`adcp.types`.
-    2. Trafficker UI flips the row to approved/rejected on its own
-       schedule.
-    3. Adopter's webhook emitter fires the terminal webhook to the
-       buyer when the human acts. Use the SDK's webhook primitives in
-       :mod:`adcp.webhooks` (payload builders) +
-       :mod:`adcp.webhook_sender` (HMAC-SHA256 signing + IP-pinned
-       transport delivery) — same wire shape the framework uses on the
-       TaskHandoff path.
-
-    The adopter owns the whole lifecycle in the human-driven case; the
-    framework's TaskHandoff projector exists only for the "fn returns
-    terminal artifact within a reasonable wall-clock" shape. v6.1 may
-    add a richer ``ctx.handoff_to_human()`` primitive for the queued-
-    approval pattern; a worked end-to-end example lands with the
-    multi-tenant ``hello_publisher.py`` example in 4.5.0. For v6.0,
-    keep human approvals out of the TaskHandoff path.
+    Buyer experience is identical across the three paths — sync return,
+    TaskHandoff, WorkflowHandoff — they all surface as polled-or-webhook
+    completion against the same wire shape. The split is purely about
+    where the work runs (in-process / framework-managed / adopter-owned).
     """
 
     __slots__ = ("_fn",)
@@ -234,6 +221,101 @@ def is_task_handoff(obj: Any) -> bool:
     response. Documented as a deliberate non-feature.
     """
     return type(obj) is TaskHandoff
+
+
+class WorkflowHandoff:
+    """Marker the framework recognizes as 'register this call as a task
+    completed externally.'
+
+    Adopters obtain instances via :meth:`RequestContext.handoff_to_workflow`;
+    the framework dispatches based on type-identity (``type(obj) is
+    WorkflowHandoff``) — same posture as :class:`TaskHandoff`.
+
+    **Distinct from :class:`TaskHandoff`.** TaskHandoff is for
+    framework-managed in-process async work — the adopter's coroutine
+    runs in the background and returns a terminal artifact within
+    seconds-to-minutes. WorkflowHandoff is for adopter-owned external
+    workflows that complete on their own schedule (human queue review,
+    nightly batch jobs, Airflow DAGs, ML pipelines, scheduled cron).
+    The framework allocates a ``task_id``, calls the adopter's enqueue
+    fn ONCE synchronously to register the work into the adopter's
+    external system, persists ``submitted`` state, and returns the
+    wire envelope. NO background coroutine runs.
+
+    The adopter's external workflow later calls
+    ``registry.complete(task_id, result)`` or
+    ``registry.fail(task_id, error)`` directly — the registry handle
+    is plumbed through the platform's own DI / app-level config.
+
+    Example::
+
+        class TraffickerSeller(DecisioningPlatform):
+            def __init__(self, review_queue, task_registry):
+                self.review_queue = review_queue
+                # Stash the registry so the trafficker UI can call
+                # registry.complete(task_id, result) when the human acts.
+                self.task_registry = task_registry
+
+            def create_media_buy(self, req, ctx):
+                if self._needs_human_approval(req):
+                    # Framework allocates task_id, calls _enqueue with
+                    # task_ctx, persists 'submitted', returns Submitted.
+                    # No background work runs in the framework.
+                    return ctx.handoff_to_workflow(
+                        lambda task_ctx: self._enqueue(task_ctx, req)
+                    )
+                return CreateMediaBuySuccess(media_buy_id="mb_1", ...)
+
+            def _enqueue(self, task_ctx, req):
+                # Persist for the trafficker UI. ``task_ctx.id`` is the
+                # framework-allocated task_id; the buyer polls/webhooks
+                # on this id.
+                self.review_queue.add(
+                    task_id=task_ctx.id,
+                    request_snapshot=req.model_dump(),
+                )
+                # Return — no work done here. Trafficker UI completes
+                # via self.task_registry.complete() when they decide.
+
+    **Wire-shape parity.** The buyer cannot tell whether the seller
+    used sync, TaskHandoff, or WorkflowHandoff. All three project to
+    the same Submitted envelope (``{task_id, status: 'submitted'}``);
+    completion (whenever it happens, by whatever path) flows via
+    ``tasks/get`` or push-notification webhook with the same payload
+    shape.
+
+    **Rollback.** If the enqueue fn raises, the framework discards
+    the just-allocated task_id from the registry and propagates the
+    exception (wrapped to ``AdcpError`` per the dispatch contract).
+    The buyer never sees an orphan task_id they can't reach. Adopter
+    enqueue fns that need transactional persistence wrap their own DB
+    write in their own transaction; the framework's rollback is
+    registry-side only.
+    """
+
+    __slots__ = ("_fn",)
+
+    def __init__(self, fn: Callable[[Any], Awaitable[None] | None]) -> None:
+        # ``fn`` is ``Callable[[TaskHandoffContext], Awaitable[None] |
+        # None]`` — the framework calls it once synchronously (or
+        # awaits it if a coroutine) at handoff time. Return value
+        # unused; the adopter's external workflow completes via
+        # ``registry.complete()`` later, NOT via fn return.
+        # TaskHandoffContext lives in task_registry.py to avoid a cycle.
+        self._fn = fn
+
+    def __repr__(self) -> str:
+        return "WorkflowHandoff(<sealed>)"
+
+
+def is_workflow_handoff(obj: Any) -> bool:
+    """Type-identity dispatch helper for :class:`WorkflowHandoff`.
+
+    Same posture as :func:`is_task_handoff`: ``type(obj) is
+    WorkflowHandoff``, not ``isinstance``. Adopter subclasses are not
+    supported.
+    """
+    return type(obj) is WorkflowHandoff
 
 
 # ---------------------------------------------------------------------------

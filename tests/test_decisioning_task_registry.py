@@ -77,6 +77,9 @@ def test_custom_registry_satisfies_protocol_via_duck_typing() -> None:
         ) -> dict[str, Any] | None:
             return None
 
+        async def discard(self, task_id: str) -> None:
+            pass
+
     assert isinstance(_Stub(), TaskRegistry)
 
 

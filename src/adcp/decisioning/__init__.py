@@ -107,6 +107,7 @@ from adcp.decisioning.types import (
     MaybeAsync,
     SalesResult,
     TaskHandoff,
+    WorkflowHandoff,
 )
 
 __all__ = [
@@ -147,6 +148,7 @@ __all__ = [
     "TaskHandoffContext",
     "TaskRegistry",
     "TaskState",
+    "WorkflowHandoff",
     "create_adcp_server_from_platform",
     "serve",
     "WorkflowObjectType",
