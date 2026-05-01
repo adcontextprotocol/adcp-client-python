@@ -61,10 +61,15 @@ BUNDLE_BASE_URL = _ADCP_BASE + "/protocol"
 USER_AGENT = "adcp-python-sdk/3.0"
 
 # Sigstore keyless verification identity. Must match the upstream release
-# workflow — see adcontextprotocol/adcp#2273.
+# workflow — see adcontextprotocol/adcp#2273. Accepts any branch or tag ref;
+# the trust gate is upstream `release.yml`'s `on.push.branches` allowlist
+# (currently main, 3.0.x, 2.6.x), which is what determines which refs can
+# produce a signature in the first place. `refs/tags/*` is forward-compat
+# for any future post-tag re-signing flow. Aligned with adcp-client (TS) and
+# adcp-go, which both use the same `refs/(heads|tags)/.*` pattern.
 COSIGN_IDENTITY_REGEX = (
     r"^https://github\.com/adcontextprotocol/adcp/"
-    r"\.github/workflows/release\.yml@refs/heads/.*$"
+    r"\.github/workflows/release\.yml@refs/(heads|tags)/.*$"
 )
 COSIGN_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 
