@@ -78,6 +78,7 @@ from adcp.decisioning.serve import (
 )
 from adcp.decisioning.specialisms import (
     AudiencePlatform,
+    CampaignGovernancePlatform,
     CreativeAdServerPlatform,
     CreativeBuilderPlatform,
     SalesPlatform,
@@ -110,6 +111,7 @@ __all__ = [
     "AdcpError",
     "AudiencePlatform",
     "AuthInfo",
+    "CampaignGovernancePlatform",
     "CollectionList",
     "CreativeAdServerPlatform",
     "CreativeBuilderPlatform",

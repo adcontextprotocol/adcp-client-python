@@ -244,6 +244,35 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "get_creative_delivery",
         }
     ),
+    # Governance-AGENT specialisms — both share the unified
+    # ``CampaignGovernancePlatform`` Protocol. The spec's third
+    # governance slug, ``governance-aware-seller``, names a SELLER
+    # claim (sales-* archetype that composes with a governance agent
+    # via sync_governance + check_governance) — it does NOT
+    # implement CampaignGovernancePlatform. Stays unenforced until
+    # sync_governance handler shim wiring lands for sales adopters.
+    #
+    # SECURITY GATE: claiming any governance-* slug also requires
+    # ``capabilities.governance_aware=True`` — enforced independently
+    # by ``validate_platform`` against ``GOVERNANCE_SPECIALISMS``.
+    # Required-method coverage and governance-aware are independent
+    # gates; both fire.
+    "governance-spend-authority": frozenset(
+        {
+            "check_governance",
+            "sync_plans",
+            "report_plan_outcome",
+            "get_plan_audit_logs",
+        }
+    ),
+    "governance-delivery-monitor": frozenset(
+        {
+            "check_governance",
+            "sync_plans",
+            "report_plan_outcome",
+            "get_plan_audit_logs",
+        }
+    ),
 }
 
 

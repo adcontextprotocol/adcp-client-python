@@ -171,11 +171,17 @@ def test_validate_platform_raises_on_typo_specialism() -> None:
 def test_validate_platform_governance_aware_required_for_governance_specialism() -> None:
     """A platform claiming a governance-* specialism without setting
     capabilities.governance_aware=True fails fast — silent gate
-    skipping is a security regression. (D15 round-4)"""
+    skipping is a security regression. (D15 round-4)
+
+    Use ``governance-aware-seller`` because it's in
+    GOVERNANCE_SPECIALISMS but NOT in REQUIRED_METHODS_PER_SPECIALISM
+    — isolates the governance-aware security gate from the
+    required-method gate (the latter is exercised in
+    ``test_decisioning_specialisms.py``)."""
 
     class _GovernanceWithoutOptInPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(
-            specialisms=["governance-spend-authority"],
+            specialisms=["governance-aware-seller"],
             governance_aware=False,
         )
         accounts = SingletonAccounts(account_id="hello")
@@ -192,19 +198,25 @@ def test_validate_platform_governance_aware_optin_passes() -> None:
     """Platform with governance_aware=True passes validation. (The
     real Stage-3 wiring will additionally require a custom
     StateReader; that check is per-request, not boot-time, since the
-    StateReader is supplied by serve()/dispatch.)"""
+    StateReader is supplied by serve()/dispatch.)
+
+    Use ``governance-aware-seller`` to keep this test isolated from
+    required-method coverage (which is what
+    ``test_decisioning_specialisms.py`` covers for the two
+    governance-AGENT slugs that DO have method-coverage rules)."""
 
     class _GovernanceOptInPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(
-            specialisms=["governance-spend-authority"],
+            specialisms=["governance-aware-seller"],
             governance_aware=True,
         )
         accounts = SingletonAccounts(account_id="hello")
 
-    # Note: governance-spend-authority isn't in
-    # REQUIRED_METHODS_PER_SPECIALISM yet (v6.0 ships only sales-*),
-    # so it'll emit an "unknown specialism" UserWarning. That's fine
-    # — the governance_aware flag is what we're testing here.
+    # ``governance-aware-seller`` is unenforced in
+    # REQUIRED_METHODS_PER_SPECIALISM (it's a SELLER claim, not a
+    # governance-AGENT slug — see governance.py module docstring),
+    # so it'll emit a "spec-recognized but unenforced" UserWarning.
+    # That's fine — the governance_aware flag is what we're testing.
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always", UserWarning)
         validate_platform(_GovernanceOptInPlatform())
@@ -282,10 +294,14 @@ def test_validate_platform_warns_on_unenforced_spec_specialism() -> None:
     real claim, just not method-checked.
 
     Use ``brand-rights`` here because ``signal-*`` / ``audience-sync``
-    got method-coverage rules in Batch 1, and ``creative-*`` got
-    coverage in Batch 2. Brand-rights, content-standards,
-    governance-*, property-lists, collection-lists are still pending
-    until subsequent breadth-sprint batches."""
+    got method-coverage rules in Batch 1, ``creative-*`` got
+    coverage in Batch 2, and ``governance-spend-authority`` /
+    ``governance-delivery-monitor`` got coverage in Batch 3.
+    Brand-rights, content-standards, property-lists,
+    collection-lists, and ``governance-aware-seller`` (a SELLER
+    claim, not a governance-AGENT slug — distinct from the two
+    governance-AGENT slugs covered by CampaignGovernancePlatform)
+    are still pending until subsequent breadth-sprint batches."""
 
     class _UnenforcedSpecPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(specialisms=["brand-rights"])

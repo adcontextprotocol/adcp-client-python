@@ -30,10 +30,19 @@ Public surface re-exported from :mod:`adcp.decisioning.specialisms`:
   Stateful library + per-creative pricing + tag generation. Required
   ``build_creative``, ``preview_creative``, ``list_creatives``,
   ``get_creative_delivery``; optional ``sync_creatives``.
+* :class:`CampaignGovernancePlatform` — covers
+  ``governance-spend-authority`` + ``governance-delivery-monitor``.
+  Required ``check_governance``, ``sync_plans``,
+  ``report_plan_outcome``, ``get_plan_audit_logs``. NOTE: a third
+  governance slug, ``governance-aware-seller``, names a SELLER claim
+  (sales-* archetype that composes with a governance agent) — it
+  does NOT implement this Protocol; it integrates WITH a platform
+  that does. That slug stays unenforced until sync_governance
+  handler shim wiring lands for sales adopters.
 
-Remaining specialism Protocols (governance-*, brand-rights,
-content-standards, property-lists, collection-lists) are added in
-subsequent breadth-sprint PRs.
+Remaining specialism Protocols (brand-rights, content-standards,
+property-lists, collection-lists) are added in subsequent
+breadth-sprint PRs.
 """
 
 from __future__ import annotations
@@ -41,11 +50,13 @@ from __future__ import annotations
 from adcp.decisioning.specialisms.audience import AudiencePlatform
 from adcp.decisioning.specialisms.creative import CreativeBuilderPlatform
 from adcp.decisioning.specialisms.creative_ad_server import CreativeAdServerPlatform
+from adcp.decisioning.specialisms.governance import CampaignGovernancePlatform
 from adcp.decisioning.specialisms.sales import SalesPlatform
 from adcp.decisioning.specialisms.signals import SignalsPlatform
 
 __all__ = [
     "AudiencePlatform",
+    "CampaignGovernancePlatform",
     "CreativeAdServerPlatform",
     "CreativeBuilderPlatform",
     "SalesPlatform",

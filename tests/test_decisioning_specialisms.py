@@ -23,6 +23,7 @@ import pytest
 
 from adcp.decisioning import (
     AudiencePlatform,
+    CampaignGovernancePlatform,
     CreativeAdServerPlatform,
     CreativeBuilderPlatform,
     DecisioningCapabilities,
@@ -41,7 +42,7 @@ from adcp.decisioning.types import AdcpError
 
 
 def test_specialism_protocols_are_publicly_exported() -> None:
-    """All five Protocol classes (Batches 0–2) are on
+    """All six Protocol classes (Batches 0–3) are on
     ``adcp.decisioning.__all__`` so adopters import from the canonical
     public surface, not the internal ``adcp.decisioning.specialisms.*``
     modules."""
@@ -52,10 +53,12 @@ def test_specialism_protocols_are_publicly_exported() -> None:
     assert "AudiencePlatform" in dx.__all__
     assert "CreativeBuilderPlatform" in dx.__all__
     assert "CreativeAdServerPlatform" in dx.__all__
+    assert "CampaignGovernancePlatform" in dx.__all__
     assert dx.SignalsPlatform is SignalsPlatform
     assert dx.AudiencePlatform is AudiencePlatform
     assert dx.CreativeBuilderPlatform is CreativeBuilderPlatform
     assert dx.CreativeAdServerPlatform is CreativeAdServerPlatform
+    assert dx.CampaignGovernancePlatform is CampaignGovernancePlatform
 
 
 # ---- SignalsPlatform ----
@@ -553,3 +556,143 @@ def test_creative_ad_server_distinct_from_builder() -> None:
         "list_creatives",
         "get_creative_delivery",
     }
+
+
+# ---- CampaignGovernancePlatform ----
+
+
+def test_campaign_governance_runtime_checkable_full() -> None:
+    """A class with all four governance methods passes
+    ``isinstance`` against :class:`CampaignGovernancePlatform`."""
+
+    class _GovernanceImpl:
+        def check_governance(self, req, ctx):
+            return {"status": "approved"}
+
+        def sync_plans(self, req, ctx):
+            return {"plans": []}
+
+        def report_plan_outcome(self, req, ctx):
+            return {}
+
+        def get_plan_audit_logs(self, req, ctx):
+            return {"logs": []}
+
+    assert isinstance(_GovernanceImpl(), CampaignGovernancePlatform)
+
+
+def _make_complete_governance_platform_class(governance_aware: bool):
+    """Helper: build a governance platform with all four required
+    methods + the given ``governance_aware`` flag."""
+
+    class _CompleteGovernancePlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["governance-spend-authority"],
+            governance_aware=governance_aware,
+        )
+        accounts = SingletonAccounts(account_id="hello")
+
+        def check_governance(self, req, ctx):
+            return {}
+
+        def sync_plans(self, req, ctx):
+            return {}
+
+        def report_plan_outcome(self, req, ctx):
+            return {}
+
+        def get_plan_audit_logs(self, req, ctx):
+            return {}
+
+    return _CompleteGovernancePlatform
+
+
+def test_validate_platform_enforces_governance_spend_authority_methods() -> None:
+    """A platform claiming ``governance-spend-authority`` without
+    implementing the four required methods fails fast at server boot.
+    Use ``governance_aware=True`` to isolate the required-method gate
+    from the governance-aware security gate."""
+
+    class _PartialGovernancePlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["governance-spend-authority"],
+            governance_aware=True,
+        )
+        accounts = SingletonAccounts(account_id="hello")
+
+        # Implements only check_governance + sync_plans;
+        # missing report_plan_outcome + get_plan_audit_logs.
+        def check_governance(self, req, ctx):
+            return {}
+
+        def sync_plans(self, req, ctx):
+            return {}
+
+    with pytest.raises(AdcpError) as exc_info:
+        validate_platform(_PartialGovernancePlatform())
+    assert exc_info.value.code == "INVALID_REQUEST"
+    missing_methods = {m["method"] for m in exc_info.value.details["missing"]}
+    assert "report_plan_outcome" in missing_methods
+    assert "get_plan_audit_logs" in missing_methods
+
+
+def test_validate_platform_passes_for_complete_governance_platform() -> None:
+    """Happy path — fully-implemented governance platform with
+    ``governance_aware=True`` passes both gates."""
+    validate_platform(_make_complete_governance_platform_class(governance_aware=True)())
+
+
+def test_governance_security_gate_independent_of_required_methods() -> None:
+    """SECURITY REGRESSION GUARD: A platform with all four governance
+    methods present but ``governance_aware=False`` STILL fails server
+    boot. Required-method enforcement and governance-aware enforcement
+    are independent gates; both fire.
+
+    Without this invariant, an adopter who happens to satisfy the
+    method coverage could silently skip the governance security gate
+    — which is the exact regression the foundation's
+    ``validate_platform`` was designed to prevent. This test pins
+    that the addition of required-method coverage in Batch 3 doesn't
+    accidentally short-circuit the security gate."""
+    with pytest.raises(AdcpError) as exc_info:
+        validate_platform(_make_complete_governance_platform_class(governance_aware=False)())
+    msg = str(exc_info.value).lower()
+    assert "governance" in msg
+    # Verify the failure is the governance-aware gate, NOT a
+    # required-methods complaint (the methods ARE all implemented).
+    assert "governance_aware" in str(exc_info.value)
+
+
+def test_governance_specialisms_share_method_set() -> None:
+    """Both governance-AGENT specialisms gate on the same four
+    methods. Drift in REQUIRED_METHODS_PER_SPECIALISM here surfaces
+    as a visible test failure — they share the
+    CampaignGovernancePlatform Protocol surface."""
+    expected = {
+        "check_governance",
+        "sync_plans",
+        "report_plan_outcome",
+        "get_plan_audit_logs",
+    }
+    assert REQUIRED_METHODS_PER_SPECIALISM["governance-spend-authority"] == expected
+    assert REQUIRED_METHODS_PER_SPECIALISM["governance-delivery-monitor"] == expected
+
+
+def test_governance_aware_seller_is_not_a_governance_agent_protocol() -> None:
+    """``governance-aware-seller`` names a SELLER claim — a sales-*
+    archetype that composes with a governance agent. It does NOT
+    implement CampaignGovernancePlatform; it integrates WITH a
+    platform that does. The slug stays unenforced in
+    REQUIRED_METHODS_PER_SPECIALISM (no method-coverage rule) until
+    sync_governance handler shim wiring lands for sales adopters.
+
+    Pins the architectural distinction: governance-aware-seller is
+    NOT in the REQUIRED_METHODS map; the other two governance-* slugs
+    ARE. All three remain in GOVERNANCE_SPECIALISMS for the
+    foundation's governance-aware security gate."""
+    from adcp.decisioning import GOVERNANCE_SPECIALISMS
+
+    assert "governance-aware-seller" in GOVERNANCE_SPECIALISMS
+    assert "governance-aware-seller" not in REQUIRED_METHODS_PER_SPECIALISM
+    assert "governance-spend-authority" in REQUIRED_METHODS_PER_SPECIALISM
+    assert "governance-delivery-monitor" in REQUIRED_METHODS_PER_SPECIALISM
