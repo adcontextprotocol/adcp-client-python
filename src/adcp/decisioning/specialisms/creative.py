@@ -19,8 +19,18 @@ Required:
 Optional (present-or-absent, surface UNSUPPORTED_FEATURE if missing):
 
 * :meth:`preview_creative` — sandbox URL or inline HTML preview
-* :meth:`refine_creative` — refine a prior generation by ``task_id``
 * :meth:`sync_creatives` — review surface; hybrid sync/handoff
+
+**Refinement is via ``build_creative``, not a separate method.** The
+spec's ``build-creative-request.json`` describes refinement as
+re-invoking ``build_creative`` with ``creative_id`` referencing the
+prior build (see the request schema's "For refinement…" description).
+There is no ``refine-creative-*.json`` in ``schemas/cache/`` and no
+``refine_creative`` wire tool. An earlier port preserved a
+``refine_creative`` Protocol method mirroring the JS reference;
+expert review (round-3 Emma) caught that as a hallucinated wire
+surface — both codebases shipped a method with no spec backing.
+Dropped here; JS to follow.
 
 Async story: ``build_creative`` is sync at the wire level — the
 per-tool ``build-creative-response.json`` ``oneOf`` doesn't include a
@@ -41,7 +51,7 @@ reporting) declaring ``creative-ad-server``, see
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypedDict, runtime_checkable
+from typing import TYPE_CHECKING, Any, Generic, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
@@ -56,6 +66,7 @@ if TYPE_CHECKING:
         CreativeManifest,
         PreviewCreativeRequest,
         PreviewCreativeResponse,
+        SyncCreativesRequest,
         SyncCreativesSuccessResponse,
     )
 
@@ -63,22 +74,6 @@ if TYPE_CHECKING:
 #: Per-platform metadata generic; matches ``RequestContext[TMeta]`` and
 #: ``Account[TMeta]`` upstream.
 TMeta = TypeVar("TMeta", default=dict[str, Any])
-
-
-class RefinementMessage(TypedDict, total=False):
-    """Refinement instruction for :meth:`CreativeBuilderPlatform.refine_creative`.
-
-    JS-side equivalent declared inline at
-    ``src/lib/server/decisioning/specialisms/creative.ts``
-    (``RefinementMessage``).
-
-    :param message: REQUIRED — free-text instruction from the buyer.
-    :param changes: OPTIONAL — structured changes (e.g.,
-        ``{"headline": "make it say X"}``). Adopter-defined shape.
-    """
-
-    message: str
-    changes: dict[str, Any]
 
 
 @runtime_checkable
@@ -152,25 +147,9 @@ class CreativeBuilderPlatform(Protocol, Generic[TMeta]):
         """
         ...
 
-    def refine_creative(
-        self,
-        task_id: str,
-        refinement: RefinementMessage,
-        ctx: RequestContext[TMeta],
-    ) -> MaybeAsync[CreativeManifest]:
-        """Refine a prior generation.
-
-        ``task_id`` references a prior submission. Sync — refinement
-        is a mutation on existing state, not a new task creation.
-        Optional — pure template platforms iterate by re-calling
-        ``build_creative`` with different inputs and don't carry
-        generation state across calls.
-        """
-        ...
-
     def sync_creatives(
         self,
-        req: Any,
+        req: SyncCreativesRequest,
         ctx: RequestContext[TMeta],
     ) -> SalesResult[SyncCreativesSuccessResponse]:
         """Sync review surface — present-or-absent.
@@ -182,11 +161,12 @@ class CreativeBuilderPlatform(Protocol, Generic[TMeta]):
         :class:`SyncCreativesSuccessResponse` for the sync fast path
         OR ``ctx.handoff_to_task(fn)`` for HITL.
 
-        ``req`` is typed as ``Any`` here because the SDK's
-        :class:`SyncCreativesRequest` is shared across creative
-        archetypes; the per-archetype handler shim narrows the type.
+        Same wire request type as the sales-* archetypes use
+        (``SyncCreativesRequest`` — shared spec shape); the
+        per-archetype handler shim narrows the discriminated payload
+        when adopters care about archetype-specific fields.
         """
         ...
 
 
-__all__ = ["CreativeBuilderPlatform", "RefinementMessage"]
+__all__ = ["CreativeBuilderPlatform"]

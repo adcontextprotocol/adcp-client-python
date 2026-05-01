@@ -64,6 +64,7 @@ if TYPE_CHECKING:
         ListCreativesResponse,
         PreviewCreativeRequest,
         PreviewCreativeResponse,
+        SyncCreativesRequest,
         SyncCreativesSuccessResponse,
     )
 
@@ -163,7 +164,7 @@ class CreativeAdServerPlatform(Protocol, Generic[TMeta]):
 
     def sync_creatives(
         self,
-        req: Any,
+        req: SyncCreativesRequest,
         ctx: RequestContext[TMeta],
     ) -> SalesResult[SyncCreativesSuccessResponse]:
         """Push creatives. Optional — present-or-absent.
@@ -175,9 +176,8 @@ class CreativeAdServerPlatform(Protocol, Generic[TMeta]):
         matching. Optional ``status: 'pending_review'`` for sync-arm
         rows awaiting manual review.
 
-        ``req`` is typed as ``Any`` here because the SDK's
-        :class:`SyncCreativesRequest` is shared across creative
-        archetypes; the per-archetype handler shim narrows the type.
+        Same wire request type as the sales-* and creative-builder
+        archetypes use (``SyncCreativesRequest`` — shared spec shape).
         """
         ...
 

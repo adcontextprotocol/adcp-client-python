@@ -27,7 +27,6 @@ from adcp.decisioning import (
     CreativeBuilderPlatform,
     DecisioningCapabilities,
     DecisioningPlatform,
-    RefinementMessage,
     SalesPlatform,
     SignalsPlatform,
     SingletonAccounts,
@@ -53,7 +52,6 @@ def test_specialism_protocols_are_publicly_exported() -> None:
     assert "AudiencePlatform" in dx.__all__
     assert "CreativeBuilderPlatform" in dx.__all__
     assert "CreativeAdServerPlatform" in dx.__all__
-    assert "RefinementMessage" in dx.__all__
     assert dx.SignalsPlatform is SignalsPlatform
     assert dx.AudiencePlatform is AudiencePlatform
     assert dx.CreativeBuilderPlatform is CreativeBuilderPlatform
@@ -328,22 +326,25 @@ def test_sales_platform_protocol_still_runtime_checkable() -> None:
 # ---- CreativeBuilderPlatform ----
 
 
-def test_creative_builder_runtime_checkable_minimal() -> None:
-    """Minimal-compliant impl — only ``build_creative`` is wire-required.
-    Optional methods (``preview_creative``, ``refine_creative``,
-    ``sync_creatives``) are present-or-absent."""
+def test_creative_builder_runtime_checkable_is_strict_structural_match() -> None:
+    """``runtime_checkable`` matches by attribute presence across ALL
+    declared Protocol methods (strict structural-AND). Documents the
+    contract: a class implementing only the wire-required methods
+    will NOT pass ``isinstance`` because optional Protocol methods
+    aren't present.
+
+    ``validate_platform`` uses the narrower
+    REQUIRED_METHODS_PER_SPECIALISM gate — that's what production
+    servers actually rely on for spec coverage. This is consistent
+    with SalesPlatform's behavior (same pattern across all
+    specialism Protocols)."""
 
     class _MinimalBuilder:
         def build_creative(self, req, ctx):
             return {}
 
-    # ``runtime_checkable`` Protocol matching is a structural-AND across
-    # all declared methods. Since CreativeBuilderPlatform declares
-    # optional methods that aren't present here, the runtime check is
-    # FALSE. ``validate_platform`` (which uses the narrower
-    # REQUIRED_METHODS_PER_SPECIALISM gate) is what production servers
-    # rely on; runtime_checkable is a strict structural match.
-    # This is consistent with SalesPlatform's behavior (same pattern).
+    # Minimal impl satisfies the wire-required set but lacks the
+    # optional Protocol methods → strict isinstance is False.
     assert not isinstance(_MinimalBuilder(), CreativeBuilderPlatform)
 
 
@@ -356,9 +357,6 @@ def test_creative_builder_runtime_checkable_full() -> None:
             return {}
 
         def preview_creative(self, req, ctx):
-            return {}
-
-        def refine_creative(self, task_id, refinement, ctx):
             return {}
 
         def sync_creatives(self, req, ctx):
@@ -407,12 +405,50 @@ def test_creative_template_and_generative_share_method_set() -> None:
     assert REQUIRED_METHODS_PER_SPECIALISM["creative-generative"] == expected
 
 
-def test_refinement_message_typeddict_is_importable() -> None:
-    """``RefinementMessage`` is a TypedDict adopters annotate
-    ``refine_creative`` with. Smoke check: it's importable and has the
-    expected ``message`` key."""
-    msg: RefinementMessage = {"message": "make headline bolder"}
-    assert msg["message"] == "make headline bolder"
+def test_creative_builder_protocol_has_no_refine_creative() -> None:
+    """Regression-guard: ``refine_creative`` was a hallucinated wire
+    surface in earlier port drafts. The spec invokes refinement via
+    ``build_creative`` itself with ``creative_id`` referencing the
+    prior build (per
+    ``schemas/cache/media-buy/build-creative-request.json``); there
+    is no ``refine-creative-*.json`` schema and no wire tool. If
+    someone re-adds ``refine_creative`` to the Protocol thinking it's
+    a missing method, this test breaks."""
+    assert not hasattr(CreativeBuilderPlatform, "refine_creative")
+
+
+def test_build_creative_response_has_no_submitted_arm() -> None:
+    """Regression-guard against ``adcontextprotocol/adcp#3392``: the
+    per-tool ``build-creative-response.json`` ``oneOf`` is strictly
+    Success | MultiSuccess | Error — no Submitted variant. Both the
+    JS and Python Protocols document ``build_creative`` as sync at
+    the wire level (slow generation pipelines await in-request;
+    status changes flow via ``publish_status_change``).
+
+    When adcp#3392 lands and the spec rolls Submitted into the
+    ``oneOf``, this test breaks and forces a coordinated SDK update
+    to the Protocol return type (add ``BuildCreativeAsyncSubmitted``
+    to the union)."""
+    # ``BuildCreativeResponse`` is a typing.Union of the discriminated
+    # arms. Walk its args and assert the wire-required field set
+    # doesn't include task-async submitted hints.
+    import typing
+
+    from adcp.types import BuildCreativeResponse
+
+    arms = typing.get_args(BuildCreativeResponse)
+    assert len(arms) > 0, "BuildCreativeResponse should be a Union of arms"
+    for arm in arms:
+        # Build-creative arms carry creative_manifest / creative_manifests
+        # (Success/MultiSuccess) or errors (Error). None should declare
+        # task_id or status='submitted' — those are Submitted-arm hints.
+        if hasattr(arm, "model_fields"):
+            field_names = set(arm.model_fields.keys())
+            assert "task_id" not in field_names, (
+                f"BuildCreativeResponse arm {arm.__name__} unexpectedly carries "
+                "task_id — adcp#3392 may have landed; update the Protocol "
+                "return type to include the Submitted arm."
+            )
 
 
 # ---- CreativeAdServerPlatform ----

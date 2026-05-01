@@ -20,10 +20,12 @@ Public surface re-exported from :mod:`adcp.decisioning.specialisms`:
   upsert) and ``poll_audience_statuses`` (batch state read).
 * :class:`CreativeBuilderPlatform` — covers ``creative-template`` +
   ``creative-generative``. Required ``build_creative``; optional
-  ``preview_creative``, ``refine_creative``, ``sync_creatives``.
-  Unified shape per JS commit ``841616d7`` (F13) — wire spec doesn't
-  distinguish template-driven transform from brief-to-creative
-  generation.
+  ``preview_creative``, ``sync_creatives``. Unified shape per JS
+  commit ``841616d7`` (F13) — wire spec doesn't distinguish
+  template-driven transform from brief-to-creative generation. (No
+  separate ``refine_creative`` method — refinement is invoked via
+  ``build_creative`` with ``creative_id`` referencing the prior
+  build, per ``schemas/cache/media-buy/build-creative-request.json``.)
 * :class:`CreativeAdServerPlatform` — covers ``creative-ad-server``.
   Stateful library + per-creative pricing + tag generation. Required
   ``build_creative``, ``preview_creative``, ``list_creatives``,
@@ -37,10 +39,7 @@ subsequent breadth-sprint PRs.
 from __future__ import annotations
 
 from adcp.decisioning.specialisms.audience import AudiencePlatform
-from adcp.decisioning.specialisms.creative import (
-    CreativeBuilderPlatform,
-    RefinementMessage,
-)
+from adcp.decisioning.specialisms.creative import CreativeBuilderPlatform
 from adcp.decisioning.specialisms.creative_ad_server import CreativeAdServerPlatform
 from adcp.decisioning.specialisms.sales import SalesPlatform
 from adcp.decisioning.specialisms.signals import SignalsPlatform
@@ -49,7 +48,6 @@ __all__ = [
     "AudiencePlatform",
     "CreativeAdServerPlatform",
     "CreativeBuilderPlatform",
-    "RefinementMessage",
     "SalesPlatform",
     "SignalsPlatform",
 ]
