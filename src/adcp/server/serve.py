@@ -769,6 +769,19 @@ def _run_mcp_http(mcp: Any, *, transport: str, max_request_size: int | None = No
 
     sock = _bind_reusable_socket(host, port)
     try:
+        # One INFO line at the bind boundary so adopters know exactly
+        # what URL the buyer should hit. uvicorn's default startup logs
+        # are filtered/quieted in many configurations; this line is
+        # framework-controlled and always lands. Emma signals/sales
+        # backend tests both flagged silent-boot as P1 friction.
+        mcp_path = "/mcp" if transport == "streamable-http" else "/sse"
+        logger.info(
+            "MCP listening on http://%s:%s%s (transport=%s)",
+            host,
+            port,
+            mcp_path,
+            transport,
+        )
         config = uvicorn.Config(app, log_level=log_level)
         server = uvicorn.Server(config)
 
@@ -816,6 +829,10 @@ def _serve_a2a(
     app = _wrap_with_size_limit(app, max_request_size)
     sock = _bind_reusable_socket("0.0.0.0", resolved_port)
     try:
+        # Same bind-boundary INFO as the MCP path so A2A adopters
+        # also see one framework-controlled line confirming the
+        # listener is up.
+        logger.info("A2A listening on http://0.0.0.0:%s/", resolved_port)
         config = uvicorn.Config(app)
         server = uvicorn.Server(config)
         import anyio

@@ -163,8 +163,12 @@ async def test_get_media_buy_delivery_returns_zeros(
     )
     resp = await handler.get_media_buy_delivery(req, ToolContext())
     assert isinstance(resp, dict)
-    assert len(resp["deliveries"]) == 1
-    assert resp["deliveries"][0]["totals"]["impressions"] == 0
+    # Wire field is ``media_buy_deliveries`` per
+    # ``schemas/cache/media-buy/get-media-buy-delivery-response.json``.
+    # Pre-fix the example used the wrong key (``deliveries``); pin the
+    # spec field name here so future drift fails the test.
+    assert len(resp["media_buy_deliveries"]) == 1
+    assert resp["media_buy_deliveries"][0]["totals"]["impressions"] == 0
 
 
 @pytest.mark.asyncio

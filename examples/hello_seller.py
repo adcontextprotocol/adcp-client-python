@@ -4,8 +4,12 @@ A minimal :class:`SalesPlatform` adopter showing the canonical surface:
 
 * :class:`DecisioningCapabilities` declared on the class body
 * :class:`SingletonAccounts` for the dev/single-tenant case
-* Three platform methods (``get_products``, ``create_media_buy``,
-  ``get_media_buy_delivery``) — all sync, sync return path
+* Five required ``sales-non-guaranteed`` methods (``get_products``,
+  ``create_media_buy``, ``update_media_buy``, ``sync_creatives``,
+  ``get_media_buy_delivery``) — all sync, sync return path. The full
+  required set is enforced at server boot by ``validate_platform``
+  via :data:`REQUIRED_METHODS_PER_SPECIALISM` — omitting any of the
+  five fails fast with INVALID_REQUEST.
 
 Run::
 
@@ -75,12 +79,11 @@ from adcp.decisioning import (
 class HelloSeller(DecisioningPlatform):
     """The canonical minimal v6.0 sales-non-guaranteed adopter.
 
-    Implements the three sync methods every sales-* specialism
-    requires for a buyer to discover, transact, and read delivery.
-    Production sellers would add ``update_media_buy`` and
-    ``sync_creatives`` to satisfy the full sales-non-guaranteed
-    contract; this example focuses on the common-path subset that
-    fits in one screen.
+    Implements all five required methods of ``sales-non-guaranteed``
+    (the full contract per :data:`REQUIRED_METHODS_PER_SPECIALISM`):
+    ``get_products``, ``create_media_buy``, ``update_media_buy``,
+    ``sync_creatives``, ``get_media_buy_delivery``. ``validate_platform``
+    runs at boot and fails fast on any missing method.
     """
 
     capabilities = DecisioningCapabilities(
@@ -217,9 +220,13 @@ class HelloSeller(DecisioningPlatform):
         req: Any,
         ctx: RequestContext[Any],
     ) -> dict[str, Any]:
-        """Stub delivery snapshot — flat zeros."""
+        """Stub delivery snapshot — flat zeros.
+
+        Wire field is ``media_buy_deliveries`` per
+        ``schemas/cache/media-buy/get-media-buy-delivery-response.json``.
+        """
         return {
-            "deliveries": [
+            "media_buy_deliveries": [
                 {
                     "media_buy_id": getattr(req, "media_buy_id", "mb_unknown"),
                     "totals": {"impressions": 0, "spend": 0.0},
