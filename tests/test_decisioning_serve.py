@@ -42,6 +42,31 @@ class _BarePlatform(DecisioningPlatform):
     accounts = SingletonAccounts(account_id="hello")
 
 
+class _SalesPlatformWithRequiredMethods(DecisioningPlatform):
+    """Sales-non-guaranteed platform that exposes ``create_media_buy``
+    et al. — used for F12 boot-time webhook gate tests. The five
+    required SalesPlatform methods are stubbed so ``validate_platform``
+    passes; the test focuses on the webhook gate."""
+
+    capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+    accounts = SingletonAccounts(account_id="hello")
+
+    def get_products(self, req, ctx):
+        return {"products": []}
+
+    def create_media_buy(self, req, ctx):
+        return {"media_buy_id": "x", "status": "active"}
+
+    def update_media_buy(self, media_buy_id, patch, ctx):
+        return {"media_buy_id": media_buy_id, "status": "active"}
+
+    def sync_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def get_media_buy_delivery(self, req, ctx):
+        return {"media_buy_deliveries": []}
+
+
 # ---- _is_production_env ----
 
 
@@ -395,4 +420,54 @@ def test_create_threads_resource_resolver_to_handler() -> None:
     platform = _BarePlatform()
     handler, executor, _ = create_adcp_server_from_platform(platform, resource_resolver=custom)
     assert handler._resource_resolver is custom
+    executor.shutdown(wait=True)
+
+
+# ---- F12 boot-time webhook gate (Emma sales-direct P0) ----
+
+
+def test_serve_fails_fast_when_sales_platform_missing_webhook_sender() -> None:
+    """Sales-non-guaranteed exposes create_media_buy + sync_creatives,
+    both in SPEC_WEBHOOK_TASK_TYPES. With no webhook_sender wired and
+    auto_emit on (the default), the framework MUST fail at boot —
+    otherwise buyers register push_notification_config.url and silently
+    never get notifications. Emma sales-direct verdict 2/10 root cause."""
+    platform = _SalesPlatformWithRequiredMethods()
+    with pytest.raises(ValueError) as exc_info:
+        create_adcp_server_from_platform(platform)
+    msg = str(exc_info.value)
+    assert "webhook_sender" in msg
+    assert "silently dropped" in msg
+    assert "create_media_buy" in msg
+
+
+def test_serve_passes_with_webhook_sender_wired() -> None:
+    """Same platform, but webhook_sender provided → no fail-fast."""
+    from unittest.mock import MagicMock
+
+    platform = _SalesPlatformWithRequiredMethods()
+    sender = MagicMock()
+    handler, executor, _ = create_adcp_server_from_platform(platform, webhook_sender=sender)
+    assert handler._webhook_sender is sender
+    executor.shutdown(wait=True)
+
+
+def test_serve_passes_with_auto_emit_disabled() -> None:
+    """Adopter who handles webhooks manually opts out via
+    auto_emit_completion_webhooks=False — gate doesn't fire."""
+    platform = _SalesPlatformWithRequiredMethods()
+    handler, executor, _ = create_adcp_server_from_platform(
+        platform, auto_emit_completion_webhooks=False
+    )
+    assert handler._auto_emit_completion_webhooks is False
+    executor.shutdown(wait=True)
+
+
+def test_serve_does_not_fire_gate_for_platform_without_webhook_eligible_tools() -> None:
+    """Bare platform claiming no specialism → no per-instance webhook
+    surface → gate doesn't fire. Test fixtures and discovery-only
+    agents stay valid."""
+    platform = _BarePlatform()
+    handler, executor, _ = create_adcp_server_from_platform(platform)
+    assert handler._webhook_sender is None
     executor.shutdown(wait=True)

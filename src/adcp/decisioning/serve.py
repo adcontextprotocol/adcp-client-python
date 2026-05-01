@@ -237,6 +237,27 @@ def create_adcp_server_from_platform(
         webhook_sender=webhook_sender,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
     )
+
+    # F12 boot-time fail-fast (Emma sales-direct P0 root cause): if
+    # the platform's claimed specialisms expose any spec-eligible
+    # webhook task type (create_media_buy, activate_signal, etc.) AND
+    # auto-emit is on AND no webhook_sender is wired, every buyer
+    # ``push_notification_config.url`` would silently drop. Catch at
+    # boot so adopters discover the misconfig before shipping. Same
+    # posture as validate_platform's governance opt-in gate.
+    #
+    # Uses the per-instance advertised set (NOT the class-level
+    # universe). A platform that doesn't claim any
+    # webhook-eligible-tool-bearing specialism (test fixtures,
+    # discovery-only agents) doesn't trigger the gate.
+    from adcp.decisioning.webhook_emit import validate_webhook_sender_for_platform
+
+    validate_webhook_sender_for_platform(
+        advertised_tools=handler.advertised_tools_for_instance(),
+        sender=webhook_sender,
+        auto_emit=auto_emit_completion_webhooks,
+    )
+
     return handler, executor, registry
 
 
