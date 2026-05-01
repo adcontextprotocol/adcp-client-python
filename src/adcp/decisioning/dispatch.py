@@ -191,6 +191,29 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
             "sync_catalogs",
         }
     ),
+    # Signals specialisms — third-party data brokers and first-party
+    # data providers share the same SignalsPlatform Protocol surface.
+    "signal-marketplace": frozenset(
+        {
+            "get_signals",
+            "activate_signal",
+        }
+    ),
+    "signal-owned": frozenset(
+        {
+            "get_signals",
+            "activate_signal",
+        }
+    ),
+    # Audience-sync — first-party CRM audience push with delta upsert.
+    # ``poll_audience_statuses`` is an adopter-internal helper not
+    # surfaced as a wire tool; ``sync_audiences`` is the only required
+    # method for spec coverage.
+    "audience-sync": frozenset(
+        {
+            "sync_audiences",
+        }
+    ),
 }
 
 

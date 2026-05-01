@@ -76,6 +76,11 @@ from adcp.decisioning.serve import (
     create_adcp_server_from_platform,
     serve,
 )
+from adcp.decisioning.specialisms import (
+    AudiencePlatform,
+    SalesPlatform,
+    SignalsPlatform,
+)
 from adcp.decisioning.state import (
     GovernanceContextJWS,
     Proposal,
@@ -101,6 +106,7 @@ __all__ = [
     "Account",
     "AccountStore",
     "AdcpError",
+    "AudiencePlatform",
     "AuthInfo",
     "CollectionList",
     "DecisioningCapabilities",
@@ -118,7 +124,9 @@ __all__ = [
     "PropertyListReference",
     "RequestContext",
     "ResourceResolver",
+    "SalesPlatform",
     "SalesResult",
+    "SignalsPlatform",
     "SingletonAccounts",
     "StateReader",
     "TaskHandoff",

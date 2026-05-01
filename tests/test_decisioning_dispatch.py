@@ -277,18 +277,22 @@ def test_spec_specialism_enum_matches_schema_cache() -> None:
 
 def test_validate_platform_warns_on_unenforced_spec_specialism() -> None:
     """Spec-recognized specialism that the v6.0 framework doesn't yet
-    enforce (e.g. ``signal-marketplace``) emits an "unenforced
+    enforce (e.g. ``creative-ad-server``) emits an "unenforced
     specialism" UserWarning — distinct from the "novel" warning, since
-    it's a real claim, just not method-checked."""
+    it's a real claim, just not method-checked.
+
+    Use ``creative-ad-server`` here because ``signal-marketplace`` /
+    ``audience-sync`` got method-coverage rules in the breadth-sprint
+    Batch 1; ``creative-*`` are still pending until Batch 2."""
 
     class _UnenforcedSpecPlatform(DecisioningPlatform):
-        capabilities = DecisioningCapabilities(specialisms=["signal-marketplace"])
+        capabilities = DecisioningCapabilities(specialisms=["creative-ad-server"])
         accounts = SingletonAccounts(account_id="hello")
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always", UserWarning)
         validate_platform(_UnenforcedSpecPlatform())
-    matched = [w for w in caught if "signal-marketplace" in str(w.message)]
+    matched = [w for w in caught if "creative-ad-server" in str(w.message)]
     assert len(matched) == 1
     assert "spec-recognized" in str(matched[0].message)
 

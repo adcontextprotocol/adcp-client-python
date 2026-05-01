@@ -9,19 +9,25 @@ returns a hybrid :class:`SalesResult` that branches per call.
 
 Public surface re-exported from :mod:`adcp.decisioning.specialisms`:
 
-* :class:`SalesPlatform` — covers all 9 ``sales-*`` specialisms
-  (non-guaranteed, guaranteed, broadcast-tv, streaming-tv, social,
-  exchange, proposal-mode, catalog-driven, retail-media) under one
-  unified hybrid shape.
+* :class:`SalesPlatform` — covers the spec ``sales-*`` slugs
+  (non-guaranteed, guaranteed, broadcast-tv, social, proposal-mode,
+  catalog-driven) under one unified hybrid shape.
+* :class:`SignalsPlatform` — covers ``signal-marketplace`` +
+  ``signal-owned``. Two methods: ``get_signals`` (catalog discovery)
+  and ``activate_signal`` (provisioning onto destination platforms).
+* :class:`AudiencePlatform` — covers ``audience-sync``. Two methods:
+  ``sync_audiences`` (push first-party CRM audiences with delta
+  upsert) and ``poll_audience_statuses`` (batch state read).
 
-Other specialism Protocols (audience, signals, creative-*, governance,
-property-lists, etc.) are added as adopters need them — first
-:class:`SalesPlatform` because that's the v6.0 vertical-slice the
-foundation PR proves out.
+Remaining specialism Protocols (creative-*, governance-*,
+brand-rights, content-standards, property-lists, collection-lists)
+are added in subsequent breadth-sprint PRs as adopters need them.
 """
 
 from __future__ import annotations
 
+from adcp.decisioning.specialisms.audience import AudiencePlatform
 from adcp.decisioning.specialisms.sales import SalesPlatform
+from adcp.decisioning.specialisms.signals import SignalsPlatform
 
-__all__ = ["SalesPlatform"]
+__all__ = ["AudiencePlatform", "SalesPlatform", "SignalsPlatform"]
