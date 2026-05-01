@@ -264,6 +264,51 @@ _OPTIONAL_PLATFORM_METHODS: frozenset[str] = frozenset(
 )
 
 
+#: Map each spec specialism slug to the tools that specialism's Protocol
+#: serves on the wire. Used by :meth:`PlatformHandler.advertised_tools_for_instance`
+#: to filter ``tools/list`` to ONLY the tools the platform's claimed
+#: specialisms are responsible for — without this filter, a sales-only
+#: adopter would see all 40+ shims advertised (Emma cross-cutting P1
+#: confirmed by 3 of 3 backend tests).
+#:
+#: Keys MUST be drawn from
+#: :data:`adcp.decisioning.dispatch.SPEC_SPECIALISM_ENUM`. Slugs not in
+#: this map (``signed-requests``, ``governance-aware-seller``) are
+#: meta-claims that don't expose tools directly; they compose with
+#: another specialism that does.
+SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
+    # Sales-* archetypes — all use the unified SalesPlatform surface.
+    "sales-non-guaranteed": _SALES_ADVERTISED_TOOLS,
+    "sales-guaranteed": _SALES_ADVERTISED_TOOLS,
+    "sales-broadcast-tv": _SALES_ADVERTISED_TOOLS,
+    "sales-social": _SALES_ADVERTISED_TOOLS,
+    "sales-catalog-driven": _SALES_ADVERTISED_TOOLS,
+    "sales-proposal-mode": _SALES_ADVERTISED_TOOLS,
+    # Creative — Builder + AdServer. Builder claims expose
+    # build_creative + optional preview_creative; AdServer adds
+    # get_creative_delivery (per CreativeAdServerPlatform Protocol).
+    # Both share the same advertised set; the per-method override
+    # filter (``_is_method_overridden``) drops unimplemented optionals.
+    "creative-generative": _CREATIVE_ADVERTISED_TOOLS,
+    "creative-template": _CREATIVE_ADVERTISED_TOOLS,
+    "creative-ad-server": _CREATIVE_ADVERTISED_TOOLS,
+    # Signals — marketplace + owned share the same wire surface.
+    "signal-marketplace": _SIGNALS_ADVERTISED_TOOLS,
+    "signal-owned": _SIGNALS_ADVERTISED_TOOLS,
+    # Audience.
+    "audience-sync": _AUDIENCE_ADVERTISED_TOOLS,
+    # Governance — spend-authority + delivery-monitor share the
+    # CampaignGovernancePlatform Protocol surface.
+    "governance-spend-authority": _GOVERNANCE_ADVERTISED_TOOLS,
+    "governance-delivery-monitor": _GOVERNANCE_ADVERTISED_TOOLS,
+    # Brand rights, content standards, lists — one slug per Protocol.
+    "brand-rights": _BRAND_RIGHTS_ADVERTISED_TOOLS,
+    "content-standards": _CONTENT_STANDARDS_ADVERTISED_TOOLS,
+    "property-lists": _PROPERTY_LISTS_ADVERTISED_TOOLS,
+    "collection-lists": _COLLECTION_LISTS_ADVERTISED_TOOLS,
+}
+
+
 def _project_build_creative(result: Any) -> Any:
     """Project the adopter's ``build_creative`` return into the wire
     envelope shape.
@@ -355,6 +400,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     they pass ``advertise_all=True``.
     """
 
+    #: Class-level union of every tool the shim CAN serve. Used by the
+    #: framework's ``__init_subclass__`` registration so the class shows
+    #: up in :data:`adcp.server.mcp_tools._HANDLER_TOOLS`. The actual
+    #: per-instance advertisement is computed by
+    #: :meth:`advertised_tools_for_instance` from the platform's claimed
+    #: specialisms — without that intersection, a sales-only adopter
+    #: would advertise all 40+ shims (Emma cross-cutting P1).
     advertised_tools: ClassVar[set[str]] = (
         set(_SALES_ADVERTISED_TOOLS)
         | set(_CREATIVE_ADVERTISED_TOOLS)
@@ -368,6 +420,41 @@ class PlatformHandler(ADCPHandler[ToolContext]):
     )
 
     _agent_type = "decisioning platform"
+
+    def advertised_tools_for_instance(self) -> frozenset[str]:
+        """Tools this handler advertises GIVEN ITS PLATFORM'S CLAIMED
+        SPECIALISMS.
+
+        Without this hook, ``get_tools_for_handler`` walks the class's
+        MRO + ``_is_method_overridden`` filter — both keyed on
+        ``PlatformHandler``, which defines all 40+ shims as concrete
+        methods. Result: a sales-only adopter advertises
+        ``acquire_rights``, ``build_creative``, every signals/audience
+        tool, etc. Buyers see a giant menu of tools that 501 on call;
+        Emma sales/creative/signals backend tests all flagged this as
+        P1 ("advertising 42 of 42 tools").
+
+        Per-instance advertisement intersects the universe of shim
+        coverage with what the platform's claimed specialisms are
+        responsible for via :data:`SPECIALISM_TO_ADVERTISED_TOOLS`.
+        Specialisms not in that map (``signed-requests``,
+        ``governance-aware-seller``) are meta-claims and contribute no
+        tools — they compose with a non-meta claim that does.
+
+        :returns: The intersection of ``advertised_tools`` (universe)
+            with the per-specialism-allowed set. Empty when no
+            recognized specialisms are claimed (e.g., adopter still
+            piloting a novel slug not in the spec enum); transport
+            layer should fall back to the class-level set in that case
+            so the handler isn't accidentally muted.
+        """
+        claimed = self._platform.capabilities.specialisms
+        serving: set[str] = set()
+        for slug in claimed:
+            tools = SPECIALISM_TO_ADVERTISED_TOOLS.get(slug)
+            if tools is not None:
+                serving |= set(tools)
+        return frozenset(serving)
 
     def __init__(
         self,

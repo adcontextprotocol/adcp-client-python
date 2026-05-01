@@ -1514,6 +1514,7 @@ def get_tools_for_handler(
         Filtered list of tool definitions.
     """
     cls = handler if isinstance(handler, type) else type(handler)
+    instance = handler if not isinstance(handler, type) else None
 
     candidates: list[dict[str, Any]] = []
     for base in cls.__mro__:
@@ -1523,6 +1524,33 @@ def get_tools_for_handler(
             break
     else:
         candidates = [tool for tool in ADCP_TOOL_DEFINITIONS if tool["name"] in _PROTOCOL_TOOLS]
+
+    # Per-instance specialism filter (Emma cross-cutting P1). When the
+    # handler instance exposes ``advertised_tools_for_instance``, intersect
+    # the candidate universe with the per-instance set BEFORE the
+    # override-detection filter. This trims tools whose Protocol family
+    # the platform didn't claim (sales-only adopter no longer advertises
+    # ``acquire_rights``, ``build_creative``, etc.). Falls back to the
+    # class-level universe when:
+    #
+    # * The handler is being inspected by class (no instance) — class-level
+    #   advertisement preserves backwards compat for static introspection.
+    # * The hook returns an empty set (adopter piloting a novel specialism
+    #   slug not in :data:`SPECIALISM_TO_ADVERTISED_TOOLS`); muting the
+    #   handler would be a worse foot-gun than over-advertising.
+    if instance is not None and hasattr(instance, "advertised_tools_for_instance"):
+        try:
+            per_instance_set = instance.advertised_tools_for_instance()
+        except Exception:
+            # Defensive: never let an instance hook crash tools/list.
+            per_instance_set = None
+        if per_instance_set:
+            always_on = _PROTOCOL_TOOLS | DISCOVERY_TOOLS
+            candidates = [
+                tool
+                for tool in candidates
+                if tool["name"] in always_on or tool["name"] in per_instance_set
+            ]
 
     if advertise_all:
         return candidates
