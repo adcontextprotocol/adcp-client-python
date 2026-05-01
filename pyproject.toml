@@ -35,7 +35,13 @@ dependencies = [
     # ``tests/conformance/signing/test_ip_pinned_transport_contract.py``
     # guards the specific API shapes we rely on.
     "httpcore>=1.0,<2.0",
-    "pydantic>=2.0.0",
+    # Upper bound is load-bearing for ``adcp.types.error_narrowing``,
+    # which depends on pydantic-2 ValidationError.errors() internals
+    # (``err["type"]`` literals like ``"literal_error"`` /
+    # ``"union_tag_not_found"`` and CamelCase variant names interleaved
+    # in ``err["loc"]``). Pydantic 3 has no API guarantee on these
+    # internals; bump only after porting the narrowing heuristics.
+    "pydantic>=2.0.0,<3",
     "typing-extensions>=4.5.0",
     # A2A protocol v1.0 (protobuf types, ProtoJSON on the wire). We run
     # on the v1.0 Python SDK with ``enable_v0_3_compat=True`` on the

@@ -202,3 +202,94 @@ def test_e2e_creative_manifest_missing_width_height_narrows_to_image_asset() -> 
             "CreativeManifest accepted invalid asset (missing width/height); "
             "regression in upstream pydantic discriminated-union behavior"
         )
+
+
+# ---- Expert-review hardening (PR #340 round 2) ----
+
+
+def test_narrow_handles_union_tag_invalid_as_discriminator_mismatch() -> None:
+    """``union_tag_invalid`` is pydantic-2's "tag found but invalid"
+    code (sibling of ``union_tag_not_found``). Must be treated as a
+    discriminator-mismatch signal so a variant with that error gets
+    eliminated from the candidate pool."""
+    errors: list[dict[str, Any]] = [
+        {
+            "type": "missing",
+            "loc": ("assets", "hero", "ImageAsset", "width"),
+            "msg": "Field required",
+        },
+        # Invalid tag: pydantic found a discriminator field but its
+        # value doesn't match this variant's literal.
+        {
+            "type": "union_tag_invalid",
+            "loc": ("assets", "hero", "VideoAsset"),
+            "msg": "Input tag invalid for this union",
+        },
+    ]
+    narrowed = narrow_union_errors(errors)
+    # ImageAsset wins — VideoAsset has the discriminator-mismatch signal.
+    assert len(narrowed) == 1
+    assert "ImageAsset" in narrowed[0]["loc"]
+
+
+def test_narrow_uses_innermost_variant_for_nested_unions() -> None:
+    """Nested unions: ``Union[Outer[Union[A, B]], C]``. Pydantic emits
+    ``loc`` like ``("field", "Outer", "inner", "A", "subfield")``.
+    The split MUST pick the LAST variant segment (innermost ``A``) so
+    A and B end up in different buckets and narrow correctly. Splitting
+    at the FIRST variant segment would collapse them and break the
+    narrowing."""
+    errors: list[dict[str, Any]] = [
+        # Inner variant A — clean (no literal_error).
+        {
+            "type": "missing",
+            "loc": ("field", "Outer", "inner", "A", "subfield"),
+            "msg": "Field required",
+        },
+        # Inner variant B — discriminator mismatch.
+        {
+            "type": "literal_error",
+            "loc": ("field", "Outer", "inner", "B", "kind"),
+            "msg": "Input should be 'b'",
+        },
+    ]
+    narrowed = narrow_union_errors(errors)
+    # A wins; B's literal_error eliminates it from candidates.
+    assert len(narrowed) == 1
+    assert "A" in narrowed[0]["loc"]
+    assert "B" not in narrowed[0]["loc"]
+
+
+def test_narrow_returns_defensive_copies() -> None:
+    """The returned list contains COPIES of the input dicts —
+    mutating the returned list MUST NOT affect the input. Cheap
+    insurance; matters because pydantic's ``ErrorDetails`` flows from
+    user input through a wide call graph."""
+    original_err: dict[str, Any] = {
+        "type": "missing",
+        "loc": ("assets", "hero", "ImageAsset", "width"),
+        "msg": "Field required",
+    }
+    errors = [original_err]
+    narrowed = narrow_union_errors(errors)
+    # Mutate the returned dict — must not propagate to input.
+    narrowed[0]["msg"] = "MUTATED"
+    assert original_err["msg"] == "Field required"
+
+
+def test_narrow_passes_through_oversized_input() -> None:
+    """DoS guard: above 500 errors we don't run narrowing — narrowing
+    is UX, not correctness, and a hostile request shouldn't get to
+    amplify CPU through the bucketing logic. Verifies the cap is
+    enforced and the original list comes back unchanged."""
+    # Build 600 errors that WOULD be narrowable if we ran the algorithm.
+    errors: list[dict[str, Any]] = [
+        {
+            "type": "missing",
+            "loc": ("field", f"Variant{i}", "x"),
+            "msg": "Field required",
+        }
+        for i in range(600)
+    ]
+    narrowed = narrow_union_errors(errors)
+    assert len(narrowed) == 600  # bypass — input came back as-is

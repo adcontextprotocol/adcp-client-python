@@ -55,21 +55,46 @@ def _looks_like_variant_name(segment: Any) -> bool:
 def _split_at_variant(
     loc: tuple[Any, ...],
 ) -> tuple[tuple[Any, ...], str, tuple[Any, ...]] | None:
-    """Split a loc tuple at the first variant-name segment.
+    """Split a loc tuple at the LAST variant-name segment.
 
     Returns ``(prefix_before_variant, variant_name, suffix_after_variant)``
     or ``None`` if no variant segment is found. Used to group
     union-validation errors by their containing field path + variant.
 
+    The LAST variant segment (innermost) is the one whose error
+    mattered. For nested unions
+    (``Union[Outer[Union[A, B]], C]``) pydantic emits
+    ``("field", "Outer", "inner", "A", "subfield")`` — splitting at
+    the FIRST variant segment ("Outer") would collapse "A" and "B"
+    into one bucket; splitting at the LAST ("A") correctly groups by
+    innermost variant.
+
     Example::
 
         loc = ("assets", "hero", "ImageAsset", "width")
         → (("assets", "hero"), "ImageAsset", ("width",))
+
+        loc = ("field", "Outer", "inner", "A", "subfield")
+        → (("field", "Outer", "inner"), "A", ("subfield",))
     """
+    last_variant_idx: int | None = None
     for i, segment in enumerate(loc):
         if _looks_like_variant_name(segment):
-            return loc[:i], segment, loc[i + 1 :]
-    return None
+            last_variant_idx = i
+    if last_variant_idx is None:
+        return None
+    variant = loc[last_variant_idx]
+    assert isinstance(variant, str)  # _looks_like_variant_name guarantees this
+    return loc[:last_variant_idx], variant, loc[last_variant_idx + 1 :]
+
+
+#: Cap on input list size. Beyond this we pass through unchanged —
+#: narrowing is a UX feature, not correctness, and an attacker
+#: submitting a request that triggers thousands of validation errors
+#: shouldn't get to amplify CPU through O(N) bucketing logic. The cap
+#: is generous enough that genuine union dumps (~30 errors for a 13-
+#: variant asset union) never hit it.
+_MAX_NARROW_INPUT_SIZE = 500
 
 
 def narrow_union_errors(
@@ -81,10 +106,10 @@ def narrow_union_errors(
     For each (parent_loc) where multiple variant errors exist, pick
     the "best fit" variant by:
 
-    1. **Discriminator match**: if exactly one variant lacks a
-       ``literal_error`` whose input doesn't match the expected
-       discriminator, that variant matched the user's discriminator
-       value. Keep ONLY its errors.
+    1. **Discriminator match**: variants with no ``literal_error``,
+       ``union_tag_not_found``, or ``union_tag_invalid`` had their
+       discriminator value match the user's input. Keep ONLY their
+       errors.
     2. **Fewest non-discriminator errors**: if no clear discriminator
        winner, the variant with the smallest count of non-literal
        errors is the closest fit. Keep ONLY its errors.
@@ -94,10 +119,30 @@ def narrow_union_errors(
     empty list when the input is non-empty — the worst case falls
     back to the input.
 
+    **Edge case** (residual): pydantic's ``literal_error`` type fires
+    on ANY ``Literal[...]`` field mismatch, not just the discriminator.
+    A user input that hits a non-discriminator literal mismatch on the
+    matched variant (e.g., correct ``asset_type`` but wrong
+    ``codec``) will eliminate the matched variant from step 1 and the
+    fallback may pick a wrong variant. The narrowing reduces noise
+    even in this case but may surface the wrong variant's errors.
+    Resolving this requires knowing the discriminator field name,
+    which the heuristic doesn't have access to. Schema-level fix
+    (``Annotated[Union[...], Field(discriminator=...)]``) avoids the
+    issue entirely; tracked as a follow-up.
+
     Mirrors the JS-side ``narrowUnionValidationErrors`` (when ported).
     """
     if not errors:
-        return list(errors) if errors else []
+        return []
+
+    errors_list = list(errors)
+    # DoS guard: don't process pathologically-large inputs. Below the
+    # cap, narrowing helps. Above it, we're either in a hostile
+    # request or a legitimately massive schema; either way, the
+    # narrowing UX win doesn't justify the CPU.
+    if len(errors_list) > _MAX_NARROW_INPUT_SIZE:
+        return errors_list
 
     # Bucket errors by (prefix_before_variant) — every error sharing
     # the same prefix is contending for the same logical slot, and
@@ -106,7 +151,7 @@ def narrow_union_errors(
     buckets: dict[tuple[Any, ...], list[tuple[str, Any]]] = {}
     passthrough: list[Any] = []
 
-    for err in errors:
+    for err in errors_list:
         loc = tuple(err.get("loc", ()))
         split = _split_at_variant(loc)
         if split is None:
@@ -116,10 +161,15 @@ def narrow_union_errors(
         buckets.setdefault(prefix, []).append((variant, err))
 
     if not buckets:
-        return list(errors)
+        return errors_list
 
-    narrowed: list[Any] = list(passthrough)
-    for prefix, variant_errors in buckets.items():
+    # Defensive copy of the dicts we're about to surface — the caller
+    # might mutate the returned list and we don't want that to leak
+    # back into the input. ``dict(err)`` is shallow which is fine:
+    # ``loc`` is a tuple (immutable), and other values are scalars or
+    # nested dicts pydantic doesn't share across errors.
+    narrowed: list[Any] = [dict(err) for err in passthrough]
+    for _prefix, variant_errors in buckets.items():
         # Group by variant name within this bucket.
         per_variant: dict[str, list[Any]] = {}
         for variant, err in variant_errors:
@@ -128,35 +178,54 @@ def narrow_union_errors(
         if len(per_variant) <= 1:
             # Only one variant in this bucket — no narrowing needed.
             for errs in per_variant.values():
-                narrowed.extend(errs)
+                narrowed.extend(dict(e) for e in errs)
             continue
 
-        winner = _pick_winning_variant(per_variant, prefix)
+        winner = _pick_winning_variant(per_variant)
         if winner is None:
             # Couldn't disambiguate; fall back to all variants for
             # this bucket so the adopter doesn't lose information.
             for errs in per_variant.values():
-                narrowed.extend(errs)
+                narrowed.extend(dict(e) for e in errs)
             continue
-        narrowed.extend(per_variant[winner])
+        narrowed.extend(dict(e) for e in per_variant[winner])
 
     return narrowed
 
 
+#: Pydantic-2 error types that signal "this variant's discriminator
+#: didn't match the user's input". A variant whose error list contains
+#: ANY of these is eliminated from step 1's candidate pool.
+#:
+#: * ``literal_error`` — a ``Literal[...]`` field rejected the value.
+#:   Discriminators are typically Literal-typed (``asset_type:
+#:   Literal["image"]``); a mismatch here means this variant isn't
+#:   the user's intent.
+#: * ``union_tag_not_found`` — a NESTED tagged union inside this
+#:   variant couldn't be narrowed to any of ITS sub-variants. Means
+#:   the user's input doesn't fit this variant's shape at all.
+#: * ``union_tag_invalid`` — pydantic-2's "tag found but invalid for
+#:   this union" code. Same semantic as ``union_tag_not_found`` for
+#:   our purposes.
+_DISCRIMINATOR_MISMATCH_TYPES = frozenset(
+    {"literal_error", "union_tag_not_found", "union_tag_invalid"}
+)
+
+
 def _pick_winning_variant(
     per_variant: dict[str, list[Any]],
-    prefix: tuple[Any, ...],
 ) -> str | None:
     """Return the variant name whose errors are the closest fit.
 
     Strategy (in order):
 
-    1. **Discriminator match**: variants with ZERO ``literal_error``
-       errors had their discriminator value match the user's input.
-       If exactly one such variant exists, it's the winner. This is
-       the Stability AI / AudioStack 60-line-dump fix — when the user
-       provides ``asset_type='image'`` and ImageAsset's other fields
-       fail, we surface ImageAsset errors only.
+    1. **Discriminator match**: variants with ZERO discriminator-mismatch
+       errors (see :data:`_DISCRIMINATOR_MISMATCH_TYPES`) had their
+       discriminator value match the user's input. If exactly one
+       such variant exists, it's the winner. This is the Stability AI
+       / AudioStack 60-line-dump fix — when the user provides
+       ``asset_type='image'`` and ImageAsset's other fields fail, we
+       surface ImageAsset errors only.
     2. **Fewest errors among matched**: if multiple variants matched
        the discriminator, pick the one with fewest errors (closest
        fit to user's input shape).
@@ -171,18 +240,10 @@ def _pick_winning_variant(
     if not per_variant:
         return None
 
-    # Step 1: variants with ZERO discriminator-mismatch errors are the
-    # discriminator-matched candidates. Discriminator-mismatch signals:
-    #   - ``literal_error`` on the discriminator field (variant's
-    #     literal value didn't match the user's input)
-    #   - ``union_tag_not_found`` (a NESTED union inside this variant
-    #     couldn't be narrowed to any of ITS sub-variants — meaning
-    #     the user's input doesn't fit this variant's shape at all)
-    discriminator_mismatch_types = {"literal_error", "union_tag_not_found"}
     matched = {
         variant: errs
         for variant, errs in per_variant.items()
-        if not any(e.get("type") in discriminator_mismatch_types for e in errs)
+        if not any(e.get("type") in _DISCRIMINATOR_MISMATCH_TYPES for e in errs)
     }
 
     if matched:
