@@ -251,14 +251,13 @@ async def test_maybe_emit_fires_when_url_set() -> None:
 
 
 @pytest.mark.asyncio
-async def test_maybe_emit_echoes_token_via_extra_headers() -> None:
-    """Buyer-supplied token round-trips on the ``X-AdCP-Push-Token``
-    extra header. Receivers verify the token without parsing URL paths.
-
-    Note: the spec wire field is ``payload.token``; the SDK's
-    ``WebhookSender.send_mcp`` doesn't currently expose ``token`` on
-    the payload directly, so we round-trip via header. F12 round-3 may
-    add a payload-level wiring."""
+async def test_maybe_emit_echoes_token_via_payload_field() -> None:
+    """Buyer-supplied ``push_notification_config.token`` round-trips
+    on the payload's ``token`` field per spec
+    (``schemas/cache/core/push_notification_config.json``: "Echoed
+    back in webhook payload to validate request authenticity").
+    Cross-language wire-parity with the JS reference impl
+    (``buildTaskWebhookPayload`` in ``from-platform.ts``)."""
     sender = AsyncMock()
 
     class _Config:
@@ -277,8 +276,10 @@ async def test_maybe_emit_echoes_token_via_extra_headers() -> None:
     )
     while _BACKGROUND_WEBHOOK_TASKS:
         await asyncio.sleep(0)
-    extra_headers = sender.send_mcp.await_args.kwargs["extra_headers"]
-    assert extra_headers == {"X-AdCP-Push-Token": "echo-this-back-1234567890"}
+    # Token is on the payload via the ``token`` kwarg, NOT on a
+    # custom header. Receivers reading body.token per spec find it.
+    call_kwargs = sender.send_mcp.await_args.kwargs
+    assert call_kwargs["token"] == "echo-this-back-1234567890"
 
 
 @pytest.mark.asyncio
@@ -551,3 +552,174 @@ async def test_handler_sync_creatives_also_fires(executor) -> None:
         await asyncio.sleep(0)
     sender.send_mcp.assert_awaited_once()
     assert sender.send_mcp.await_args.kwargs["task_type"] == "sync_creatives"
+
+
+# ---- Round-2 expert review: non-blocking + concurrency + adopter-loose-shape ----
+
+
+@pytest.mark.asyncio
+async def test_handler_returns_before_webhook_delivers(executor) -> None:
+    """The PR's load-bearing invariant: sync response returns BEFORE
+    webhook delivery completes. A future refactor that awaits the
+    webhook before returning would be a documented DoS vector
+    (slowloris webhook receiver holds the seller's request worker).
+    Block ``send_mcp`` on an asyncio.Event and assert the handler's
+    ``create_media_buy`` returns first."""
+    webhook_started = asyncio.Event()
+    webhook_can_finish = asyncio.Event()
+
+    async def _slow_send_mcp(*args, **kwargs):
+        webhook_started.set()
+        await webhook_can_finish.wait()
+
+    sender = AsyncMock()
+    sender.send_mcp.side_effect = _slow_send_mcp
+
+    handler = PlatformHandler(
+        _SyncSuccessPlatform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+        webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
+    )
+
+    # Sync response returns even though the webhook is still blocked.
+    response = await handler.create_media_buy(
+        _make_request(with_url=True, idem_suffix="nb"), ToolContext()
+    )
+    # Handler returned its sync result.
+    assert response.media_buy_id == "mb_1"
+
+    # Background task started but is blocked. The handler already
+    # returned its sync response above; the webhook receiver is still
+    # holding the delivery, proving the response path is non-blocking.
+    await asyncio.wait_for(webhook_started.wait(), timeout=1.0)
+    assert len(_BACKGROUND_WEBHOOK_TASKS) >= 1
+
+    # Release the webhook receiver and let the background task drain.
+    webhook_can_finish.set()
+    while _BACKGROUND_WEBHOOK_TASKS:
+        await asyncio.sleep(0)
+    sender.send_mcp.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_emissions_dont_corrupt_strong_ref_set(executor) -> None:
+    """100 concurrent ``maybe_emit_sync_completion`` calls — each
+    schedules a background task; ``_BACKGROUND_WEBHOOK_TASKS`` add /
+    discard pattern must remain consistent. A future regression
+    swapping ``set`` for a list, or using ``clear()`` instead of
+    ``discard``, would break this test."""
+
+    class _Config:
+        url = "https://buyer.example.com/wh"
+        token = None
+
+    class _Params:
+        push_notification_config = _Config()
+
+    sender = AsyncMock()
+    sender.send_mcp.return_value = None
+
+    for _ in range(100):
+        maybe_emit_sync_completion(
+            sender=sender,
+            enabled=True,
+            method_name="create_media_buy",
+            params=_Params(),
+            result={"media_buy_id": "mb"},
+        )
+    while _BACKGROUND_WEBHOOK_TASKS:
+        await asyncio.sleep(0)
+    assert sender.send_mcp.await_count == 100
+    # Set drained completely — done callbacks discarded each task.
+    assert len(_BACKGROUND_WEBHOOK_TASKS) == 0
+
+
+@pytest.mark.asyncio
+async def test_handler_does_not_skip_loose_submitted_shape(executor) -> None:
+    """Round-2 expert review (P1): an adopter that legitimately returns
+    a sync ``{"status": "submitted", ...}`` (queue-acceptance with
+    extra metadata) must NOT have the auto-emit suppressed. The
+    framework's TaskHandoff projection is the EXACT 2-key shape
+    ``{"task_id", "status"}``; only that exact shape skips."""
+
+    class _LooseSubmittedPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            # Adopter returns a dict with "status": "submitted" PLUS
+            # extra fields — NOT a TaskHandoff projection.
+            return {
+                "task_id": "mb_xyz",
+                "status": "submitted",
+                "media_buy_id": "mb_xyz",
+                "queued_at": "2026-04-30T23:00:00Z",
+            }
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {}
+
+        def sync_creatives(self, req, ctx):
+            return {}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {}
+
+    sender = AsyncMock()
+    handler = PlatformHandler(
+        _LooseSubmittedPlatform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+        webhook_sender=sender,
+        auto_emit_completion_webhooks=True,
+    )
+    await handler.create_media_buy(_make_request(with_url=True, idem_suffix="ls"), ToolContext())
+    while _BACKGROUND_WEBHOOK_TASKS:
+        await asyncio.sleep(0)
+    # Auto-emit MUST fire — the response had extra fields, so it's
+    # not a TaskHandoff projection.
+    sender.send_mcp.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_gate_swallows_unexpected_exceptions(caplog) -> None:
+    """Round-2 expert review (P0): the gate's body MUST never propagate
+    an exception to the handler shim. Test by passing a sender whose
+    method-resolution raises (simulating a broken duck-typed sender).
+    The handler returns successfully and the gate logs the failure."""
+    import logging
+
+    # Sender that raises on attribute access — simulates a misconfigured
+    # duck-typed object that passes the ``sender is None`` check but
+    # explodes inside ``send_mcp`` lookup.
+    class _ExplodingSender:
+        @property
+        def send_mcp(self):
+            raise RuntimeError("synthetic sender access failure")
+
+    class _Config:
+        url = "https://buyer.example.com/wh"
+        token = None
+
+    class _Params:
+        push_notification_config = _Config()
+
+    with caplog.at_level(logging.WARNING, logger="adcp.decisioning.webhook_emit"):
+        # Must NOT raise — the gate's outer try/except swallows.
+        maybe_emit_sync_completion(
+            sender=_ExplodingSender(),  # type: ignore[arg-type]
+            enabled=True,
+            method_name="create_media_buy",
+            params=_Params(),
+            result={"media_buy_id": "mb_1"},
+        )
+        while _BACKGROUND_WEBHOOK_TASKS:
+            await asyncio.sleep(0)
+    # The logged failure surfaces via the framework logger so
+    # operators see it without breaking the buyer's sync response.
+    assert any("sync completion webhook" in rec.message for rec in caplog.records)

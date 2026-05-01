@@ -231,12 +231,18 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         JS-side ``routeIfHandoff`` logic at
         ``src/lib/server/decisioning/runtime/from-platform.ts``.
 
-        TaskHandoff projection returns ``{"task_id": ..., "status":
-        "submitted"}`` from ``_project_handoff``; sync success returns
-        a Pydantic response or a dict matching the wire shape. We
-        distinguish on the ``status == "submitted"`` shape.
+        TaskHandoff projection returns the exact 2-key dict ``{"task_id":
+        ..., "status": "submitted"}`` from ``_project_handoff``; we
+        match the full key set rather than the loose ``status ==
+        "submitted"`` predicate so an adopter who legitimately returns a
+        sync ``{"status": "submitted", ...}`` (e.g., synchronous queue
+        acceptance with extra metadata) still gets the auto-emit.
         """
-        if isinstance(result, dict) and result.get("status") == "submitted":
+        if (
+            isinstance(result, dict)
+            and set(result.keys()) == {"task_id", "status"}
+            and result.get("status") == "submitted"
+        ):
             # TaskHandoff projection — registry completion path emits
             # its own webhook on terminal state.
             return

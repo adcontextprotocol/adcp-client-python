@@ -94,6 +94,7 @@ def create_mcp_webhook_payload(
     context_id: str | None = None,
     domain: str | None = None,
     idempotency_key: str | None = None,
+    token: str | None = None,
 ) -> dict[str, Any]:
     """
     Create MCP webhook payload dictionary.
@@ -190,6 +191,15 @@ def create_mcp_webhook_payload(
 
     if domain is not None:
         payload["domain"] = domain
+
+    if token is not None:
+        # Buyer-supplied token from push_notification_config.token,
+        # echoed back per push-notification-config.json spec text:
+        # "Echoed back in webhook payload to validate request authenticity."
+        # Cross-language wire-parity with the JS implementation
+        # (``buildTaskWebhookPayload`` in ``from-platform.ts``) — buyers
+        # validating against the spec read body.token, not headers.
+        payload["token"] = token
 
     return payload
 

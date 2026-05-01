@@ -300,6 +300,7 @@ class WebhookSender:
         context_id: str | None = None,
         domain: str | None = None,
         idempotency_key: str | None = None,
+        token: str | None = None,
         extra_headers: Mapping[str, str] | None = None,
     ) -> WebhookDeliveryResult:
         """POST a signed MCP-style task-status webhook.
@@ -309,6 +310,13 @@ class WebhookSender:
         the "same" args would produce a fresh ``timestamp`` and potentially
         a different serialized body, which the receiver would dedupe but
         with different observed payload data.
+
+        :param token: Buyer-supplied token from
+            ``push_notification_config.token`` echoed back on the
+            payload's ``token`` field per spec
+            (``schemas/cache/core/push_notification_config.json``: "Echoed
+            back in webhook payload to validate request authenticity").
+            Cross-language wire-parity with the JS implementation.
         """
         payload = create_mcp_webhook_payload(
             task_id=task_id,
@@ -321,6 +329,7 @@ class WebhookSender:
             context_id=context_id,
             domain=domain,
             idempotency_key=idempotency_key,
+            token=token,
         )
         return await self.send_raw(
             url=url,

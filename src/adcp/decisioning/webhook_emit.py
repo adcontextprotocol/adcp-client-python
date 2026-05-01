@@ -134,10 +134,13 @@ async def _emit_sync_completion_webhook(
     """Fire one sync-completion webhook. Logged-and-swallowed on failure.
 
     Wrapped by the caller in :func:`asyncio.create_task` so the sync
-    response returns to the buyer immediately.
+    response returns to the buyer immediately. Truncated to 16 hex
+    chars (~64 bits) — adequate for buyer correlation. Buyers
+    correlate primarily via resource ids on ``result``
+    (``media_buy_id``, ``creative_id``, etc.); ``task_id`` here is
+    informational for the spec's required-field shape.
     """
     task_id = f"sync-{uuid.uuid4().hex[:16]}"
-    extra_headers = {"X-AdCP-Push-Token": token} if token else None
     try:
         await sender.send_mcp(
             url=url,
@@ -145,7 +148,7 @@ async def _emit_sync_completion_webhook(
             status="completed",
             task_type=method_name,
             result=result,
-            extra_headers=extra_headers,
+            token=token,
         )
     except Exception:
         # Logged-and-swallowed: the sync response has already returned
@@ -181,43 +184,70 @@ def maybe_emit_sync_completion(
 
     Schedules the actual delivery via the running event loop's
     ``create_task`` so the sync response path is non-blocking.
+
+    **Exception isolation.** The gate runs AFTER the platform method's
+    successful return. ANY exception in here — extraction quirk on a
+    weird ``params`` shape, ``loop.create_task`` failure — must NOT
+    propagate to the handler shim, which would lose the buyer's sync
+    response. The whole body is wrapped in ``try/except Exception``;
+    logged-and-swallowed.
     """
-    if not enabled or sender is None:
-        return
-    extracted = _extract_push_notification_url_and_token(params)
-    if extracted is None:
-        return
-    url, token = extracted
-    if method_name not in SPEC_WEBHOOK_TASK_TYPES:
-        logger.warning(
-            "[adcp.decisioning] sync completion webhook for %s skipped — "
-            "tool not in spec task-type enum (closed 20-value set per "
-            "schemas/cache/enums/task-type.json). Use "
-            "publishStatusChange for long-running %s state.",
-            method_name,
-            method_name,
-        )
-        return
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        # No running loop — typically a sync-test path. The auto-emit
-        # is best-effort; surfacing this to the sync response path
-        # would be strictly worse than silent skip.
-        logger.debug("[adcp.decisioning] sync completion webhook skipped — no running loop")
-        return
-    bg = loop.create_task(
-        _emit_sync_completion_webhook(
-            sender=sender,
-            url=url,
-            token=token,
-            method_name=method_name,
-            result=result,
-        ),
-        name=f"adcp-sync-completion-{method_name}",
-    )
-    _BACKGROUND_WEBHOOK_TASKS.add(bg)
-    bg.add_done_callback(_BACKGROUND_WEBHOOK_TASKS.discard)
+        if not enabled or sender is None:
+            return
+        extracted = _extract_push_notification_url_and_token(params)
+        if extracted is None:
+            return
+        url, token = extracted
+        if method_name not in SPEC_WEBHOOK_TASK_TYPES:
+            logger.warning(
+                "[adcp.decisioning] sync completion webhook for %s skipped — "
+                "tool not in spec task-type enum (closed 20-value set per "
+                "schemas/cache/enums/task-type.json). Use "
+                "publishStatusChange for long-running %s state.",
+                method_name,
+                method_name,
+            )
+            return
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # Production code that lands here is mis-wired (handler
+            # shim called outside an event loop); bump to warning so
+            # it's visible. Cost of one warning per misuse is
+            # negligible vs. the cost of silent webhook loss.
+            logger.warning(
+                "[adcp.decisioning] sync completion webhook for %s "
+                "skipped — no running event loop. The handler shim is "
+                "expected to run inside an asyncio task; this branch "
+                "fires when sync test code calls into the handler "
+                "outside ``asyncio.run`` or ``pytest.mark.asyncio``.",
+                method_name,
+            )
+            return
+        bg = loop.create_task(
+            _emit_sync_completion_webhook(
+                sender=sender,
+                url=url,
+                token=token,
+                method_name=method_name,
+                result=result,
+            ),
+            name=f"adcp-sync-completion-{method_name}",
+        )
+        _BACKGROUND_WEBHOOK_TASKS.add(bg)
+        bg.add_done_callback(_BACKGROUND_WEBHOOK_TASKS.discard)
+    except Exception:
+        # Last-line defense: an unexpected exception in the gate
+        # itself (extraction quirk, scheduler error) must never
+        # propagate to the handler shim, which has already produced
+        # a successful sync response for the buyer.
+        logger.warning(
+            "[adcp.decisioning] sync completion webhook gate raised "
+            "for %s; sync response unaffected",
+            method_name,
+            exc_info=True,
+        )
 
 
 __all__ = [
