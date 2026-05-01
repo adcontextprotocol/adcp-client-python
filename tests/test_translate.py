@@ -458,15 +458,21 @@ class TestAdcpErrorDetailsOnMCP:
         loc_fields = {err["loc"][-1] for err in parsed["validation_errors"]}
         assert loc_fields == {"width", "height"}
 
-    def test_huge_details_truncated_at_8kb(self) -> None:
+    def test_huge_details_truncated_with_parseable_sentinel(self) -> None:
         """A pathological ``details`` payload (huge repr, DB query
-        string) gets truncated to 8KB so the MCP error response stays
-        bounded. Defense-in-depth against an adopter who fills
-        ``details`` with raw debug payloads."""
+        string) gets truncated to 8 KB so the MCP error response
+        stays bounded. The truncated payload is ALWAYS valid JSON —
+        emits a ``{"_truncated": true, "_reason": "size", "_partial":
+        "..."}`` sentinel so buyer agents can ``json.loads`` and
+        branch on the marker (ad-tech-protocol-expert P1 follow-up
+        from PR #341 — pre-fix the bare ``...`` suffix made buyer
+        ``json.loads`` throw ``JSONDecodeError`` with no signal of
+        why)."""
+        import json as _json
+
         from adcp.decisioning.types import AdcpError as DecisioningAdcpError
         from adcp.server.translate import translate_error
 
-        # Build a details dict that JSON-encodes to >8 KB.
         big = {"blob": "X" * 10_000}
         exc = DecisioningAdcpError(
             "INTERNAL_ERROR",
@@ -478,4 +484,37 @@ class TestAdcpErrorDetailsOnMCP:
         text = str(tool_err.args[0]) if tool_err.args else str(tool_err)
         details_part = text.split("\nDetails: ", 1)[1]
         assert len(details_part) <= 8192
-        assert details_part.endswith("...")
+        # Critical: the truncated payload MUST be valid JSON.
+        parsed = _json.loads(details_part)
+        assert parsed["_truncated"] is True
+        assert parsed["_reason"] == "size"
+        assert "_partial" in parsed
+
+    def test_unserializable_details_emits_sentinel(self) -> None:
+        """When ``json.dumps`` itself raises (a circular reference or
+        other unrepresentable shape that even ``default=str`` can't
+        coerce), the function emits a parseable sentinel rather than
+        letting the failure propagate or returning malformed JSON."""
+        import json as _json
+
+        from adcp.decisioning.types import AdcpError as DecisioningAdcpError
+        from adcp.server.translate import translate_error
+
+        # Circular reference defeats both ``json.dumps`` and the
+        # ``default=str`` fallback (str() can't represent the cycle
+        # either — it raises ``ValueError: Circular reference``).
+        circular: dict[str, object] = {}
+        circular["self"] = circular
+        exc = DecisioningAdcpError(
+            "INTERNAL_ERROR",
+            message="circular",
+            recovery="terminal",
+            details=circular,
+        )
+        tool_err = translate_error(exc, protocol="mcp")
+        text = str(tool_err.args[0]) if tool_err.args else str(tool_err)
+        details_part = text.split("\nDetails: ", 1)[1]
+        # Even on serialization failure, the output is parseable.
+        parsed = _json.loads(details_part)
+        assert parsed["_truncated"] is True
+        assert parsed["_reason"] == "non_serializable"

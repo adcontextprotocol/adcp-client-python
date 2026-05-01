@@ -234,11 +234,23 @@ def _to_mcp(
 
     When ``details`` is non-empty, the JSON-serialised payload is
     appended after a ``\\nDetails: `` line. Buyer agents can split on
-    that prefix and ``json.loads`` the rest. AudioStack Emma P0:
-    pre-fix the wire said "see details for cause" but the dispatch's
+    that prefix and ``json.loads`` the rest — the result is ALWAYS
+    valid JSON (truncation/serialization failures emit a sentinel
+    object, never a bare ``...``). AudioStack Emma P0: pre-fix the
+    wire said "see details for cause" but the dispatch's
     ``details.caused_by`` (and #341's ``validation_errors``) never
     reached MCP buyers — only A2A. Now both transports surface the
     structured breadcrumb.
+
+    **Bridge, not endpoint.** The protocol-correct shape is MCP's
+    ``CallToolResult.structuredContent`` (carries ``isError=True``
+    AND a structured ``adcp_error`` object on the same envelope —
+    see ``mcp.types.CallToolResult``). FastMCP's
+    ``_make_error_result`` (``mcp/server/lowlevel/server.py:467``)
+    drops ``structuredContent`` for error results, so we can't reach
+    that channel via FastMCP's ``ToolError`` raise path. Migrating
+    to lowlevel ``Server.call_tool`` registration would unlock it;
+    until then this text-suffix is the working bridge.
     """
     if field:
         text = f"{code}[{field}]: {message}"
@@ -247,20 +259,86 @@ def _to_mcp(
     if suggestion:
         text += f"\nSuggestion: {suggestion}"
     if details:
-        # Truncation: the entire MCP error is one ``text`` field, so a
-        # huge details dict bloats every error response. Cap the JSON
-        # payload at 8 KB — generous enough for the structured
-        # breadcrumb shapes (caused_by + validation_errors typically
-        # under 2 KB) but bounded against an adopter who fills details
-        # with raw repr or DB query strings.
-        try:
-            details_json = json.dumps(details, separators=(",", ":"), default=str)
-        except Exception:
-            details_json = str(details)
-        if len(details_json) > 8192:
-            details_json = details_json[:8189] + "..."
-        text += f"\nDetails: {details_json}"
+        text += f"\nDetails: {_serialize_details_for_mcp(details)}"
     return ToolError(text)
+
+
+#: Cap on the JSON-serialised ``details`` payload appended to MCP
+#: ToolError text. Generous enough for typical
+#: ``caused_by`` + ``validation_errors`` shapes (under 2 KB) and
+#: bounded against an adopter who fills ``details`` with raw repr
+#: or DB query strings. Not configurable today; if an adopter
+#: needs more, an env-var escape hatch is the right next step.
+_MCP_DETAILS_MAX_BYTES = 8192
+
+
+def _serialize_details_for_mcp(details: dict[str, Any]) -> str:
+    """Serialise ``details`` to a JSON string suitable for embedding
+    in the MCP ToolError text payload.
+
+    The output is ALWAYS valid JSON — even when truncation fires
+    or ``json.dumps`` raises. Buyer agents can split on the
+    ``\\nDetails: `` prefix and ``json.loads`` the tail without
+    branching on serialization quality. Truncation is signalled via
+    the ``_truncated`` field on the sentinel object so buyers can
+    surface a "details elided; see server logs" UX hint.
+
+    Pre-fix (PR #341 ship): truncation emitted a bare ``...`` suffix
+    on the JSON tail, which made the buyer's ``json.loads`` throw
+    ``JSONDecodeError`` with no signal that the cause was
+    server-side truncation. ad-tech-protocol-expert called this
+    out as a follow-up before the wire shape became de-facto
+    convention.
+    """
+    try:
+        details_json = json.dumps(details, separators=(",", ":"), default=str)
+    except Exception:
+        # Non-serializable details (rare — ``default=str`` catches
+        # most). Emit a sentinel so the buyer's parse still
+        # succeeds. ``str(details)`` may also raise on circular refs
+        # — guarded with try/except + a fallback empty partial.
+        try:
+            partial = str(details)[: _MCP_DETAILS_MAX_BYTES // 2]
+        except Exception:
+            partial = ""
+        return json.dumps(
+            {
+                "_truncated": True,
+                "_reason": "non_serializable",
+                "_partial": partial,
+            },
+            separators=(",", ":"),
+        )
+    if len(details_json) <= _MCP_DETAILS_MAX_BYTES:
+        return details_json
+    # Truncation: emit a sentinel object (always valid JSON).
+    # ``_partial`` carries as much of the original payload as fits
+    # inside the cap; buyers that want the full payload pull it
+    # from server logs (still in ``logger.exception`` traces).
+    #
+    # Iterate to fit: JSON encoding of ``_partial`` adds backslash
+    # escaping (each `"` becomes `\\"`, each `\\` becomes `\\\\`),
+    # so a naive headroom calc undershoots when the partial contains
+    # quotes or backslashes. Halve until the encoded sentinel fits.
+    cut = _MCP_DETAILS_MAX_BYTES - 64  # rough headroom for sentinel keys
+    while cut > 0:
+        encoded = json.dumps(
+            {
+                "_truncated": True,
+                "_reason": "size",
+                "_partial": details_json[:cut],
+            },
+            separators=(",", ":"),
+        )
+        if len(encoded) <= _MCP_DETAILS_MAX_BYTES:
+            return encoded
+        cut = max(0, cut - max(64, (len(encoded) - _MCP_DETAILS_MAX_BYTES) * 2))
+    # Cut hit zero — emit a no-partial sentinel so the buyer still
+    # sees that something was truncated.
+    return json.dumps(
+        {"_truncated": True, "_reason": "size", "_partial": ""},
+        separators=(",", ":"),
+    )
 
 
 def _to_a2a(

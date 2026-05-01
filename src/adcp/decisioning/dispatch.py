@@ -364,6 +364,20 @@ def _internal_error_details(exc: BaseException) -> dict[str, Any]:
     (typo-shaped) from ``KeyError`` (missing-config-shaped) from
     ``ConnectionError`` (network-shaped) at a glance.
 
+    **``caused_by.type`` is a debug breadcrumb, not a wire contract.**
+    The value is Python's exception class name verbatim
+    (``"AttributeError"``, ``"KeyError"``, ``"ValidationError"``).
+    Buyers built against the JS SDK won't see Python-flavoured class
+    names from JS sellers — only Python sellers leak Python types.
+    Treat this field as "hint to the seller dev reading their own
+    server logs," NOT as something to branch on programmatically
+    cross-language. The AdCP spec at ``schemas/cache/core/error.json``
+    keeps ``details`` as ``additionalProperties: true`` so this is
+    spec-compliant; it's just not portable. Buyer agents that want
+    structured retry/fix/abandon classification should read
+    ``recovery`` (terminal/correctable/transient) which IS the
+    cross-language contract.
+
     Truncation is defense-in-depth against an adopter who throws on
     secret material and ends up with a repr that includes the secret
     value verbatim. The full traceback is in the server log via
