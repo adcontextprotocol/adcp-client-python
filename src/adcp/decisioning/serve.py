@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
+    from adcp.webhook_sender import WebhookSender
 
 
 def _is_production_env() -> bool:
@@ -75,6 +76,8 @@ def create_adcp_server_from_platform(
     registry: TaskRegistry | None = None,
     state_reader: StateReader | None = None,
     resource_resolver: ResourceResolver | None = None,
+    webhook_sender: WebhookSender | None = None,
+    auto_emit_completion_webhooks: bool = True,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -117,6 +120,24 @@ def create_adcp_server_from_platform(
         (D15 — async framework-mediated fetches). Default is the
         v6.0 stub (raises ``NotImplementedError`` with a pointer to
         v6.1).
+    :param webhook_sender: Bring-your-own
+        :class:`adcp.webhook_sender.WebhookSender` for sync-completion
+        and HITL-completion webhook delivery. Default ``None`` — when
+        unset, sync-completion auto-emit is a silent no-op (no URL to
+        deliver to, framework can't synthesize a sender). Adopters
+        wiring webhook delivery pass a configured sender (with their
+        signing key, IP-pinned transport, etc.).
+    :param auto_emit_completion_webhooks: F12 feature gate. When
+        ``True`` (default), the framework auto-fires a completion
+        webhook on the sync-success arm of mutating tools whenever the
+        request supplied ``push_notification_config.url`` AND the tool
+        is in :data:`adcp.decisioning.webhook_emit.SPEC_WEBHOOK_TASK_TYPES`.
+        Buyers passing the URL expect notification regardless of
+        whether the seller routed sync vs HITL. Set ``False`` for
+        adopters who emit webhooks manually inside their handlers
+        (avoid duplicate delivery; idempotency-key dedup at the
+        receiver would handle it but explicit suppression matches the
+        v5 manual-emit posture for adopters mid-migration).
 
     :raises ValueError: when ``executor`` and ``thread_pool_size`` are
         both supplied (D5 mutually-exclusive validation).
@@ -213,6 +234,8 @@ def create_adcp_server_from_platform(
         registry=registry,
         state_reader=state_reader,
         resource_resolver=resource_resolver,
+        webhook_sender=webhook_sender,
+        auto_emit_completion_webhooks=auto_emit_completion_webhooks,
     )
     return handler, executor, registry
 
@@ -226,6 +249,8 @@ def serve(
     registry: TaskRegistry | None = None,
     state_reader: StateReader | None = None,
     resource_resolver: ResourceResolver | None = None,
+    webhook_sender: WebhookSender | None = None,
+    auto_emit_completion_webhooks: bool = True,
     advertise_all: bool = False,
     **serve_kwargs: Any,
 ) -> None:
@@ -246,6 +271,14 @@ def serve(
         :class:`InMemoryTaskRegistry` (gated for production).
     :param state_reader: Custom :class:`StateReader` impl (D15).
     :param resource_resolver: Custom :class:`ResourceResolver` impl (D15).
+    :param webhook_sender: BYO :class:`adcp.webhook_sender.WebhookSender`
+        for completion webhook delivery (sync auto-emit + HITL terminal).
+        ``None`` disables auto-emit silently.
+    :param auto_emit_completion_webhooks: F12 — auto-fire a completion
+        webhook on the sync-success arm of mutating tools when the
+        request supplied ``push_notification_config.url``. Default
+        ``True``. Set ``False`` for adopters who emit webhooks
+        manually inside their handlers.
     :param advertise_all: Forwarded to :func:`adcp.server.serve`. When
         ``True``, ``tools/list`` advertises every method on the
         handler regardless of override status. Default ``False`` —
@@ -267,6 +300,8 @@ def serve(
         registry=registry,
         state_reader=state_reader,
         resource_resolver=resource_resolver,
+        webhook_sender=webhook_sender,
+        auto_emit_completion_webhooks=auto_emit_completion_webhooks,
     )
 
     server_name = name or type(platform).__name__

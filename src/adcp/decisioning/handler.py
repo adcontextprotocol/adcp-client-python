@@ -39,6 +39,7 @@ from adcp.decisioning.dispatch import (
     _build_request_context,
     _invoke_platform_method,
 )
+from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
 from adcp.server.base import ADCPHandler, ToolContext
 
 if TYPE_CHECKING:
@@ -70,6 +71,7 @@ if TYPE_CHECKING:
         UpdateMediaBuyRequest,
         UpdateMediaBuySuccessResponse,
     )
+    from adcp.webhook_sender import WebhookSender
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +143,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         registry: TaskRegistry,
         state_reader: StateReader | None = None,
         resource_resolver: ResourceResolver | None = None,
+        webhook_sender: WebhookSender | None = None,
+        auto_emit_completion_webhooks: bool = True,
     ) -> None:
         super().__init__()
         self._platform = platform
@@ -148,6 +152,8 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._registry = registry
         self._state_reader = state_reader
         self._resource_resolver = resource_resolver
+        self._webhook_sender = webhook_sender
+        self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
 
     # ----- account resolution helper -----
 
@@ -211,6 +217,37 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             )
         return None
 
+    def _maybe_auto_emit_sync_completion(
+        self,
+        method_name: str,
+        params: Any,
+        result: Any,
+    ) -> None:
+        """Fire the F12 sync-completion webhook if applicable.
+
+        Skips TaskHandoff projections — those go through the registry
+        completion path which emits its own webhook on terminal state.
+        The auto-emit fires on the sync-success arm only, mirroring the
+        JS-side ``routeIfHandoff`` logic at
+        ``src/lib/server/decisioning/runtime/from-platform.ts``.
+
+        TaskHandoff projection returns ``{"task_id": ..., "status":
+        "submitted"}`` from ``_project_handoff``; sync success returns
+        a Pydantic response or a dict matching the wire shape. We
+        distinguish on the ``status == "submitted"`` shape.
+        """
+        if isinstance(result, dict) and result.get("status") == "submitted":
+            # TaskHandoff projection — registry completion path emits
+            # its own webhook on terminal state.
+            return
+        maybe_emit_sync_completion(
+            sender=self._webhook_sender,
+            enabled=self._auto_emit_completion_webhooks,
+            method_name=method_name,
+            params=params,
+            result=result,
+        )
+
     def _build_ctx(
         self,
         tool_ctx: ToolContext,
@@ -260,17 +297,16 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
-            "CreateMediaBuySuccessResponse",
-            await _invoke_platform_method(
-                self._platform,
-                "create_media_buy",
-                params,
-                ctx,
-                executor=self._executor,
-                registry=self._registry,
-            ),
+        result = await _invoke_platform_method(
+            self._platform,
+            "create_media_buy",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
         )
+        self._maybe_auto_emit_sync_completion("create_media_buy", params, result)
+        return cast("CreateMediaBuySuccessResponse", result)
 
     async def update_media_buy(  # type: ignore[override]
         self,
@@ -285,18 +321,17 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
-            "UpdateMediaBuySuccessResponse",
-            await _invoke_platform_method(
-                self._platform,
-                "update_media_buy",
-                params,
-                ctx,
-                executor=self._executor,
-                registry=self._registry,
-                arg_projector={"media_buy_id": params.media_buy_id, "patch": params},
-            ),
+        result = await _invoke_platform_method(
+            self._platform,
+            "update_media_buy",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
+            arg_projector={"media_buy_id": params.media_buy_id, "patch": params},
         )
+        self._maybe_auto_emit_sync_completion("update_media_buy", params, result)
+        return cast("UpdateMediaBuySuccessResponse", result)
 
     async def sync_creatives(  # type: ignore[override]
         self,
@@ -306,17 +341,16 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
-            "SyncCreativesSuccessResponse",
-            await _invoke_platform_method(
-                self._platform,
-                "sync_creatives",
-                params,
-                ctx,
-                executor=self._executor,
-                registry=self._registry,
-            ),
+        result = await _invoke_platform_method(
+            self._platform,
+            "sync_creatives",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
         )
+        self._maybe_auto_emit_sync_completion("sync_creatives", params, result)
+        return cast("SyncCreativesSuccessResponse", result)
 
     async def get_media_buy_delivery(  # type: ignore[override]
         self,
