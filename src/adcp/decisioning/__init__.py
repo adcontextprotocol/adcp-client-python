@@ -136,6 +136,7 @@ from adcp.decisioning.types import (
 try:
     from adcp.decisioning.pg import PostgresTaskRegistry  # noqa: F401
 except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
+    from typing import ClassVar as _ClassVar
 
     class PostgresTaskRegistry:  # type: ignore[no-redef]
         """Stub raised when ``adcp[pg]`` isn't installed.
@@ -144,7 +145,7 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
         install-hint text from :mod:`adcp.decisioning.pg.task_registry`.
         """
 
-        is_durable: bool = True
+        is_durable: _ClassVar[bool] = True
 
         def __init__(self, *args: object, **kwargs: object) -> None:
             raise ImportError(

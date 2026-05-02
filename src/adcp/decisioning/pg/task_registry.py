@@ -63,7 +63,7 @@ completed task.
 from __future__ import annotations
 
 import json
-import logging
+import re
 import time
 import uuid
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -78,13 +78,18 @@ try:
 except ImportError:
     PG_AVAILABLE = False
 
-logger = logging.getLogger(__name__)
-
 _INSTALL_HINT = (
     "PostgresTaskRegistry requires psycopg3 and psycopg-pool. "
     "Install the 'pg' extra: `pip install 'adcp[pg]'` "
     "(Poetry: `poetry add 'adcp[pg]'`)."
 )
+
+_DEFAULT_TABLE = "decisioning_tasks"
+
+# ASCII-only identifier guard — same pattern as PgReplayStore._is_safe_identifier.
+# The table name is static-formatted into SQL at construction so this guard is
+# the only protection against SQL injection or Unicode homoglyph substitution.
+_SAFE_IDENTIFIER_RE = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 
 
 class PostgresTaskRegistry:
@@ -102,42 +107,94 @@ class PostgresTaskRegistry:
         Each registry operation acquires a short-lived connection from the
         pool and returns it immediately after the query. No long-lived
         transactions, no cross-operation state.
+
+    Notes
+    -----
+    Unlike :class:`~adcp.signing.PgReplayStore`, this class uses a fixed
+    ``decisioning_tasks`` table name. Multi-tenant table-name isolation is not
+    supported in this release — callers requiring strict schema separation
+    should use separate databases or schemas.
     """
 
     is_durable: ClassVar[bool] = True
 
-    def __init__(self, *, pool: AsyncConnectionPool) -> None:
+    def __init__(self, *, pool: AsyncConnectionPool, _table: str = _DEFAULT_TABLE) -> None:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
+        if not _SAFE_IDENTIFIER_RE.fullmatch(_table):
+            raise ValueError(
+                f"_table must match [a-z_][a-z0-9_]* (ASCII only), got {_table!r}"
+            )
         self._pool = pool
+        self._table = _table
+
+        # Pre-format queries at construction so the hot path avoids f-strings per call.
+        # _table is whitelisted by _SAFE_IDENTIFIER_RE above.
+        self._sql_insert = (  # noqa: S608 — table name is whitelisted
+            f"INSERT INTO {self._table}"
+            f" (task_id, account_id, state, task_type, created_at, updated_at)"
+            f" VALUES (%s, %s, 'submitted', %s, %s, %s)"
+        )
+        self._sql_update_progress = (  # noqa: S608
+            f"UPDATE {self._table}"
+            f" SET state = CASE state WHEN 'submitted' THEN 'working' ELSE state END,"
+            f"     progress = %s::jsonb, updated_at = %s"
+            f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
+        )
+        self._sql_complete = (  # noqa: S608
+            f"UPDATE {self._table}"
+            f" SET state = 'completed', result = %s::jsonb, updated_at = %s"
+            f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
+            f" RETURNING task_id"
+        )
+        self._sql_fail = (  # noqa: S608
+            f"UPDATE {self._table}"
+            f" SET state = 'failed', error = %s::jsonb, updated_at = %s"
+            f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
+            f" RETURNING task_id"
+        )
+        self._sql_get = (  # noqa: S608
+            f"SELECT task_id, account_id, state, task_type,"
+            f"       progress, result, error, created_at, updated_at"
+            f" FROM {self._table}"
+            f" WHERE task_id = %s AND (%s IS NULL OR account_id = %s)"
+        )
+        self._sql_get_state_result = (  # noqa: S608
+            f"SELECT state, result FROM {self._table} WHERE task_id = %s"
+        )
+        self._sql_get_state_error = (  # noqa: S608
+            f"SELECT state, error FROM {self._table} WHERE task_id = %s"
+        )
+        self._sql_discard = f"DELETE FROM {self._table} WHERE task_id = %s"  # noqa: S608
+        self._sql_ddl = (  # noqa: S608
+            f'CREATE TABLE IF NOT EXISTS {self._table} ('
+            f'    task_id     TEXT             COLLATE "C" NOT NULL PRIMARY KEY,'
+            f'    account_id  TEXT             COLLATE "C" NOT NULL,'
+            f"    state       TEXT             NOT NULL DEFAULT 'submitted',"
+            f"    task_type   TEXT             NOT NULL,"
+            f"    progress    JSONB,"
+            f"    result      JSONB,"
+            f"    error       JSONB,"
+            f"    created_at  DOUBLE PRECISION NOT NULL,"
+            f"    updated_at  DOUBLE PRECISION NOT NULL"
+            f");"
+            f"CREATE INDEX IF NOT EXISTS {self._table}_account_idx"  # noqa: S608
+            f"    ON {self._table} (account_id);"
+        )
 
     # -- schema bootstrap -----------------------------------------------
 
     async def create_schema(self) -> None:
-        """Create the ``decisioning_tasks`` table and supporting index.
+        """Create the task registry table and supporting index.
 
-        Idempotent via ``CREATE TABLE IF NOT EXISTS`` — safe to call on
-        every application boot. The equivalent raw DDL ships at
-        :file:`src/adcp/decisioning/pg/decisioning_tasks.sql` for adopters
-        using a migration tool (Alembic, Flyway, psql).
-        """
-        ddl = """
-            CREATE TABLE IF NOT EXISTS decisioning_tasks (
-                task_id     TEXT             COLLATE "C" NOT NULL PRIMARY KEY,
-                account_id  TEXT             COLLATE "C" NOT NULL,
-                state       TEXT             NOT NULL DEFAULT 'submitted',
-                task_type   TEXT             NOT NULL,
-                progress    JSONB,
-                result      JSONB,
-                error       JSONB,
-                created_at  DOUBLE PRECISION NOT NULL,
-                updated_at  DOUBLE PRECISION NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS decisioning_tasks_account_idx
-                ON decisioning_tasks (account_id);
+        Honors the ``_table`` kwarg the store was constructed with.
+        Idempotent via ``CREATE TABLE IF NOT EXISTS`` — safe to call on every
+        application boot. The equivalent raw DDL ships at
+        ``adcp/decisioning/pg/decisioning_tasks.sql`` in the installed package
+        for adopters using a migration tool (Alembic, Flyway, psql).
         """
         async with self._pool.connection() as conn:
-            await conn.execute(ddl)
+            await conn.execute(self._sql_ddl)
 
     # -- TaskRegistry Protocol ------------------------------------------
 
@@ -164,14 +221,7 @@ class PostgresTaskRegistry:
         task_id = f"task_{uuid.uuid4().hex[:16]}"
         now = time.time()
         async with self._pool.connection() as conn:
-            await conn.execute(
-                """
-                INSERT INTO decisioning_tasks
-                    (task_id, account_id, state, task_type, created_at, updated_at)
-                VALUES (%s, %s, 'submitted', %s, %s, %s)
-                """,
-                (task_id, account_id, task_type, now, now),
-            )
+            await conn.execute(self._sql_insert, (task_id, account_id, task_type, now, now))
         return task_id
 
     async def update_progress(
@@ -192,20 +242,14 @@ class PostgresTaskRegistry:
         """
         async with self._pool.connection() as conn:
             await conn.execute(
-                """
-                UPDATE decisioning_tasks
-                SET state     = CASE state WHEN 'submitted' THEN 'working' ELSE state END,
-                    progress  = %s::jsonb,
-                    updated_at = %s
-                WHERE task_id = %s
-                  AND state NOT IN ('completed', 'failed')
-                """,
+                self._sql_update_progress,
                 (json.dumps(progress), time.time(), task_id),
             )
-            # rowcount 0 means unknown task_id or terminal state — silent no-op
-            # per Protocol contract. The InMemoryTaskRegistry logs a warning on
-            # terminal-state drops; we omit the extra SELECT needed to distinguish
-            # the two cases here since the dispatch wrapper swallows the result.
+            # Zero rows updated means unknown task_id or terminal state — silent
+            # no-op per Protocol contract. The InMemoryTaskRegistry logs a
+            # WARNING on terminal-state drops; we omit the extra SELECT needed
+            # to distinguish the two cases since the dispatch wrapper swallows
+            # the result either way.
 
     async def complete(
         self,
@@ -222,25 +266,13 @@ class PostgresTaskRegistry:
         """
         async with self._pool.connection() as conn:
             cur = await conn.execute(
-                """
-                UPDATE decisioning_tasks
-                SET state      = 'completed',
-                    result     = %s::jsonb,
-                    updated_at = %s
-                WHERE task_id = %s
-                  AND state NOT IN ('completed', 'failed')
-                RETURNING task_id
-                """,
-                (json.dumps(result), time.time(), task_id),
+                self._sql_complete, (json.dumps(result), time.time(), task_id)
             )
             if await cur.fetchone() is not None:
                 return  # updated successfully
 
-            # Zero rows updated — either unknown task_id or already terminal.
-            cur2 = await conn.execute(
-                "SELECT state, result FROM decisioning_tasks WHERE task_id = %s",
-                (task_id,),
-            )
+            # Zero rows in RETURNING — task is unknown or already terminal.
+            cur2 = await conn.execute(self._sql_get_state_result, (task_id,))
             row = await cur2.fetchone()
             if row is None:
                 raise ValueError(f"Task {task_id!r} not found")
@@ -263,24 +295,13 @@ class PostgresTaskRegistry:
         """
         async with self._pool.connection() as conn:
             cur = await conn.execute(
-                """
-                UPDATE decisioning_tasks
-                SET state      = 'failed',
-                    error      = %s::jsonb,
-                    updated_at = %s
-                WHERE task_id = %s
-                  AND state NOT IN ('completed', 'failed')
-                RETURNING task_id
-                """,
-                (json.dumps(error), time.time(), task_id),
+                self._sql_fail, (json.dumps(error), time.time(), task_id)
             )
             if await cur.fetchone() is not None:
                 return  # updated successfully
 
-            cur2 = await conn.execute(
-                "SELECT state, error FROM decisioning_tasks WHERE task_id = %s",
-                (task_id,),
-            )
+            # Zero rows in RETURNING — task is unknown or already terminal.
+            cur2 = await conn.execute(self._sql_get_state_error, (task_id,))
             row = await cur2.fetchone()
             if row is None:
                 raise ValueError(f"Task {task_id!r} not found")
@@ -306,14 +327,7 @@ class PostgresTaskRegistry:
         """
         async with self._pool.connection() as conn:
             cur = await conn.execute(
-                """
-                SELECT task_id, account_id, state, task_type,
-                       progress, result, error, created_at, updated_at
-                FROM decisioning_tasks
-                WHERE task_id = %s
-                  AND (%s IS NULL OR account_id = %s)
-                """,
-                (task_id, expected_account_id, expected_account_id),
+                self._sql_get, (task_id, expected_account_id, expected_account_id)
             )
             row = await cur.fetchone()
             if row is None:
@@ -337,10 +351,7 @@ class PostgresTaskRegistry:
         matching the :class:`~adcp.decisioning.InMemoryTaskRegistry` contract.
         """
         async with self._pool.connection() as conn:
-            await conn.execute(
-                "DELETE FROM decisioning_tasks WHERE task_id = %s",
-                (task_id,),
-            )
+            await conn.execute(self._sql_discard, (task_id,))
 
 
 __all__ = ["PG_AVAILABLE", "PostgresTaskRegistry"]

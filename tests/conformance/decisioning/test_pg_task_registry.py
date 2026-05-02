@@ -44,9 +44,13 @@ from adcp.decisioning.pg import PostgresTaskRegistry  # noqa: E402
 
 @pytest.fixture()
 async def registry() -> AsyncIterator[PostgresTaskRegistry]:
-    """Async pool + isolated table per test, torn down on exit."""
-    table_suffix = secrets.token_hex(6)
-    # Patch the table name via the internal attribute so tests are isolated.
+    """Async pool + isolated table per test, torn down on exit.
+
+    Uses the internal ``_table`` parameter so each fixture invocation creates
+    and drops its own uniquely-named table. Parallel test runs and crash-then-retry
+    scenarios don't collide.
+    """
+    table = f"test_dtasks_{secrets.token_hex(6)}"
     async with psycopg_pool.AsyncConnectionPool(
         TEST_URL,
         min_size=2,
@@ -54,15 +58,13 @@ async def registry() -> AsyncIterator[PostgresTaskRegistry]:
         open=False,
     ) as pool:
         await pool.open()
-        reg = PostgresTaskRegistry(pool=pool)
-        # Override default table name for isolation.
-        reg._table_suffix = table_suffix  # type: ignore[attr-defined]
+        reg = PostgresTaskRegistry(pool=pool, _table=table)
         await reg.create_schema()
         try:
             yield reg
         finally:
             async with pool.connection() as conn:
-                await conn.execute("DROP TABLE IF EXISTS decisioning_tasks")
+                await conn.execute(f"DROP TABLE IF EXISTS {table}")  # noqa: S608
 
 
 # -- Protocol happy-path ---------------------------------------------------
@@ -177,6 +179,20 @@ async def test_discard_removes_submitted_task(registry: PostgresTaskRegistry) ->
 @pytest.mark.asyncio
 async def test_discard_unknown_task_is_noop(registry: PostgresTaskRegistry) -> None:
     await registry.discard("task_does_not_exist")  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_complete_unknown_task_raises(registry: PostgresTaskRegistry) -> None:
+    """complete() on an unknown task_id must raise ValueError (matches InMemory)."""
+    with pytest.raises(ValueError, match="not found"):
+        await registry.complete("task_unknown", {"media_buy_id": "mb_1"})
+
+
+@pytest.mark.asyncio
+async def test_fail_unknown_task_raises(registry: PostgresTaskRegistry) -> None:
+    """fail() on an unknown task_id must raise ValueError (matches InMemory)."""
+    with pytest.raises(ValueError, match="not found"):
+        await registry.fail("task_unknown", {"code": "RATE_LIMITED"})
 
 
 # -- Cross-tenant security -------------------------------------------------
