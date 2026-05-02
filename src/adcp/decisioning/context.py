@@ -164,6 +164,91 @@ class AuthInfo:
         return None
 
     @classmethod
+    def from_verified_signer(
+        cls,
+        signer: Any,
+        *,
+        scopes: list[str] | None = None,
+        operator: str | None = None,
+        extra: Mapping[str, Any] | None = None,
+    ) -> AuthInfo:
+        """Build :class:`AuthInfo` from a :class:`adcp.signing.VerifiedSigner`.
+
+        The supported migration target for the AuthInfo flat-field
+        deprecation. Verifier middleware that runs RFC 9421
+        verification produces a ``VerifiedSigner`` carrying the
+        cryptographic claims (``key_id``, ``verified_at``, optional
+        ``agent_url``); this helper projects that into a typed
+        :class:`HttpSigCredential` + :class:`AuthInfo` ready for the
+        commercial-identity registry dispatch.
+
+        ::
+
+            from adcp.signing import (
+                VerifyOptions, verify_request_signature,
+            )
+            from adcp.decisioning import AuthInfo
+
+            signer = verify_request_signature(
+                method=request.method,
+                url=request.url,
+                headers=dict(request.headers),
+                body=request.get_data(),
+                options=VerifyOptions(...),
+            )
+            ctx.metadata["adcp.auth_info"] = AuthInfo.from_verified_signer(signer)
+
+        The verifier MUST surface ``signer.agent_url`` for the
+        commercial-identity registry to dispatch — without it, the
+        framework has no key to look up. The verifier is configured
+        with the ``agent_url`` claim shape per the AdCP v3 profile;
+        if it's ``None`` here the verifier wasn't told to extract it
+        and this helper raises :class:`ValueError` with a pointer to
+        the misconfiguration. Buyers don't see this — server boot
+        time error.
+
+        :param signer: The :class:`VerifiedSigner` returned from
+            :func:`adcp.signing.verify_request_signature`.
+        :param scopes: Granted scopes / capabilities. The verifier
+            doesn't extract these — adopter middleware fills in
+            scopes derived from token introspection or per-key
+            policy.
+        :param operator: Operator label for AdCP v3 multi-operator
+            deployments (AAO community proxy). Most adopters leave
+            ``None``.
+        :param extra: Adopter passthrough.
+        :raises ValueError: when ``signer.agent_url`` is ``None`` —
+            the verifier wasn't configured to extract the agent_url
+            claim from the signed request.
+        """
+        from adcp.decisioning.registry import HttpSigCredential
+
+        if signer.agent_url is None:
+            raise ValueError(
+                "VerifiedSigner.agent_url is None — the AdCP request-signing "
+                "verifier wasn't configured to extract the agent_url claim. "
+                "Set ``VerifyOptions.agent_url=`` (or its source) so the "
+                "verifier surfaces it on success. Without an agent_url, the "
+                "BuyerAgentRegistry has no key to dispatch on."
+            )
+        credential = HttpSigCredential(
+            kind="http_sig",
+            keyid=signer.key_id,
+            agent_url=signer.agent_url,
+            verified_at=signer.verified_at,
+        )
+        return cls(
+            kind="http_sig",
+            key_id=signer.key_id,
+            principal=signer.agent_url,
+            scopes=list(scopes) if scopes is not None else [],
+            credential=credential,
+            agent_url=signer.agent_url,
+            operator=operator,
+            extra=extra if extra is not None else {},
+        )
+
+    @classmethod
     def _from_legacy_dict(cls, raw: Mapping[str, Any]) -> AuthInfo:
         """Build :class:`AuthInfo` from a legacy dict-shape metadata
         payload without firing the :class:`DeprecationWarning`.

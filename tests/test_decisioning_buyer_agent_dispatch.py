@@ -242,6 +242,112 @@ def test_authinfo_from_legacy_dict_suppresses_deprecation_warning() -> None:
     assert auth.credential.key_id == "bearer-1"
 
 
+def test_authinfo_from_verified_signer_builds_typed_http_sig_credential() -> None:
+    """The supported v3 migration target. The
+    :class:`adcp.signing.VerifiedSigner` produced by RFC 9421
+    verification carries ``key_id``, ``verified_at``, and
+    ``agent_url``;
+    :meth:`AuthInfo.from_verified_signer` projects them into a typed
+    :class:`HttpSigCredential` and :class:`AuthInfo` ready for the
+    registry dispatch — no synthesis path, no deprecation warning."""
+    import warnings as _w
+
+    from adcp.signing import VerifiedSigner
+
+    signer = VerifiedSigner(
+        key_id="kid-1",
+        alg="ed25519",
+        label="sig1",
+        verified_at=1700000000.0,
+        agent_url="https://agent.example/",
+    )
+    with _w.catch_warnings():
+        _w.simplefilter("error", DeprecationWarning)
+        auth = AuthInfo.from_verified_signer(
+            signer,
+            scopes=["read:products"],
+            operator="aao-proxy-1",
+            extra={"session_id": "s_42"},
+        )
+    assert isinstance(auth.credential, HttpSigCredential)
+    assert auth.credential.keyid == "kid-1"
+    assert auth.credential.agent_url == "https://agent.example/"
+    assert auth.credential.verified_at == 1700000000.0
+    assert auth.kind == "http_sig"
+    assert auth.agent_url == "https://agent.example/"
+    assert auth.scopes == ["read:products"]
+    assert auth.operator == "aao-proxy-1"
+    assert auth.extra == {"session_id": "s_42"}
+
+
+def test_authinfo_from_verified_signer_rejects_missing_agent_url() -> None:
+    """Without ``agent_url`` the registry has no key to dispatch on.
+    Surface the verifier-config bug with a clear server-side error
+    rather than letting the request slip through with credential=None."""
+    from adcp.signing import VerifiedSigner
+
+    signer = VerifiedSigner(
+        key_id="kid-1",
+        alg="ed25519",
+        label="sig1",
+        verified_at=1700000000.0,
+        agent_url=None,
+    )
+    with pytest.raises(ValueError, match="agent_url"):
+        AuthInfo.from_verified_signer(signer)
+
+
+@pytest.mark.asyncio
+async def test_authinfo_from_verified_signer_dispatches_through_registry(
+    executor,
+) -> None:
+    """End-to-end smoke: VerifiedSigner → AuthInfo.from_verified_signer
+    → registry resolves the agent. The full migration loop the
+    deprecation points at, exercised once."""
+    from adcp.signing import VerifiedSigner
+    from adcp.types import GetProductsRequest, GetProductsResponse
+
+    expected = BuyerAgent(
+        agent_url="https://agent.example/",
+        display_name="Acme",
+        status="active",
+    )
+
+    async def lookup(agent_url: str) -> BuyerAgent | None:
+        return expected if agent_url == "https://agent.example/" else None
+
+    registry = signing_only_registry(lookup)
+    seen: list[Any] = []
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="hello")
+
+        async def get_products(self, req, ctx):
+            seen.append(ctx.buyer_agent)
+            return GetProductsResponse(products=[])
+
+    handler = PlatformHandler(
+        _Platform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+        buyer_agent_registry=registry,
+    )
+    signer = VerifiedSigner(
+        key_id="kid-1",
+        alg="ed25519",
+        label="sig1",
+        verified_at=1700000000.0,
+        agent_url="https://agent.example/",
+    )
+    auth = AuthInfo.from_verified_signer(signer)
+    await handler.get_products(
+        GetProductsRequest(buying_mode="brief", brief="any"),
+        ToolContext(metadata={"adcp.auth_info": auth}),
+    )
+    assert seen == [expected]
+
+
 # ---------------------------------------------------------------------------
 # _extract_auth_info — dict-shape metadata path
 # ---------------------------------------------------------------------------
