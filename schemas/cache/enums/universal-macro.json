@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/enums/universal-macro.json",
   "title": "Universal Macro",
   "description": "Standardized macro placeholders for dynamic value substitution in creative tracking URLs. Macros are replaced with actual values at impression time. See docs/creative/universal-macros.mdx for detailed documentation.",
   "type": "string",
@@ -128,8 +129,8 @@
     "COLLECTION_NAME": "Program or collection name",
     "INSTALLMENT_ID": "Installment identifier (podcast episode, print issue, etc.)",
     "AUDIO_DURATION": "Audio content duration in seconds",
-    "TMPX": "TMP exposure token \u2014 HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
-    "AXEM": "AXE contextual metadata (encoded blob). Legacy \u2014 in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
+    "TMPX": "TMP exposure token — HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
+    "AXEM": "AXE contextual metadata (encoded blob). Legacy — in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
     "CATALOG_ID": "Buyer-defined catalog identifier from the catalog's catalog_id field",
     "SKU": "Product SKU identifier for the catalog item being rendered",
     "GTIN": "Global Trade Item Number for the catalog item being rendered",

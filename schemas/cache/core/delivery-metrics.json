@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/delivery-metrics.json",
   "title": "Delivery Metrics",
   "description": "Standard delivery metrics that can be reported at media buy, package, or creative level",
   "type": "object",
@@ -27,7 +28,7 @@
     },
     "views": {
       "type": "number",
-      "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views \u00d7 rate.",
+      "description": "Content engagements counted toward the billable view threshold. For video this is a platform-defined view event (e.g., 30 seconds or video midpoint); for audio/podcast it is a stream start; for other formats it follows the pricing model's view definition. When the package uses CPV pricing, spend = views × rate.",
       "minimum": 0
     },
     "completed_views": {
@@ -79,7 +80,7 @@
         "type": "object",
         "properties": {
           "event_type": {
-            "$ref": "../enums/event-type.json",
+            "$ref": "/schemas/3.0.4/enums/event-type.json",
             "description": "The event type"
           },
           "event_source_id": {
@@ -111,15 +112,11 @@
     },
     "reach": {
       "type": "number",
-      "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified \u2014 do not compare reach values across packages or media buys without a common reach_unit.",
+      "description": "Unique reach in the units specified by reach_unit. When reach_unit is omitted, units are unspecified — do not compare reach values across packages or media buys without a common reach_unit.",
       "minimum": 0
     },
     "reach_unit": {
-      "allOf": [
-        {
-          "$ref": "../enums/reach-unit.json"
-        }
-      ],
+      "allOf": [{ "$ref": "/schemas/3.0.4/enums/reach-unit.json" }],
       "description": "Unit of measurement for the reach field. Aligns with the reach_unit declared on optimization goals and delivery forecasts. Required when reach is present to enable cross-platform comparison."
     },
     "frequency": {
@@ -247,7 +244,7 @@
           "maximum": 1
         },
         "standard": {
-          "$ref": "../enums/viewability-standard.json",
+          "$ref": "/schemas/3.0.4/enums/viewability-standard.json",
           "description": "Viewability measurement standard applied to these metrics."
         }
       },
@@ -255,7 +252,7 @@
     },
     "engagements": {
       "type": "number",
-      "description": "Total engagements \u2014 direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
+      "description": "Total engagements — direct interactions with the ad beyond viewing. Includes social reactions/comments/shares, story/unit opens, interactive overlay taps on CTV, companion banner interactions on audio. Platform-specific; corresponds to the 'engagements' optimization metric.",
       "minimum": 0
     },
     "follows": {
@@ -291,7 +288,7 @@
         "type": "object",
         "properties": {
           "action_source": {
-            "$ref": "../enums/action-source.json",
+            "$ref": "/schemas/3.0.4/enums/action-source.json",
             "description": "Where the conversion occurred"
           },
           "event_source_id": {
@@ -318,9 +315,7 @@
     }
   },
   "dependencies": {
-    "reach": [
-      "reach_unit"
-    ]
+    "reach": ["reach_unit"]
   },
   "additionalProperties": true
 }

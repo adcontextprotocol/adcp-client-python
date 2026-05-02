@@ -1,22 +1,23 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/property/get-property-list-response.json",
   "title": "Get Property List Response",
   "description": "Response payload for get_property_list task. Returns identifiers only (not full property objects or scores). Consumers should cache the resolved identifiers and refresh based on cache_valid_until.",
   "type": "object",
   "properties": {
     "list": {
-      "$ref": "property-list.json",
+      "$ref": "/schemas/3.0.4/property/property-list.json",
       "description": "The property list metadata (always returned)"
     },
     "identifiers": {
       "type": "array",
       "description": "Resolved identifiers that passed filters (if resolve=true). Cache these locally for real-time use.",
       "items": {
-        "$ref": "../core/identifier.json"
+        "$ref": "/schemas/3.0.4/core/identifier.json"
       }
     },
     "pagination": {
-      "$ref": "../core/pagination-response.json"
+      "$ref": "/schemas/3.0.4/core/pagination-response.json"
     },
     "resolved_at": {
       "type": "string",
@@ -34,15 +35,15 @@
       "additionalProperties": {
         "type": "array",
         "items": {
-          "$ref": "../core/identifier.json"
+          "$ref": "/schemas/3.0.4/core/identifier.json"
         }
       }
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.4/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     }
   },
   "required": [

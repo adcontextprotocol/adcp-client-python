@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/bundled/media-buy/list-creative-formats-response.json",
   "title": "List Creative Formats Response",
   "description": "Response payload for list_creative_formats task",
   "type": "object",
@@ -14,7 +15,7 @@
         "properties": {
           "format_id": {
             "title": "Format Reference (Structured Object)",
-            "description": "This format's own identifier \u2014 a structured object {agent_url, id}, not a string. See /schemas/core/format-id.json for the full shape.",
+            "description": "This format's own identifier — a structured object {agent_url, id}, not a string. See /schemas/core/format-id.json for the full shape.",
             "x-entity": "creative_format",
             "type": "object",
             "properties": {
@@ -951,7 +952,7 @@
                             "viewability_tracker",
                             "third_party_tracker"
                           ],
-                          "description": "Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum."
+                          "description": "Purpose this URL slot serves in the format — distinct from `url_type` on the manifest-side asset (which declares the receiver's invocation mechanism). A slot can be `click_tracker` (purpose) and accept a `tracker_pixel` (mechanism) URL, or `clickthrough` (purpose) and accept a `clickthrough` (mechanism) URL. Complements `asset_role` (human-readable label) by providing a machine-readable enum and serves as the receiver's fallback signal when a manifest URL asset omits `url_type`."
                         },
                         "protocols": {
                           "type": "array",
@@ -1131,7 +1132,7 @@
                             "properties": {
                               "asset_group_id": {
                                 "type": "string",
-                                "description": "The asset group this constraint applies to. Values are format-defined vocabulary \u2014 each format chooses its own group IDs (e.g., 'headlines', 'images', 'videos'). Buyers discover them via list_creative_formats."
+                                "description": "The asset group this constraint applies to. Values are format-defined vocabulary — each format chooses its own group IDs (e.g., 'headlines', 'images', 'videos'). Buyers discover them via list_creative_formats."
                               },
                               "asset_type": {
                                 "title": "Asset Content Type",
@@ -1741,7 +1742,7 @@
                                           "viewability_tracker",
                                           "third_party_tracker"
                                         ],
-                                        "description": "Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum."
+                                        "description": "Purpose this URL slot serves in the format — distinct from `url_type` on the manifest-side asset (which declares the receiver's invocation mechanism). A slot can be `click_tracker` (purpose) and accept a `tracker_pixel` (mechanism) URL, or `clickthrough` (purpose) and accept a `clickthrough` (mechanism) URL. Complements `asset_role` (human-readable label) by providing a machine-readable enum and serves as the receiver's fallback signal when a manifest URL asset omits `url_type`."
                                       },
                                       "protocols": {
                                         "type": "array",
@@ -1835,10 +1836,10 @@
                         },
                         "field_bindings": {
                           "type": "array",
-                          "description": "Explicit mappings from format template slots to catalog item fields or typed asset pools. Optional \u2014 creative agents can infer mappings without them, but bindings make the relationship self-describing and enable validation. Covers scalar fields (asset_id \u2192 catalog_field), asset pools (asset_id \u2192 asset_group_id on the catalog item), and repeatable groups that iterate over catalog items.",
+                          "description": "Explicit mappings from format template slots to catalog item fields or typed asset pools. Optional — creative agents can infer mappings without them, but bindings make the relationship self-describing and enable validation. Covers scalar fields (asset_id → catalog_field), asset pools (asset_id → asset_group_id on the catalog item), and repeatable groups that iterate over catalog items.",
                           "items": {
                             "title": "Catalog Field Binding",
-                            "description": "Maps a format template slot to a catalog item field or typed asset pool. The 'kind' field identifies the binding variant. All bindings are optional \u2014 agents can still infer mappings without them.",
+                            "description": "Maps a format template slot to a catalog item field or typed asset pool. The 'kind' field identifies the binding variant. All bindings are optional — agents can still infer mappings without them.",
                             "oneOf": [
                               {
                                 "$ref": "#/definitions/ScalarBinding"
@@ -1895,7 +1896,7 @@
                             ],
                             "examples": [
                               {
-                                "description": "Scalar binding \u2014 hotel name to headline slot",
+                                "description": "Scalar binding — hotel name to headline slot",
                                 "data": {
                                   "kind": "scalar",
                                   "asset_id": "headline",
@@ -1903,7 +1904,7 @@
                                 }
                               },
                               {
-                                "description": "Scalar binding \u2014 nested field (nightly rate)",
+                                "description": "Scalar binding — nested field (nightly rate)",
                                 "data": {
                                   "kind": "scalar",
                                   "asset_id": "price_badge",
@@ -1911,7 +1912,7 @@
                                 }
                               },
                               {
-                                "description": "Asset pool binding \u2014 hero image from landscape pool",
+                                "description": "Asset pool binding — hero image from landscape pool",
                                 "data": {
                                   "kind": "asset_pool",
                                   "asset_id": "hero_image",
@@ -1919,7 +1920,7 @@
                                 }
                               },
                               {
-                                "description": "Asset pool binding \u2014 Snap vertical background from vertical pool",
+                                "description": "Asset pool binding — Snap vertical background from vertical pool",
                                 "data": {
                                   "kind": "asset_pool",
                                   "asset_id": "snap_background",
@@ -1927,7 +1928,7 @@
                                 }
                               },
                               {
-                                "description": "Catalog group binding \u2014 carousel where each slide is one hotel",
+                                "description": "Catalog group binding — carousel where each slide is one hotel",
                                 "data": {
                                   "kind": "catalog_group",
                                   "format_group_id": "slide",
@@ -2726,7 +2727,7 @@
                                       "viewability_tracker",
                                       "third_party_tracker"
                                     ],
-                                    "description": "Standard role for this URL asset. Use this to constrain which purposes are valid for this URL slot. Complements asset_role (which is a human-readable label) by providing a machine-readable enum."
+                                    "description": "Purpose this URL slot serves in the format — distinct from `url_type` on the manifest-side asset (which declares the receiver's invocation mechanism). A slot can be `click_tracker` (purpose) and accept a `tracker_pixel` (mechanism) URL, or `clickthrough` (purpose) and accept a `clickthrough` (mechanism) URL. Complements `asset_role` (human-readable label) by providing a machine-readable enum and serves as the receiver's fallback signal when a manifest URL asset omits `url_type`."
                                   },
                                   "protocols": {
                                     "type": "array",
@@ -2949,8 +2950,8 @@
                     "COLLECTION_NAME": "Program or collection name",
                     "INSTALLMENT_ID": "Installment identifier (podcast episode, print issue, etc.)",
                     "AUDIO_DURATION": "Audio content duration in seconds",
-                    "TMPX": "TMP exposure token \u2014 HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
-                    "AXEM": "AXE contextual metadata (encoded blob). Legacy \u2014 in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
+                    "TMPX": "TMP exposure token — HPKE-encrypted identity tokens for per-user exposure tracking. Produced by Identity Match, substituted into creative tracking URLs, received by the buyer's impression pixel.",
+                    "AXEM": "AXE contextual metadata (encoded blob). Legacy — in TMP, use Offer macros for dynamic creative values and TMPX for exposure tracking.",
                     "CATALOG_ID": "Buyer-defined catalog identifier from the catalog's catalog_id field",
                     "SKU": "Product SKU identifier for the catalog item being rendered",
                     "GTIN": "Global Trade Item Number for the catalog item being rendered",
@@ -2979,7 +2980,7 @@
             "description": "Array of format IDs this format accepts as input creative manifests. When present, indicates this format can take existing creatives in these formats as input. Omit for formats that work from raw assets (images, text, etc.) rather than existing creatives.",
             "items": {
               "title": "Format Reference (Structured Object)",
-              "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
+              "description": "A JSON object — never a plain string — that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
               "x-entity": "creative_format",
               "type": "object",
               "properties": {
@@ -3029,7 +3030,7 @@
             "description": "Array of format IDs that this format can produce as output. When present, indicates this format can build creatives in these output formats (e.g., a multi-publisher template format might produce standard display formats across many publishers). Omit for formats that produce a single fixed output (the format itself).",
             "items": {
               "title": "Format Reference (Structured Object)",
-              "description": "A JSON object \u2014 never a plain string \u2014 that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
+              "description": "A JSON object — never a plain string — that identifies a creative format by its declaring agent and local slug. Required properties: agent_url (URI of the agent that owns the format) and id (slug matching [a-zA-Z0-9_-]+). Example: {\"agent_url\": \"https://creative.adcontextprotocol.org\", \"id\": \"display_300x250\"}. Can reference: (1) a concrete format with fixed dimensions (id only), (2) a template format without parameters (id only), or (3) a template format with parameters (id + dimensions/duration). Template formats accept parameters in format_id while concrete formats have fixed dimensions in their definition. Parameterized format IDs create unique, specific format variants. Using a plain string here is a schema violation.",
               "x-entity": "creative_format",
               "type": "object",
               "properties": {
@@ -3166,7 +3167,7 @@
           },
           "supported_disclosure_positions": {
             "type": "array",
-            "description": "Disclosure positions this format can render. Buyers use this to determine whether a format can satisfy their compliance requirements before submitting a creative. When omitted, the format makes no disclosure rendering guarantees \u2014 creative agents SHOULD treat this as incompatible with briefs that require specific disclosure positions. Values correspond to positions on creative-brief.json required_disclosures.",
+            "description": "Disclosure positions this format can render. Buyers use this to determine whether a format can satisfy their compliance requirements before submitting a creative. When omitted, the format makes no disclosure rendering guarantees — creative agents SHOULD treat this as incompatible with briefs that require specific disclosure positions. Values correspond to positions on creative-brief.json required_disclosures.",
             "items": {
               "$ref": "#/$defs/DisclosurePosition"
             },
@@ -3314,7 +3315,7 @@
             "description": "Pricing options for this format. Used by transformation and generation agents that charge per format adapted, per image generated, or per unit of work. Present when the request included include_pricing=true and account. Ad servers and library-based agents expose pricing on list_creatives instead.",
             "items": {
               "title": "Vendor Pricing Option",
-              "description": "A pricing option offered by a vendor agent (signals, creative, governance). Combines pricing_option_id with the pricing model fields. Pass pricing_option_id in report_usage for billing verification. All vendor discovery responses return pricing_options as an array \u2014 vendors may offer multiple options (volume tiers, context-specific rates, different models per product line).",
+              "description": "A pricing option offered by a vendor agent (signals, creative, governance). Combines pricing_option_id with the pricing model fields. Pass pricing_option_id in report_usage for billing verification. All vendor discovery responses return pricing_options as an array — vendors may offer multiple options (volume tiers, context-specific rates, different models per product line).",
               "allOf": [
                 {
                   "type": "object",
@@ -3331,7 +3332,7 @@
                 },
                 {
                   "title": "Vendor Pricing",
-                  "description": "Pricing model for a vendor service. Discriminated by model: 'cpm' (fixed CPM), 'percent_of_media' (percentage of spend with optional CPM cap), 'flat_fee' (fixed charge per reporting period), 'per_unit' (fixed price per unit of work), or 'custom' (escape hatch for models not covered by the enumerated forms \u2014 requires a description and structured metadata).",
+                  "description": "Pricing model for a vendor service. Discriminated by model: 'cpm' (fixed CPM), 'percent_of_media' (percentage of spend with optional CPM cap), 'flat_fee' (fixed charge per reporting period), 'per_unit' (fixed price per unit of work), or 'custom' (escape hatch for models not covered by the enumerated forms — requires a description and structured metadata).",
                   "type": "object",
                   "oneOf": [
                     {
@@ -3369,7 +3370,7 @@
                     },
                     {
                       "title": "PercentOfMediaPricing",
-                      "description": "Percentage of media spend charged for this signal. When max_cpm is set, the effective rate is capped at that CPM \u2014 useful for platforms like The Trade Desk that use percent-of-media pricing with a CPM ceiling.",
+                      "description": "Percentage of media spend charged for this signal. When max_cpm is set, the effective rate is capped at that CPM — useful for platforms like The Trade Desk that use percent-of-media pricing with a CPM ceiling.",
                       "type": "object",
                       "properties": {
                         "model": {
@@ -3384,7 +3385,7 @@
                         },
                         "max_cpm": {
                           "type": "number",
-                          "description": "Optional CPM cap. When set, the effective charge is min(percent \u00d7 media_spend_per_mille, max_cpm).",
+                          "description": "Optional CPM cap. When set, the effective charge is min(percent × media_spend_per_mille, max_cpm).",
                           "minimum": 0
                         },
                         "currency": {
@@ -3461,7 +3462,7 @@
                         },
                         "unit": {
                           "type": "string",
-                          "description": "What is counted \u2014 e.g. 'format', 'image', 'token', 'variant', 'render', 'evaluation'."
+                          "description": "What is counted — e.g. 'format', 'image', 'token', 'variant', 'render', 'evaluation'."
                         },
                         "unit_price": {
                           "type": "number",
@@ -3490,7 +3491,7 @@
                     },
                     {
                       "title": "CustomPricing",
-                      "description": "Escape hatch for pricing constructs that do not fit cpm, percent_of_media, flat_fee, or per_unit. Use when a vendor prices via performance kickers, tiered volume, hybrid formulas, outcome-sharing, or any other model the standard forms cannot express. Requires a human-readable description and a structured metadata object that captures the parameters a buyer needs to reason about the charge. Buyers SHOULD route custom pricing through operator review before commitment \u2014 automatic selection is not recommended.",
+                      "description": "Escape hatch for pricing constructs that do not fit cpm, percent_of_media, flat_fee, or per_unit. Use when a vendor prices via performance kickers, tiered volume, hybrid formulas, outcome-sharing, or any other model the standard forms cannot express. Requires a human-readable description and a structured metadata object that captures the parameters a buyer needs to reason about the charge. Buyers SHOULD route custom pricing through operator review before commitment — automatic selection is not recommended.",
                       "type": "object",
                       "properties": {
                         "model": {
@@ -3510,7 +3511,7 @@
                           "properties": {
                             "summary_for_operator": {
                               "type": "string",
-                              "description": "One or two sentences describing the pricing construct in plain language, displayed to the buyer's operator when requesting approval. Should not repeat the top-level `description` verbatim \u2014 summarize the charge mechanic instead (e.g., 'Base $12 CPM plus $0.50 per qualifying post-view conversion, capped at $45 CPM').",
+                              "description": "One or two sentences describing the pricing construct in plain language, displayed to the buyer's operator when requesting approval. Should not repeat the top-level `description` verbatim — summarize the charge mechanic instead (e.g., 'Base $12 CPM plus $0.50 per qualifying post-view conversion, capped at $45 CPM').",
                               "minLength": 1
                             }
                           }
@@ -3605,7 +3606,7 @@
           },
           "field": {
             "type": "string",
-            "description": "Field path associated with the error (e.g., 'packages[0].targeting')"
+            "description": "Field path associated with the error in JSONPath-lite format (e.g., 'packages[0].targeting'). When `issues[]` is also present, sellers MUST set this to `issues[0].pointer` translated from RFC 6901 to JSONPath-lite (e.g., '/packages/0/targeting' → 'packages[0].targeting') so pre-3.1 consumers reading `field` only get deterministic behavior. Will be deprecated in a future major version in favor of `issues[].pointer`."
           },
           "suggestion": {
             "type": "string",
@@ -3617,9 +3618,40 @@
             "minimum": 1,
             "maximum": 3600
           },
+          "issues": {
+            "type": "array",
+            "description": "Structured list of validation failures. Primary use is `VALIDATION_ERROR`, where multi-field rejections are common and `field` (singular) cannot carry the full pointer map. MAY appear on other error codes that reject multiple fields at once. When `issues` is present, sellers MUST also populate `field` from `issues[0]` for backward compatibility with pre-3.1 consumers that read `field` only — translating the RFC 6901 `pointer` format to the JSONPath-lite format `field` uses (e.g., `/packages/0/targeting` → `packages[0].targeting`). MUST (not SHOULD) so consumers reading `field` get deterministic behavior across sellers — the cost is one line of dual-write per seller; the cost of SHOULD is a long tail of seller-A-vs-seller-B inconsistency. Future major versions will deprecate `field` in favor of `issues[].pointer`.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pointer": {
+                  "type": "string",
+                  "description": "RFC 6901 JSON Pointer to the offending field in the request payload (e.g., '/packages/0/targeting/geo_countries/2'). Format chosen to match Ajv's native validation output (`instancePath`); standardized and unambiguous on keys containing `/` or `~`. NOTE: this differs from the legacy top-level `field` which uses JSONPath-lite (`packages[0].targeting.geo_countries[2]`). When sellers populate `field` from `issues[0].pointer` for backward compatibility (see `field` description), they MUST translate the format — `/packages/0/x` → `packages[0].x`. Future major versions will deprecate `field` in favor of `issues[].pointer`."
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Human-readable description of why this specific field was rejected."
+                },
+                "keyword": {
+                  "type": "string",
+                  "description": "Schema keyword that rejected the payload, drawn from the JSON Schema vocabulary (e.g., 'required', 'type', 'format', 'enum', 'pattern', 'minimum', 'maxLength'). Matches the keyword names emitted by JSON Schema validators (Ajv, jsonschema, etc.) so agents can pattern-match on rejection class without parsing message text. Implementers SHOULD use the validator's native keyword name; do not invent custom values here."
+                },
+                "schemaPath": {
+                  "type": "string",
+                  "description": "Optional. Path inside the schema that rejected the payload (e.g., '#/properties/packages/items/properties/targeting/oneOf/1'). Sellers SHOULD NOT emit on production-facing endpoints — `schemaPath` leaks which `oneOf` branch the validator selected before semantic rejection, which is a probe oracle for adversarial callers crafting payloads against polymorphic unions. Sellers MAY emit in dev/sandbox modes where the diagnostic value outweighs the fingerprinting risk."
+                }
+              },
+              "required": [
+                "pointer",
+                "message",
+                "keyword"
+              ],
+              "additionalProperties": true
+            }
+          },
           "details": {
             "type": "object",
-            "description": "Additional task-specific error details",
+            "description": "Additional task-specific error details. Sellers MAY mirror `issues[]` here as `details.issues` for backward compatibility with pre-3.1 consumers reading from `details`; new consumers SHOULD prefer the top-level `issues` field.",
             "additionalProperties": true
           },
           "recovery": {
@@ -3699,7 +3731,7 @@
         },
         "asset_role": {
           "type": "string",
-          "description": "Descriptive label for this asset's purpose (e.g., 'hero_image', 'logo', 'third_party_tracking'). For documentation and UI display only \u2014 manifests key assets by asset_id, not asset_role."
+          "description": "Descriptive label for this asset's purpose (e.g., 'hero_image', 'logo', 'third_party_tracking'). For documentation and UI display only — manifests key assets by asset_id, not asset_role."
         },
         "required": {
           "type": "boolean",
@@ -3813,7 +3845,7 @@
         },
         "asset_role": {
           "type": "string",
-          "description": "Descriptive label for this asset's purpose. For documentation and UI display only \u2014 manifests key assets by asset_id, not asset_role."
+          "description": "Descriptive label for this asset's purpose. For documentation and UI display only — manifests key assets by asset_id, not asset_role."
         },
         "required": {
           "type": "boolean",
@@ -3940,8 +3972,8 @@
         "variable"
       ],
       "enumDescriptions": {
-        "constant": "Constant frame rate (CFR) \u2014 each frame occupies an identical time interval",
-        "variable": "Variable frame rate (VFR) \u2014 frame intervals may differ"
+        "constant": "Constant frame rate (CFR) — each frame occupies an identical time interval",
+        "variable": "Variable frame rate (VFR) — frame intervals may differ"
       }
     },
     "ScanType": {
@@ -3966,8 +3998,8 @@
         "open"
       ],
       "enumDescriptions": {
-        "closed": "Each GOP is independently decodable \u2014 required for SSAI and broadcast splicing",
-        "open": "GOPs may reference frames from adjacent GOPs \u2014 not suitable for splicing"
+        "closed": "Each GOP is independently decodable — required for SSAI and broadcast splicing",
+        "open": "GOPs may reference frames from adjacent GOPs — not suitable for splicing"
       }
     },
     "MoovAtomPosition": {
@@ -3979,8 +4011,8 @@
         "end"
       ],
       "enumDescriptions": {
-        "start": "moov atom at beginning of file \u2014 enables progressive download and streaming delivery",
-        "end": "moov atom at end of file \u2014 requires full download before playback can begin"
+        "start": "moov atom at beginning of file — enables progressive download and streaming delivery",
+        "end": "moov atom at end of file — requires full download before playback can begin"
       }
     },
     "AudioChannelLayout": {
@@ -4073,7 +4105,7 @@
     }
   },
   "_bundled": {
-    "generatedAt": "2026-04-28T12:32:23.000Z",
+    "generatedAt": "2026-05-02T11:07:10.181Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

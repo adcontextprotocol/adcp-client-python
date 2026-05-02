@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/media-buy/update-media-buy-async-response-working.json",
   "title": "Update Media Buy - Working",
   "description": "Progress payload for active update_media_buy task.",
   "type": "object",
@@ -25,10 +26,10 @@
       "description": "Current step number"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.4/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     }
   },
   "additionalProperties": true

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/protocol-envelope.json",
   "title": "Protocol Envelope",
   "description": "Standard envelope structure for AdCP task responses. This envelope is added by the protocol layer (MCP, A2A, REST) and wraps the task-specific response payload. Task response schemas should NOT include these fields - they are protocol-level concerns.",
   "type": "object",
@@ -14,8 +15,8 @@
       "x-entity": "task"
     },
     "status": {
-      "$ref": "../enums/task-status.json",
-      "description": "Current task execution state. Indicates whether the task is completed, in progress (working), submitted for async processing, failed, or requires user input. Managed by the protocol layer. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field \u2014 the status field is the single authoritative task state."
+      "$ref": "/schemas/3.0.4/enums/task-status.json",
+      "description": "Current task execution state. Indicates whether the task is completed, in progress (working), submitted for async processing, failed, or requires user input. Managed by the protocol layer. Agents MUST NOT emit the legacy task_status or response_status fields alongside this field — the status field is the single authoritative task state."
     },
     "message": {
       "type": "string",
@@ -28,16 +29,16 @@
     },
     "replayed": {
       "type": "boolean",
-      "description": "Set to true when this response is a cached replay returned for an idempotency_key that was already processed. Set to false (or omitted) when the request was executed fresh. Buyers use this to distinguish cached replays from new executions \u2014 matters for billing reconciliation, audit logs, and any downstream system that assumes exactly-once event semantics. Only present on responses to mutating requests that carry idempotency_key.",
+      "description": "Set to true when this response is a cached replay returned for an idempotency_key that was already processed. Set to false (or omitted) when the request was executed fresh. Buyers use this to distinguish cached replays from new executions — matters for billing reconciliation, audit logs, and any downstream system that assumes exactly-once event semantics. Only present on responses to mutating requests that carry idempotency_key.",
       "default": false
     },
     "push_notification_config": {
-      "$ref": "push-notification-config.json",
+      "$ref": "/schemas/3.0.4/core/push-notification-config.json",
       "description": "Push notification configuration for async task updates (A2A and REST protocols). Echoed from the request to confirm webhook settings. Specifies URL, authentication scheme (Bearer or HMAC-SHA256), and credentials. MCP uses progress notifications instead of webhooks."
     },
     "governance_context": {
       "type": "string",
-      "description": "Governance context token issued by a governance agent during check_governance. Buyers attach it to governed purchase requests (media buys, rights acquisitions, signal activations, creative services); sellers persist it and include it on all subsequent governance calls for that action's lifecycle.\n\nValue format: in 3.0 governance agents MUST emit a compact JWS per the AdCP JWS profile (see Security \u2014 Signed Governance Context). Sellers MAY verify; sellers that do not verify MUST persist and forward the token unchanged. In 3.1 all sellers MUST verify. Non-JWS values from pre-3.0 governance agents are deprecated.\n\nThis is the primary correlation key for audit and reporting across the governance lifecycle.",
+      "description": "Governance context token issued by a governance agent during check_governance. Buyers attach it to governed purchase requests (media buys, rights acquisitions, signal activations, creative services); sellers persist it and include it on all subsequent governance calls for that action's lifecycle.\n\nValue format: in 3.0 governance agents MUST emit a compact JWS per the AdCP JWS profile (see Security — Signed Governance Context). Sellers MAY verify; sellers that do not verify MUST persist and forward the token unchanged. In 3.1 all sellers MUST verify. Non-JWS values from pre-3.0 governance agents are deprecated.\n\nThis is the primary correlation key for audit and reporting across the governance lifecycle.",
       "minLength": 1,
       "maxLength": 4096,
       "pattern": "^[\\x20-\\x7E]+$"
@@ -55,16 +56,8 @@
   "additionalProperties": true,
   "not": {
     "anyOf": [
-      {
-        "required": [
-          "task_status"
-        ]
-      },
-      {
-        "required": [
-          "response_status"
-        ]
-      }
+      { "required": ["task_status"] },
+      { "required": ["response_status"] }
     ]
   },
   "examples": [
@@ -109,9 +102,7 @@
           }
         },
         "payload": {
-          "account": {
-            "account_id": "acct_123"
-          }
+          "account": { "account_id": "acct_123" }
         }
       }
     },
@@ -141,7 +132,7 @@
       }
     },
     {
-      "description": "Idempotent replay \u2014 same key and payload as a prior request within the replay window",
+      "description": "Idempotent replay — same key and payload as a prior request within the replay window",
       "data": {
         "context_id": "ctx_abc123",
         "status": "completed",

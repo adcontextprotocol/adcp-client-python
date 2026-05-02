@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/bundled/core/tasks-list-response.json",
   "title": "Tasks List Response",
   "description": "Response from task listing query with filtered results and state reconciliation data across all AdCP domains",
   "type": "object",
@@ -251,7 +252,7 @@
   ],
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-04-28T12:32:22.872Z",
+    "generatedAt": "2026-05-02T11:07:10.060Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

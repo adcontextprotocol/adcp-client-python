@@ -143,11 +143,17 @@ class TestTranslateErrorToA2A:
         assert errors[0]["code"] == "BUDGET_TOO_LOW"
         assert errors[1]["code"] == "AUDIENCE_TOO_SMALL"
 
-    def test_auth_error_is_terminal(self):
-        """ADCPAuthenticationError gets terminal recovery."""
+    def test_auth_error_is_correctable(self):
+        """ADCPAuthenticationError maps to AUTH_REQUIRED → correctable per AdCP 3.0.4.
+
+        The 3.0.4 prose tightening flips AUTH_REQUIRED to `correctable` for the
+        missing-credentials sub-case; the rejected-credentials sub-case carries
+        a SHOULD-NOT-auto-retry caveat in the suggestion text. The 3.1 line
+        splits this into AUTH_MISSING / AUTH_INVALID.
+        """
         exc = ADCPAuthenticationError("Forbidden")
         result = translate_error(exc, protocol="a2a")
-        assert result.data["recovery"] == "terminal"
+        assert result.data["recovery"] == "correctable"
 
     def test_timeout_error_is_transient(self):
         """ADCPTimeoutError gets transient recovery."""

@@ -1,12 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/mcp-webhook-payload.json",
   "title": "MCP Webhook Payload",
   "description": "Standard envelope for HTTP-based push notifications (MCP). This defines the wire format sent to the URL configured in `pushNotificationConfig`. NOTE: This envelope is NOT used in A2A integration, which uses native Task/TaskStatusUpdateEvent messages with the AdCP payload nested in `status.message.parts[].data`.",
   "type": "object",
   "properties": {
     "idempotency_key": {
       "type": "string",
-      "description": "Sender-generated key stable across retries of the same webhook event. Publishers MUST generate a cryptographically random value (UUID v4 recommended) per distinct event and reuse the same key on every retry of that event. Receivers MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) \u2014 keys from different publishers are independent. This is the canonical dedup field \u2014 the (task_id, status, timestamp) tuple is insufficient when a single transition is retried with unchanged timestamp or when two transitions share a timestamp.",
+      "description": "Sender-generated key stable across retries of the same webhook event. Publishers MUST generate a cryptographically random value (UUID v4 recommended) per distinct event and reuse the same key on every retry of that event. Receivers MUST dedupe by this key, scoped to the authenticated sender identity (HMAC secret or Bearer credential) — keys from different publishers are independent. This is the canonical dedup field — the (task_id, status, timestamp) tuple is insufficient when a single transition is retried with unchanged timestamp or when two transitions share a timestamp.",
       "minLength": 16,
       "maxLength": 255,
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
@@ -21,15 +22,15 @@
       "x-entity": "task"
     },
     "task_type": {
-      "$ref": "../enums/task-type.json",
+      "$ref": "/schemas/3.0.4/enums/task-type.json",
       "description": "Type of AdCP operation that triggered this webhook. Enables webhook handlers to route to appropriate processing logic."
     },
     "protocol": {
-      "$ref": "../enums/adcp-protocol.json",
+      "$ref": "/schemas/3.0.4/enums/adcp-protocol.json",
       "description": "AdCP protocol this task belongs to. Helps classify the operation type at a high level."
     },
     "status": {
-      "$ref": "../enums/task-status.json",
+      "$ref": "/schemas/3.0.4/enums/task-status.json",
       "description": "Current task status. Webhooks are triggered for status changes after initial submission."
     },
     "timestamp": {
@@ -46,7 +47,7 @@
       "description": "Session/conversation identifier. Use this to continue the conversation if input-required status needs clarification or additional parameters."
     },
     "result": {
-      "$ref": "async-response-data.json",
+      "$ref": "/schemas/3.0.4/core/async-response-data.json",
       "description": "Task-specific payload matching the status. For completed/failed, contains the full task response. For working/input-required/submitted, contains status-specific data. This is the data layer that AdCP specs - same structure used in A2A status.message.parts[].data."
     }
   },

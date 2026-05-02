@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/performance-feedback.json",
   "title": "Performance Feedback",
   "description": "Represents performance feedback data for a media buy or package",
   "type": "object",
@@ -47,11 +48,11 @@
       "minimum": 0
     },
     "metric_type": {
-      "$ref": "../enums/metric-type.json",
+      "$ref": "/schemas/3.0.4/enums/metric-type.json",
       "description": "The business metric being measured"
     },
     "feedback_source": {
-      "$ref": "../enums/feedback-source.json",
+      "$ref": "/schemas/3.0.4/enums/feedback-source.json",
       "description": "Source of the performance data"
     },
     "status": {

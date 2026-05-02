@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/bundled/sponsored-intelligence/si-initiate-session-request.json",
   "title": "SI Initiate Session Request",
   "description": "Host initiates a session with a brand agent",
   "x-status": "experimental",
@@ -14,7 +15,7 @@
     },
     "intent": {
       "type": "string",
-      "description": "Natural language description of user intent \u2014 the conversation handoff from the host describing what the user needs from the brand agent"
+      "description": "Natural language description of user intent — the conversation handoff from the host describing what the user needs from the brand agent"
     },
     "context": {
       "title": "Context Object",
@@ -315,7 +316,7 @@
   ],
   "additionalProperties": true,
   "_bundled": {
-    "generatedAt": "2026-04-28T12:32:23.047Z",
+    "generatedAt": "2026-05-02T11:07:10.227Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

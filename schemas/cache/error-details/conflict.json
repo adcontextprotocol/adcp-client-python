@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CONFLICT Details",
+  "$id": "/schemas/3.0.4/error-details/conflict.json",
+  "title": "Conflict Details",
   "description": "Recommended details shape for CONFLICT errors. Provides version information so agents can re-read the resource and retry.",
   "type": "object",
   "properties": {
@@ -9,17 +10,11 @@
       "description": "Identifier of the conflicting resource"
     },
     "expected_version": {
-      "type": [
-        "number",
-        "string"
-      ],
+      "type": ["number", "string"],
       "description": "Version or ETag the client was operating against"
     },
     "current_version": {
-      "type": [
-        "number",
-        "string"
-      ],
+      "type": ["number", "string"],
       "description": "Current version or ETag on the server"
     }
   },

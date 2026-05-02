@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/sponsored-intelligence/si-initiate-session-request.json",
   "title": "SI Initiate Session Request",
   "description": "Host initiates a session with a brand agent",
   "x-status": "experimental",
@@ -14,13 +15,13 @@
     },
     "intent": {
       "type": "string",
-      "description": "Natural language description of user intent \u2014 the conversation handoff from the host describing what the user needs from the brand agent"
+      "description": "Natural language description of user intent — the conversation handoff from the host describing what the user needs from the brand agent"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.4/core/context.json"
     },
     "identity": {
-      "$ref": "si-identity.json"
+      "$ref": "/schemas/3.0.4/sponsored-intelligence/si-identity.json"
     },
     "media_buy_id": {
       "type": "string",
@@ -37,7 +38,7 @@
       "x-entity": "offering"
     },
     "supported_capabilities": {
-      "$ref": "si-capabilities.json",
+      "$ref": "/schemas/3.0.4/sponsored-intelligence/si-capabilities.json",
       "description": "What capabilities the host supports"
     },
     "offering_token": {
@@ -52,7 +53,7 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     }
   },
   "required": [

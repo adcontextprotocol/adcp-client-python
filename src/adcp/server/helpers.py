@@ -57,8 +57,15 @@ STANDARD_ERROR_CODES: dict[str, dict[str, str]] = {
     "IO_REQUIRED": {"recovery": "correctable", "message": "Insertion order required"},
     "SESSION_NOT_FOUND": {"recovery": "correctable", "message": "Session not found"},
     "SESSION_TERMINATED": {"recovery": "correctable", "message": "Session already terminated"},
+    # AUTH_REQUIRED is `correctable` per the 3.0.4 prose tightening, but only
+    # the missing-credentials sub-case is actually retry-safe. When the seller
+    # rejected presented credentials (expired / revoked / malformed signature),
+    # the buyer agent SHOULD NOT auto-retry — re-presenting a rejected
+    # credential creates SSO retry-storm patterns. The 3.1 line splits this
+    # into AUTH_MISSING (correctable) and AUTH_INVALID (terminal); on 3.0.x
+    # the operational distinction lives in `suggestion` text.
+    "AUTH_REQUIRED": {"recovery": "correctable", "message": "Authentication required"},
     # --- Spec codes: Terminal ---
-    "AUTH_REQUIRED": {"recovery": "terminal", "message": "Authentication required"},
     "ACCOUNT_NOT_FOUND": {"recovery": "terminal", "message": "Account not found"},
     "ACCOUNT_SUSPENDED": {"recovery": "terminal", "message": "Account suspended"},
     "UNSUPPORTED_FEATURE": {"recovery": "terminal", "message": "Feature not supported"},

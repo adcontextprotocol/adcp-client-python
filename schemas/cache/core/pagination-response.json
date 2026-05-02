@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/pagination-response.json",
   "title": "Pagination Response",
   "description": "Standard cursor-based pagination metadata for list responses",
   "type": "object",
@@ -18,8 +19,6 @@
       "description": "Total number of items matching the query across all pages. Optional because not all backends can efficiently compute this."
     }
   },
-  "required": [
-    "has_more"
-  ],
+  "required": ["has_more"],
   "additionalProperties": false
 }

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/media-buy/provide-performance-feedback-request.json",
   "title": "Provide Performance Feedback Request",
   "description": "Request payload for provide_performance_feedback task",
   "x-mutates-state": true,
@@ -25,7 +26,7 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "measurement_period": {
-      "$ref": "../core/datetime-range.json",
+      "$ref": "/schemas/3.0.4/core/datetime-range.json",
       "description": "Time period for performance measurement"
     },
     "performance_index": {
@@ -46,20 +47,20 @@
       "x-entity": "creative"
     },
     "metric_type": {
-      "$ref": "../enums/metric-type.json",
+      "$ref": "/schemas/3.0.4/enums/metric-type.json",
       "description": "The business metric being measured",
       "default": "overall_performance"
     },
     "feedback_source": {
-      "$ref": "../enums/feedback-source.json",
+      "$ref": "/schemas/3.0.4/enums/feedback-source.json",
       "description": "Source of the performance data",
       "default": "buyer_attribution"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.4/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     }
   },
   "required": [

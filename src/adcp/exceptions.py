@@ -54,7 +54,17 @@ class ADCPConnectionError(ADCPError):
 
 
 class ADCPAuthenticationError(ADCPError):
-    """Authentication failed (401, 403)."""
+    """Authentication failed (401, 403).
+
+    `is_retryable` defaults to ``False`` (inherited). Per the AdCP 3.0.4 prose
+    tightening, `AUTH_REQUIRED` covers two sub-cases: credentials missing
+    (correctable — supply credentials and retry) and credentials presented but
+    rejected (terminal — re-presenting creates SSO retry-storm patterns).
+    Defaulting to non-retryable is the safe biased-toward-the-dangerous-case
+    choice; callers handling the missing-credentials case should retry only
+    after attaching credentials, not on a timer. The 3.1 line splits this
+    into `AUTH_MISSING` and `AUTH_INVALID`.
+    """
 
     def __init__(self, message: str, agent_id: str | None = None, agent_uri: str | None = None):
         """Initialize authentication error."""

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/overlay.json",
   "title": "Overlay",
   "description": "A publisher-controlled element that renders on top of buyer creative content within the ad placement. Creative agents should avoid placing critical content (CTAs, logos, key copy) within overlay bounds.",
   "type": "object",
@@ -59,30 +60,14 @@
         },
         "unit": {
           "type": "string",
-          "enum": [
-            "px",
-            "fraction",
-            "inches",
-            "cm",
-            "mm",
-            "pt"
-          ],
+          "enum": ["px", "fraction", "inches", "cm", "mm", "pt"],
           "description": "'px' = absolute pixels from asset top-left. 'fraction' = proportional to asset dimensions (0.0 = edge, 1.0 = opposite edge). 'inches', 'cm', 'mm', 'pt' (1/72 inch) = physical units for print overlays, measured from asset top-left."
         }
       },
-      "required": [
-        "x",
-        "y",
-        "width",
-        "height",
-        "unit"
-      ],
+      "required": ["x", "y", "width", "height", "unit"],
       "additionalProperties": false
     }
   },
-  "required": [
-    "id",
-    "bounds"
-  ],
+  "required": ["id", "bounds"],
   "additionalProperties": false
 }

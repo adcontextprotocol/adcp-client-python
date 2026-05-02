@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/creative/list-creatives-response.json",
   "title": "List Creatives Response",
   "description": "Response from creative library query with filtered results, metadata, and optional enriched data",
   "type": "object",
@@ -33,19 +34,16 @@
               "type": "string"
             },
             "direction": {
-              "$ref": "../enums/sort-direction.json"
+              "$ref": "/schemas/3.0.4/enums/sort-direction.json"
             }
           }
         }
       },
-      "required": [
-        "total_matching",
-        "returned"
-      ],
+      "required": ["total_matching", "returned"],
       "additionalProperties": true
     },
     "pagination": {
-      "$ref": "../core/pagination-response.json"
+      "$ref": "/schemas/3.0.4/core/pagination-response.json"
     },
     "creatives": {
       "type": "array",
@@ -59,7 +57,7 @@
             "x-entity": "creative"
           },
           "account": {
-            "$ref": "../core/account.json",
+            "$ref": "/schemas/3.0.4/core/account.json",
             "description": "Account that owns this creative"
           },
           "name": {
@@ -67,11 +65,11 @@
             "description": "Human-readable creative name"
           },
           "format_id": {
-            "$ref": "../core/format-id.json",
+            "$ref": "/schemas/3.0.4/core/format-id.json",
             "description": "Format identifier specifying which format this creative conforms to"
           },
           "status": {
-            "$ref": "../enums/creative-status.json",
+            "$ref": "/schemas/3.0.4/enums/creative-status.json",
             "description": "Current approval status of the creative"
           },
           "created_date": {
@@ -89,53 +87,7 @@
             "description": "Assets for this creative, keyed by asset_id. Each asset value carries an `asset_type` discriminator that selects the matching asset schema.",
             "patternProperties": {
               "^[a-z0-9_]+$": {
-                "oneOf": [
-                  {
-                    "$ref": "../core/assets/image-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/video-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/audio-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/vast-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/text-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/url-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/html-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/javascript-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/webhook-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/css-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/daast-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/markdown-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/brief-asset.json"
-                  },
-                  {
-                    "$ref": "../core/assets/catalog-asset.json"
-                  }
-                ],
-                "discriminator": {
-                  "propertyName": "asset_type"
-                }
+                "$ref": "/schemas/3.0.4/core/assets/asset-union.json"
               }
             },
             "additionalProperties": true
@@ -159,7 +111,7 @@
             "type": "array",
             "description": "Dynamic content variables (DCO slots) for this creative. Included when include_variables=true.",
             "items": {
-              "$ref": "../core/creative-variable.json"
+              "$ref": "/schemas/3.0.4/core/creative-variable.json"
             }
           },
           "assignments": {
@@ -234,21 +186,21 @@
             "additionalProperties": true
           },
           "snapshot_unavailable_reason": {
-            "$ref": "../enums/snapshot-unavailable-reason.json",
+            "$ref": "/schemas/3.0.4/enums/snapshot-unavailable-reason.json",
             "description": "Machine-readable reason the snapshot is omitted. Present only when include_snapshot was true and snapshot data is unavailable for this creative."
           },
           "items": {
             "type": "array",
             "description": "Items for multi-asset formats like carousels and native ads (included when include_items=true)",
             "items": {
-              "$ref": "../core/creative-item.json"
+              "$ref": "/schemas/3.0.4/core/creative-item.json"
             }
           },
           "pricing_options": {
             "type": "array",
             "description": "Pricing options for using this creative (serving, delivery). Used by ad servers and library agents. Transformation agents expose format-level pricing on list_creative_formats instead. Present when include_pricing=true and account provided. The buyer passes the applied pricing_option_id in report_usage.",
             "items": {
-              "$ref": "../core/vendor-pricing-option.json"
+              "$ref": "/schemas/3.0.4/core/vendor-pricing-option.json"
             },
             "minItems": 1
           }
@@ -266,7 +218,7 @@
     },
     "format_summary": {
       "type": "object",
-      "description": "Breakdown of creatives by format. Keys are agent-defined format identifiers, optionally including dimensions (e.g., 'display_static_300x250', 'video_30s_vast'). Key construction is platform-specific \u2014 there is no required format.",
+      "description": "Breakdown of creatives by format. Keys are agent-defined format identifiers, optionally including dimensions (e.g., 'display_static_300x250', 'video_30s_vast'). Key construction is platform-specific — there is no required format.",
       "patternProperties": {
         "^[a-zA-Z0-9_-]+$": {
           "type": "integer",
@@ -312,7 +264,7 @@
       "type": "array",
       "description": "Task-specific errors (e.g., invalid filters, account not found)",
       "items": {
-        "$ref": "../core/error.json"
+        "$ref": "/schemas/3.0.4/core/error.json"
       }
     },
     "sandbox": {
@@ -320,10 +272,10 @@
       "description": "When true, this response contains simulated data from sandbox mode."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.4/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     }
   },
   "required": [
@@ -373,10 +325,7 @@
                 "url": "https://acmecorp.example.com/holiday-sale"
               }
             },
-            "tags": [
-              "holiday_2026",
-              "display"
-            ],
+            "tags": ["holiday_2026", "display"],
             "concept_id": "concept_holiday_2026",
             "concept_name": "Holiday 2026 Campaign",
             "variables": [
@@ -419,10 +368,7 @@
                 "url": "https://acmecorp.example.com/holiday-sale"
               }
             },
-            "tags": [
-              "holiday_2026",
-              "display"
-            ],
+            "tags": ["holiday_2026", "display"],
             "concept_id": "concept_holiday_2026",
             "concept_name": "Holiday 2026 Campaign",
             "variables": []

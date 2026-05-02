@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/brand/update-rights-request.json",
   "title": "Update Rights Request",
-  "description": "Modify an existing rights grant \u2014 extend dates, adjust impression caps, change pricing, or pause/resume. Parallels update_media_buy. Only the fields provided are updated; omitted fields remain unchanged.",
+  "description": "Modify an existing rights grant — extend dates, adjust impression caps, change pricing, or pause/resume. Parallels update_media_buy. Only the fields provided are updated; omitted fields remain unchanged.",
   "x-status": "experimental",
   "x-mutates-state": true,
   "type": "object",
@@ -37,7 +38,7 @@
       "description": "Pause or resume the rights grant. When paused, generation credentials are suspended and creative delivery should stop. When resumed, credentials are re-activated."
     },
     "push_notification_config": {
-      "$ref": "../core/push-notification-config.json",
+      "$ref": "/schemas/3.0.4/core/push-notification-config.json",
       "description": "Webhook for async update notifications if the update requires approval"
     },
     "idempotency_key": {
@@ -48,10 +49,10 @@
       "pattern": "^[A-Za-z0-9_.:-]{16,255}$"
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.4/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     }
   },
   "required": [

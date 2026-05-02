@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/enums/proposal-status.json",
   "title": "Proposal Status",
   "description": "Lifecycle status of a proposal. Absent means the proposal is ready to buy (backward compatible with pre-v3.1 proposals). 'draft' indicates indicative pricing that must be finalized before purchase. 'committed' indicates firm pricing with inventory reserved until expires_at.",
   "type": "string",

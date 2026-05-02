@@ -1,14 +1,15 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/product-filters.json",
   "title": "Product Filters",
   "description": "Structured filters for product discovery",
   "type": "object",
   "properties": {
     "delivery_type": {
-      "$ref": "../enums/delivery-type.json"
+      "$ref": "/schemas/3.0.4/enums/delivery-type.json"
     },
     "exclusivity": {
-      "$ref": "../enums/exclusivity.json",
+      "$ref": "/schemas/3.0.4/enums/exclusivity.json",
       "description": "Filter by exclusivity level. Returns products matching the specified exclusivity (e.g., 'exclusive' returns only sole-sponsorship products)."
     },
     "is_fixed_price": {
@@ -19,7 +20,7 @@
       "type": "array",
       "description": "Filter by specific format IDs",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/3.0.4/core/format-id.json"
       },
       "minItems": 1
     },
@@ -104,7 +105,7 @@
         "type": "object",
         "properties": {
           "system": {
-            "$ref": "../enums/metro-system.json",
+            "$ref": "/schemas/3.0.4/enums/metro-system.json",
             "description": "Metro classification system"
           },
           "code": {
@@ -112,10 +113,7 @@
             "description": "Metro code within the system (e.g., '501' for NYC DMA)"
           }
         },
-        "required": [
-          "system",
-          "code"
-        ],
+        "required": ["system", "code"],
         "additionalProperties": false
       },
       "minItems": 1
@@ -124,7 +122,7 @@
       "type": "array",
       "description": "Filter by advertising channels (e.g., ['display', 'ctv', 'dooh'])",
       "items": {
-        "$ref": "../enums/channels.json"
+        "$ref": "/schemas/3.0.4/enums/channels.json"
       },
       "minItems": 1
     },
@@ -162,9 +160,7 @@
                 "description": "When true, require this provider to support identity match."
               }
             },
-            "required": [
-              "agent_url"
-            ],
+            "required": ["agent_url"],
             "additionalProperties": true
           },
           "minItems": 1
@@ -173,7 +169,7 @@
           "type": "array",
           "description": "Filter to products supporting specific TMP response types (e.g., 'activation', 'creative', 'catalog_items'). Products must support at least one of the listed types.",
           "items": {
-            "$ref": "../enums/response-type.json"
+            "$ref": "/schemas/3.0.4/enums/response-type.json"
           },
           "minItems": 1
         }
@@ -181,7 +177,7 @@
       "additionalProperties": false
     },
     "required_features": {
-      "$ref": "media-buy-features.json",
+      "$ref": "/schemas/3.0.4/core/media-buy-features.json",
       "description": "Filter to products from sellers supporting specific protocol features. Only features set to true are used for filtering."
     },
     "required_geo_targeting": {
@@ -191,7 +187,7 @@
         "type": "object",
         "properties": {
           "level": {
-            "$ref": "../enums/geo-level.json",
+            "$ref": "/schemas/3.0.4/enums/geo-level.json",
             "description": "Geographic targeting level (country, region, metro, postal_area)"
           },
           "system": {
@@ -199,9 +195,7 @@
             "description": "Classification system within the level. Required for metro (e.g., 'nielsen_dma') and postal_area (e.g., 'us_zip'). Not applicable for country/region which use ISO standards."
           }
         },
-        "required": [
-          "level"
-        ],
+        "required": ["level"],
         "additionalProperties": false
       },
       "minItems": 1
@@ -210,7 +204,7 @@
       "type": "array",
       "description": "Filter to products supporting specific signals from data provider catalogs. Products must have the requested signals in their data_provider_signals and signal_targeting_allowed must be true (or all signals requested).",
       "items": {
-        "$ref": "signal-targeting.json"
+        "$ref": "/schemas/3.0.4/core/signal-targeting.json"
       },
       "minItems": 1
     },
@@ -221,7 +215,7 @@
         "type": "object",
         "properties": {
           "system": {
-            "$ref": "../enums/postal-system.json",
+            "$ref": "/schemas/3.0.4/enums/postal-system.json",
             "description": "Postal code system (e.g., 'us_zip', 'gb_outward')"
           },
           "values": {
@@ -233,17 +227,14 @@
             "minItems": 1
           }
         },
-        "required": [
-          "system",
-          "values"
-        ],
+        "required": ["system", "values"],
         "additionalProperties": false
       },
       "minItems": 1
     },
     "geo_proximity": {
       "type": "array",
-      "description": "Filter by proximity to geographic points. Returns products with inventory coverage near these locations. Follows the same format as the targeting overlay \u2014 each entry uses exactly one method: travel_time + transport_mode, radius, or geometry. For locally-bound inventory (DOOH, radio), filters to products with coverage in the area. For digital inventory, filters to products from sellers supporting geo_proximity targeting.",
+      "description": "Filter by proximity to geographic points. Returns products with inventory coverage near these locations. Follows the same format as the targeting overlay — each entry uses exactly one method: travel_time + transport_mode, radius, or geometry. For locally-bound inventory (DOOH, radio), filters to products with coverage in the area. For digital inventory, filters to products from sellers supporting geo_proximity targeting.",
       "items": {
         "type": "object",
         "properties": {
@@ -261,7 +252,7 @@
           },
           "label": {
             "type": "string",
-            "description": "Human-readable label (e.g., 'D\u00fcsseldorf', 'Heathrow Airport')"
+            "description": "Human-readable label (e.g., 'Düsseldorf', 'Heathrow Airport')"
           },
           "travel_time": {
             "type": "object",
@@ -273,17 +264,14 @@
                 "description": "Travel time limit"
               },
               "unit": {
-                "$ref": "../enums/travel-time-unit.json"
+                "$ref": "/schemas/3.0.4/enums/travel-time-unit.json"
               }
             },
-            "required": [
-              "value",
-              "unit"
-            ],
+            "required": ["value", "unit"],
             "additionalProperties": false
           },
           "transport_mode": {
-            "$ref": "../enums/transport-mode.json",
+            "$ref": "/schemas/3.0.4/enums/transport-mode.json",
             "description": "Transportation mode for isochrone calculation. Required when travel_time is provided."
           },
           "radius": {
@@ -296,14 +284,11 @@
                 "description": "Radius distance"
               },
               "unit": {
-                "$ref": "../enums/distance-unit.json",
+                "$ref": "/schemas/3.0.4/enums/distance-unit.json",
                 "description": "Distance unit"
               }
             },
-            "required": [
-              "value",
-              "unit"
-            ],
+            "required": ["value", "unit"],
             "additionalProperties": false
           },
           "geometry": {
@@ -312,10 +297,7 @@
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "Polygon",
-                  "MultiPolygon"
-                ],
+                "enum": ["Polygon", "MultiPolygon"],
                 "description": "GeoJSON geometry type"
               },
               "coordinates": {
@@ -323,73 +305,35 @@
                 "description": "GeoJSON coordinates array"
               }
             },
-            "required": [
-              "type",
-              "coordinates"
-            ],
+            "required": ["type", "coordinates"],
             "additionalProperties": false
           }
         },
         "oneOf": [
           {
-            "required": [
-              "lat",
-              "lng",
-              "travel_time",
-              "transport_mode"
-            ],
+            "required": ["lat", "lng", "travel_time", "transport_mode"],
             "not": {
               "anyOf": [
-                {
-                  "required": [
-                    "radius"
-                  ]
-                },
-                {
-                  "required": [
-                    "geometry"
-                  ]
-                }
+                { "required": ["radius"] },
+                { "required": ["geometry"] }
               ]
             }
           },
           {
-            "required": [
-              "lat",
-              "lng",
-              "radius"
-            ],
+            "required": ["lat", "lng", "radius"],
             "not": {
               "anyOf": [
-                {
-                  "required": [
-                    "travel_time"
-                  ]
-                },
-                {
-                  "required": [
-                    "geometry"
-                  ]
-                }
+                { "required": ["travel_time"] },
+                { "required": ["geometry"] }
               ]
             }
           },
           {
-            "required": [
-              "geometry"
-            ],
+            "required": ["geometry"],
             "not": {
               "anyOf": [
-                {
-                  "required": [
-                    "travel_time"
-                  ]
-                },
-                {
-                  "required": [
-                    "radius"
-                  ]
-                }
+                { "required": ["travel_time"] },
+                { "required": ["radius"] }
               ]
             }
           }
@@ -402,7 +346,7 @@
       "type": "array",
       "description": "Filter to products that can meet the buyer's performance standard requirements. Each entry specifies a metric, minimum threshold, and optionally a required vendor and standard. Products that cannot meet these thresholds or do not support the specified vendors are excluded. Use this to tell the seller upfront: 'I need DoubleVerify for viewability at 70% MRC.'",
       "items": {
-        "$ref": "performance-standard.json"
+        "$ref": "/schemas/3.0.4/core/performance-standard.json"
       },
       "minItems": 1
     },
@@ -418,13 +362,11 @@
             "description": "The keyword to target"
           },
           "match_type": {
-            "$ref": "../enums/match-type.json",
+            "$ref": "/schemas/3.0.4/enums/match-type.json",
             "default": "broad"
           }
         },
-        "required": [
-          "keyword"
-        ],
+        "required": ["keyword"],
         "additionalProperties": false
       },
       "minItems": 1

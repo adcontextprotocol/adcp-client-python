@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/enums/policy-category.json",
   "title": "Policy Category",
   "description": "The nature of the obligation a policy represents.",
   "type": "string",

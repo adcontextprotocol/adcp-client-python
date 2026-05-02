@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/bundled/creative/sync-creatives-response.json",
   "title": "Sync Creatives Response",
-  "description": "Response from creative sync operation. Exactly one of three shapes: (1) synchronous success \u2014 per-creative results in the creatives array (best-effort processing with per-item status/failures); (2) terminal failure \u2014 errors array with no creatives processed; (3) submitted task envelope \u2014 status 'submitted' with task_id when the whole operation is queued (batch ingestion, async review that must settle before per-item results can be issued). The submitted branch MAY carry advisory errors for non-blocking warnings; terminal failures belong in the error branch. Final per-item results land on the task completion artifact, not this envelope. These three shapes are mutually exclusive \u2014 a response has exactly one.",
+  "description": "Response from creative sync operation. Exactly one of three shapes: (1) synchronous success — per-creative results in the creatives array (best-effort processing with per-item status/failures); (2) terminal failure — errors array with no creatives processed; (3) submitted task envelope — status 'submitted' with task_id when the whole operation is queued (batch ingestion, async review that must settle before per-item results can be issued). The submitted branch MAY carry advisory errors for non-blocking warnings; terminal failures belong in the error branch. Final per-item results land on the task completion artifact, not this envelope. These three shapes are mutually exclusive — a response has exactly one.",
   "type": "object",
   "oneOf": [
     {
@@ -61,10 +62,10 @@
                     "enumDescriptions": {
                       "active": "Account is operational and can create media buys",
                       "pending_approval": "Seller is reviewing the account (credit, contracts)",
-                      "rejected": "Seller declined the account request \u2014 terminal state",
+                      "rejected": "Seller declined the account request — terminal state",
                       "payment_required": "Credit limit reached or funds depleted",
-                      "suspended": "Was active, now paused \u2014 operations gated",
-                      "closed": "Was active, now terminated \u2014 terminal state"
+                      "suspended": "Was active, now paused — operations gated",
+                      "closed": "Was active, now terminated — terminal state"
                     }
                   },
                   "brand": {
@@ -100,7 +101,7 @@
                       },
                       "data_subject_contestation": {
                         "type": "object",
-                        "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand \u2192 house \u2192 missing.",
+                        "description": "Inline override for the brand's contestation contact point. Useful when the operator does not control brand.json but needs to discharge Art 22(3) for this plan. brand.json is canonical; when omitted, governance agents resolve brand → house → missing.",
                         "properties": {
                           "url": {
                             "type": "string",
@@ -167,7 +168,7 @@
                       "advertiser"
                     ],
                     "enumDescriptions": {
-                      "operator": "Seller invoices the operator \u2014 agency or brand buying direct",
+                      "operator": "Seller invoices the operator — agency or brand buying direct",
                       "agent": "Agent consolidates billing across brands and is invoiced by the seller",
                       "advertiser": "Seller invoices the advertiser directly, even when a different operator places orders on their behalf"
                     }
@@ -466,7 +467,7 @@
                   },
                   "governance_agents": {
                     "type": "array",
-                    "description": "Governance agent endpoints registered on this account. Authentication credentials are write-only and not included in responses \u2014 use sync_governance to set or update credentials.",
+                    "description": "Governance agent endpoints registered on this account. Authentication credentials are write-only and not included in responses — use sync_governance to set or update credentials.",
                     "items": {
                       "type": "object",
                       "properties": {
@@ -496,7 +497,7 @@
                   },
                   "reporting_bucket": {
                     "type": "object",
-                    "description": "Cloud storage bucket where the seller delivers offline reporting files for this account. Seller provisions a dedicated bucket or a per-account prefix within a shared bucket, and grants the buyer read access out-of-band. Access MUST be scoped at the IAM layer so each account can only read its own prefix \u2014 bucket-wide grants are non-compliant even with per-account prefixes. Seller MUST revoke access when the account's status transitions to inactive, suspended, or closed. See security considerations for offline delivery in docs/media-buy/media-buys/optimization-reporting. Only present when the seller supports offline delivery (reporting_delivery_methods includes 'offline' in capabilities).",
+                    "description": "Cloud storage bucket where the seller delivers offline reporting files for this account. Seller provisions a dedicated bucket or a per-account prefix within a shared bucket, and grants the buyer read access out-of-band. Access MUST be scoped at the IAM layer so each account can only read its own prefix — bucket-wide grants are non-compliant even with per-account prefixes. Seller MUST revoke access when the account's status transitions to inactive, suspended, or closed. See security considerations for offline delivery in docs/media-buy/media-buys/optimization-reporting. Only present when the seller supports offline delivery (reporting_delivery_methods includes 'offline' in capabilities).",
                     "properties": {
                       "protocol": {
                         "title": "Cloud Storage Protocol",
@@ -570,7 +571,7 @@
                         "type": "string",
                         "format": "uri",
                         "pattern": "^https://",
-                        "description": "URL to documentation for configuring buyer read access to this bucket (IAM role, service account, etc.). Operator-facing documentation \u2014 buyer agents MUST NOT auto-fetch this URL; surface it to a human operator. If an implementation fetches it (for preview), apply webhook URL SSRF validation and do not pass the fetched content into an LLM context without indirect-prompt-injection guarding. See docs/media-buy/media-buys/optimization-reporting#security-considerations-for-offline-delivery."
+                        "description": "URL to documentation for configuring buyer read access to this bucket (IAM role, service account, etc.). Operator-facing documentation — buyer agents MUST NOT auto-fetch this URL; surface it to a human operator. If an implementation fetches it (for preview), apply webhook URL SSRF validation and do not pass the fetched content into an LLM context without indirect-prompt-injection guarding. See docs/media-buy/media-buys/optimization-reporting#security-considerations-for-offline-delivery."
                       }
                     },
                     "required": [
@@ -582,7 +583,7 @@
                   },
                   "sandbox": {
                     "type": "boolean",
-                    "description": "When true, this is a sandbox account \u2014 no real platform calls, no real spend. For explicit accounts (require_operator_auth: true), sandbox accounts are pre-existing test accounts on the platform discovered via list_accounts. For implicit accounts, sandbox is part of the natural key: the same brand/operator pair can have both a production and sandbox account."
+                    "description": "When true, this is a sandbox account — no real platform calls, no real spend. For explicit accounts (require_operator_auth: true), sandbox accounts are pre-existing test accounts on the platform discovered via list_accounts. For implicit accounts, sandbox is part of the natural key: the same brand/operator pair can have both a production and sandbox account."
                   },
                   "ext": {
                     "title": "Extension Object",
@@ -732,7 +733,7 @@
               },
               "status": {
                 "title": "Creative Status",
-                "description": "Advisory review-lifecycle state of the creative after this sync \u2014 a UI hint and polling-scheduling signal, NOT a spend-authorization gate. Orthogonal to action \u2014 action says what the sync did (created, updated, ...); status says where the creative sits in review. Values come from CreativeStatus only (processing, pending_review, approved, rejected, archived) \u2014 never from CreativeAction. Sellers with async review return processing or pending_review; sellers with synchronous review MAY return a terminal value (approved, rejected). Buyers MUST NOT gate downstream spend or package activation on status: approved from this response \u2014 a compromised or buggy seller could declare approved while bypassing content-policy review. Reconcile via list_creatives or a signed review webhook before committing spend. Authoritative state is always via list_creatives. MUST be omitted when action is failed or deleted (the creative has no meaningful review state \u2014 failure details belong in the errors array; deleted creatives are gone from the library). Omit entirely when the seller has no review lifecycle at all.",
+                "description": "Advisory review-lifecycle state of the creative after this sync — a UI hint and polling-scheduling signal, NOT a spend-authorization gate. Orthogonal to action — action says what the sync did (created, updated, ...); status says where the creative sits in review. Values come from CreativeStatus only (processing, pending_review, approved, rejected, archived) — never from CreativeAction. Sellers with async review return processing or pending_review; sellers with synchronous review MAY return a terminal value (approved, rejected). Buyers MUST NOT gate downstream spend or package activation on status: approved from this response — a compromised or buggy seller could declare approved while bypassing content-policy review. Reconcile via list_creatives or a signed review webhook before committing spend. Authoritative state is always via list_creatives. MUST be omitted when action is failed or deleted (the creative has no meaningful review state — failure details belong in the errors array; deleted creatives are gone from the library). Omit entirely when the seller has no review lifecycle at all.",
                 "type": "string",
                 "enum": [
                   "processing",
@@ -745,7 +746,7 @@
                   "processing": "Creative is being ingested, transcoded, or validated. Automatically transitions to pending_review when processing completes, or to rejected if processing fails (e.g., corrupt file, unsupported codec).",
                   "pending_review": "Creative has passed processing and is awaiting platform content policy review. Transitions to approved or rejected after review.",
                   "approved": "Creative has been approved and is eligible for delivery. May be archived by the buyer or re-reviewed by the seller.",
-                  "rejected": "Creative was rejected due to content policy or technical issues. Not terminal \u2014 the buyer may fix the issue and resubmit via sync_creatives, which returns the creative to processing.",
+                  "rejected": "Creative was rejected due to content policy or technical issues. Not terminal — the buyer may fix the issue and resubmit via sync_creatives, which returns the creative to processing.",
                   "archived": "Creative has been archived by the buyer and is excluded from default queries. Archived creatives retain their data and may be unarchived back to approved."
                 }
               },
@@ -780,7 +781,7 @@
                     },
                     "field": {
                       "type": "string",
-                      "description": "Field path associated with the error (e.g., 'packages[0].targeting')"
+                      "description": "Field path associated with the error in JSONPath-lite format (e.g., 'packages[0].targeting'). When `issues[]` is also present, sellers MUST set this to `issues[0].pointer` translated from RFC 6901 to JSONPath-lite (e.g., '/packages/0/targeting' → 'packages[0].targeting') so pre-3.1 consumers reading `field` only get deterministic behavior. Will be deprecated in a future major version in favor of `issues[].pointer`."
                     },
                     "suggestion": {
                       "type": "string",
@@ -792,9 +793,40 @@
                       "minimum": 1,
                       "maximum": 3600
                     },
+                    "issues": {
+                      "type": "array",
+                      "description": "Structured list of validation failures. Primary use is `VALIDATION_ERROR`, where multi-field rejections are common and `field` (singular) cannot carry the full pointer map. MAY appear on other error codes that reject multiple fields at once. When `issues` is present, sellers MUST also populate `field` from `issues[0]` for backward compatibility with pre-3.1 consumers that read `field` only — translating the RFC 6901 `pointer` format to the JSONPath-lite format `field` uses (e.g., `/packages/0/targeting` → `packages[0].targeting`). MUST (not SHOULD) so consumers reading `field` get deterministic behavior across sellers — the cost is one line of dual-write per seller; the cost of SHOULD is a long tail of seller-A-vs-seller-B inconsistency. Future major versions will deprecate `field` in favor of `issues[].pointer`.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "pointer": {
+                            "type": "string",
+                            "description": "RFC 6901 JSON Pointer to the offending field in the request payload (e.g., '/packages/0/targeting/geo_countries/2'). Format chosen to match Ajv's native validation output (`instancePath`); standardized and unambiguous on keys containing `/` or `~`. NOTE: this differs from the legacy top-level `field` which uses JSONPath-lite (`packages[0].targeting.geo_countries[2]`). When sellers populate `field` from `issues[0].pointer` for backward compatibility (see `field` description), they MUST translate the format — `/packages/0/x` → `packages[0].x`. Future major versions will deprecate `field` in favor of `issues[].pointer`."
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "Human-readable description of why this specific field was rejected."
+                          },
+                          "keyword": {
+                            "type": "string",
+                            "description": "Schema keyword that rejected the payload, drawn from the JSON Schema vocabulary (e.g., 'required', 'type', 'format', 'enum', 'pattern', 'minimum', 'maxLength'). Matches the keyword names emitted by JSON Schema validators (Ajv, jsonschema, etc.) so agents can pattern-match on rejection class without parsing message text. Implementers SHOULD use the validator's native keyword name; do not invent custom values here."
+                          },
+                          "schemaPath": {
+                            "type": "string",
+                            "description": "Optional. Path inside the schema that rejected the payload (e.g., '#/properties/packages/items/properties/targeting/oneOf/1'). Sellers SHOULD NOT emit on production-facing endpoints — `schemaPath` leaks which `oneOf` branch the validator selected before semantic rejection, which is a probe oracle for adversarial callers crafting payloads against polymorphic unions. Sellers MAY emit in dev/sandbox modes where the diagnostic value outweighs the fingerprinting risk."
+                          }
+                        },
+                        "required": [
+                          "pointer",
+                          "message",
+                          "keyword"
+                        ],
+                        "additionalProperties": true
+                      }
+                    },
                     "details": {
                       "type": "object",
-                      "description": "Additional task-specific error details",
+                      "description": "Additional task-specific error details. Sellers MAY mirror `issues[]` here as `details.issues` for backward compatibility with pre-3.1 consumers reading from `details`; new consumers SHOULD prefer the top-level `issues` field.",
                       "additionalProperties": true
                     },
                     "recovery": {
@@ -952,7 +984,7 @@
               },
               "field": {
                 "type": "string",
-                "description": "Field path associated with the error (e.g., 'packages[0].targeting')"
+                "description": "Field path associated with the error in JSONPath-lite format (e.g., 'packages[0].targeting'). When `issues[]` is also present, sellers MUST set this to `issues[0].pointer` translated from RFC 6901 to JSONPath-lite (e.g., '/packages/0/targeting' → 'packages[0].targeting') so pre-3.1 consumers reading `field` only get deterministic behavior. Will be deprecated in a future major version in favor of `issues[].pointer`."
               },
               "suggestion": {
                 "type": "string",
@@ -964,9 +996,40 @@
                 "minimum": 1,
                 "maximum": 3600
               },
+              "issues": {
+                "type": "array",
+                "description": "Structured list of validation failures. Primary use is `VALIDATION_ERROR`, where multi-field rejections are common and `field` (singular) cannot carry the full pointer map. MAY appear on other error codes that reject multiple fields at once. When `issues` is present, sellers MUST also populate `field` from `issues[0]` for backward compatibility with pre-3.1 consumers that read `field` only — translating the RFC 6901 `pointer` format to the JSONPath-lite format `field` uses (e.g., `/packages/0/targeting` → `packages[0].targeting`). MUST (not SHOULD) so consumers reading `field` get deterministic behavior across sellers — the cost is one line of dual-write per seller; the cost of SHOULD is a long tail of seller-A-vs-seller-B inconsistency. Future major versions will deprecate `field` in favor of `issues[].pointer`.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "pointer": {
+                      "type": "string",
+                      "description": "RFC 6901 JSON Pointer to the offending field in the request payload (e.g., '/packages/0/targeting/geo_countries/2'). Format chosen to match Ajv's native validation output (`instancePath`); standardized and unambiguous on keys containing `/` or `~`. NOTE: this differs from the legacy top-level `field` which uses JSONPath-lite (`packages[0].targeting.geo_countries[2]`). When sellers populate `field` from `issues[0].pointer` for backward compatibility (see `field` description), they MUST translate the format — `/packages/0/x` → `packages[0].x`. Future major versions will deprecate `field` in favor of `issues[].pointer`."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Human-readable description of why this specific field was rejected."
+                    },
+                    "keyword": {
+                      "type": "string",
+                      "description": "Schema keyword that rejected the payload, drawn from the JSON Schema vocabulary (e.g., 'required', 'type', 'format', 'enum', 'pattern', 'minimum', 'maxLength'). Matches the keyword names emitted by JSON Schema validators (Ajv, jsonschema, etc.) so agents can pattern-match on rejection class without parsing message text. Implementers SHOULD use the validator's native keyword name; do not invent custom values here."
+                    },
+                    "schemaPath": {
+                      "type": "string",
+                      "description": "Optional. Path inside the schema that rejected the payload (e.g., '#/properties/packages/items/properties/targeting/oneOf/1'). Sellers SHOULD NOT emit on production-facing endpoints — `schemaPath` leaks which `oneOf` branch the validator selected before semantic rejection, which is a probe oracle for adversarial callers crafting payloads against polymorphic unions. Sellers MAY emit in dev/sandbox modes where the diagnostic value outweighs the fingerprinting risk."
+                    }
+                  },
+                  "required": [
+                    "pointer",
+                    "message",
+                    "keyword"
+                  ],
+                  "additionalProperties": true
+                }
+              },
               "details": {
                 "type": "object",
-                "description": "Additional task-specific error details",
+                "description": "Additional task-specific error details. Sellers MAY mirror `issues[]` here as `details.issues` for backward compatibility with pre-3.1 consumers reading from `details`; new consumers SHOULD prefer the top-level `issues` field.",
                 "additionalProperties": true
               },
               "recovery": {
@@ -1041,7 +1104,7 @@
     },
     {
       "title": "SyncCreativesSubmitted",
-      "description": "Async task envelope returned when the whole sync operation cannot be confirmed before the response is emitted \u2014 for example, when the seller batches ingestion, when async review must settle before per-item results can be issued, or when governance review gates the sync. The buyer polls tasks/get with task_id or receives a webhook when the task completes; the creatives array with per-item action/status lands on the completion artifact, not this envelope. Per-item async review (an item in pending_review while the rest of the sync resolves synchronously) belongs on the SyncCreativesSuccess branch with status: pending_review, not here.",
+      "description": "Async task envelope returned when the whole sync operation cannot be confirmed before the response is emitted — for example, when the seller batches ingestion, when async review must settle before per-item results can be issued, or when governance review gates the sync. The buyer polls tasks/get with task_id or receives a webhook when the task completes; the creatives array with per-item action/status lands on the completion artifact, not this envelope. Per-item async review (an item in pending_review while the rest of the sync resolves synchronously) belongs on the SyncCreativesSuccess branch with status: pending_review, not here.",
       "type": "object",
       "properties": {
         "status": {
@@ -1057,7 +1120,7 @@
         "message": {
           "type": "string",
           "maxLength": 2000,
-          "description": "Optional human-readable explanation of why the task is submitted \u2014 e.g., 'Batch ingestion queued; typical turnaround 15-30 minutes.' Plain text only. Buyers MUST treat this as untrusted seller input: escape before rendering to HTML UIs, and sanitize or isolate before passing to an LLM prompt context \u2014 a hostile seller may inject prompt-injection payloads aimed at the buyer's agent."
+          "description": "Optional human-readable explanation of why the task is submitted — e.g., 'Batch ingestion queued; typical turnaround 15-30 minutes.' Plain text only. Buyers MUST treat this as untrusted seller input: escape before rendering to HTML UIs, and sanitize or isolate before passing to an LLM prompt context — a hostile seller may inject prompt-injection payloads aimed at the buyer's agent."
         },
         "errors": {
           "type": "array",
@@ -1079,7 +1142,7 @@
               },
               "field": {
                 "type": "string",
-                "description": "Field path associated with the error (e.g., 'packages[0].targeting')"
+                "description": "Field path associated with the error in JSONPath-lite format (e.g., 'packages[0].targeting'). When `issues[]` is also present, sellers MUST set this to `issues[0].pointer` translated from RFC 6901 to JSONPath-lite (e.g., '/packages/0/targeting' → 'packages[0].targeting') so pre-3.1 consumers reading `field` only get deterministic behavior. Will be deprecated in a future major version in favor of `issues[].pointer`."
               },
               "suggestion": {
                 "type": "string",
@@ -1091,9 +1154,40 @@
                 "minimum": 1,
                 "maximum": 3600
               },
+              "issues": {
+                "type": "array",
+                "description": "Structured list of validation failures. Primary use is `VALIDATION_ERROR`, where multi-field rejections are common and `field` (singular) cannot carry the full pointer map. MAY appear on other error codes that reject multiple fields at once. When `issues` is present, sellers MUST also populate `field` from `issues[0]` for backward compatibility with pre-3.1 consumers that read `field` only — translating the RFC 6901 `pointer` format to the JSONPath-lite format `field` uses (e.g., `/packages/0/targeting` → `packages[0].targeting`). MUST (not SHOULD) so consumers reading `field` get deterministic behavior across sellers — the cost is one line of dual-write per seller; the cost of SHOULD is a long tail of seller-A-vs-seller-B inconsistency. Future major versions will deprecate `field` in favor of `issues[].pointer`.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "pointer": {
+                      "type": "string",
+                      "description": "RFC 6901 JSON Pointer to the offending field in the request payload (e.g., '/packages/0/targeting/geo_countries/2'). Format chosen to match Ajv's native validation output (`instancePath`); standardized and unambiguous on keys containing `/` or `~`. NOTE: this differs from the legacy top-level `field` which uses JSONPath-lite (`packages[0].targeting.geo_countries[2]`). When sellers populate `field` from `issues[0].pointer` for backward compatibility (see `field` description), they MUST translate the format — `/packages/0/x` → `packages[0].x`. Future major versions will deprecate `field` in favor of `issues[].pointer`."
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "Human-readable description of why this specific field was rejected."
+                    },
+                    "keyword": {
+                      "type": "string",
+                      "description": "Schema keyword that rejected the payload, drawn from the JSON Schema vocabulary (e.g., 'required', 'type', 'format', 'enum', 'pattern', 'minimum', 'maxLength'). Matches the keyword names emitted by JSON Schema validators (Ajv, jsonschema, etc.) so agents can pattern-match on rejection class without parsing message text. Implementers SHOULD use the validator's native keyword name; do not invent custom values here."
+                    },
+                    "schemaPath": {
+                      "type": "string",
+                      "description": "Optional. Path inside the schema that rejected the payload (e.g., '#/properties/packages/items/properties/targeting/oneOf/1'). Sellers SHOULD NOT emit on production-facing endpoints — `schemaPath` leaks which `oneOf` branch the validator selected before semantic rejection, which is a probe oracle for adversarial callers crafting payloads against polymorphic unions. Sellers MAY emit in dev/sandbox modes where the diagnostic value outweighs the fingerprinting risk."
+                    }
+                  },
+                  "required": [
+                    "pointer",
+                    "message",
+                    "keyword"
+                  ],
+                  "additionalProperties": true
+                }
+              },
               "details": {
                 "type": "object",
-                "description": "Additional task-specific error details",
+                "description": "Additional task-specific error details. Sellers MAY mirror `issues[]` here as `details.issues` for backward compatibility with pre-3.1 consumers reading from `details`; new consumers SHOULD prefer the top-level `issues` field.",
                 "additionalProperties": true
               },
               "recovery": {
@@ -1139,7 +1233,7 @@
     }
   ],
   "_bundled": {
-    "generatedAt": "2026-04-28T12:32:22.941Z",
+    "generatedAt": "2026-05-02T11:07:10.127Z",
     "note": "This is a bundled schema with all $ref resolved inline. For the modular version with references, use the parent directory."
   }
 }

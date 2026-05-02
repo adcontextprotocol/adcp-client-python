@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/planned-delivery.json",
   "title": "Planned Delivery",
   "description": "The seller's interpreted delivery parameters for a media buy. Represents what the seller will actually run, which may differ from what the buyer requested (e.g., the seller may apply additional targeting, frequency caps, or adjust geo to match their inventory). Used for authorization verification and audit.",
   "type": "object",
@@ -10,16 +11,12 @@
       "properties": {
         "countries": {
           "type": "array",
-          "items": {
-            "type": "string"
-          },
+          "items": { "type": "string" },
           "description": "ISO 3166-1 alpha-2 country codes where ads will deliver."
         },
         "regions": {
           "type": "array",
-          "items": {
-            "type": "string"
-          },
+          "items": { "type": "string" },
           "description": "ISO 3166-2 subdivision codes where ads will deliver."
         }
       },
@@ -27,9 +24,7 @@
     },
     "channels": {
       "type": "array",
-      "items": {
-        "$ref": "../enums/channels.json"
-      },
+      "items": { "$ref": "/schemas/3.0.4/enums/channels.json" },
       "description": "Channels the seller will deliver on."
     },
     "start_time": {
@@ -43,7 +38,7 @@
       "description": "Actual flight end the seller will use."
     },
     "frequency_cap": {
-      "$ref": "frequency-cap.json",
+      "$ref": "/schemas/3.0.4/core/frequency-cap.json",
       "description": "Frequency cap the seller will apply."
     },
     "audience_summary": {
@@ -54,7 +49,7 @@
       "type": "array",
       "description": "Structured audience targeting the seller will activate. Each entry is either a signal reference or a descriptive criterion. When present, governance agents MUST use this for bias/fairness validation and SHOULD ignore audience_summary for validation purposes. The audience_summary field is a human-readable rendering of this array, not an independent declaration.",
       "items": {
-        "$ref": "audience-selector.json"
+        "$ref": "/schemas/3.0.4/core/audience-selector.json"
       },
       "minItems": 1
     },
@@ -71,12 +66,10 @@
     "enforced_policies": {
       "type": "array",
       "description": "Registry policy IDs the seller will enforce for this delivery.",
-      "items": {
-        "type": "string"
-      }
+      "items": { "type": "string" }
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     }
   },
   "additionalProperties": true

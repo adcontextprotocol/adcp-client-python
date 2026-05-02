@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/brand/get-rights-response.json",
   "title": "Get Rights Response",
   "description": "Licensable rights matching the search criteria, with pricing options. Each result is a complete snapshot of current availability (stateless, DDEX PIE pattern). Excluded results explain why they were filtered out.",
   "x-status": "experimental",
@@ -33,7 +34,7 @@
                 "description": "Description of the rights subject"
               },
               "right_type": {
-                "$ref": "../enums/right-type.json"
+                "$ref": "/schemas/3.0.4/enums/right-type.json"
               },
               "match_score": {
                 "type": "number",
@@ -44,16 +45,12 @@
               "match_reasons": {
                 "type": "array",
                 "description": "Human-readable reasons for the match",
-                "items": {
-                  "type": "string"
-                }
+                "items": { "type": "string" }
               },
               "available_uses": {
                 "type": "array",
                 "description": "Rights uses available for licensing",
-                "items": {
-                  "$ref": "../enums/right-use.json"
-                }
+                "items": { "$ref": "/schemas/3.0.4/enums/right-use.json" }
               },
               "countries": {
                 "type": "array",
@@ -82,9 +79,7 @@
                   "existing_exclusives": {
                     "type": "array",
                     "description": "Active exclusivity commitments that may affect availability. Implementers should use vague descriptions ('exclusive commitment in this category') rather than specific deal terms to protect confidential business relationships.",
-                    "items": {
-                      "type": "string"
-                    }
+                    "items": { "type": "string" }
                   }
                 },
                 "additionalProperties": true
@@ -93,16 +88,14 @@
                 "type": "array",
                 "description": "Available pricing options for these rights",
                 "items": {
-                  "$ref": "rights-pricing-option.json"
+                  "$ref": "/schemas/3.0.4/brand/rights-pricing-option.json"
                 },
                 "minItems": 1
               },
               "content_restrictions": {
                 "type": "array",
                 "description": "Content restrictions or approval requirements",
-                "items": {
-                  "type": "string"
-                }
+                "items": { "type": "string" }
               },
               "preview_assets": {
                 "type": "array",
@@ -110,28 +103,15 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "url": {
-                      "type": "string",
-                      "format": "uri"
-                    },
-                    "usage": {
-                      "type": "string"
-                    }
+                    "url": { "type": "string", "format": "uri" },
+                    "usage": { "type": "string" }
                   },
-                  "required": [
-                    "url"
-                  ],
+                  "required": ["url"],
                   "additionalProperties": true
                 }
               }
             },
-            "required": [
-              "rights_id",
-              "brand_id",
-              "name",
-              "available_uses",
-              "pricing_options"
-            ],
+            "required": ["rights_id", "brand_id", "name", "available_uses", "pricing_options"],
             "additionalProperties": true
           }
         },
@@ -141,13 +121,8 @@
           "items": {
             "type": "object",
             "properties": {
-              "brand_id": {
-                "type": "string",
-                "x-entity": "rights_holder_brand"
-              },
-              "name": {
-                "type": "string"
-              },
+              "brand_id": { "type": "string", "x-entity": "rights_holder_brand" },
+              "name": { "type": "string" },
               "reason": {
                 "type": "string",
                 "description": "Why this result was excluded. May be sanitized to protect confidential brand rules."
@@ -155,63 +130,44 @@
               "suggestions": {
                 "type": "array",
                 "description": "Actionable alternatives if the exclusion is fixable (e.g., 'Available in BE and DE markets'). Absent if the exclusion is final.",
-                "items": {
-                  "type": "string"
-                }
+                "items": { "type": "string" }
               }
             },
-            "required": [
-              "brand_id",
-              "reason"
-            ],
+            "required": ["brand_id", "reason"],
             "additionalProperties": true
           }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.4/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.4/core/ext.json"
         }
       },
-      "required": [
-        "rights"
-      ],
+      "required": ["rights"],
       "additionalProperties": true,
-      "not": {
-        "required": [
-          "errors"
-        ]
-      }
+      "not": { "required": ["errors"] }
     },
     {
       "title": "GetRightsError",
       "properties": {
         "errors": {
           "type": "array",
-          "items": {
-            "$ref": "../core/error.json"
-          },
+          "items": { "$ref": "/schemas/3.0.4/core/error.json" },
           "minItems": 1
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.4/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.4/core/ext.json"
         }
       },
-      "required": [
-        "errors"
-      ],
+      "required": ["errors"],
       "additionalProperties": true,
       "not": {
         "anyOf": [
-          {
-            "required": [
-              "rights"
-            ]
-          }
+          { "required": ["rights"] }
         ]
       }
     }

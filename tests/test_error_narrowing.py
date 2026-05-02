@@ -192,8 +192,9 @@ def test_e2e_creative_manifest_missing_width_height_narrows_to_image_asset() -> 
         assert (
             len(narrowed) <= 4
         ), f"narrow_union_errors didn't narrow: {len(narrowed)} errors remain"
-        assert all("ImageAsset" in err["loc"] for err in narrowed), (
-            "narrowed result should be ImageAsset-only; got: " f"{[err['loc'] for err in narrowed]}"
+        assert all("image" in err["loc"] for err in narrowed), (
+            "narrowed result should be image-asset-only; got: "
+            f"{[err['loc'] for err in narrowed]}"
         )
         missing_fields = {err["loc"][-1] for err in narrowed if err["type"] == "missing"}
         assert "width" in missing_fields and "height" in missing_fields

@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/placement.json",
   "title": "Placement",
   "description": "Represents a specific ad placement within a product's inventory. When the publisher declares a placement registry in adagents.json, products SHOULD reuse those placement_id values. Reusing a registered placement_id preserves the registry's semantic identity; product-level placement objects may narrow format_ids or add operational detail, but SHOULD NOT redefine the placement's meaning incompatibly.",
   "type": "object",
@@ -28,7 +29,7 @@
       "type": "array",
       "description": "Format IDs supported by this specific placement. Can include: (1) concrete format_ids (fixed dimensions), (2) template format_ids without parameters (accepts any dimensions/duration), or (3) parameterized format_ids (specific dimension/duration constraints).",
       "items": {
-        "$ref": "format-id.json"
+        "$ref": "/schemas/3.0.4/core/format-id.json"
       },
       "minItems": 1
     }

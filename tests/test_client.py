@@ -108,8 +108,8 @@ async def test_get_products():
             client.adapter, "_parse_response", return_value=mock_parsed_result
         ) as mock_parse,
     ):
-        request = validate_union(GetProductsRequest,
-            {"buying_mode": "brief", "brief": "test campaign"}
+        request = validate_union(
+            GetProductsRequest, {"buying_mode": "brief", "brief": "test campaign"}
         )
         result = await client.get_products(request)
 
@@ -216,7 +216,7 @@ async def test_all_client_methods():
                         "assets": {
                             "slot1": {
                                 "content": "hello",
-                                "asset_content_type": "text",
+                                "asset_type": "text",
                                 "name": "headline",
                             }
                         },
@@ -800,9 +800,7 @@ async def test_get_media_buys_parses_response():
         success=True,
     )
 
-    with patch.object(
-        client.adapter, "get_media_buys", return_value=mock_result
-    ) as mock_adapter:
+    with patch.object(client.adapter, "get_media_buys", return_value=mock_result) as mock_adapter:
         result = await client.get_media_buys(
             GetMediaBuysRequest.model_validate({"account": {"account_id": "acct-1"}})
         )
@@ -885,9 +883,7 @@ async def test_get_media_buys_parses_snapshot_response():
         success=True,
     )
 
-    with patch.object(
-        client.adapter, "get_media_buys", return_value=mock_result
-    ) as mock_adapter:
+    with patch.object(client.adapter, "get_media_buys", return_value=mock_result) as mock_adapter:
         result = await client.get_media_buys(
             GetMediaBuysRequest.model_validate(
                 {"account": {"account_id": "acct-1"}, "include_snapshot": True}

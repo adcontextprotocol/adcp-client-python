@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/enums/demographic-system.json",
   "title": "Demographic System",
   "description": "Audience measurement systems for demographic notation in GRP forecasts and pricing",
   "type": "string",

@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/app-item.json",
   "title": "App Item",
-  "description": "A mobile application within an app-type catalog. Carries the app metadata and store identifiers that platforms use for app install campaigns and re-engagement ads. Maps to Google App Campaigns, Apple Search Ads, Meta App Ads, TikTok App Campaigns, and Snapchat App Install Ads. Each item represents one app on one platform \u2014 iOS and Android variants are separate items.",
+  "description": "A mobile application within an app-type catalog. Carries the app metadata and store identifiers that platforms use for app install campaigns and re-engagement ads. Maps to Google App Campaigns, Apple Search Ads, Meta App Ads, TikTok App Campaigns, and Snapchat App Install Ads. Each item represents one app on one platform — iOS and Android variants are separate items.",
   "type": "object",
   "properties": {
     "app_id": {
@@ -14,10 +15,7 @@
     },
     "platform": {
       "type": "string",
-      "enum": [
-        "ios",
-        "android"
-      ],
+      "enum": ["ios", "android"],
       "description": "Target platform. iOS and Android are separate items because they have distinct store identifiers and attribution mechanisms."
     },
     "bundle_id": {
@@ -44,7 +42,7 @@
     "icon_url": {
       "type": "string",
       "format": "uri",
-      "description": "App icon image URL. Typically 1024\u00d71024 px."
+      "description": "App icon image URL. Typically 1024×1024 px."
     },
     "screenshots": {
       "type": "array",
@@ -71,14 +69,14 @@
       "description": "Deep link URI for re-engagement campaigns targeting existing users. Use Universal Links (iOS) or App Links (Android) where available (e.g., 'https://acmegames.com/app/level/5'). Falls back to URI scheme (e.g., 'acmegames://level/5') when universal links are not configured."
     },
     "price": {
-      "$ref": "price.json",
+      "$ref": "/schemas/3.0.4/core/price.json",
       "description": "App download price. Set amount to 0 for free apps."
     },
     "rating": {
       "type": "number",
       "minimum": 0,
       "maximum": 5,
-      "description": "Average store rating (0\u20135). Use 0 to indicate no ratings yet."
+      "description": "Average store rating (0–5). Use 0 to indicate no ratings yet."
     },
     "rating_count": {
       "type": "integer",
@@ -101,19 +99,15 @@
       "type": "array",
       "description": "Typed creative asset pools for this app. Uses the same OfferingAssetGroup structure as offering-type catalogs. Standard group IDs: 'images_landscape' (promotional hero), 'images_vertical' (9:16 for Snap, Stories), 'images_square' (1:1 for display), 'video' (gameplay or demo video). Supplements icon_url and screenshots for platform-specific format requirements.",
       "items": {
-        "$ref": "offering-asset-group.json"
+        "$ref": "/schemas/3.0.4/core/offering-asset-group.json"
       },
       "minItems": 1
     },
     "ext": {
-      "$ref": "ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     }
   },
-  "required": [
-    "app_id",
-    "name",
-    "platform"
-  ],
+  "required": ["app_id", "name", "platform"],
   "additionalProperties": true,
   "examples": [
     {
@@ -128,17 +122,11 @@
         "genre": "puzzle",
         "icon_url": "https://assets.acmegames.com/puzzlequest/icon-1024.png",
         "store_url": "https://apps.apple.com/app/puzzle-quest-match-3/id1234567890",
-        "price": {
-          "amount": 0,
-          "currency": "USD"
-        },
+        "price": { "amount": 0, "currency": "USD" },
         "rating": 4.7,
         "rating_count": 82000,
         "content_rating": "4+",
-        "tags": [
-          "casual",
-          "offline"
-        ]
+        "tags": ["casual", "offline"]
       }
     },
     {
@@ -152,17 +140,11 @@
         "icon_url": "https://assets.acmefinancial.com/app/icon.png",
         "store_url": "https://play.google.com/store/apps/details?id=com.acmefinancial.banking",
         "deep_link_url": "https://app.acmefinancial.com/offers",
-        "price": {
-          "amount": 0,
-          "currency": "USD"
-        },
+        "price": { "amount": 0, "currency": "USD" },
         "rating": 4.4,
         "rating_count": 31500,
         "content_rating": "Everyone",
-        "tags": [
-          "finance",
-          "banking"
-        ]
+        "tags": ["finance", "banking"]
       }
     }
   ]

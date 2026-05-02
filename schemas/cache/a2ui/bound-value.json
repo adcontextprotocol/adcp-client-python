@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/a2ui/bound-value.json",
   "title": "A2UI Bound Value",
   "description": "A value that can be a literal or bound to a path in the data model",
   "oneOf": [
@@ -12,9 +13,7 @@
           "description": "Static string value"
         }
       },
-      "required": [
-        "literalString"
-      ],
+      "required": ["literalString"],
       "additionalProperties": false
     },
     {
@@ -26,9 +25,7 @@
           "description": "Static number value"
         }
       },
-      "required": [
-        "literalNumber"
-      ],
+      "required": ["literalNumber"],
       "additionalProperties": false
     },
     {
@@ -40,9 +37,7 @@
           "description": "Static boolean value"
         }
       },
-      "required": [
-        "literalBoolean"
-      ],
+      "required": ["literalBoolean"],
       "additionalProperties": false
     },
     {
@@ -54,9 +49,7 @@
           "description": "JSON pointer path to value in data model (e.g., '/products/0/title')"
         }
       },
-      "required": [
-        "path"
-      ],
+      "required": ["path"],
       "additionalProperties": false
     },
     {
@@ -70,10 +63,7 @@
           "type": "string"
         }
       },
-      "required": [
-        "literalString",
-        "path"
-      ],
+      "required": ["literalString", "path"],
       "additionalProperties": false
     }
   ]

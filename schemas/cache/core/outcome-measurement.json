@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/outcome-measurement.json",
   "title": "Outcome Measurement",
   "description": "Business outcome measurement capabilities included with a product (e.g., incremental sales lift, brand lift, foot traffic). Distinct from delivery_measurement, which declares who counts ad impressions.",
   "type": "object",
@@ -22,11 +23,7 @@
       ]
     },
     "window": {
-      "allOf": [
-        {
-          "$ref": "duration.json"
-        }
-      ],
+      "allOf": [{ "$ref": "/schemas/3.0.4/core/duration.json" }],
       "description": "Attribution window as a structured duration (e.g., {\"interval\": 30, \"unit\": \"days\"})."
     },
     "reporting": {

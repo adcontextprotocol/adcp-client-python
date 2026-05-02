@@ -1,7 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/account/get-account-financials-response.json",
   "title": "Get Account Financials Response",
-  "description": "Financial status for an operator-billed account. Returns spend summary, credit/balance status, payment status, and invoice history. The level of detail varies by seller \u2014 only account, currency, and period are guaranteed on success.",
+  "description": "Financial status for an operator-billed account. Returns spend summary, credit/balance status, payment status, and invoice history. The level of detail varies by seller — only account, currency, and period are guaranteed on success.",
   "type": "object",
   "oneOf": [
     {
@@ -10,7 +11,7 @@
       "type": "object",
       "properties": {
         "account": {
-          "$ref": "../core/account-ref.json",
+          "$ref": "/schemas/3.0.4/core/account-ref.json",
           "description": "Account reference, echoed from the request"
         },
         "currency": {
@@ -19,12 +20,12 @@
           "description": "ISO 4217 currency code for all monetary amounts in this response"
         },
         "period": {
-          "$ref": "../core/date-range.json",
+          "$ref": "/schemas/3.0.4/core/date-range.json",
           "description": "The actual period covered by spend data. May differ from the requested period if the seller adjusts to billing cycle boundaries."
         },
         "timezone": {
           "type": "string",
-          "description": "IANA timezone of the seller's billing day boundaries (e.g., 'America/New_York'). All dates in this response \u2014 period, invoice periods, due dates \u2014 are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day."
+          "description": "IANA timezone of the seller's billing day boundaries (e.g., 'America/New_York'). All dates in this response — period, invoice periods, due dates — are calendar dates in this timezone. Buyers in a different timezone should expect spend boundaries to differ from their own calendar day."
         },
         "spend": {
           "type": "object",
@@ -41,9 +42,7 @@
               "description": "Number of active media buys in the period"
             }
           },
-          "required": [
-            "total_spend"
-          ]
+          "required": ["total_spend"]
         },
         "credit": {
           "type": "object",
@@ -65,10 +64,7 @@
               "description": "Credit utilization as a percentage (0-100)"
             }
           },
-          "required": [
-            "credit_limit",
-            "available_credit"
-          ]
+          "required": ["credit_limit", "available_credit"]
         },
         "balance": {
           "type": "object",
@@ -94,27 +90,18 @@
                   "description": "Date of top-up"
                 }
               },
-              "required": [
-                "amount",
-                "date"
-              ]
+              "required": ["amount", "date"]
             }
           },
-          "required": [
-            "available"
-          ]
+          "required": ["available"]
         },
         "payment_status": {
           "type": "string",
-          "enum": [
-            "current",
-            "past_due",
-            "suspended"
-          ],
+          "enum": ["current", "past_due", "suspended"],
           "description": "Overall payment status. current: all obligations met. past_due: one or more invoices overdue. suspended: account suspended due to payment issues."
         },
         "payment_terms": {
-          "$ref": "../enums/payment-terms.json",
+          "$ref": "/schemas/3.0.4/enums/payment-terms.json",
           "description": "Payment terms in effect for this account"
         },
         "invoices": {
@@ -128,7 +115,7 @@
                 "description": "Seller-assigned invoice identifier"
               },
               "period": {
-                "$ref": "../core/date-range.json",
+                "$ref": "/schemas/3.0.4/core/date-range.json",
                 "description": "Billing period covered by this invoice"
               },
               "amount": {
@@ -138,13 +125,7 @@
               },
               "status": {
                 "type": "string",
-                "enum": [
-                  "draft",
-                  "issued",
-                  "paid",
-                  "past_due",
-                  "void"
-                ],
+                "enum": ["draft", "issued", "paid", "past_due", "void"],
                 "description": "Invoice status"
               },
               "due_date": {
@@ -158,90 +139,59 @@
                 "description": "Date payment was received. Present when status is 'paid'."
               }
             },
-            "required": [
-              "invoice_id",
-              "amount",
-              "status"
-            ]
+            "required": ["invoice_id", "amount", "status"]
           }
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.4/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.4/core/ext.json"
         }
       },
-      "required": [
-        "account",
-        "currency",
-        "period",
-        "timezone"
-      ],
+      "required": ["account", "currency", "period", "timezone"],
       "additionalProperties": true,
       "not": {
-        "required": [
-          "errors"
-        ]
+        "required": ["errors"]
       }
     },
     {
       "title": "GetAccountFinancialsError",
-      "description": "Operation failed \u2014 financials not available",
+      "description": "Operation failed — financials not available",
       "type": "object",
       "properties": {
         "errors": {
           "type": "array",
           "description": "Operation-level errors",
           "items": {
-            "$ref": "../core/error.json"
+            "$ref": "/schemas/3.0.4/core/error.json"
           },
           "minItems": 1
         },
         "context": {
-          "$ref": "../core/context.json"
+          "$ref": "/schemas/3.0.4/core/context.json"
         },
         "ext": {
-          "$ref": "../core/ext.json"
+          "$ref": "/schemas/3.0.4/core/ext.json"
         }
       },
-      "required": [
-        "errors"
-      ],
+      "required": ["errors"],
       "additionalProperties": true,
       "not": {
         "anyOf": [
-          {
-            "required": [
-              "account"
-            ]
-          },
-          {
-            "required": [
-              "currency"
-            ]
-          },
-          {
-            "required": [
-              "period"
-            ]
-          },
-          {
-            "required": [
-              "timezone"
-            ]
-          }
+          { "required": ["account"] },
+          { "required": ["currency"] },
+          { "required": ["period"] },
+          { "required": ["timezone"] }
         ]
       }
     }
   ],
   "examples": [
     {
-      "description": "Credit account \u2014 current, with invoice history",
+      "description": "Credit account — current, with invoice history",
       "data": {
-        "account": {
-          "account_id": "acc_acme_001"
-        },
+        "account": { "account_id": "acc_acme_001" },
         "currency": "USD",
         "period": {
           "start": "2026-02-01",
@@ -249,12 +199,12 @@
         },
         "timezone": "America/New_York",
         "spend": {
-          "total_spend": 45230.0,
+          "total_spend": 45230.00,
           "media_buy_count": 3
         },
         "credit": {
-          "credit_limit": 100000.0,
-          "available_credit": 54770.0,
+          "credit_limit": 100000.00,
+          "available_credit": 54770.00,
           "utilization_percent": 45.23
         },
         "payment_status": "current",
@@ -262,11 +212,8 @@
         "invoices": [
           {
             "invoice_id": "inv_2026_01",
-            "period": {
-              "start": "2026-01-01",
-              "end": "2026-01-31"
-            },
-            "amount": 38500.0,
+            "period": { "start": "2026-01-01", "end": "2026-01-31" },
+            "amount": 38500.00,
             "status": "paid",
             "due_date": "2026-02-28",
             "paid_date": "2026-02-15"
@@ -278,9 +225,7 @@
       "description": "Prepay account with low balance",
       "data": {
         "account": {
-          "brand": {
-            "domain": "acme-corp.com"
-          },
+          "brand": { "domain": "acme-corp.com" },
           "operator": "acme-corp.com"
         },
         "currency": "USD",
@@ -290,13 +235,13 @@
         },
         "timezone": "America/Los_Angeles",
         "spend": {
-          "total_spend": 8200.0,
+          "total_spend": 8200.00,
           "media_buy_count": 2
         },
         "balance": {
-          "available": 1800.0,
+          "available": 1800.00,
           "last_top_up": {
-            "amount": 10000.0,
+            "amount": 10000.00,
             "date": "2026-02-01"
           }
         },
@@ -305,7 +250,7 @@
       }
     },
     {
-      "description": "Agent-billed account \u2014 not supported",
+      "description": "Agent-billed account — not supported",
       "data": {
         "errors": [
           {

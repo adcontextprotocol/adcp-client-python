@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/property/delete-property-list-request.json",
   "title": "Delete Property List Request",
   "description": "Request parameters for deleting a property list",
   "x-mutates-state": true,
@@ -17,14 +18,14 @@
       "x-entity": "property_list"
     },
     "account": {
-      "$ref": "../core/account-ref.json",
+      "$ref": "/schemas/3.0.4/core/account-ref.json",
       "description": "Account that owns the list. Required when the authenticated agent has access to multiple accounts; optional otherwise."
     },
     "context": {
-      "$ref": "../core/context.json"
+      "$ref": "/schemas/3.0.4/core/context.json"
     },
     "ext": {
-      "$ref": "../core/ext.json"
+      "$ref": "/schemas/3.0.4/core/ext.json"
     },
     "idempotency_key": {
       "type": "string",

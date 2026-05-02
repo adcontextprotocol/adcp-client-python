@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "/schemas/3.0.4/core/assets/webhook-asset.json",
   "title": "Webhook Asset",
   "description": "Webhook for server-side dynamic content rendering (DCO)",
   "type": "object",
@@ -15,7 +16,7 @@
       "description": "Webhook URL to call for dynamic content"
     },
     "method": {
-      "$ref": "../../enums/http-method.json",
+      "$ref": "/schemas/3.0.4/enums/http-method.json",
       "default": "POST",
       "description": "HTTP method"
     },
@@ -30,13 +31,8 @@
       "type": "array",
       "items": {
         "anyOf": [
-          {
-            "$ref": "../../enums/universal-macro.json"
-          },
-          {
-            "type": "string",
-            "description": "Custom or publisher-specific macro name"
-          }
+          { "$ref": "/schemas/3.0.4/enums/universal-macro.json" },
+          { "type": "string", "description": "Custom or publisher-specific macro name" }
         ]
       },
       "description": "Universal macros that can be passed to webhook (e.g., DEVICE_TYPE, COUNTRY). See docs/creative/universal-macros.mdx for full list."
@@ -45,19 +41,14 @@
       "type": "array",
       "items": {
         "anyOf": [
-          {
-            "$ref": "../../enums/universal-macro.json"
-          },
-          {
-            "type": "string",
-            "description": "Custom or publisher-specific macro name"
-          }
+          { "$ref": "/schemas/3.0.4/enums/universal-macro.json" },
+          { "type": "string", "description": "Custom or publisher-specific macro name" }
         ]
       },
       "description": "Universal macros that must be provided for webhook to function"
     },
     "response_type": {
-      "$ref": "../../enums/webhook-response-type.json",
+      "$ref": "/schemas/3.0.4/enums/webhook-response-type.json",
       "description": "Expected content type of webhook response"
     },
     "security": {
@@ -65,7 +56,7 @@
       "description": "Security configuration for webhook calls",
       "properties": {
         "method": {
-          "$ref": "../../enums/webhook-security-method.json",
+          "$ref": "/schemas/3.0.4/enums/webhook-security-method.json",
           "description": "Authentication method"
         },
         "hmac_header": {
@@ -82,7 +73,7 @@
       ]
     },
     "provenance": {
-      "$ref": "../../core/provenance.json",
+      "$ref": "/schemas/3.0.4/core/provenance.json",
       "description": "Provenance metadata for this asset, overrides manifest-level provenance"
     }
   },
