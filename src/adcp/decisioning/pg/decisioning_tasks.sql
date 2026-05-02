@@ -1,6 +1,6 @@
 -- AdCP decisioning task registry — durable HITL task state.
 --
--- Run this once per deployment. Tracked by PostgresTaskRegistry;
+-- Run this once per deployment. Tracked by PgTaskRegistry;
 -- see src/adcp/decisioning/pg/task_registry.py for the query shapes
 -- the Python code executes.
 --
@@ -9,7 +9,7 @@
 -- which could collapse distinct task_ids or account_ids. "C" is the
 -- byte-for-byte comparison we actually want.
 --
--- Alternatively, call PostgresTaskRegistry.create_schema() from
+-- Alternatively, call PgTaskRegistry.create_schema() from
 -- application code — it runs the equivalent DDL idempotently on boot.
 
 CREATE TABLE IF NOT EXISTS decisioning_tasks (

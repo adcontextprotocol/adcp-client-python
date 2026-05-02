@@ -129,16 +129,21 @@ from adcp.decisioning.types import (
     WorkflowHandoff,
 )
 
-# Conditional import: PostgresTaskRegistry needs the [pg] extra. Always expose
+# Conditional import: PgTaskRegistry needs the [pg] extra. Always expose
 # the name — when psycopg isn't installed we fall through to a stub class whose
 # constructor raises ImportError with the install hint. Matches the pattern
 # used by adcp.signing for PgReplayStore.
+#
+# ``PostgresTaskRegistry`` is the pre-4.4 name and remains as a deprecated
+# alias through the 4.4.x line; renamed to ``PgTaskRegistry`` to match the
+# ``Pg*`` convention shared with PgReplayStore / PgBuyerAgentRegistry /
+# PgWebhookDeliverySupervisor.
 try:
-    from adcp.decisioning.pg import PostgresTaskRegistry  # noqa: F401
+    from adcp.decisioning.pg import PgTaskRegistry, PostgresTaskRegistry  # noqa: F401
 except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
     from typing import ClassVar as _ClassVar
 
-    class PostgresTaskRegistry:  # type: ignore[no-redef]
+    class PgTaskRegistry:  # type: ignore[no-redef]
         """Stub raised when ``adcp[pg]`` isn't installed.
 
         Attempting to instantiate raises :class:`ImportError` with the
@@ -149,10 +154,13 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
 
         def __init__(self, *args: object, **kwargs: object) -> None:
             raise ImportError(
-                "PostgresTaskRegistry requires psycopg3 and psycopg-pool. "
+                "PgTaskRegistry requires psycopg3 and psycopg-pool. "
                 "Install the 'pg' extra: `pip install 'adcp[pg]'` "
                 "(Poetry: `poetry add 'adcp[pg]'`)."
             )
+
+    # Deprecated alias preserved through 4.4.x.
+    PostgresTaskRegistry: type[PgTaskRegistry] = PgTaskRegistry  # type: ignore[no-redef]
 
 
 __all__ = [
@@ -187,6 +195,7 @@ __all__ = [
     "InMemoryTaskRegistry",
     "MaybeAsync",
     "OAuthCredential",
+    "PgTaskRegistry",
     "PostgresTaskRegistry",
     "Proposal",
     "PropertyList",

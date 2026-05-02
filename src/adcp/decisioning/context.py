@@ -15,10 +15,10 @@ the platform's ``AccountStore.resolve(...)`` result.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Generic
+from typing import TYPE_CHECKING, Any, ClassVar, Generic
 
 from typing_extensions import TypeVar
 
@@ -28,8 +28,6 @@ from adcp.decisioning.types import Account, TaskHandoff, WorkflowHandoff
 from adcp.server.base import ToolContext
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from adcp.decisioning.registry import (
         BuyerAgent,
         Credential,
@@ -101,9 +99,12 @@ class AuthInfo:
         credential themselves and leave the legacy fields empty.
     :param agent_url: Verified buyer-agent URL — populated from
         ``credential.agent_url`` when ``credential`` is an
-        :class:`adcp.decisioning.HttpSigCredential`, OR from
-        ``principal`` when ``kind in {'signed_request', 'http_sig'}``.
-        ``None`` for bearer / OAuth / unauthenticated traffic.
+        :class:`adcp.decisioning.HttpSigCredential`. ``None`` for
+        bearer / OAuth / unauthenticated traffic and for
+        ``kind="signed_request"`` constructions that don't pass a
+        typed credential (the SDK deliberately refuses to derive
+        ``agent_url`` from the unverified ``principal`` string —
+        see ``__post_init__`` for the rationale).
     :param operator: Operator / transport-tenant label — the AdCP v3
         operator binding (separate from the buyer agent). Distinct
         from ``ToolContext.tenant_id`` only for adopters running the
@@ -113,13 +114,24 @@ class AuthInfo:
         doesn't model (custom claims, MFA flags, internal session ids).
     """
 
+    # Sentinel used as the default value of ``credential`` so
+    # ``__post_init__`` can distinguish "adopter didn't pass credential
+    # at all" (default → synthesize from flat fields) from "adopter
+    # explicitly passed credential=None" (default → leave None,
+    # don't re-synthesize). Without this sentinel,
+    # ``dataclasses.replace(auth, credential=None)`` — the natural
+    # idiom for clearing a credential — would re-trigger synthesis
+    # from the still-present flat fields, contradicting the adopter's
+    # intent.
+    _UNSET_CREDENTIAL: ClassVar[Any] = object()
+
     kind: str
     key_id: str | None = None
     principal: str | None = None
     scopes: list[str] = field(default_factory=list)
 
     # ----- Tier 2 v3-identity fields -----
-    credential: Credential | None = None
+    credential: Credential | None = _UNSET_CREDENTIAL
     agent_url: str | None = None
     operator: str | None = None
     extra: Mapping[str, Any] = field(default_factory=dict)
@@ -171,6 +183,8 @@ class AuthInfo:
         scopes: list[str] | None = None,
         operator: str | None = None,
         extra: Mapping[str, Any] | None = None,
+        max_verified_age_s: float | None = None,
+        now: float | None = None,
     ) -> AuthInfo:
         """Build :class:`AuthInfo` from a :class:`adcp.signing.VerifiedSigner`.
 
@@ -196,7 +210,9 @@ class AuthInfo:
                 body=request.get_data(),
                 options=VerifyOptions(...),
             )
-            ctx.metadata["adcp.auth_info"] = AuthInfo.from_verified_signer(signer)
+            ctx.metadata["adcp.auth_info"] = AuthInfo.from_verified_signer(
+                signer, max_verified_age_s=300.0,
+            )
 
         The verifier MUST surface ``signer.agent_url`` for the
         commercial-identity registry to dispatch — without it, the
@@ -217,10 +233,25 @@ class AuthInfo:
             deployments (AAO community proxy). Most adopters leave
             ``None``.
         :param extra: Adopter passthrough.
-        :raises ValueError: when ``signer.agent_url`` is ``None`` —
-            the verifier wasn't configured to extract the agent_url
-            claim from the signed request.
+        :param max_verified_age_s: Maximum age (seconds) of
+            ``signer.verified_at`` permitted at construction time.
+            When set and ``now() - signer.verified_at >
+            max_verified_age_s``, raises :class:`ValueError` —
+            adopter caching a stale ``VerifiedSigner`` and replaying
+            it later fails fast rather than passing a stale-but-
+            cryptographically-valid credential into the registry
+            dispatch. Default ``None`` keeps the v6.0-alpha
+            behavior; production sellers SHOULD set a short window
+            (e.g. 300s) matching the RFC 9421 nonce TTL.
+        :param now: Override ``time.time()`` for ``max_verified_age_s``
+            comparisons — only useful in tests. Default ``None``
+            uses wall-clock.
+        :raises ValueError: when ``signer.agent_url`` is ``None``,
+            or when ``max_verified_age_s`` is set and
+            ``signer.verified_at`` is older than the window.
         """
+        import time
+
         from adcp.decisioning.registry import HttpSigCredential
 
         if signer.agent_url is None:
@@ -231,6 +262,19 @@ class AuthInfo:
                 "verifier surfaces it on success. Without an agent_url, the "
                 "BuyerAgentRegistry has no key to dispatch on."
             )
+        if max_verified_age_s is not None:
+            current = now if now is not None else time.time()
+            age = current - signer.verified_at
+            if age > max_verified_age_s:
+                raise ValueError(
+                    f"VerifiedSigner.verified_at is {age:.1f}s old, exceeds "
+                    f"max_verified_age_s={max_verified_age_s:.1f}s. The "
+                    "verifier's signature was valid at the time of verification "
+                    "but has aged out of the freshness window — typically "
+                    "indicates a cached signer being replayed. Re-verify the "
+                    "request signature instead of constructing AuthInfo from "
+                    "a stale signer."
+                )
         credential = HttpSigCredential(
             kind="http_sig",
             keyid=signer.key_id,
@@ -266,12 +310,56 @@ class AuthInfo:
         :meth:`__post_init__` and *does* see the warning, pointing
         at the adopter callsite — which is the actionable signal
         this deprecation is meant to deliver.
+
+        Validates the dict shape — adopters porting JS-side middleware
+        sometimes write ``scopes`` as a string instead of a list, or
+        pass a raw dict where a typed :class:`Credential` is expected.
+        Silently coercing those would mask middleware bugs that only
+        surface when the registry dispatch later tries to use the
+        malformed credential. Raise :class:`TypeError` with the
+        offending field name so adopter logs surface the issue
+        immediately at server boot / first request.
         """
+        from adcp.decisioning.registry import (
+            ApiKeyCredential,
+            HttpSigCredential,
+            OAuthCredential,
+        )
+
+        # Type guards. Empty dict is fine — we project to a
+        # ``kind="derived"`` AuthInfo with no credential.
+        scopes_raw = raw.get("scopes", [])
+        if not isinstance(scopes_raw, (list, tuple)):
+            raise TypeError(
+                "adcp.auth_info dict has scopes={scopes_raw!r} of type "
+                f"{type(scopes_raw).__name__}; expected list / tuple of "
+                "strings. Adopter middleware writing a string here (e.g. "
+                "comma-separated scopes) needs to split before passing "
+                "to AuthInfo.".format(scopes_raw=scopes_raw)
+            )
+        credential = raw.get("credential")
+        if credential is not None and not isinstance(
+            credential, (ApiKeyCredential, OAuthCredential, HttpSigCredential)
+        ):
+            raise TypeError(
+                "adcp.auth_info dict has credential of type "
+                f"{type(credential).__name__}; expected an instance of "
+                "ApiKeyCredential / OAuthCredential / HttpSigCredential. "
+                "Construct the typed credential explicitly in your auth "
+                "middleware — the framework can't safely build it from a "
+                "raw dict because it can't distinguish kinds."
+            )
+        extra = raw.get("extra", {})
+        if not isinstance(extra, Mapping):
+            raise TypeError(
+                f"adcp.auth_info dict has extra={extra!r} of type "
+                f"{type(extra).__name__}; expected a Mapping."
+            )
+
         kind = raw.get("kind", "derived")
         key_id = raw.get("key_id")
         principal = raw.get("principal")
-        scopes = list(raw.get("scopes", []))
-        credential = raw.get("credential")
+        scopes = list(scopes_raw)
         if credential is None:
             credential = cls._synthesize_bearer_credential(kind, key_id, principal, scopes)
         return cls(
@@ -282,7 +370,7 @@ class AuthInfo:
             credential=credential,
             agent_url=raw.get("agent_url"),
             operator=raw.get("operator"),
-            extra=raw.get("extra", {}),
+            extra=extra,
         )
 
     def __post_init__(self) -> None:
@@ -304,7 +392,10 @@ class AuthInfo:
         """
         from adcp.decisioning.registry import HttpSigCredential
 
-        if self.credential is None:
+        if self.credential is AuthInfo._UNSET_CREDENTIAL:
+            # Default — adopter didn't pass ``credential=`` at all.
+            # Synthesize from flat fields if they describe a bearer
+            # credential; warn so the adopter migrates.
             synthesized = self._synthesize_bearer_credential(
                 self.kind, self.key_id, self.principal, self.scopes
             )
@@ -325,6 +416,13 @@ class AuthInfo:
                     DeprecationWarning,
                     stacklevel=2,
                 )
+            else:
+                self.credential = None
+        # ELSE: adopter passed ``credential=...`` explicitly (real
+        # credential or ``None``). Honor their value verbatim — no
+        # synthesis, no warning. This makes
+        # ``dataclasses.replace(auth, credential=None)`` correctly
+        # clear the credential without re-running synthesis.
 
         if self.agent_url is None and isinstance(self.credential, HttpSigCredential):
             self.agent_url = self.credential.agent_url

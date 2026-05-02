@@ -240,7 +240,7 @@ def create_adcp_server_from_platform(
                     "— silent in-memory fallback would lose tasks across "
                     "process restarts. Either wire a durable "
                     "TaskRegistry impl (set is_durable=True on the class; "
-                    "v6.1 ships PostgresTaskRegistry) OR set "
+                    "v6.1 ships PgTaskRegistry) OR set "
                     "ADCP_DECISIONING_ALLOW_INMEMORY_TASKS=1 to "
                     "explicitly opt into in-memory tasks (e.g., for "
                     "single-process pilots)."

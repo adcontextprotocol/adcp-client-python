@@ -15,7 +15,7 @@ Quickstart
 
     import asyncio
     from psycopg_pool import AsyncConnectionPool
-    from adcp.decisioning import PostgresTaskRegistry, serve
+    from adcp.decisioning import PgTaskRegistry, serve
     from myapp import MyPlatform
 
     async def main():
@@ -24,7 +24,7 @@ Quickstart
             min_size=2,
             max_size=10,
         ) as pool:
-            registry = PostgresTaskRegistry(pool=pool)
+            registry = PgTaskRegistry(pool=pool)
             await registry.create_schema()  # idempotent; safe on every boot
             serve(MyPlatform(), registry=registry)
 
@@ -79,7 +79,7 @@ except ImportError:
     PG_AVAILABLE = False
 
 _INSTALL_HINT = (
-    "PostgresTaskRegistry requires psycopg3 and psycopg-pool. "
+    "PgTaskRegistry requires psycopg3 and psycopg-pool. "
     "Install the 'pg' extra: `pip install 'adcp[pg]'` "
     "(Poetry: `poetry add 'adcp[pg]'`)."
 )
@@ -92,7 +92,7 @@ _DEFAULT_TABLE = "decisioning_tasks"
 _SAFE_IDENTIFIER_RE = re.compile(r"^[a-z_][a-z0-9_]{0,62}$")
 
 
-class PostgresTaskRegistry:
+class PgTaskRegistry:
     """PostgreSQL-backed :class:`~adcp.decisioning.TaskRegistry` — v6.1.
 
     Durable counterpart to :class:`~adcp.decisioning.InMemoryTaskRegistry`.
@@ -122,9 +122,7 @@ class PostgresTaskRegistry:
         if not PG_AVAILABLE:
             raise ImportError(_INSTALL_HINT)
         if not _SAFE_IDENTIFIER_RE.fullmatch(_table):
-            raise ValueError(
-                f"_table must match [a-z_][a-z0-9_]* (ASCII only), got {_table!r}"
-            )
+            raise ValueError(f"_table must match [a-z_][a-z0-9_]* (ASCII only), got {_table!r}")
         self._pool = pool
         self._table = _table
 
@@ -153,11 +151,17 @@ class PostgresTaskRegistry:
             f" WHERE task_id = %s AND state NOT IN ('completed', 'failed')"
             f" RETURNING task_id"
         )
+        # Explicit ``::text`` cast on the optional account-filter
+        # parameter so psycopg's bind-param type inference doesn't
+        # fail with ``IndeterminateDatatype: could not determine
+        # data type of parameter $2``. Without the cast, the
+        # ``%s IS NULL`` predicate gives psycopg no type context
+        # for the parameter and the query fails at prepare time.
         self._sql_get = (  # noqa: S608
             f"SELECT task_id, account_id, state, task_type,"
             f"       progress, result, error, created_at, updated_at"
             f" FROM {self._table}"
-            f" WHERE task_id = %s AND (%s IS NULL OR account_id = %s)"
+            f" WHERE task_id = %s AND (%s::text IS NULL OR account_id = %s)"
         )
         self._sql_get_state_result = (  # noqa: S608
             f"SELECT state, result FROM {self._table} WHERE task_id = %s"
@@ -167,7 +171,7 @@ class PostgresTaskRegistry:
         )
         self._sql_discard = f"DELETE FROM {self._table} WHERE task_id = %s"  # noqa: S608
         self._sql_ddl = (  # noqa: S608
-            f'CREATE TABLE IF NOT EXISTS {self._table} ('
+            f"CREATE TABLE IF NOT EXISTS {self._table} ("
             f'    task_id     TEXT             COLLATE "C" NOT NULL PRIMARY KEY,'
             f'    account_id  TEXT             COLLATE "C" NOT NULL,'
             f"    state       TEXT             NOT NULL DEFAULT 'submitted',"
@@ -265,9 +269,7 @@ class PostgresTaskRegistry:
         race each other into double-completion without detection.
         """
         async with self._pool.connection() as conn:
-            cur = await conn.execute(
-                self._sql_complete, (json.dumps(result), time.time(), task_id)
-            )
+            cur = await conn.execute(self._sql_complete, (json.dumps(result), time.time(), task_id))
             if await cur.fetchone() is not None:
                 return  # updated successfully
 
@@ -294,9 +296,7 @@ class PostgresTaskRegistry:
         :class:`ValueError` on conflicting re-failure.
         """
         async with self._pool.connection() as conn:
-            cur = await conn.execute(
-                self._sql_fail, (json.dumps(error), time.time(), task_id)
-            )
+            cur = await conn.execute(self._sql_fail, (json.dumps(error), time.time(), task_id))
             if await cur.fetchone() is not None:
                 return  # updated successfully
 
@@ -354,4 +354,12 @@ class PostgresTaskRegistry:
             await conn.execute(self._sql_discard, (task_id,))
 
 
-__all__ = ["PG_AVAILABLE", "PostgresTaskRegistry"]
+#: Backwards-compat alias. Renamed to :class:`PgTaskRegistry` in
+#: 4.4.0 to match the framework's ``Pg*`` convention shared with
+#: :class:`adcp.signing.PgReplayStore` and
+#: :class:`adcp.decisioning.PgBuyerAgentRegistry`. The old name keeps
+#: working for one minor (4.4.x) and is removed in 4.5.0.
+PostgresTaskRegistry = PgTaskRegistry
+
+
+__all__ = ["PG_AVAILABLE", "PgTaskRegistry", "PostgresTaskRegistry"]

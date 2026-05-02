@@ -280,6 +280,89 @@ def test_authinfo_from_verified_signer_builds_typed_http_sig_credential() -> Non
     assert auth.extra == {"session_id": "s_42"}
 
 
+def test_authinfo_replace_credential_none_does_not_resynthesize() -> None:
+    """Adopter idiom: ``dataclasses.replace(auth, credential=None)``
+    explicitly clears the credential. Without the sentinel default,
+    ``__post_init__`` would re-synthesize from the still-present flat
+    fields — defeating the adopter's intent and re-firing the
+    deprecation warning at the framework callsite."""
+    import warnings as _w
+
+    cred = ApiKeyCredential(kind="api_key", key_id="k1")
+    auth = AuthInfo(kind="bearer", key_id="k1", credential=cred)
+    with _w.catch_warnings():
+        _w.simplefilter("error", DeprecationWarning)
+        cleared = dataclasses.replace(auth, credential=None)
+    assert cleared.credential is None
+    # Original is untouched.
+    assert auth.credential is cred
+
+
+def test_authinfo_from_legacy_dict_rejects_string_scopes() -> None:
+    """Adopter middleware writing ``scopes="read,write"`` (string
+    instead of list) — fail fast with a typed error rather than
+    silently coercing characters into per-letter scopes."""
+    with pytest.raises(TypeError, match="scopes"):
+        AuthInfo._from_legacy_dict({"kind": "bearer", "scopes": "read,write"})
+
+
+def test_authinfo_from_legacy_dict_rejects_dict_credential() -> None:
+    """The framework can't safely synthesize a typed Credential from
+    a raw dict — kinds aren't structurally distinguishable. Fail
+    fast with a typed error pointing at the adopter callsite."""
+    with pytest.raises(TypeError, match="credential"):
+        AuthInfo._from_legacy_dict(
+            {
+                "kind": "bearer",
+                "credential": {"kind": "api_key", "key_id": "k1"},
+            }
+        )
+
+
+def test_authinfo_from_legacy_dict_rejects_non_mapping_extra() -> None:
+    with pytest.raises(TypeError, match="extra"):
+        AuthInfo._from_legacy_dict({"kind": "bearer", "extra": "not-a-mapping"})
+
+
+def test_authinfo_from_verified_signer_max_verified_age_rejects_stale() -> None:
+    """A cached VerifiedSigner replayed past the freshness window
+    fails fast — adopter caught replaying a stale signer instead of
+    re-verifying gets a clear error."""
+    from adcp.signing import VerifiedSigner
+
+    signer = VerifiedSigner(
+        key_id="kid-1",
+        alg="ed25519",
+        label="sig1",
+        verified_at=1700000000.0,
+        agent_url="https://agent.example/",
+    )
+    with pytest.raises(ValueError, match="max_verified_age_s"):
+        AuthInfo.from_verified_signer(
+            signer,
+            max_verified_age_s=300.0,
+            now=1700001000.0,  # 1000s elapsed > 300s window
+        )
+
+
+def test_authinfo_from_verified_signer_max_verified_age_passes_fresh() -> None:
+    from adcp.signing import VerifiedSigner
+
+    signer = VerifiedSigner(
+        key_id="kid-1",
+        alg="ed25519",
+        label="sig1",
+        verified_at=1700000000.0,
+        agent_url="https://agent.example/",
+    )
+    auth = AuthInfo.from_verified_signer(
+        signer,
+        max_verified_age_s=300.0,
+        now=1700000100.0,  # 100s elapsed < 300s window
+    )
+    assert isinstance(auth.credential, HttpSigCredential)
+
+
 def test_authinfo_from_verified_signer_rejects_missing_agent_url() -> None:
     """Without ``agent_url`` the registry has no key to dispatch on.
     Surface the verifier-config bug with a clear server-side error

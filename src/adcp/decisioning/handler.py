@@ -340,15 +340,37 @@ async def _resolve_buyer_agent(
         — the buyer cannot retry their way out of a commercial-state
         rejection.
     """
+    from adcp.decisioning.registry import (
+        ApiKeyCredential,
+        HttpSigCredential,
+        OAuthCredential,
+    )
     from adcp.decisioning.types import AdcpError
 
     credential = auth_info.credential if auth_info is not None else None
     agent: BuyerAgent | None = None
     if credential is not None:
-        if credential.kind == "http_sig":
+        if isinstance(credential, HttpSigCredential):
             agent = await registry.resolve_by_agent_url(credential.agent_url)
-        else:
+        elif isinstance(credential, (ApiKeyCredential, OAuthCredential)):
             agent = await registry.resolve_by_credential(credential)
+        else:
+            # Defensive: a future Credential variant lands and the
+            # dispatch path doesn't know how to route it. Fail closed
+            # with INTERNAL_ERROR rather than silently passing the
+            # request through (which would skip the registry gate
+            # entirely and leak the upgrade footgun into production).
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message=(
+                    f"BuyerAgentRegistry dispatch received an unknown "
+                    f"Credential variant {type(credential).__name__!r}. "
+                    "The framework's resolver doesn't know which registry "
+                    "method to call. Update _resolve_buyer_agent in "
+                    "adcp.decisioning.handler to dispatch the new variant."
+                ),
+                recovery="terminal",
+            )
 
     if agent is None:
         raise AdcpError(
@@ -711,10 +733,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         Reads the resolved :class:`BuyerAgent` from
         ``tool_ctx.metadata['adcp.buyer_agent']`` (stashed by
         :meth:`_resolve_account` when a registry is wired) and passes
-        it through to the typed :class:`RequestContext`.
+        it through to the typed :class:`RequestContext`. Uses
+        ``pop`` so the value is consumed once — protects against
+        the pathological case where a misconfigured ``context_factory``
+        returns the same ``ToolContext`` across requests, which would
+        otherwise leak the prior request's resolved buyer-agent into
+        the next dispatch.
         """
         auth_info = self._extract_auth_info(tool_ctx)
-        buyer_agent = tool_ctx.metadata.get("adcp.buyer_agent") if tool_ctx.metadata else None
+        buyer_agent = tool_ctx.metadata.pop("adcp.buyer_agent", None) if tool_ctx.metadata else None
         return _build_request_context(
             tool_ctx,
             account,

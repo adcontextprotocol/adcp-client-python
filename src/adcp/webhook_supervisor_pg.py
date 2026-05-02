@@ -252,7 +252,12 @@ class PgWebhookDeliverySupervisor:
         # {ct}.column_name in DO UPDATE SET refers to the *existing* row's value
         # (before the update), which is what Postgres requires for self-referential
         # ON CONFLICT expressions.
-        failure_t = self._circuit_policy.failure_threshold
+        # Coerce thresholds via ``int()`` before f-string interpolation —
+        # an adopter passing an ``IntEnum`` / ``bool`` / custom ``__index__``
+        # subclass for ``failure_threshold`` would format verbatim into
+        # SQL otherwise. Coercion produces a plain int whose ``str()``
+        # is byte-safe for static SQL emission.
+        failure_t = int(self._circuit_policy.failure_threshold)
         self._sql_circuit_failure = (
             f"INSERT INTO {ct} "  # noqa: S608
             f"(breaker_key, state, failure_count, success_count, updated_at) "
@@ -274,7 +279,7 @@ class PgWebhookDeliverySupervisor:
         # eliminates the half-open race: two concurrent workers see different final
         # counts and only the worker whose UPDATE produces count >= threshold
         # transitions to 'closed'.
-        success_t = self._circuit_policy.success_threshold
+        success_t = int(self._circuit_policy.success_threshold)
         self._sql_circuit_success = (
             f"INSERT INTO {ct} "  # noqa: S608
             f"(breaker_key, state, failure_count, success_count, updated_at) "
@@ -654,9 +659,7 @@ class PgWebhookDeliverySupervisor:
                     self._retry.delay_for_attempt(attempt_number + 1) if will_retry else None
                 )
                 next_retry_at = (
-                    occurred_at + timedelta(seconds=next_delay)
-                    if next_delay is not None
-                    else None
+                    occurred_at + timedelta(seconds=next_delay) if next_delay is not None else None
                 )
 
                 if will_retry:
