@@ -39,8 +39,8 @@ jobs:
         run: |
           pytest tests/ -v --cov=src/adcp --cov-report=term-missing
 
-  pg-replay-store:
-    name: PgReplayStore tests (Postgres 16)
+  pg-conformance:
+    name: Postgres conformance tests (Postgres 16)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -73,12 +73,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,pg]"
 
-      - name: Run PgReplayStore tests (unit + full-wire e2e)
+      - name: Run Postgres conformance tests
         env:
           ADCP_PG_TEST_URL: postgresql://postgres@localhost:5432/adcp_test
         run: |
           pytest tests/conformance/signing/test_pg_replay_store.py \
                  tests/conformance/signing/test_pg_replay_store_e2e.py \
+                 tests/conformance/decisioning/test_pg_buyer_agent_registry.py \
                  -v
 
   conventional-commits:
