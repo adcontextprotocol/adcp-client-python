@@ -22,8 +22,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-
-UTC = timezone.utc
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -35,6 +33,10 @@ from adcp.decisioning.webhook_emit import (
     validate_webhook_sender_for_platform,
 )
 from adcp.webhook_sender import WebhookDeliveryResult
+
+# 3.10 doesn't have ``datetime.UTC`` (added in 3.11); alias to ``timezone.utc``.
+UTC = timezone.utc
+
 from adcp.webhook_supervisor import (
     CircuitBreakerPolicy,
     CircuitState,
@@ -101,6 +103,25 @@ def _supervisor(
         circuit=circuit,
         log_sink=sink,
     )
+
+
+def _make_sender(send_mcp_returns=None, resend_returns=None) -> MagicMock:
+    """Build a sender mock with both ``send_mcp`` and ``resend`` async-mocked.
+
+    ``resend`` is invoked by the supervisor on attempts 2+ to replay
+    the same idempotency_key per spec. Tests that exercise the retry
+    path must configure both.
+    """
+    sender = MagicMock()
+    if send_mcp_returns is not None:
+        sender.send_mcp = AsyncMock(**send_mcp_returns)
+    else:
+        sender.send_mcp = AsyncMock(return_value=_ok())
+    if resend_returns is not None:
+        sender.resend = AsyncMock(**resend_returns)
+    else:
+        sender.resend = AsyncMock(return_value=_ok())
+    return sender
 
 
 # ----- RetryPolicy.delay_for_attempt -----
@@ -217,8 +238,12 @@ async def test_supervisor_success_first_attempt_records_one_log() -> None:
 
 @pytest.mark.asyncio
 async def test_supervisor_retries_on_5xx_then_succeeds() -> None:
+    """Spec-compliant retry: attempt 1 calls ``send_mcp`` (fresh
+    idempotency_key), attempts 2+ call ``resend(last_result)``
+    (replays bytes including idempotency_key for receiver dedup)."""
     sender = MagicMock()
-    sender.send_mcp = AsyncMock(side_effect=[_fail(503), _fail(502), _ok()])
+    sender.send_mcp = AsyncMock(return_value=_fail(503))
+    sender.resend = AsyncMock(side_effect=[_fail(502), _ok()])
     sink = _RecordingSink()
     sup = _supervisor(sender, sink=sink)
 
@@ -228,7 +253,14 @@ async def test_supervisor_retries_on_5xx_then_succeeds() -> None:
         status="completed",
     )
     assert result is not None and result.ok
-    assert sender.send_mcp.await_count == 3
+    # Spec: only the first attempt calls ``send_mcp`` fresh; retries
+    # call ``resend`` to preserve the idempotency_key.
+    assert sender.send_mcp.await_count == 1
+    assert sender.resend.await_count == 2
+    # The same WebhookDeliveryResult instance is passed to each
+    # resend (replays the same idempotency_key bytes).
+    first_call = sender.resend.await_args_list[0][0][0]
+    assert first_call.idempotency_key == "k1"
     assert [c.outcome for c in sink.calls] == ["failure", "failure", "success"]
     assert [c.attempt_number for c in sink.calls] == [1, 2, 3]
     assert sink.calls[0].will_retry is True
@@ -239,7 +271,8 @@ async def test_supervisor_retries_on_5xx_then_succeeds() -> None:
 @pytest.mark.asyncio
 async def test_supervisor_returns_last_failure_after_max_attempts() -> None:
     sender = MagicMock()
-    sender.send_mcp = AsyncMock(side_effect=[_fail(), _fail(), _fail()])
+    sender.send_mcp = AsyncMock(return_value=_fail())
+    sender.resend = AsyncMock(return_value=_fail())
     sink = _RecordingSink()
     sup = _supervisor(sender, sink=sink)
 
@@ -250,14 +283,19 @@ async def test_supervisor_returns_last_failure_after_max_attempts() -> None:
     )
     assert result is not None
     assert not result.ok
-    assert sender.send_mcp.await_count == 3
+    assert sender.send_mcp.await_count == 1
+    assert sender.resend.await_count == 2
     assert [c.outcome for c in sink.calls] == ["failure", "failure", "failure"]
 
 
 @pytest.mark.asyncio
 async def test_supervisor_records_exception_and_reraises_on_final_attempt() -> None:
+    """When ``send_mcp`` raises mid-flight, no result-with-bytes is
+    produced — the next attempt MUST call ``send_mcp`` fresh again
+    (a new idempotency_key) since there's nothing to ``resend``."""
     sender = MagicMock()
     sender.send_mcp = AsyncMock(side_effect=ConnectionError("dns"))
+    sender.resend = AsyncMock(side_effect=AssertionError("should not be called"))
     sink = _RecordingSink()
     sup = _supervisor(sender, sink=sink)
 
@@ -267,7 +305,9 @@ async def test_supervisor_records_exception_and_reraises_on_final_attempt() -> N
             task_id="t1",
             status="completed",
         )
-    assert len(sink.calls) == 3  # all 3 attempts recorded
+    assert sender.send_mcp.await_count == 3
+    assert sender.resend.await_count == 0
+    assert len(sink.calls) == 3
     for attempt in sink.calls:
         assert attempt.outcome == "failure"
         assert attempt.http_status_code is None
@@ -281,6 +321,7 @@ async def test_supervisor_records_exception_and_reraises_on_final_attempt() -> N
 async def test_supervisor_skips_delivery_when_circuit_open() -> None:
     sender = MagicMock()
     sender.send_mcp = AsyncMock(return_value=_fail())
+    sender.resend = AsyncMock(return_value=_fail())
     sink = _RecordingSink()
     sup = _supervisor(
         sender,
@@ -307,7 +348,11 @@ async def test_supervisor_skips_delivery_when_circuit_open() -> None:
     assert len(sink.calls) == 1
     assert sink.calls[0].outcome == "circuit_open"
     assert sink.calls[0].attempt_number == 0
-    assert sender.send_mcp.await_count == 3  # only the first delivery's attempts
+    # First delivery's attempts: 1 send_mcp + 2 resend (per spec
+    # idempotency-key reuse). Second delivery is circuit_open and
+    # makes no calls at all.
+    assert sender.send_mcp.await_count == 1
+    assert sender.resend.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -321,6 +366,8 @@ async def test_supervisor_isolates_breakers_per_endpoint() -> None:
 
     sender = MagicMock()
     sender.send_mcp = AsyncMock(side_effect=_routed)
+    # Resend always returns _fail() — the retry path on endpoint A.
+    sender.resend = AsyncMock(return_value=_fail())
     sup = _supervisor(
         sender,
         circuit=CircuitBreakerPolicy(failure_threshold=2),
@@ -487,3 +534,217 @@ def test_validate_webhook_sender_raises_when_neither_wired() -> None:
         )
     assert exc_info.value.code == "INVALID_REQUEST"
     assert exc_info.value.details["missing"] == "webhook_sender_or_supervisor"
+
+
+def test_validate_webhook_sender_passes_when_only_sender_wired() -> None:
+    """Backward-compat: legacy adopters wire just a sender — gate
+    accepts. Symmetric to the supervisor-only case above."""
+    validate_webhook_sender_for_platform(
+        advertised_tools=frozenset({"create_media_buy"}),
+        sender=MagicMock(),
+        supervisor=None,
+        auto_emit=True,
+    )  # must not raise
+
+
+# ----- Constructor validation -----
+
+
+def test_supervisor_init_rejects_none_sender() -> None:
+    """Review #6: ``InMemoryWebhookDeliverySupervisor(None)`` would
+    later AttributeError on every send. Must fail fast at __init__,
+    matching the boot-time gate's fail-fast intent."""
+    with pytest.raises(ValueError, match="non-None WebhookSender"):
+        InMemoryWebhookDeliverySupervisor(None)  # type: ignore[arg-type]
+
+
+# ----- breaker_key for cross-tenant isolation -----
+
+
+@pytest.mark.asyncio
+async def test_supervisor_breaker_key_isolates_tenants_on_shared_url() -> None:
+    """Two tenants registering the same SaaS receiver URL must NOT
+    share a circuit breaker. Tenant A's failures opening the breaker
+    must not quarantine tenant B's deliveries to the same URL.
+
+    Review finding M2: bare-URL keying is single-tenant only;
+    multi-tenant adopters pass a ``breaker_key=f"{tenant}:{url}"``.
+    """
+    sender = MagicMock()
+    sender.send_mcp = AsyncMock(return_value=_fail())
+    sender.resend = AsyncMock(return_value=_fail())
+    sup = _supervisor(
+        sender,
+        circuit=CircuitBreakerPolicy(failure_threshold=2, open_timeout_seconds=60),
+    )
+
+    # Tenant A trips the breaker for "tenant_a:https://shared/wh".
+    await sup.send_mcp(
+        url="https://shared/wh",
+        task_id="t1",
+        status="completed",
+        breaker_key="tenant_a:https://shared/wh",
+    )
+    # Tenant B uses the same URL but a different breaker_key —
+    # should NOT be circuit-open (return None); should attempt and
+    # fail like tenant A's first delivery.
+    sender.send_mcp.reset_mock()
+    sender.resend.reset_mock()
+    result = await sup.send_mcp(
+        url="https://shared/wh",
+        task_id="t2",
+        status="completed",
+        breaker_key="tenant_b:https://shared/wh",
+    )
+    # Tenant B made it through to attempt delivery (not circuit_open).
+    assert result is not None
+    assert sender.send_mcp.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_supervisor_breaker_key_defaults_to_url() -> None:
+    """When no breaker_key is provided, falls back to URL — preserves
+    the v1 default and the JS-parity contract."""
+    sender = MagicMock()
+    sender.send_mcp = AsyncMock(return_value=_fail())
+    sender.resend = AsyncMock(return_value=_fail())
+    sup = _supervisor(
+        sender,
+        circuit=CircuitBreakerPolicy(failure_threshold=2, open_timeout_seconds=60),
+    )
+
+    await sup.send_mcp(url="https://shared/wh", task_id="t1", status="completed")
+    # Same URL → same breaker → second delivery is circuit_open.
+    result = await sup.send_mcp(url="https://shared/wh", task_id="t2", status="completed")
+    assert result is None
+
+
+# ----- Sequence number after breaker check -----
+
+
+@pytest.mark.asyncio
+async def test_supervisor_does_not_burn_sequence_on_circuit_open() -> None:
+    """Review #5: sequence number must NOT be allocated when the
+    breaker is OPEN. Burning numbers on circuit-open creates gaps in
+    the buyer-facing sequence stream."""
+    sender = MagicMock()
+    sender.send_mcp = AsyncMock(return_value=_fail())
+    sender.resend = AsyncMock(return_value=_fail())
+    sup = _supervisor(
+        sender,
+        circuit=CircuitBreakerPolicy(failure_threshold=2, open_timeout_seconds=60),
+    )
+
+    # First delivery: opens breaker; allocates sequence_number=1
+    await sup.send_mcp(
+        url="https://buyer.example.com/wh",
+        task_id="t1",
+        status="completed",
+        sequence_key="media_buy:abc:https://buyer.example.com/wh",
+    )
+    # Second delivery: circuit_open, MUST NOT allocate a sequence.
+    await sup.send_mcp(
+        url="https://buyer.example.com/wh",
+        task_id="t2",
+        status="completed",
+        sequence_key="media_buy:abc:https://buyer.example.com/wh",
+    )
+    # Third delivery: still circuit_open if breaker hasn't recovered.
+    # When breaker recovers and a delivery succeeds, the next
+    # sequence number should be 2 (not 3 — circuit-open didn't burn).
+    assert (
+        sup.next_sequence("media_buy:abc:https://buyer.example.com/wh") == 2
+    ), "sequence skipped circuit-open burns"
+
+
+# ----- Sink timeout -----
+
+
+@pytest.mark.asyncio
+async def test_supervisor_bounds_slow_sink_with_timeout() -> None:
+    """Review M1: a slow sink must NOT freeze the supervisor. The
+    sink timeout (default 5s, configurable via
+    ``RetryPolicy.sink_timeout_seconds``) bounds wait time."""
+    import time as _time
+
+    @dataclass
+    class _SlowSink:
+        async def record(self, attempt: DeliveryAttempt) -> None:
+            await asyncio.sleep(10.0)  # would freeze without timeout
+
+    sender = MagicMock()
+    sender.send_mcp = AsyncMock(return_value=_ok())
+    sender.resend = AsyncMock(return_value=_ok())
+    sup = InMemoryWebhookDeliverySupervisor(
+        sender,
+        retry=RetryPolicy(
+            max_attempts=1,
+            base_delay_seconds=0.0,
+            jitter=False,
+            sink_timeout_seconds=0.05,  # 50ms — well under the sink's 10s
+        ),
+        log_sink=_SlowSink(),
+    )
+
+    started = _time.monotonic()
+    result = await sup.send_mcp(
+        url="https://buyer.example.com/wh",
+        task_id="t1",
+        status="completed",
+    )
+    elapsed = _time.monotonic() - started
+    # Delivery succeeded despite sink timeout.
+    assert result is not None and result.ok
+    # Sink shouldn't have blocked the supervisor for the full 10s.
+    assert elapsed < 1.0, f"sink timeout didn't bound wait; elapsed={elapsed}"
+
+
+# ----- Notification-type passthrough -----
+
+
+@pytest.mark.asyncio
+async def test_supervisor_records_notification_type_passthrough() -> None:
+    """Review #9: ``notification_type`` (delivery-report concept —
+    'scheduled' / 'final' / 'adjusted' / 'delayed' / 'window_update')
+    flows through to ``DeliveryAttempt`` for adopter persistence."""
+    sender = MagicMock()
+    sender.send_mcp = AsyncMock(return_value=_ok())
+    sender.resend = AsyncMock(return_value=_ok())
+    sink = _RecordingSink()
+    sup = _supervisor(sender, sink=sink)
+
+    await sup.send_mcp(
+        url="https://buyer.example.com/wh",
+        task_id="t1",
+        status="completed",
+        notification_type="scheduled",
+    )
+    assert sink.calls[0].notification_type == "scheduled"
+
+
+# ----- Monotonic clock for response_time_ms -----
+
+
+@pytest.mark.asyncio
+async def test_supervisor_response_time_uses_monotonic_clock() -> None:
+    """Review #7: ``response_time_ms`` must use ``time.monotonic()``
+    to be NTP-step-resilient. Sanity-check by asserting it's a
+    non-negative integer (deeper testing would mock time.monotonic)."""
+    sender = MagicMock()
+
+    async def _slow_send(**_: Any) -> WebhookDeliveryResult:
+        await asyncio.sleep(0.02)
+        return _ok()
+
+    sender.send_mcp = AsyncMock(side_effect=_slow_send)
+    sender.resend = AsyncMock(side_effect=_slow_send)
+    sink = _RecordingSink()
+    sup = _supervisor(sender, sink=sink)
+
+    await sup.send_mcp(
+        url="https://buyer.example.com/wh",
+        task_id="t1",
+        status="completed",
+    )
+    assert sink.calls[0].response_time_ms >= 10  # at least 10ms (we slept 20)
+    assert sink.calls[0].response_time_ms < 1000  # not absurd

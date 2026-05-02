@@ -44,12 +44,17 @@ import asyncio
 import logging
 import random
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-
-UTC = timezone.utc
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
+
+# Python 3.11 added ``datetime.UTC`` as an alias; we still target 3.10
+# so we reach for ``timezone.utc`` and re-export the short name. Defined
+# AFTER all imports so the import block stays clean for ruff's
+# isort rule.
+UTC = timezone.utc
 
 if TYPE_CHECKING:
     from adcp.types import GeneratedTaskStatus
@@ -68,12 +73,19 @@ class RetryPolicy:
     Defaults match the salesagent reference adopter (3 attempts,
     exponential backoff with jitter, 1s base, 30s cap). Adopters with
     different SLAs override per-supervisor.
+
+    ``sink_timeout_seconds`` bounds how long a slow
+    :class:`DeliveryLogSink.record` call can stall the supervisor's
+    hot path (default 5s). Sink timeouts log a warning and continue
+    delivery — a misbehaving sink must not be able to wedge the
+    delivery pipeline.
     """
 
     max_attempts: int = 3
     base_delay_seconds: float = 1.0
     max_delay_seconds: float = 30.0
     jitter: bool = True
+    sink_timeout_seconds: float = 5.0
 
     def delay_for_attempt(self, attempt_number: int) -> float:
         """Compute the sleep before ``attempt_number`` (1-indexed).
@@ -124,6 +136,20 @@ class DeliveryAttempt:
     Sellers wire a sink that maps these to their existing
     ``webhook_delivery_log`` schema. The supervisor itself doesn't
     persist anything — the sink is the BYO storage seam.
+
+    .. note::
+        ``error_message`` may contain bytes from the buyer's webhook
+        receiver (sliced via ``repr()`` to 200 chars). Adopters
+        persisting this field to wide-readable logs SHOULD redact
+        further at the sink layer; an attacker buyer could include
+        prejudicial content in their error response body.
+
+    ``notification_type`` is provided as a passthrough for delivery
+    reports (per ``schemas/cache/media-buy/get-media-buy-delivery-response.json``:
+    ``scheduled`` / ``final`` / ``adjusted`` / ``delayed`` /
+    ``window_update``). Sync-completion auto-emit (F12) is not a
+    delivery report and leaves this ``None``; adopters firing
+    delivery reports manually populate it.
     """
 
     url: str
@@ -141,6 +167,7 @@ class DeliveryAttempt:
     task_type: str | None
     task_id: str | None
     payload_size_bytes: int | None
+    notification_type: str | None = None
 
 
 @runtime_checkable
@@ -217,7 +244,12 @@ class _CircuitBreaker:
                     self._success_count = 0
                     return True
                 return False
-            return True  # HALF_OPEN allows one test attempt at a time
+            # HALF_OPEN: every caller passes through and runs an attempt.
+            # No in-flight counter — concurrent attempts are intentional
+            # so one slow response doesn't gate other readiness probes.
+            # ``success_threshold`` consecutive successes still required
+            # to transition back to CLOSED.
+            return True
 
     def record_success(self) -> None:
         with self._lock:
@@ -228,9 +260,20 @@ class _CircuitBreaker:
                     self._state = CircuitState.CLOSED
                     self._success_count = 0
             elif self._state is CircuitState.OPEN:
-                # Defensive: a success while OPEN means the breaker raced
-                # past its timeout. Reset cleanly.
-                self._state = CircuitState.CLOSED
+                # A success while OPEN should be unreachable because
+                # ``can_attempt()`` is the only path that lets a sender
+                # call through. If it does happen, treat as the start of
+                # a HALF_OPEN probe rather than a clean recovery — a
+                # single racy success isn't enough to declare the
+                # endpoint healthy. Surface a warning so the underlying
+                # state-machine bug becomes visible.
+                logger.warning(
+                    "[adcp.webhook_supervisor] CircuitBreaker.record_success "
+                    "called while state=OPEN — transitioning to HALF_OPEN. "
+                    "This indicates a state-machine race; please report."
+                )
+                self._state = CircuitState.HALF_OPEN
+                self._success_count = 1
 
     def record_failure(self) -> None:
         with self._lock:
@@ -278,32 +321,72 @@ class InMemoryWebhookDeliverySupervisor:
         circuit: CircuitBreakerPolicy | None = None,
         log_sink: DeliveryLogSink | None = None,
     ) -> None:
+        # Fail-fast: a None sender would later AttributeError on every
+        # send_mcp call. The boot-time webhook gate also passes when a
+        # supervisor is wired, so we'd defeat its fail-fast intent
+        # without this check.
+        if sender is None:
+            raise ValueError(
+                "InMemoryWebhookDeliverySupervisor requires a non-None "
+                "WebhookSender. Construct one via WebhookSender.from_jwk(...) "
+                "or WebhookSender.from_pem(...) and pass it as the first "
+                "positional argument."
+            )
         self._sender = sender
         self._retry = retry or RetryPolicy()
         self._circuit_policy = circuit or CircuitBreakerPolicy()
         self._log_sink = log_sink
+        # Breakers keyed on (breaker_key or url). When two tenants share
+        # a SaaS receiver URL (Zapier, Make, etc.), pass a tenant-scoped
+        # ``breaker_key`` to ``send_mcp`` so one tenant's failures don't
+        # quarantine another tenant's deliveries.
         self._breakers: dict[str, _CircuitBreaker] = {}
+        # Per-``sequence_key`` monotonic counter. Recommend using a
+        # per-stream key like ``f"{media_buy_id}:{url}"`` for delivery
+        # reports — multiple subscribers per media_buy each need their
+        # own sequence numbering. In-memory only; multi-instance
+        # deployments will collide on the wire and need to implement
+        # the Protocol against durable storage. This warning fires once
+        # at first allocation so operators see it on cold start.
         self._sequence_numbers: dict[str, int] = {}
+        self._sequence_warned = False
         self._state_lock = threading.Lock()
 
     def next_sequence(self, key: str) -> int:
         """Allocate the next sequence number for ``key`` (1-indexed).
 
+        Recommend a per-stream key like ``f"{media_buy_id}:{url}"`` for
+        delivery-report webhooks — multiple subscribers per media buy
+        each need their own monotonic stream. ``media_buy_id`` alone
+        would have all subscribers share a sequence, which the spec's
+        delivery-report semantics don't support (each receiver sees
+        non-contiguous numbers).
+
         Sellers who manage sequence numbers themselves (e.g., persisted
-        in a database column) ignore this and pass their own value via
-        wherever it's used downstream.
+        in a database column for cross-restart durability) ignore this
+        and pass their own value via wherever it's used downstream.
         """
         with self._state_lock:
+            if not self._sequence_warned:
+                self._sequence_warned = True
+                logger.info(
+                    "[adcp.webhook_supervisor] in-process sequence numbers "
+                    "are not durable across process restart and not shared "
+                    "across multi-worker deployments. Sellers needing "
+                    "cross-restart sequence semantics should implement "
+                    "WebhookDeliverySupervisor against their persistence "
+                    "layer."
+                )
             current = self._sequence_numbers.get(key, 0) + 1
             self._sequence_numbers[key] = current
             return current
 
-    def _breaker_for(self, url: str) -> _CircuitBreaker:
+    def _breaker_for(self, key: str) -> _CircuitBreaker:
         with self._state_lock:
-            breaker = self._breakers.get(url)
+            breaker = self._breakers.get(key)
             if breaker is None:
                 breaker = _CircuitBreaker(self._circuit_policy)
-                self._breakers[url] = breaker
+                self._breakers[key] = breaker
             return breaker
 
     async def send_mcp(
@@ -316,6 +399,8 @@ class InMemoryWebhookDeliverySupervisor:
         result: Any = None,
         token: str | None = None,
         sequence_key: str | None = None,
+        breaker_key: str | None = None,
+        notification_type: str | None = None,
     ) -> WebhookDeliveryResult | None:
         """Deliver one MCP-style webhook with retry + circuit-breaker.
 
@@ -324,18 +409,45 @@ class InMemoryWebhookDeliverySupervisor:
         breaker is OPEN and no attempt is made (the audit log records
         a ``circuit_open`` row regardless).
 
+        :param breaker_key: Override the circuit-breaker key (default:
+            ``url``). Multi-tenant sellers whose buyers register
+            shared SaaS receiver URLs (Zapier, Make, etc.) MUST pass a
+            tenant-scoped key (e.g., ``f"{tenant_id}:{url}"``) so one
+            tenant's failures don't quarantine deliveries to the same
+            URL for another tenant.
+        :param sequence_key: Allocates a per-stream sequence number
+            via :meth:`next_sequence`. Recommend
+            ``f"{media_buy_id}:{url}"`` (per-receiver stream); see
+            :meth:`next_sequence` for the rationale.
+        :param notification_type: Passthrough to ``DeliveryAttempt``
+            for delivery-report webhooks (``scheduled`` / ``final`` /
+            ``adjusted`` / ``delayed`` / ``window_update``). F12
+            sync-completion auto-emit doesn't use this.
+
+        **Idempotency-key reuse on retry** (per spec
+        ``mcp-webhook-payload.json``: "Publishers MUST … reuse the
+        same key on every retry"): attempts 2+ replay the exact bytes
+        of attempt 1 via :meth:`WebhookSender.resend`, preserving the
+        ``idempotency_key`` for receiver-side dedup. Only attempt 1
+        (or any attempt whose predecessor raised before producing a
+        result) calls ``send_mcp`` fresh.
+
+        Each attempt is logged to the :class:`DeliveryLogSink` if one
+        is configured. Sink failures are swallowed; a slow sink is
+        bounded by ``RetryPolicy.sink_timeout_seconds``.
+
         Each attempt is logged to the :class:`DeliveryLogSink` if one
         is configured. Sink failures are swallowed.
         """
-        breaker = self._breaker_for(url)
-        sequence_number = self.next_sequence(sequence_key) if sequence_key is not None else None
+        breaker = self._breaker_for(breaker_key or url)
+        sequence_number: int | None = None  # allocated AFTER breaker check
 
         if not breaker.can_attempt():
             await self._record(
                 DeliveryAttempt(
                     url=url,
                     sequence_key=sequence_key,
-                    sequence_number=sequence_number,
+                    sequence_number=None,
                     attempt_number=0,
                     max_attempts=self._retry.max_attempts,
                     outcome="circuit_open",
@@ -348,6 +460,7 @@ class InMemoryWebhookDeliverySupervisor:
                     task_type=task_type,
                     task_id=task_id,
                     payload_size_bytes=None,
+                    notification_type=notification_type,
                 )
             )
             logger.warning(
@@ -357,6 +470,13 @@ class InMemoryWebhookDeliverySupervisor:
             )
             return None
 
+        # Allocate sequence number AFTER the breaker check so we don't
+        # burn numbers on circuit-open skips. Once allocated, the same
+        # sequence number is used for every attempt of THIS delivery
+        # (per-delivery, not per-attempt).
+        if sequence_key is not None:
+            sequence_number = self.next_sequence(sequence_key)
+
         last_result: WebhookDeliveryResult | None = None
         for attempt_number in range(1, self._retry.max_attempts + 1):
             delay = self._retry.delay_for_attempt(attempt_number)
@@ -364,16 +484,25 @@ class InMemoryWebhookDeliverySupervisor:
                 await asyncio.sleep(delay)
 
             attempt_started = datetime.now(UTC)
+            attempt_started_monotonic = time.monotonic()
             try:
-                last_result = await self._sender.send_mcp(
-                    url=url,
-                    task_id=task_id,
-                    status=status,
-                    task_type=task_type,
-                    result=result,
-                    token=token,
-                )
-                response_time_ms = int((datetime.now(UTC) - attempt_started).total_seconds() * 1000)
+                # Spec-compliant retry: replay the exact bytes (same
+                # idempotency_key) on attempts 2+ via ``resend``. Only
+                # attempt 1, or attempts whose predecessor raised
+                # before producing a result with bytes, call send_mcp
+                # fresh.
+                if last_result is not None and last_result.sent_body:
+                    last_result = await self._sender.resend(last_result)
+                else:
+                    last_result = await self._sender.send_mcp(
+                        url=url,
+                        task_id=task_id,
+                        status=status,
+                        task_type=task_type,
+                        result=result,
+                        token=token,
+                    )
+                response_time_ms = int((time.monotonic() - attempt_started_monotonic) * 1000)
                 if last_result.ok:
                     breaker.record_success()
                     await self._record(
@@ -393,6 +522,7 @@ class InMemoryWebhookDeliverySupervisor:
                             task_type=task_type,
                             task_id=task_id,
                             payload_size_bytes=len(last_result.sent_body),
+                            notification_type=notification_type,
                         )
                     )
                     return last_result
@@ -427,10 +557,11 @@ class InMemoryWebhookDeliverySupervisor:
                         task_type=task_type,
                         task_id=task_id,
                         payload_size_bytes=len(last_result.sent_body),
+                        notification_type=notification_type,
                     )
                 )
             except Exception as exc:
-                response_time_ms = int((datetime.now(UTC) - attempt_started).total_seconds() * 1000)
+                response_time_ms = int((time.monotonic() - attempt_started_monotonic) * 1000)
                 will_retry = attempt_number < self._retry.max_attempts
                 next_delay = (
                     self._retry.delay_for_attempt(attempt_number + 1) if will_retry else None
@@ -458,6 +589,7 @@ class InMemoryWebhookDeliverySupervisor:
                         task_type=task_type,
                         task_id=task_id,
                         payload_size_bytes=None,
+                        notification_type=notification_type,
                     )
                 )
                 if not will_retry:
@@ -466,10 +598,29 @@ class InMemoryWebhookDeliverySupervisor:
         return last_result
 
     async def _record(self, attempt: DeliveryAttempt) -> None:
+        """Persist one attempt to the configured sink.
+
+        Bounded by ``RetryPolicy.sink_timeout_seconds`` (default 5s)
+        so a misbehaving sink (DB stall, lock contention, unbounded
+        queue) cannot freeze the supervisor's hot path. Both timeout
+        and exception are logged-and-swallowed — a broken sink must
+        not cascade into webhook delivery loss.
+        """
         if self._log_sink is None:
             return
         try:
-            await self._log_sink.record(attempt)
+            await asyncio.wait_for(
+                self._log_sink.record(attempt),
+                timeout=self._retry.sink_timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[adcp.webhook_supervisor] DeliveryLogSink timed out "
+                "after %ss on attempt for %s — log dropped, delivery "
+                "unaffected",
+                self._retry.sink_timeout_seconds,
+                attempt.url,
+            )
         except Exception:
             logger.warning(
                 "[adcp.webhook_supervisor] DeliveryLogSink raised on attempt "
