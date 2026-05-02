@@ -27,7 +27,12 @@ from adcp.decisioning.types import Account, TaskHandoff, WorkflowHandoff
 from adcp.server.base import ToolContext
 
 if TYPE_CHECKING:
-    pass
+    from collections.abc import Mapping
+
+    from adcp.decisioning.registry import (
+        BuyerAgent,
+        Credential,
+    )
 
 #: Per-platform metadata generic; mirrors ``adcp.decisioning.types.TMeta``
 #: but redeclared here so ``RequestContext[TMeta]`` parameterization
@@ -50,21 +55,126 @@ class AuthInfo:
     can read scopes, key_id, principal, etc., without parsing
     transport headers.
 
-    :param kind: One of ``'signed_request'``, ``'bearer'``, ``'mtls'``,
-        ``'derived'``. Adopters with custom auth schemes extend the
-        type alias.
-    :param key_id: The signing key id (``kid``) for signed-request auth.
-    :param principal: The authenticated principal — typically the
-        buyer's verified label or service-account id. Stable across
-        sessions.
-    :param scopes: Granted scopes / capabilities. Used by adopters
-        gating tools per principal.
+    **Two field families.** The legacy fields (``kind`` / ``key_id`` /
+    ``principal`` / ``scopes``) are the v6.0 surface — adopters built
+    against the alpha pass these directly. The Tier 2 v3-identity
+    fields (``credential`` / ``agent_url`` / ``operator`` / ``extra``)
+    carry the typed AdCP v3 commercial identity context the
+    :class:`adcp.decisioning.BuyerAgentRegistry` consumes. When an
+    adopter constructs ``AuthInfo`` with only legacy fields,
+    ``__post_init__`` synthesizes a typed
+    :class:`adcp.decisioning.Credential` from them so the dispatch
+    layer's registry call works without an adopter code change. One
+    minor deprecation cycle — the legacy fields stay through 4.x.
+
+    :param kind: One of ``'signed_request'``, ``'http_sig'``,
+        ``'bearer'``, ``'api_key'``, ``'oauth'``, ``'mtls'``,
+        ``'derived'``. Drives the legacy → ``credential`` synthesis.
+    :param key_id: The signing key id (``kid``) for signed-request /
+        http_sig auth, or the API-key id for bearer auth.
+    :param principal: The authenticated principal label — for
+        signed-request auth this is the verified ``agent_url`` (per
+        AdCP v3 convention).
+    :param scopes: Granted scopes / capabilities (OAuth or per-token).
+    :param credential: Typed v3 :class:`adcp.decisioning.Credential` —
+        the canonical surface the registry dispatches on. When
+        unset, ``__post_init__`` synthesizes from the legacy fields.
+        Adopters wiring v3 auth directly should construct the
+        credential themselves and leave the legacy fields empty.
+    :param agent_url: Verified buyer-agent URL — populated from
+        ``credential.agent_url`` when ``credential`` is an
+        :class:`adcp.decisioning.HttpSigCredential`, OR from
+        ``principal`` when ``kind in {'signed_request', 'http_sig'}``.
+        ``None`` for bearer / OAuth / unauthenticated traffic.
+    :param operator: Operator / transport-tenant label — the AdCP v3
+        operator binding (separate from the buyer agent). Distinct
+        from ``ToolContext.tenant_id`` only for adopters running the
+        AAO community proxy in front of a multi-operator deployment;
+        most adopters leave this ``None``.
+    :param extra: Adopter passthrough for auth-layer fields the SDK
+        doesn't model (custom claims, MFA flags, internal session ids).
     """
 
     kind: str
     key_id: str | None = None
     principal: str | None = None
     scopes: list[str] = field(default_factory=list)
+
+    # ----- Tier 2 v3-identity fields -----
+    credential: Credential | None = None
+    agent_url: str | None = None
+    operator: str | None = None
+    extra: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Synthesize ``credential`` + ``agent_url`` from legacy fields
+        when not supplied directly.
+
+        Adopter code constructing ``AuthInfo(kind="signed_request",
+        principal="https://agent.example/", key_id="kid-1")`` (the v6.0
+        alpha pattern) gets a typed
+        :class:`adcp.decisioning.HttpSigCredential` populated
+        automatically — the registry dispatch layer needs the typed
+        credential, and synthesizing here keeps the migration
+        zero-touch for existing adopter code.
+
+        Legacy → credential mapping:
+
+        * ``kind in {"signed_request", "http_sig"}`` →
+          :class:`HttpSigCredential` (when ``key_id`` and ``principal``
+          are both set; ``agent_url`` taken from ``principal`` per
+          the documented v3 convention).
+        * ``kind in {"api_key", "bearer"}`` →
+          :class:`ApiKeyCredential` (when ``key_id`` set).
+        * ``kind == "oauth"`` → :class:`OAuthCredential` (using
+          ``key_id`` or ``principal`` as ``client_id``).
+        * Other kinds (``"derived"``, ``"mtls"``, custom): no
+          synthesis — ``credential`` stays ``None``.
+
+        Synthesis is one-way: explicit ``credential=...`` always wins.
+        """
+        # Local imports to avoid the import-time cycle; registry.py
+        # doesn't depend on context.py but the TYPE_CHECKING import
+        # at the top is evaluated lazily.
+        from adcp.decisioning.registry import (
+            ApiKeyCredential,
+            HttpSigCredential,
+            OAuthCredential,
+        )
+
+        if self.credential is None:
+            if self.kind in {"signed_request", "http_sig"}:
+                if self.key_id and self.principal:
+                    self.credential = HttpSigCredential(
+                        kind="http_sig",
+                        keyid=self.key_id,
+                        agent_url=self.principal,
+                        verified_at=0.0,
+                    )
+            elif self.kind in {"api_key", "bearer"}:
+                if self.key_id:
+                    self.credential = ApiKeyCredential(
+                        kind="api_key",
+                        key_id=self.key_id,
+                    )
+            elif self.kind == "oauth":
+                client_id = self.key_id or self.principal
+                if client_id:
+                    self.credential = OAuthCredential(
+                        kind="oauth",
+                        client_id=client_id,
+                        scopes=tuple(self.scopes),
+                    )
+
+        # Derive agent_url from the credential when present; fall back
+        # to legacy principal for signed-request kinds so adopters
+        # reading auth_info.agent_url get a consistent value regardless
+        # of construction path.
+        if self.agent_url is None:
+            if isinstance(self.credential, HttpSigCredential):
+                self.agent_url = self.credential.agent_url
+            elif self.kind in {"signed_request", "http_sig"} and self.principal:
+                self.agent_url = self.principal
 
 
 @dataclass
@@ -169,6 +279,7 @@ class RequestContext(ToolContext, Generic[TMeta]):
     account: Account[TMeta] = field(default_factory=lambda: Account(id="<unset>"))
     auth_info: AuthInfo | None = None
     auth_principal: str | None = None
+    buyer_agent: BuyerAgent | None = None
     now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     state: StateReader = field(default_factory=_make_default_state_reader)
     resolve: ResourceResolver = field(default_factory=_make_default_resolver)

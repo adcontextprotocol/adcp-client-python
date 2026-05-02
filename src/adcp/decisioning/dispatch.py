@@ -66,6 +66,7 @@ if TYPE_CHECKING:
 
     from adcp.decisioning.accounts import AccountStore
     from adcp.decisioning.context import AuthInfo, RequestContext
+    from adcp.decisioning.registry import BuyerAgent
     from adcp.decisioning.types import Account
     from adcp.server.base import ToolContext
 
@@ -706,6 +707,7 @@ def _build_request_context(
     store: AccountStore[Any] | None = None,
     state_reader: Any | None = None,
     resource_resolver: Any | None = None,
+    buyer_agent: BuyerAgent | None = None,
 ) -> RequestContext[Any]:
     """Hydrate a :class:`RequestContext` per the D2 + D9 + D15 contract.
 
@@ -769,6 +771,7 @@ def _build_request_context(
         "account": account,
         "auth_info": auth_info,
         "auth_principal": auth_principal,
+        "buyer_agent": buyer_agent,
     }
     if state_reader is not None:
         ctx_kwargs["state"] = state_reader

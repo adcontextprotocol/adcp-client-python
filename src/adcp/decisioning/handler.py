@@ -143,6 +143,7 @@ if TYPE_CHECKING:
     from concurrent.futures import ThreadPoolExecutor
 
     from adcp.decisioning.platform import DecisioningPlatform
+    from adcp.decisioning.registry import BuyerAgent, BuyerAgentRegistry
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
@@ -310,6 +311,87 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
 }
 
 
+async def _resolve_buyer_agent(
+    registry: BuyerAgentRegistry,
+    auth_info: AuthInfo | None,
+) -> BuyerAgent:
+    """Resolve a :class:`BuyerAgent` from a wired registry.
+
+    The framework's commercial-identity gate. Runs before
+    :meth:`AccountStore.resolve` so a suspended / blocked / unknown
+    agent is rejected with the correct structured error code instead
+    of the rejection leaking into the account-resolution path as a
+    confused ``ACCOUNT_NOT_FOUND``.
+
+    Dispatches by credential kind:
+
+    * :class:`HttpSigCredential` →
+      :meth:`BuyerAgentRegistry.resolve_by_agent_url` with the
+      cryptographically-verified ``agent_url``.
+    * :class:`ApiKeyCredential` / :class:`OAuthCredential` →
+      :meth:`BuyerAgentRegistry.resolve_by_credential`.
+    * No credential at all (unauthenticated dev fixture, ``derived``
+      auth) → ``REQUEST_AUTH_UNRECOGNIZED_AGENT``. Adopters running
+      a registry have implicitly opted out of unauthenticated traffic.
+
+    :raises AdcpError: ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` (registry
+        miss / no credential), ``AGENT_SUSPENDED`` (status=suspended),
+        or ``AGENT_BLOCKED`` (status=blocked). All ``recovery=terminal``
+        — the buyer cannot retry their way out of a commercial-state
+        rejection.
+    """
+    from adcp.decisioning.types import AdcpError
+
+    credential = auth_info.credential if auth_info is not None else None
+    agent: BuyerAgent | None = None
+    if credential is not None:
+        if credential.kind == "http_sig":
+            agent = await registry.resolve_by_agent_url(credential.agent_url)
+        else:
+            agent = await registry.resolve_by_credential(credential)
+
+    if agent is None:
+        raise AdcpError(
+            "REQUEST_AUTH_UNRECOGNIZED_AGENT",
+            message=(
+                "BuyerAgentRegistry returned no match for the request's "
+                "credential. The registry is the seller's commercial "
+                "allowlist — adopters reject auth that's cryptographically "
+                "valid but not commercially recognized (no onboarding row, "
+                "revoked, or wrong credential kind for the registry's "
+                "posture). Check that the agent has been onboarded into the "
+                "registry's backing store."
+            ),
+            recovery="terminal",
+        )
+
+    if agent.status == "suspended":
+        raise AdcpError(
+            "AGENT_SUSPENDED",
+            message=(
+                f"Buyer agent {agent.agent_url!r} is suspended. Suspension "
+                "is a temporary commercial pause (credit, compliance review, "
+                "ops hold) — the seller restores it via their durable "
+                "store. Buyer should escalate through their account "
+                "contact rather than retry."
+            ),
+            recovery="terminal",
+            details={"agent_url": agent.agent_url, "status": agent.status},
+        )
+    if agent.status == "blocked":
+        raise AdcpError(
+            "AGENT_BLOCKED",
+            message=(
+                f"Buyer agent {agent.agent_url!r} is blocked. Blocked is "
+                "a hard cutoff (terms violation, fraud, enforcement) — "
+                "no retry path. Buyer must contact the seller directly."
+            ),
+            recovery="terminal",
+            details={"agent_url": agent.agent_url, "status": agent.status},
+        )
+    return agent
+
+
 def _project_build_creative(result: Any) -> Any:
     """Project the adopter's ``build_creative`` return into the wire
     envelope shape.
@@ -468,6 +550,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         webhook_sender: WebhookSender | None = None,
         webhook_supervisor: WebhookDeliverySupervisor | None = None,
         auto_emit_completion_webhooks: bool = True,
+        buyer_agent_registry: BuyerAgentRegistry | None = None,
     ) -> None:
         super().__init__()
         self._platform = platform
@@ -478,6 +561,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._webhook_sender = webhook_sender
         self._webhook_supervisor = webhook_supervisor
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
+        self._buyer_agent_registry = buyer_agent_registry
 
     # ----- account resolution helper -----
 
@@ -498,8 +582,24 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         ``AccountStore.resolve`` takes a dict — convert the typed
         Pydantic ``AccountReference`` via ``model_dump()`` so adopter
         store impls see a normalized shape.
+
+        When a :class:`adcp.decisioning.BuyerAgentRegistry` is wired,
+        this method ALSO resolves the commercial buyer-agent identity
+        BEFORE calling ``AccountStore.resolve`` and stashes the result
+        on ``ctx.metadata['adcp.buyer_agent']`` for :meth:`_build_ctx`
+        to read into the typed :class:`RequestContext`. Suspended /
+        blocked agents are rejected here with structured error codes
+        — buyers see ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
+        ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` instead of the registry
+        miss leaking into the AccountStore as ``ACCOUNT_NOT_FOUND``.
         """
         auth_info = self._extract_auth_info(ctx)
+        if self._buyer_agent_registry is not None:
+            buyer_agent = await _resolve_buyer_agent(
+                self._buyer_agent_registry,
+                auth_info,
+            )
+            ctx.metadata["adcp.buyer_agent"] = buyer_agent
         # Handle both Pydantic AccountReference (typical wire path) and
         # raw dict (test fixtures using model_construct, custom dispatch
         # paths). Adopter stores implementing custom shapes are
@@ -587,8 +687,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         """Wrap :func:`_build_request_context` with the handler's
         wired StateReader / ResourceResolver overrides AND the
         platform's AccountStore (for D9 round-3 composite cache
-        scope-key derivation)."""
+        scope-key derivation).
+
+        Reads the resolved :class:`BuyerAgent` from
+        ``tool_ctx.metadata['adcp.buyer_agent']`` (stashed by
+        :meth:`_resolve_account` when a registry is wired) and passes
+        it through to the typed :class:`RequestContext`.
+        """
         auth_info = self._extract_auth_info(tool_ctx)
+        buyer_agent = tool_ctx.metadata.get("adcp.buyer_agent") if tool_ctx.metadata else None
         return _build_request_context(
             tool_ctx,
             account,
@@ -596,6 +703,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             store=self._platform.accounts,
             state_reader=self._state_reader,
             resource_resolver=self._resource_resolver,
+            buyer_agent=buyer_agent,
         )
 
     # ----- Sales tools -----

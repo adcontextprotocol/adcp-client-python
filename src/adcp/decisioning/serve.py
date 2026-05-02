@@ -40,6 +40,7 @@ from adcp.decisioning.types import AdcpError
 
 if TYPE_CHECKING:
     from adcp.decisioning.platform import DecisioningPlatform
+    from adcp.decisioning.registry import BuyerAgentRegistry
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
@@ -80,6 +81,7 @@ def create_adcp_server_from_platform(
     webhook_sender: WebhookSender | None = None,
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_completion_webhooks: bool = True,
+    buyer_agent_registry: BuyerAgentRegistry | None = None,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -140,6 +142,21 @@ def create_adcp_server_from_platform(
         Mutually optional with ``webhook_sender``; passing both is
         valid (supervisor wins for auto-emit, sender remains available
         for direct calls inside platform methods).
+    :param buyer_agent_registry: BYO
+        :class:`adcp.decisioning.BuyerAgentRegistry` — the v3 commercial
+        identity layer. When wired, the framework calls the registry
+        BEFORE :meth:`AccountStore.resolve` to gate every request on
+        the seller's commercial allowlist. Suspended / blocked /
+        unknown agents are rejected with structured
+        ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
+        ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` errors. The resolved
+        :class:`adcp.decisioning.BuyerAgent` is threaded onto
+        :attr:`RequestContext.buyer_agent` so platform methods can
+        read commercial context (billing capabilities, default terms,
+        adopter ext) without a second registry call. Default ``None``
+        — pre-trust beta adopters running existing key-based auth
+        without commercial gating omit this and the dispatch path
+        falls through to ``AccountStore.resolve`` unchanged.
     :param auto_emit_completion_webhooks: F12 feature gate. When
         ``True`` (default), the framework auto-fires a completion
         webhook on the sync-success arm of mutating tools whenever the
@@ -250,6 +267,7 @@ def create_adcp_server_from_platform(
         webhook_sender=webhook_sender,
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
+        buyer_agent_registry=buyer_agent_registry,
     )
 
     # F12 boot-time fail-fast (Emma sales-direct P0 root cause): if
@@ -288,6 +306,7 @@ def serve(
     webhook_sender: WebhookSender | None = None,
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_completion_webhooks: bool = True,
+    buyer_agent_registry: BuyerAgentRegistry | None = None,
     advertise_all: bool = False,
     **serve_kwargs: Any,
 ) -> None:
@@ -348,6 +367,7 @@ def serve(
         webhook_sender=webhook_sender,
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
+        buyer_agent_registry=buyer_agent_registry,
     )
 
     server_name = name or type(platform).__name__
