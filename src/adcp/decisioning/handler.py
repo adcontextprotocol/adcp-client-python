@@ -650,27 +650,14 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if isinstance(raw, AuthInfo):
             return raw
         if isinstance(raw, dict):
-            # Adopters whose middleware writes a v3-shape dict
-            # (``credential``, ``agent_url``, ``operator``, ``extra``)
-            # get those fields through to AuthInfo. A v6.0-alpha
-            # middleware that only writes the flat
-            # ``kind`` / ``key_id`` / ``principal`` / ``scopes`` keys
-            # still works — the v3 keys default to None / {}.
-            kwargs: dict[str, Any] = {
-                "kind": raw.get("kind", "derived"),
-                "key_id": raw.get("key_id"),
-                "principal": raw.get("principal"),
-                "scopes": list(raw.get("scopes", [])),
-            }
-            if "credential" in raw:
-                kwargs["credential"] = raw["credential"]
-            if "agent_url" in raw:
-                kwargs["agent_url"] = raw["agent_url"]
-            if "operator" in raw:
-                kwargs["operator"] = raw["operator"]
-            if "extra" in raw:
-                kwargs["extra"] = raw["extra"]
-            return AuthInfo(**kwargs)
+            # Translate the legacy dict-shape into typed AuthInfo via
+            # the framework-internal classmethod that pre-synthesizes
+            # the bearer credential without firing the
+            # DeprecationWarning. The warning's actionable target is
+            # adopter code constructing AuthInfo directly — pointing
+            # it at this framework shim every request would be noise
+            # the adopter can't fix by changing their code.
+            return AuthInfo._from_legacy_dict(raw)
         return None
 
     def _maybe_auto_emit_sync_completion(

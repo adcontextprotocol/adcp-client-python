@@ -14,6 +14,7 @@ the platform's ``AccountStore.resolve(...)`` result.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -55,17 +56,34 @@ class AuthInfo:
     can read scopes, key_id, principal, etc., without parsing
     transport headers.
 
-    **Two field families.** The legacy fields (``kind`` / ``key_id`` /
+    **Two field families.** The flat fields (``kind`` / ``key_id`` /
     ``principal`` / ``scopes``) are the v6.0 surface — adopters built
     against the alpha pass these directly. The Tier 2 v3-identity
     fields (``credential`` / ``agent_url`` / ``operator`` / ``extra``)
     carry the typed AdCP v3 commercial identity context the
     :class:`adcp.decisioning.BuyerAgentRegistry` consumes. When an
-    adopter constructs ``AuthInfo`` with only legacy fields,
-    ``__post_init__`` synthesizes a typed
-    :class:`adcp.decisioning.Credential` from them so the dispatch
-    layer's registry call works without an adopter code change. One
-    minor deprecation cycle — the legacy fields stay through 4.x.
+    adopter constructs ``AuthInfo`` with only the flat fields,
+    ``__post_init__`` synthesizes a typed bearer
+    :class:`adcp.decisioning.Credential` from them and emits a
+    :class:`DeprecationWarning` pointing at the adopter callsite.
+
+    **Deprecation timeline:**
+
+    * **4.4.0** (this release) — flat-field synthesis still works but
+      warns. Adopter code stays runnable; the warning points at every
+      callsite that constructs ``AuthInfo`` without an explicit
+      ``credential=``.
+    * **4.5.0** — synthesis is removed; flat-field-only construction
+      stops auto-populating ``credential``, and the registry dispatch
+      will reject the request with
+      ``REQUEST_AUTH_UNRECOGNIZED_AGENT``. Adopters must construct
+      the typed credential explicitly:
+      ``AuthInfo(credential=ApiKeyCredential(kind="api_key", key_id=...))``
+      or use the bundled signed-request verifier middleware.
+
+    The flat fields themselves stay (they carry useful audit / log
+    context); only the synthesis-from-flat path is on the removal
+    track.
 
     :param kind: One of ``'signed_request'``, ``'http_sig'``,
         ``'bearer'``, ``'api_key'``, ``'oauth'``, ``'mtls'``,
@@ -106,64 +124,122 @@ class AuthInfo:
     operator: str | None = None
     extra: Mapping[str, Any] = field(default_factory=dict)
 
+    @staticmethod
+    def _synthesize_bearer_credential(
+        kind: str,
+        key_id: str | None,
+        principal: str | None,
+        scopes: list[str],
+    ) -> Credential | None:
+        """Build a typed bearer :class:`Credential` from the flat
+        fields, or return ``None`` when the flat fields don't describe
+        a bearer credential.
+
+        Signed-request kinds (``"signed_request"`` / ``"http_sig"``)
+        intentionally never synthesize — a real
+        :class:`HttpSigCredential` requires the
+        ``verified_at`` timestamp from RFC 9421 verification, which
+        only the verifier middleware has. Synthesizing one here would
+        let any code that writes ``kind="signed_request"`` escalate
+        bearer traffic onto the verified signed path. The verifier
+        middleware constructs :class:`HttpSigCredential` explicitly
+        and passes it via ``credential=``.
+        """
+        from adcp.decisioning.registry import (
+            ApiKeyCredential,
+            OAuthCredential,
+        )
+
+        if kind in {"api_key", "bearer"}:
+            if key_id:
+                return ApiKeyCredential(kind="api_key", key_id=key_id)
+        elif kind == "oauth":
+            client_id = key_id or principal
+            if client_id:
+                return OAuthCredential(
+                    kind="oauth",
+                    client_id=client_id,
+                    scopes=tuple(scopes),
+                )
+        return None
+
+    @classmethod
+    def _from_legacy_dict(cls, raw: Mapping[str, Any]) -> AuthInfo:
+        """Build :class:`AuthInfo` from a legacy dict-shape metadata
+        payload without firing the :class:`DeprecationWarning`.
+
+        The framework's :func:`_extract_auth_info` translates
+        ``ctx.metadata['adcp.auth_info']`` dicts into typed
+        ``AuthInfo``. That translation happens once per request and
+        the warning's stack would point into framework code — not
+        useful for adopters. Pre-synthesize the credential and pass
+        it via ``credential=`` so :meth:`__post_init__`'s synthesis
+        branch is skipped along with the warning.
+
+        Adopter code that constructs ``AuthInfo`` directly (in their
+        own ``context_factory`` / auth middleware) goes through
+        :meth:`__post_init__` and *does* see the warning, pointing
+        at the adopter callsite — which is the actionable signal
+        this deprecation is meant to deliver.
+        """
+        kind = raw.get("kind", "derived")
+        key_id = raw.get("key_id")
+        principal = raw.get("principal")
+        scopes = list(raw.get("scopes", []))
+        credential = raw.get("credential")
+        if credential is None:
+            credential = cls._synthesize_bearer_credential(kind, key_id, principal, scopes)
+        return cls(
+            kind=kind,
+            key_id=key_id,
+            principal=principal,
+            scopes=scopes,
+            credential=credential,
+            agent_url=raw.get("agent_url"),
+            operator=raw.get("operator"),
+            extra=raw.get("extra", {}),
+        )
+
     def __post_init__(self) -> None:
-        """Synthesize a typed bearer-shaped ``credential`` from the
-        flat ``kind`` / ``key_id`` / ``principal`` fields when not
-        supplied directly.
+        """Synthesize a typed bearer ``credential`` from the flat
+        ``kind`` / ``key_id`` / ``principal`` fields when not supplied
+        directly, and emit a :class:`DeprecationWarning` pointing at
+        the adopter callsite that needs to migrate.
 
-        Synthesis is **deliberately limited to bearer-shape credentials
-        (``ApiKeyCredential`` / ``OAuthCredential``)**. Signed-request
-        traffic uses :class:`HttpSigCredential`, which carries
-        ``verified_at`` — a real RFC 9421 verification timestamp the
-        SDK has no way to mint here. Adopters wiring signed-request
-        auth MUST construct :class:`HttpSigCredential` explicitly in
-        their verifier and pass it via ``credential=`` so the
-        registry dispatch path can trust ``agent_url`` as
-        cryptographically validated. Without this restriction, a
-        misconfigured upstream middleware that writes
-        ``kind="signed_request"`` to the auth metadata would silently
-        escalate bearer traffic onto the signed path — defeating
-        the v3 commercial-identity gate this layer provides.
-
-        Mapping:
-
-        * ``kind in {"api_key", "bearer"}`` →
-          :class:`ApiKeyCredential` when ``key_id`` is set.
-        * ``kind == "oauth"`` → :class:`OAuthCredential` using
-          ``key_id`` or ``principal`` as ``client_id``.
-        * ``kind in {"signed_request", "http_sig"}`` → no synthesis;
-          adopter's verifier must populate ``credential=`` directly.
-        * Other kinds (``"derived"``, ``"mtls"``, custom): no
-          synthesis — ``credential`` stays ``None``.
-
-        ``agent_url`` is derived from a present
+        Synthesis fires for bearer kinds only; signed-request kinds
+        require an explicit :class:`HttpSigCredential` from the
+        verifier (see :meth:`_synthesize_bearer_credential` for
+        rationale). ``agent_url`` is derived from a present
         :class:`HttpSigCredential` only — never from the
         ``principal`` string, since unverified principals must not
         appear as verified agent URLs.
 
-        Synthesis is one-way: explicit ``credential=`` always wins.
+        Synthesis is one-way: explicit ``credential=`` always wins
+        and suppresses the warning.
         """
-        from adcp.decisioning.registry import (
-            ApiKeyCredential,
-            HttpSigCredential,
-            OAuthCredential,
-        )
+        from adcp.decisioning.registry import HttpSigCredential
 
         if self.credential is None:
-            if self.kind in {"api_key", "bearer"}:
-                if self.key_id:
-                    self.credential = ApiKeyCredential(
-                        kind="api_key",
-                        key_id=self.key_id,
-                    )
-            elif self.kind == "oauth":
-                client_id = self.key_id or self.principal
-                if client_id:
-                    self.credential = OAuthCredential(
-                        kind="oauth",
-                        client_id=client_id,
-                        scopes=tuple(self.scopes),
-                    )
+            synthesized = self._synthesize_bearer_credential(
+                self.kind, self.key_id, self.principal, self.scopes
+            )
+            if synthesized is not None:
+                self.credential = synthesized
+                warnings.warn(
+                    "AuthInfo was constructed without an explicit "
+                    "`credential=`; the SDK synthesized "
+                    f"{type(synthesized).__name__} from the flat "
+                    "`kind` / `key_id` / `principal` fields. The "
+                    "synthesis path is deprecated and will be removed "
+                    "in adcp 4.5.0. Construct the typed credential "
+                    "explicitly, e.g. "
+                    '`AuthInfo(credential=ApiKeyCredential(kind="api_key",'
+                    " key_id=...))`. See "
+                    "docs/proposals/v3-identity-bundle-design.md for "
+                    "the v3 identity migration guide.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
 
         if self.agent_url is None and isinstance(self.credential, HttpSigCredential):
             self.agent_url = self.credential.agent_url

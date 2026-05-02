@@ -115,38 +115,49 @@ def test_authinfo_explicit_http_sig_credential_populates_agent_url() -> None:
 
 
 def test_authinfo_bearer_synthesizes_api_key_credential() -> None:
-    auth = AuthInfo(kind="bearer", key_id="bearer-token-1", principal="buyer-x")
+    """Adopters constructing AuthInfo with the flat ``bearer`` shape
+    still get a typed ApiKeyCredential — and a DeprecationWarning
+    pointing at the migration path. Synthesis is on the 4.5.0 removal
+    track."""
+    with pytest.warns(DeprecationWarning, match="ApiKeyCredential"):
+        auth = AuthInfo(kind="bearer", key_id="bearer-token-1", principal="buyer-x")
     assert isinstance(auth.credential, ApiKeyCredential)
     assert auth.credential.kind == "api_key"
     assert auth.credential.key_id == "bearer-token-1"
 
 
 def test_authinfo_oauth_synthesizes_oauth_credential() -> None:
-    auth = AuthInfo(
-        kind="oauth",
-        key_id="client-1",
-        principal="buyer-x",
-        scopes=["read:products", "write:media_buys"],
-    )
+    with pytest.warns(DeprecationWarning, match="OAuthCredential"):
+        auth = AuthInfo(
+            kind="oauth",
+            key_id="client-1",
+            principal="buyer-x",
+            scopes=["read:products", "write:media_buys"],
+        )
     assert isinstance(auth.credential, OAuthCredential)
     assert auth.credential.client_id == "client-1"
     assert auth.credential.scopes == ("read:products", "write:media_buys")
 
 
 def test_authinfo_explicit_credential_wins_over_flat_fields() -> None:
-    """Synthesis is one-way: explicit ``credential=...`` always wins."""
+    """Synthesis is one-way: explicit ``credential=...`` always wins
+    AND suppresses the deprecation warning (no synthesis happens)."""
+    import warnings as _w
+
     explicit = HttpSigCredential(
         kind="http_sig",
         keyid="kid-explicit",
         agent_url="https://explicit/",
         verified_at=123.0,
     )
-    auth = AuthInfo(
-        kind="bearer",
-        key_id="bearer-key",
-        principal="buyer-y",
-        credential=explicit,
-    )
+    with _w.catch_warnings():
+        _w.simplefilter("error", DeprecationWarning)
+        auth = AuthInfo(
+            kind="bearer",
+            key_id="bearer-key",
+            principal="buyer-y",
+            credential=explicit,
+        )
     assert auth.credential is explicit
     assert auth.agent_url == "https://explicit/"
 
@@ -154,8 +165,13 @@ def test_authinfo_explicit_credential_wins_over_flat_fields() -> None:
 def test_authinfo_derived_kind_yields_no_credential() -> None:
     """``derived`` / unauthenticated dev fixtures don't carry a real
     credential; synthesis stays None so the registry can reject them
-    explicitly."""
-    auth = AuthInfo(kind="derived", principal="anonymous")
+    explicitly. No DeprecationWarning fires either — no synthesis
+    happened."""
+    import warnings as _w
+
+    with _w.catch_warnings():
+        _w.simplefilter("error", DeprecationWarning)
+        auth = AuthInfo(kind="derived", principal="anonymous")
     assert auth.credential is None
     assert auth.agent_url is None
 
@@ -171,6 +187,7 @@ def test_authinfo_back_compat_dict_preserves_existing_consumer() -> None:
         key_id="kid-1",
         principal="buyer-a",
         scopes=["read"],
+        credential=ApiKeyCredential(kind="api_key", key_id="kid-1"),
     )
     assert _auth_info_to_dict(auth) == {
         "kind": "bearer",
@@ -183,11 +200,46 @@ def test_authinfo_back_compat_dict_preserves_existing_consumer() -> None:
 def test_authinfo_dataclass_replace_preserves_credential() -> None:
     """``dataclasses.replace`` re-runs ``__post_init__``. The synthesis
     branch only fires when ``credential is None``, so an existing
-    credential survives a replace that doesn't touch it."""
-    auth = AuthInfo(kind="bearer", key_id="bearer-1")
+    credential survives a replace that doesn't touch it — and the
+    replace doesn't re-fire the deprecation warning either."""
+    import warnings as _w
+
+    cred = ApiKeyCredential(kind="api_key", key_id="bearer-1")
+    auth = AuthInfo(kind="bearer", key_id="bearer-1", credential=cred)
+    with _w.catch_warnings():
+        _w.simplefilter("error", DeprecationWarning)
+        replaced = dataclasses.replace(auth, principal="new-principal")
+    assert replaced.credential is cred
+
+
+def test_authinfo_flat_field_construction_emits_deprecation_warning() -> None:
+    """The deprecation signal: any AuthInfo construction that relies
+    on flat-field synthesis fires a DeprecationWarning pointing at
+    the adopter callsite. The warning message names the synthesized
+    credential type and the 4.5.0 removal target."""
+    with pytest.warns(DeprecationWarning, match="adcp 4.5.0"):
+        AuthInfo(kind="bearer", key_id="bearer-1")
+
+
+def test_authinfo_from_legacy_dict_suppresses_deprecation_warning() -> None:
+    """The framework-internal :meth:`AuthInfo._from_legacy_dict` path
+    pre-synthesizes the credential and passes it via ``credential=``,
+    bypassing :meth:`__post_init__`'s warning. Pointing the warning
+    at framework code on every request would be noise the adopter
+    can't fix by changing their own code."""
+    import warnings as _w
+
+    raw = {
+        "kind": "bearer",
+        "key_id": "bearer-1",
+        "principal": "buyer-x",
+        "scopes": ["read"],
+    }
+    with _w.catch_warnings():
+        _w.simplefilter("error", DeprecationWarning)
+        auth = AuthInfo._from_legacy_dict(raw)
     assert isinstance(auth.credential, ApiKeyCredential)
-    replaced = dataclasses.replace(auth, principal="new-principal")
-    assert replaced.credential is auth.credential
+    assert auth.credential.key_id == "bearer-1"
 
 
 # ---------------------------------------------------------------------------
@@ -353,6 +405,7 @@ async def test_bearer_request_dispatches_through_registry_by_credential(
                 kind="bearer",
                 key_id="bearer-1",
                 principal="buyer-x",
+                credential=ApiKeyCredential(kind="api_key", key_id="bearer-1"),
             ),
         }
     )
@@ -683,6 +736,7 @@ async def test_mixed_registry_routes_signed_and_bearer_correctly(executor) -> No
                     kind="bearer",
                     key_id="bearer-1",
                     principal="buyer-x",
+                    credential=ApiKeyCredential(kind="api_key", key_id="bearer-1"),
                 ),
             }
         ),
