@@ -1,0 +1,28 @@
+# Dev-only Postgres for the v3 reference seller. Production sellers
+# point ``DATABASE_URL`` at their managed Postgres (RDS, Cloud SQL,
+# Neon, Supabase) and skip this file entirely.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: adcp
+      # ``trust`` is fine for the loopback dev compose; production
+      # deployments use scram-sha-256 + a real password sourced from
+      # a secrets backend (Vault, AWS Secrets Manager, sealed-secrets).
+      # No POSTGRES_PASSWORD here on purpose — the ``trust`` auth
+      # method makes it unused, and shipping a literal in version
+      # control flags secret-scanners.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d adcp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:
