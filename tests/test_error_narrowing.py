@@ -162,12 +162,27 @@ def test_narrow_falls_back_when_variants_tie() -> None:
 # ---- End-to-end: CreativeManifest with missing field ----
 
 
-def test_e2e_creative_manifest_missing_width_height_narrows_to_image_asset() -> None:
-    """End-to-end regression for the exact Stability AI report case.
+def test_e2e_creative_manifest_missing_width_height_surfaces_actionable_errors() -> None:
+    """End-to-end regression for the Stability AI Emma report case.
 
-    Before the narrowing: 26 ValidationErrors covering every variant
-    of the asset content union. After: just the 2 ImageAsset.width /
-    ImageAsset.height errors the adopter cares about."""
+    Original symptom: constructing a CreativeManifest with an asset
+    missing required fields produced ~26 ValidationErrors covering every
+    variant of the asset-content union. The actionable mistake (one
+    missing field) was buried.
+
+    After the AdCP 3.0.2 asset-union refactor (canonical
+    ``core/assets/asset-union.json``), pydantic narrows the
+    discriminated-union ValidationError natively at the schema layer —
+    constructing the same bad manifest now yields only the 2 missing-field
+    errors directly. ``narrow_union_errors`` becomes a pass-through on
+    this input.
+
+    This test pins the integration shape: the actionable errors reach
+    the adopter without amplification, and ``narrow_union_errors``
+    doesn't over-narrow or corrupt already-narrow output. Algorithm-level
+    coverage of the narrowing logic itself lives in the synthetic
+    ``test_narrow_picks_*`` tests above.
+    """
     from pydantic import ValidationError
 
     from adcp.types import CreativeManifest, FormatReferenceStructuredObject
@@ -185,16 +200,14 @@ def test_e2e_creative_manifest_missing_width_height_narrows_to_image_asset() -> 
             },
         )
     except ValidationError as exc:
-        narrowed = narrow_union_errors(
-            exc.errors(include_input=False, include_context=False, include_url=False)
-        )
-        # Should be ~2 errors (ImageAsset's width + height), not ~26.
+        raw = exc.errors(include_input=False, include_context=False, include_url=False)
+        narrowed = narrow_union_errors(raw)
         assert (
             len(narrowed) <= 4
-        ), f"narrow_union_errors didn't narrow: {len(narrowed)} errors remain"
+        ), f"too many errors reach adopter: {len(narrowed)} (raw={len(raw)})"
         assert all("image" in err["loc"] for err in narrowed), (
-            "narrowed result should be image-asset-only; got: "
-            f"{[err['loc'] for err in narrowed]}"
+            "errors should localize to the matched 'image' asset variant; "
+            f"got: {[err['loc'] for err in narrowed]}"
         )
         missing_fields = {err["loc"][-1] for err in narrowed if err["type"] == "missing"}
         assert "width" in missing_fields and "height" in missing_fields
