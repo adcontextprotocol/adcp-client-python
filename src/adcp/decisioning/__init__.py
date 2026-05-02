@@ -49,6 +49,10 @@ See ``examples/hello_seller.py`` for the runnable version.
 
 from __future__ import annotations
 
+from adcp.decisioning.account_projection import (
+    project_account_for_response,
+    project_business_entity_for_response,
+)
 from adcp.decisioning.accounts import (
     AccountStore,
     ExplicitAccounts,
@@ -178,6 +182,8 @@ __all__ = [
     "bearer_only_registry",
     "create_adcp_server_from_platform",
     "mixed_registry",
+    "project_account_for_response",
+    "project_business_entity_for_response",
     "serve",
     "signing_only_registry",
     "validate_billing_for_agent",
