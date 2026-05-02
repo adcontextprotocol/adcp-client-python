@@ -129,6 +129,31 @@ from adcp.decisioning.types import (
     WorkflowHandoff,
 )
 
+# Conditional import: PostgresTaskRegistry needs the [pg] extra. Always expose
+# the name — when psycopg isn't installed we fall through to a stub class whose
+# constructor raises ImportError with the install hint. Matches the pattern
+# used by adcp.signing for PgReplayStore.
+try:
+    from adcp.decisioning.pg import PostgresTaskRegistry  # noqa: F401
+except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
+
+    class PostgresTaskRegistry:  # type: ignore[no-redef]
+        """Stub raised when ``adcp[pg]`` isn't installed.
+
+        Attempting to instantiate raises :class:`ImportError` with the
+        install-hint text from :mod:`adcp.decisioning.pg.task_registry`.
+        """
+
+        is_durable: bool = True
+
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            raise ImportError(
+                "PostgresTaskRegistry requires psycopg3 and psycopg-pool. "
+                "Install the 'pg' extra: `pip install 'adcp[pg]'` "
+                "(Poetry: `poetry add 'adcp[pg]'`)."
+            )
+
+
 __all__ = [
     "Account",
     "AccountStore",
@@ -161,6 +186,7 @@ __all__ = [
     "InMemoryTaskRegistry",
     "MaybeAsync",
     "OAuthCredential",
+    "PostgresTaskRegistry",
     "Proposal",
     "PropertyList",
     "PropertyListReference",

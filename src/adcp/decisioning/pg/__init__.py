@@ -11,10 +11,17 @@ Available when ``adcp[pg]`` is installed:
   request to gate dispatch on the seller's commercial relationship
   with the buyer agent (allowlist + onboarding state + billing
   capabilities).
+* :class:`PostgresTaskRegistry` — durable
+  :class:`~adcp.decisioning.TaskRegistry` for HITL task state. Survives
+  process restarts and is safe for multi-worker deployments sharing a
+  single Postgres database. Drop-in replacement for
+  :class:`~adcp.decisioning.InMemoryTaskRegistry` that satisfies the
+  production-mode durability gate.
 
 The schema DDL ships alongside the Python code (e.g.
-``adcp/decisioning/pg/buyer_agent_registry.sql``) so adopters can run
-it through whatever migration tool they use (Alembic, Flyway, psql).
+``adcp/decisioning/pg/buyer_agent_registry.sql``,
+``adcp/decisioning/pg/decisioning_tasks.sql``) so adopters can run it
+through whatever migration tool they use (Alembic, Flyway, psql).
 """
 
 from __future__ import annotations
@@ -24,9 +31,11 @@ from adcp.decisioning.pg.buyer_agent_registry import (
     PG_AVAILABLE,
     PgBuyerAgentRegistry,
 )
+from adcp.decisioning.pg.task_registry import PostgresTaskRegistry
 
 __all__ = [
     "DEFAULT_TABLE_NAME",
     "PG_AVAILABLE",
     "PgBuyerAgentRegistry",
+    "PostgresTaskRegistry",
 ]
