@@ -605,6 +605,11 @@ from adcp.types.guards import (  # noqa: F401
     is_update_media_buy_success,
     is_validate_content_delivery_success,
 )
+from adcp.types.projections import (
+    AccountResponse,
+    BusinessEntityResponse,
+    to_account_response,
+)
 from adcp.types.registry import BrandSource
 
 # Semantic aliases for auto-generated field enum names
@@ -686,6 +691,7 @@ __all__ = [
     "AccountReference",
     "AccountReferenceById",
     "AccountReferenceByNaturalKey",
+    "AccountResponse",
     "AccountScope",
     "GetAccountFinancialsRequest",
     "GetAccountFinancialsResponse",
@@ -885,6 +891,7 @@ __all__ = [
     "BrandReference",
     "BrandSource",
     "BusinessEntity",
+    "BusinessEntityResponse",
     "BuyingMode",
     "ContextObject",
     "DateRange",
@@ -1238,6 +1245,8 @@ __all__ = [
     "Performance",
     "ProductCatalog",
     "TextSubAsset",
+    # Response-shape projection helpers
+    "to_account_response",
     # Submodules for advanced use:
     "generated",
     "aliases",

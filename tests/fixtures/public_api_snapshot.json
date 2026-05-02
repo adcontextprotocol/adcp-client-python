@@ -382,6 +382,7 @@
     "AccountReference",
     "AccountReferenceById",
     "AccountReferenceByNaturalKey",
+    "AccountResponse",
     "AccountScope",
     "AcquireRightsAcquiredResponse",
     "AcquireRightsErrorResponse",
@@ -432,6 +433,7 @@
     "BuildCreativeResponse",
     "BuildCreativeSuccessResponse",
     "BusinessEntity",
+    "BusinessEntityResponse",
     "BuyingMode",
     "ByCatalogItemItem",
     "ByPackageItem",
@@ -897,6 +899,7 @@
     "WebhookMetadata",
     "WebhookResponseType",
     "aliases",
-    "generated"
+    "generated",
+    "to_account_response"
   ]
 }
