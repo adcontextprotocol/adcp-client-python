@@ -107,35 +107,42 @@ class AuthInfo:
     extra: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        """Synthesize ``credential`` + ``agent_url`` from legacy fields
-        when not supplied directly.
+        """Synthesize a typed bearer-shaped ``credential`` from the
+        flat ``kind`` / ``key_id`` / ``principal`` fields when not
+        supplied directly.
 
-        Adopter code constructing ``AuthInfo(kind="signed_request",
-        principal="https://agent.example/", key_id="kid-1")`` (the v6.0
-        alpha pattern) gets a typed
-        :class:`adcp.decisioning.HttpSigCredential` populated
-        automatically — the registry dispatch layer needs the typed
-        credential, and synthesizing here keeps the migration
-        zero-touch for existing adopter code.
+        Synthesis is **deliberately limited to bearer-shape credentials
+        (``ApiKeyCredential`` / ``OAuthCredential``)**. Signed-request
+        traffic uses :class:`HttpSigCredential`, which carries
+        ``verified_at`` — a real RFC 9421 verification timestamp the
+        SDK has no way to mint here. Adopters wiring signed-request
+        auth MUST construct :class:`HttpSigCredential` explicitly in
+        their verifier and pass it via ``credential=`` so the
+        registry dispatch path can trust ``agent_url`` as
+        cryptographically validated. Without this restriction, a
+        misconfigured upstream middleware that writes
+        ``kind="signed_request"`` to the auth metadata would silently
+        escalate bearer traffic onto the signed path — defeating
+        the v3 commercial-identity gate this layer provides.
 
-        Legacy → credential mapping:
+        Mapping:
 
-        * ``kind in {"signed_request", "http_sig"}`` →
-          :class:`HttpSigCredential` (when ``key_id`` and ``principal``
-          are both set; ``agent_url`` taken from ``principal`` per
-          the documented v3 convention).
         * ``kind in {"api_key", "bearer"}`` →
-          :class:`ApiKeyCredential` (when ``key_id`` set).
-        * ``kind == "oauth"`` → :class:`OAuthCredential` (using
-          ``key_id`` or ``principal`` as ``client_id``).
+          :class:`ApiKeyCredential` when ``key_id`` is set.
+        * ``kind == "oauth"`` → :class:`OAuthCredential` using
+          ``key_id`` or ``principal`` as ``client_id``.
+        * ``kind in {"signed_request", "http_sig"}`` → no synthesis;
+          adopter's verifier must populate ``credential=`` directly.
         * Other kinds (``"derived"``, ``"mtls"``, custom): no
           synthesis — ``credential`` stays ``None``.
 
-        Synthesis is one-way: explicit ``credential=...`` always wins.
+        ``agent_url`` is derived from a present
+        :class:`HttpSigCredential` only — never from the
+        ``principal`` string, since unverified principals must not
+        appear as verified agent URLs.
+
+        Synthesis is one-way: explicit ``credential=`` always wins.
         """
-        # Local imports to avoid the import-time cycle; registry.py
-        # doesn't depend on context.py but the TYPE_CHECKING import
-        # at the top is evaluated lazily.
         from adcp.decisioning.registry import (
             ApiKeyCredential,
             HttpSigCredential,
@@ -143,15 +150,7 @@ class AuthInfo:
         )
 
         if self.credential is None:
-            if self.kind in {"signed_request", "http_sig"}:
-                if self.key_id and self.principal:
-                    self.credential = HttpSigCredential(
-                        kind="http_sig",
-                        keyid=self.key_id,
-                        agent_url=self.principal,
-                        verified_at=0.0,
-                    )
-            elif self.kind in {"api_key", "bearer"}:
+            if self.kind in {"api_key", "bearer"}:
                 if self.key_id:
                     self.credential = ApiKeyCredential(
                         kind="api_key",
@@ -166,15 +165,8 @@ class AuthInfo:
                         scopes=tuple(self.scopes),
                     )
 
-        # Derive agent_url from the credential when present; fall back
-        # to legacy principal for signed-request kinds so adopters
-        # reading auth_info.agent_url get a consistent value regardless
-        # of construction path.
-        if self.agent_url is None:
-            if isinstance(self.credential, HttpSigCredential):
-                self.agent_url = self.credential.agent_url
-            elif self.kind in {"signed_request", "http_sig"} and self.principal:
-                self.agent_url = self.principal
+        if self.agent_url is None and isinstance(self.credential, HttpSigCredential):
+            self.agent_url = self.credential.agent_url
 
 
 @dataclass

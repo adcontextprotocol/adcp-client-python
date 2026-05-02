@@ -63,11 +63,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, cast
 
 try:
-    from sqlalchemy import JSON, Column, String, create_engine, select
-    from sqlalchemy.orm import DeclarativeBase, Session
+    from sqlalchemy import String, create_engine, select
+    from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
     from sqlalchemy.pool import StaticPool
 except ImportError as exc:
     raise SystemExit(
@@ -76,9 +76,11 @@ except ImportError as exc:
 
 from adcp.decisioning import (
     ApiKeyCredential,
+    BillingMode,
     BuyerAgent,
     BuyerAgentDefaultTerms,
     BuyerAgentRegistry,
+    BuyerAgentStatus,
     OAuthCredential,
     bearer_only_registry,
     mixed_registry,
@@ -107,17 +109,19 @@ class BuyerAgentRow(_Base):
     #: AdCP v3 canonical identifier — verified at signature time for
     #: signed traffic, used as the bearer-table FK pointer for
     #: bearer traffic.
-    agent_url: str = Column(String, primary_key=True)
-    display_name: str = Column(String, nullable=False)
+    agent_url: Mapped[str] = mapped_column(String, primary_key=True)
+    display_name: Mapped[str] = mapped_column(String, nullable=False)
 
     #: Lifecycle: active / suspended / blocked. Adopters update
     #: in-place to suspend / unblock.
-    status: str = Column(String, nullable=False, default="active")
+    status: Mapped[str] = mapped_column(String, nullable=False, default="active")
 
     #: JSON-encoded set of permitted ``BillingMode`` values. Stored as
-    #: JSON for backend portability (Postgres ARRAY would be cleaner
-    #: on Postgres; this stays SQLite-friendly).
-    billing_capabilities_json: str = Column(
+    #: a JSON-string for backend portability (Postgres ARRAY would be
+    #: cleaner on Postgres; this stays SQLite-friendly). The wrapper
+    #: deserializes via ``json.loads`` and projects into a
+    #: ``frozenset``.
+    billing_capabilities_json: Mapped[str] = mapped_column(
         String,
         nullable=False,
         default=lambda: json.dumps(["operator"]),
@@ -125,28 +129,43 @@ class BuyerAgentRow(_Base):
 
     #: Optional bearer-token id for pre-trust beta auth. Adopters in
     #: signing-only posture leave NULL.
-    api_key_id: str | None = Column(String, nullable=True)
+    api_key_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
     #: Default account terms applied when accounts are provisioned
-    #: under this agent (rate card, payment terms, etc.). JSON for
-    #: portability; structure mirrors :class:`BuyerAgentDefaultTerms`.
-    default_terms_json: str | None = Column(JSON, nullable=True)
+    #: under this agent (rate card, payment terms, etc.). JSON-string
+    #: for portability; structure mirrors
+    #: :class:`BuyerAgentDefaultTerms`. Adopters with structured
+    #: validation can swap the column for a Pydantic-validated JSON
+    #: type.
+    default_terms_json: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+_ALLOWED_STATUSES = {"active", "suspended", "blocked"}
 
 
 def _row_to_buyer_agent(row: BuyerAgentRow) -> BuyerAgent:
     """Project an ORM row to the framework :class:`BuyerAgent` shape.
 
     The wrapper boundary — anything stored as JSON / strings on the
-    DB side gets projected to typed framework objects here.
+    DB side gets projected to typed framework objects here. Validates
+    ``status`` against the framework enum so a row with a typo'd
+    state (``"ACTIVE"``, ``"deleted"``) raises at projection time
+    instead of silently flowing through to the dispatch gate.
     """
-    capabilities = frozenset(json.loads(row.billing_capabilities_json))
+    if row.status not in _ALLOWED_STATUSES:
+        raise ValueError(
+            f"BuyerAgentRow {row.agent_url!r} has invalid status "
+            f"{row.status!r}; expected one of {sorted(_ALLOWED_STATUSES)!r}. "
+            "Adopters with custom statuses extend the SDK's "
+            "BuyerAgentStatus literal."
+        )
+    capabilities = cast(
+        "frozenset[BillingMode]",
+        frozenset(json.loads(row.billing_capabilities_json)),
+    )
     terms: BuyerAgentDefaultTerms | None = None
     if row.default_terms_json:
-        terms_dict = (
-            json.loads(row.default_terms_json)
-            if isinstance(row.default_terms_json, str)
-            else row.default_terms_json
-        )
+        terms_dict = json.loads(row.default_terms_json)
         terms = BuyerAgentDefaultTerms(
             rate_card=terms_dict.get("rate_card"),
             payment_terms=terms_dict.get("payment_terms"),
@@ -156,8 +175,8 @@ def _row_to_buyer_agent(row: BuyerAgentRow) -> BuyerAgent:
     return BuyerAgent(
         agent_url=row.agent_url,
         display_name=row.display_name,
-        status=row.status,  # type: ignore[arg-type]
-        billing_capabilities=capabilities,  # type: ignore[arg-type]
+        status=cast("BuyerAgentStatus", row.status),
+        billing_capabilities=capabilities,
         default_account_terms=terms,
     )
 

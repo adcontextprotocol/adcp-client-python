@@ -1,25 +1,30 @@
-"""Tier 2 part 2 — :class:`BuyerAgentRegistry` dispatch wire-up.
+"""Tier 2 — :class:`BuyerAgentRegistry` dispatch wire-up.
 
 Covers the seam between the framework's existing auth path and the
 new commercial-identity registry layer:
 
-* :class:`AuthInfo` synthesizes a typed
-  :class:`adcp.decisioning.Credential` from legacy
-  ``kind`` / ``key_id`` / ``principal`` fields so adopters built against
-  the v6.0 alpha get registry dispatch with zero code change.
+* :class:`AuthInfo` synthesizes a typed bearer
+  :class:`adcp.decisioning.Credential` from the flat
+  ``kind`` / ``key_id`` / ``principal`` fields. Signed-request
+  traffic requires an explicit :class:`HttpSigCredential` from the
+  v3 verifier — the SDK refuses to mint one without a real
+  ``verified_at`` timestamp because that would let any middleware
+  setting ``kind="signed_request"`` escalate bearer traffic onto
+  the signed path.
 * :class:`PlatformHandler` calls the registry BEFORE
   :meth:`AccountStore.resolve` when one is wired; the resolved
   :class:`BuyerAgent` is threaded onto :attr:`RequestContext.buyer_agent`.
-* Suspended / blocked / unknown agents reject with structured error
-  codes (``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
-  ``REQUEST_AUTH_UNRECOGNIZED_AGENT``) instead of leaking into
-  ``ACCOUNT_NOT_FOUND``.
+* Suspended / blocked / unknown-status agents reject with structured
+  error codes (``AGENT_SUSPENDED`` transient, ``AGENT_BLOCKED``
+  terminal, ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` for missing /
+  unknown-status) instead of leaking into ``ACCOUNT_NOT_FOUND``.
 * No registry wired → existing dispatch path runs unchanged
   (back-compat for pre-trust beta adopters).
 """
 
 from __future__ import annotations
 
+import dataclasses
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -51,25 +56,61 @@ def executor():
     pool.shutdown(wait=True)
 
 
+def _signed_auth_info(agent_url: str, *, keyid: str = "kid-1") -> AuthInfo:
+    """Construct an AuthInfo for verified signed-request traffic.
+
+    Mirrors what an RFC 9421 verifier middleware would do: build the
+    typed :class:`HttpSigCredential` with a real ``verified_at`` and
+    pass it via ``credential=``. The SDK refuses to synthesize this
+    from the flat fields, so tests covering the signed path use this
+    helper.
+    """
+    return AuthInfo(
+        kind="http_sig",
+        credential=HttpSigCredential(
+            kind="http_sig",
+            keyid=keyid,
+            agent_url=agent_url,
+            verified_at=1700000000.0,
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
-# AuthInfo — credential synthesis from legacy fields
+# AuthInfo — credential synthesis from flat fields
 # ---------------------------------------------------------------------------
 
 
-def test_authinfo_signed_request_synthesizes_http_sig_credential() -> None:
-    """v6.0-alpha pattern: ``AuthInfo(kind="signed_request", principal="...",
-    key_id="...")`` — ``__post_init__`` produces a typed
-    :class:`HttpSigCredential` so the registry dispatch path works
-    without adopter code change."""
+def test_authinfo_signed_request_does_not_synthesize_credential() -> None:
+    """Security boundary: synthesizing an :class:`HttpSigCredential`
+    from the flat ``kind="signed_request"`` field would let any auth
+    middleware that writes that string escalate bearer traffic onto
+    the signed-verified path. The SDK refuses to mint a credential
+    that claims cryptographic verification when no verification
+    happened in this code path."""
     auth = AuthInfo(
         kind="signed_request",
         key_id="kid-1",
         principal="https://agent.example/",
     )
-    assert isinstance(auth.credential, HttpSigCredential)
-    assert auth.credential.kind == "http_sig"
-    assert auth.credential.keyid == "kid-1"
-    assert auth.credential.agent_url == "https://agent.example/"
+    assert auth.credential is None
+    assert auth.agent_url is None
+
+
+def test_authinfo_explicit_http_sig_credential_populates_agent_url() -> None:
+    """The supported v3 path: the verifier constructs
+    :class:`HttpSigCredential` with a real ``verified_at`` and passes
+    it via ``credential=``. ``agent_url`` derives from the credential
+    so adopters reading ``auth_info.agent_url`` get a single field
+    regardless of construction style."""
+    cred = HttpSigCredential(
+        kind="http_sig",
+        keyid="kid-1",
+        agent_url="https://agent.example/",
+        verified_at=1700000000.0,
+    )
+    auth = AuthInfo(kind="http_sig", credential=cred)
+    assert auth.credential is cred
     assert auth.agent_url == "https://agent.example/"
 
 
@@ -92,10 +133,8 @@ def test_authinfo_oauth_synthesizes_oauth_credential() -> None:
     assert auth.credential.scopes == ("read:products", "write:media_buys")
 
 
-def test_authinfo_explicit_credential_wins_over_legacy() -> None:
-    """Adopters wiring v3 directly construct the credential explicitly.
-    Synthesis is one-way: explicit ``credential=...`` always wins, the
-    legacy fields are ignored as a synthesis source."""
+def test_authinfo_explicit_credential_wins_over_flat_fields() -> None:
+    """Synthesis is one-way: explicit ``credential=...`` always wins."""
     explicit = HttpSigCredential(
         kind="http_sig",
         keyid="kid-explicit",
@@ -103,13 +142,12 @@ def test_authinfo_explicit_credential_wins_over_legacy() -> None:
         verified_at=123.0,
     )
     auth = AuthInfo(
-        kind="signed_request",
-        key_id="kid-legacy",
-        principal="https://legacy/",
+        kind="bearer",
+        key_id="bearer-key",
+        principal="buyer-y",
         credential=explicit,
     )
     assert auth.credential is explicit
-    # agent_url derives from credential, not legacy principal.
     assert auth.agent_url == "https://explicit/"
 
 
@@ -124,22 +162,90 @@ def test_authinfo_derived_kind_yields_no_credential() -> None:
 
 def test_authinfo_back_compat_dict_preserves_existing_consumer() -> None:
     """``_auth_info_to_dict`` (in accounts.py) still emits the 4-key
-    legacy projection — adopter ``Account.auth_info`` consumers don't
+    flat projection — adopter ``Account.auth_info`` consumers don't
     see the new fields and aren't broken."""
     from adcp.decisioning.accounts import _auth_info_to_dict
 
     auth = AuthInfo(
-        kind="signed_request",
+        kind="bearer",
         key_id="kid-1",
         principal="buyer-a",
         scopes=["read"],
     )
     assert _auth_info_to_dict(auth) == {
-        "kind": "signed_request",
+        "kind": "bearer",
         "key_id": "kid-1",
         "principal": "buyer-a",
         "scopes": ["read"],
     }
+
+
+def test_authinfo_dataclass_replace_preserves_credential() -> None:
+    """``dataclasses.replace`` re-runs ``__post_init__``. The synthesis
+    branch only fires when ``credential is None``, so an existing
+    credential survives a replace that doesn't touch it."""
+    auth = AuthInfo(kind="bearer", key_id="bearer-1")
+    assert isinstance(auth.credential, ApiKeyCredential)
+    replaced = dataclasses.replace(auth, principal="new-principal")
+    assert replaced.credential is auth.credential
+
+
+# ---------------------------------------------------------------------------
+# _extract_auth_info — dict-shape metadata path
+# ---------------------------------------------------------------------------
+
+
+def test_extract_auth_info_dict_passes_through_v3_fields() -> None:
+    """Adopters whose middleware writes a v3-shape dict for
+    ``ctx.metadata['adcp.auth_info']`` must get the typed credential
+    + ``agent_url`` + ``operator`` + ``extra`` through to AuthInfo.
+    Without this, the registry dispatch sees only the synthesized
+    bearer credential and silently bypasses the verified signed path."""
+    cred = HttpSigCredential(
+        kind="http_sig",
+        keyid="kid-1",
+        agent_url="https://agent.example/",
+        verified_at=1700000000.0,
+    )
+    ctx = ToolContext(
+        metadata={
+            "adcp.auth_info": {
+                "kind": "http_sig",
+                "credential": cred,
+                "agent_url": "https://agent.example/",
+                "operator": "operator-1",
+                "extra": {"session_id": "s_42"},
+            }
+        }
+    )
+    result = PlatformHandler._extract_auth_info(ctx)
+    assert result is not None
+    assert result.credential is cred
+    assert result.agent_url == "https://agent.example/"
+    assert result.operator == "operator-1"
+    assert result.extra == {"session_id": "s_42"}
+
+
+def test_extract_auth_info_dict_back_compat_flat_fields_only() -> None:
+    """v6.0-alpha middleware that only writes the flat 4-key dict still
+    works — the v3 keys default to None / {}."""
+    ctx = ToolContext(
+        metadata={
+            "adcp.auth_info": {
+                "kind": "bearer",
+                "key_id": "bearer-1",
+                "principal": "buyer-x",
+                "scopes": ["read"],
+            }
+        }
+    )
+    result = PlatformHandler._extract_auth_info(ctx)
+    assert result is not None
+    assert result.kind == "bearer"
+    assert isinstance(result.credential, ApiKeyCredential)
+    assert result.agent_url is None
+    assert result.operator is None
+    assert result.extra == {}
 
 
 # ---------------------------------------------------------------------------
@@ -167,7 +273,11 @@ async def test_signed_request_dispatches_through_registry_by_agent_url(
     """Verified signed-request path: the framework calls
     :meth:`BuyerAgentRegistry.resolve_by_agent_url` with the
     cryptographically-verified agent_url — NOT
-    :meth:`resolve_by_credential` (which is the bearer path)."""
+    :meth:`resolve_by_credential` (which is the bearer path).
+
+    The verifier is responsible for constructing
+    :class:`HttpSigCredential` with the real ``verified_at``; the
+    framework trusts that as the cryptographic guarantee."""
     from adcp.types import GetProductsRequest, GetProductsResponse
 
     expected_agent = BuyerAgent(
@@ -194,13 +304,7 @@ async def test_signed_request_dispatches_through_registry_by_agent_url(
 
     handler = _make_handler_with_registry(_Platform(), executor, registry)
     tool_ctx = ToolContext(
-        metadata={
-            "adcp.auth_info": AuthInfo(
-                kind="signed_request",
-                key_id="kid-1",
-                principal="https://agent.example/",
-            ),
-        }
+        metadata={"adcp.auth_info": _signed_auth_info("https://agent.example/")},
     )
     await handler.get_products(
         GetProductsRequest(buying_mode="brief", brief="any inventory"),
@@ -221,7 +325,7 @@ async def test_bearer_request_dispatches_through_registry_by_credential(
 
     expected_agent = BuyerAgent(
         agent_url="https://legacy/",
-        display_name="Legacy Bearer Buyer",
+        display_name="Bearer Buyer",
         status="active",
     )
     looked_up: list[str] = []
@@ -261,6 +365,50 @@ async def test_bearer_request_dispatches_through_registry_by_credential(
 
 
 @pytest.mark.asyncio
+async def test_signed_kind_without_explicit_credential_is_rejected(
+    executor,
+) -> None:
+    """Defense-in-depth: a request whose AuthInfo carries
+    ``kind="signed_request"`` but no explicit ``credential`` cannot
+    reach the signed-traffic registry path. Synthesis is disabled
+    for this kind, so ``_resolve_buyer_agent`` sees ``credential is
+    None`` and rejects with ``REQUEST_AUTH_UNRECOGNIZED_AGENT``.
+    Without this, an upstream middleware that wrote
+    ``kind="signed_request"`` without doing RFC 9421 verification
+    would silently escalate to the verified path."""
+    from adcp.types import GetProductsRequest
+
+    async def lookup(_url: str) -> BuyerAgent | None:
+        raise AssertionError("registry must not be called when synthesis is disabled")
+
+    registry = signing_only_registry(lookup)
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="hello")
+
+        async def get_products(self, req, ctx):
+            raise AssertionError("platform method must not be called")
+
+    handler = _make_handler_with_registry(_Platform(), executor, registry)
+    tool_ctx = ToolContext(
+        metadata={
+            "adcp.auth_info": AuthInfo(
+                kind="signed_request",
+                key_id="kid-1",
+                principal="https://agent.example/",
+            ),
+        }
+    )
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.get_products(
+            GetProductsRequest(buying_mode="brief", brief="any"),
+            tool_ctx,
+        )
+    assert exc_info.value.code == "REQUEST_AUTH_UNRECOGNIZED_AGENT"
+
+
+@pytest.mark.asyncio
 async def test_registry_miss_raises_request_auth_unrecognized_agent(
     executor,
 ) -> None:
@@ -283,13 +431,7 @@ async def test_registry_miss_raises_request_auth_unrecognized_agent(
 
     handler = _make_handler_with_registry(_Platform(), executor, registry)
     tool_ctx = ToolContext(
-        metadata={
-            "adcp.auth_info": AuthInfo(
-                kind="signed_request",
-                key_id="kid-1",
-                principal="https://unknown/",
-            ),
-        }
+        metadata={"adcp.auth_info": _signed_auth_info("https://unknown/")},
     )
     with pytest.raises(AdcpError) as exc_info:
         await handler.get_products(
@@ -301,9 +443,11 @@ async def test_registry_miss_raises_request_auth_unrecognized_agent(
 
 
 @pytest.mark.asyncio
-async def test_suspended_agent_raises_agent_suspended(executor) -> None:
-    """Status=suspended is a temporary commercial pause — distinct
-    error code so buyer agents can branch on retry vs escalate."""
+async def test_suspended_agent_raises_agent_suspended_transient(executor) -> None:
+    """Status=suspended is a *retryable* commercial pause
+    (``recovery="transient"``). Buyer agents can retry once the
+    seller restores the agent — distinct from blocked, which is
+    terminal."""
     from adcp.types import GetProductsRequest
 
     suspended = BuyerAgent(
@@ -326,13 +470,7 @@ async def test_suspended_agent_raises_agent_suspended(executor) -> None:
 
     handler = _make_handler_with_registry(_Platform(), executor, registry)
     tool_ctx = ToolContext(
-        metadata={
-            "adcp.auth_info": AuthInfo(
-                kind="signed_request",
-                key_id="kid-1",
-                principal="https://suspended/",
-            ),
-        }
+        metadata={"adcp.auth_info": _signed_auth_info("https://suspended/")},
     )
     with pytest.raises(AdcpError) as exc_info:
         await handler.get_products(
@@ -340,13 +478,15 @@ async def test_suspended_agent_raises_agent_suspended(executor) -> None:
             tool_ctx,
         )
     assert exc_info.value.code == "AGENT_SUSPENDED"
+    assert exc_info.value.recovery == "transient"
     assert exc_info.value.details["agent_url"] == "https://suspended/"
 
 
 @pytest.mark.asyncio
-async def test_blocked_agent_raises_agent_blocked(executor) -> None:
-    """Status=blocked is a hard cutoff — buyer cannot retry their way
-    out, must contact seller directly."""
+async def test_blocked_agent_raises_agent_blocked_terminal(executor) -> None:
+    """Status=blocked is a hard cutoff
+    (``recovery="terminal"``) — buyer cannot retry their way out,
+    must contact seller directly."""
     from adcp.types import GetProductsRequest
 
     blocked = BuyerAgent(
@@ -369,13 +509,7 @@ async def test_blocked_agent_raises_agent_blocked(executor) -> None:
 
     handler = _make_handler_with_registry(_Platform(), executor, registry)
     tool_ctx = ToolContext(
-        metadata={
-            "adcp.auth_info": AuthInfo(
-                kind="signed_request",
-                key_id="kid-1",
-                principal="https://blocked/",
-            ),
-        }
+        metadata={"adcp.auth_info": _signed_auth_info("https://blocked/")},
     )
     with pytest.raises(AdcpError) as exc_info:
         await handler.get_products(
@@ -383,6 +517,52 @@ async def test_blocked_agent_raises_agent_blocked(executor) -> None:
             tool_ctx,
         )
     assert exc_info.value.code == "AGENT_BLOCKED"
+    assert exc_info.value.recovery == "terminal"
+
+
+@pytest.mark.asyncio
+async def test_unknown_agent_status_default_rejects(executor) -> None:
+    """Defense-in-depth: a row with a typo'd or future-enum-value
+    status must not silently fall through to ``active`` past the
+    commercial-identity gate. Anything not in ``{active, suspended,
+    blocked}`` raises ``REQUEST_AUTH_UNRECOGNIZED_AGENT``."""
+    from adcp.types import GetProductsRequest
+
+    weird = BuyerAgent.__new__(BuyerAgent)
+    # BuyerAgent is frozen; bypass the BuyerAgentStatus literal check
+    # for this defense-in-depth scenario (a custom registry impl
+    # could surface a status string the framework doesn't enumerate).
+    object.__setattr__(weird, "agent_url", "https://weird/")
+    object.__setattr__(weird, "display_name", "Weird")
+    object.__setattr__(weird, "status", "deleted")
+    object.__setattr__(weird, "billing_capabilities", frozenset({"operator"}))
+    object.__setattr__(weird, "default_account_terms", None)
+    object.__setattr__(weird, "allowed_brands", None)
+    object.__setattr__(weird, "ext", {})
+
+    async def lookup(_: str) -> BuyerAgent | None:
+        return weird
+
+    registry = signing_only_registry(lookup)
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="hello")
+
+        async def get_products(self, req, ctx):
+            raise AssertionError("platform method must not be called for unknown status")
+
+    handler = _make_handler_with_registry(_Platform(), executor, registry)
+    tool_ctx = ToolContext(
+        metadata={"adcp.auth_info": _signed_auth_info("https://weird/")},
+    )
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.get_products(
+            GetProductsRequest(buying_mode="brief", brief="any"),
+            tool_ctx,
+        )
+    assert exc_info.value.code == "REQUEST_AUTH_UNRECOGNIZED_AGENT"
+    assert exc_info.value.details["status"] == "deleted"
 
 
 @pytest.mark.asyncio
@@ -406,7 +586,6 @@ async def test_no_registry_wired_skips_buyer_agent_resolution(executor) -> None:
         _Platform(),
         executor=executor,
         registry=InMemoryTaskRegistry(),
-        # No buyer_agent_registry wired.
     )
     await handler.get_products(
         GetProductsRequest(buying_mode="brief", brief="any inventory"),
@@ -449,8 +628,8 @@ async def test_unauthenticated_request_with_registry_rejects(executor) -> None:
 async def test_mixed_registry_routes_signed_and_bearer_correctly(executor) -> None:
     """Migration posture: both methods. Signed traffic resolves
     cryptographically; bearer falls through to the legacy key table.
-    The framework picks the right resolver based on the verified
-    credential kind."""
+    The framework picks the right resolver based on the credential
+    kind."""
     from adcp.types import GetProductsRequest, GetProductsResponse
 
     signed_agent = BuyerAgent(
@@ -493,15 +672,7 @@ async def test_mixed_registry_routes_signed_and_bearer_correctly(executor) -> No
     # Signed path.
     await handler.get_products(
         GetProductsRequest(buying_mode="brief", brief="any inventory"),
-        ToolContext(
-            metadata={
-                "adcp.auth_info": AuthInfo(
-                    kind="signed_request",
-                    key_id="kid-1",
-                    principal="https://signed/",
-                ),
-            }
-        ),
+        ToolContext(metadata={"adcp.auth_info": _signed_auth_info("https://signed/")}),
     )
     # Bearer path.
     await handler.get_products(
@@ -520,3 +691,46 @@ async def test_mixed_registry_routes_signed_and_bearer_correctly(executor) -> No
     assert signed_calls == ["https://signed/"]
     assert bearer_calls == ["bearer-1"]
     assert seen == ["https://signed/", "https://bearer/"]
+
+
+@pytest.mark.asyncio
+async def test_mixed_registry_signed_miss_rejects(executor) -> None:
+    """Mixed-registry posture, signed traffic, agent_url not in the
+    seller's allowlist → REQUEST_AUTH_UNRECOGNIZED_AGENT. The bearer
+    path is never consulted (signed credentials don't fall through
+    to bearer lookup)."""
+    from adcp.types import GetProductsRequest
+
+    bearer_consulted: list[Any] = []
+
+    async def by_url(_url: str) -> BuyerAgent | None:
+        return None
+
+    async def by_cred(cred):  # type: ignore[no-untyped-def]
+        bearer_consulted.append(cred)
+        return BuyerAgent(
+            agent_url="https://bearer/",
+            display_name="Bearer",
+            status="active",
+        )
+
+    registry = mixed_registry(
+        resolve_by_agent_url=by_url,
+        resolve_by_credential=by_cred,
+    )
+
+    class _Platform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities()
+        accounts = SingletonAccounts(account_id="hello")
+
+        async def get_products(self, req, ctx):
+            raise AssertionError("must not be called on signed miss")
+
+    handler = _make_handler_with_registry(_Platform(), executor, registry)
+    with pytest.raises(AdcpError) as exc_info:
+        await handler.get_products(
+            GetProductsRequest(buying_mode="brief", brief="any"),
+            ToolContext(metadata={"adcp.auth_info": _signed_auth_info("https://unknown/")}),
+        )
+    assert exc_info.value.code == "REQUEST_AUTH_UNRECOGNIZED_AGENT"
+    assert bearer_consulted == []

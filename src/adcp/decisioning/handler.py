@@ -365,6 +365,8 @@ async def _resolve_buyer_agent(
             recovery="terminal",
         )
 
+    if agent.status == "active":
+        return agent
     if agent.status == "suspended":
         raise AdcpError(
             "AGENT_SUSPENDED",
@@ -372,10 +374,10 @@ async def _resolve_buyer_agent(
                 f"Buyer agent {agent.agent_url!r} is suspended. Suspension "
                 "is a temporary commercial pause (credit, compliance review, "
                 "ops hold) — the seller restores it via their durable "
-                "store. Buyer should escalate through their account "
-                "contact rather than retry."
+                "store. Retry once the seller restores the agent; escalate "
+                "through the account contact if the pause is unexpected."
             ),
-            recovery="terminal",
+            recovery="transient",
             details={"agent_url": agent.agent_url, "status": agent.status},
         )
     if agent.status == "blocked":
@@ -389,7 +391,22 @@ async def _resolve_buyer_agent(
             recovery="terminal",
             details={"agent_url": agent.agent_url, "status": agent.status},
         )
-    return agent
+    # Default-reject any non-active status the framework doesn't
+    # recognize (typo, future enum value, adopter-custom string). A
+    # silent fall-through to "active" would leak commercial state
+    # past the gate.
+    raise AdcpError(
+        "REQUEST_AUTH_UNRECOGNIZED_AGENT",
+        message=(
+            f"Buyer agent {agent.agent_url!r} has unrecognized status "
+            f"{agent.status!r}. The framework only treats ``active`` as "
+            "live; ``suspended`` / ``blocked`` raise their own structured "
+            "errors. Unknown statuses are rejected by default to prevent "
+            "silent fall-through past the commercial-identity gate."
+        ),
+        recovery="terminal",
+        details={"agent_url": agent.agent_url, "status": agent.status},
+    )
 
 
 def _project_build_creative(result: Any) -> Any:
@@ -633,12 +650,27 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if isinstance(raw, AuthInfo):
             return raw
         if isinstance(raw, dict):
-            return AuthInfo(
-                kind=raw.get("kind", "derived"),
-                key_id=raw.get("key_id"),
-                principal=raw.get("principal"),
-                scopes=list(raw.get("scopes", [])),
-            )
+            # Adopters whose middleware writes a v3-shape dict
+            # (``credential``, ``agent_url``, ``operator``, ``extra``)
+            # get those fields through to AuthInfo. A v6.0-alpha
+            # middleware that only writes the flat
+            # ``kind`` / ``key_id`` / ``principal`` / ``scopes`` keys
+            # still works — the v3 keys default to None / {}.
+            kwargs: dict[str, Any] = {
+                "kind": raw.get("kind", "derived"),
+                "key_id": raw.get("key_id"),
+                "principal": raw.get("principal"),
+                "scopes": list(raw.get("scopes", [])),
+            }
+            if "credential" in raw:
+                kwargs["credential"] = raw["credential"]
+            if "agent_url" in raw:
+                kwargs["agent_url"] = raw["agent_url"]
+            if "operator" in raw:
+                kwargs["operator"] = raw["operator"]
+            if "extra" in raw:
+                kwargs["extra"] = raw["extra"]
+            return AuthInfo(**kwargs)
         return None
 
     def _maybe_auto_emit_sync_completion(
