@@ -62,17 +62,33 @@ class _MockTransport(httpx.AsyncBaseTransport):
 
 @pytest.fixture
 def patch_httpx(monkeypatch):
-    """Patch httpx.AsyncClient to use the fake transport."""
+    """Inject a fake-transport ``client_factory`` into every
+    ``BrandJsonJwksResolver`` constructed during this test.
+
+    Cleaner than the earlier global ``AsyncClient.__init__`` monkey-patch:
+    only ``BrandJsonJwksResolver`` constructions in this test pick up
+    the mock — any other ``AsyncClient`` (e.g. the inner
+    ``AsyncCachingJwksResolver``) is unaffected.
+    """
 
     def _patch(responses: dict[str, dict]) -> _MockTransport:
         transport = _MockTransport(responses)
-        original_init = httpx.AsyncClient.__init__
 
-        def patched_init(self, *args, **kwargs):
-            kwargs["transport"] = transport
+        def factory(_url: str) -> httpx.AsyncClient:
+            return httpx.AsyncClient(
+                transport=transport,
+                timeout=5.0,
+                follow_redirects=False,
+                trust_env=False,
+            )
+
+        original_init = BrandJsonJwksResolver.__init__
+
+        def patched_init(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            kwargs.setdefault("_client_factory", factory)
             return original_init(self, *args, **kwargs)
 
-        monkeypatch.setattr(httpx.AsyncClient, "__init__", patched_init)
+        monkeypatch.setattr(BrandJsonJwksResolver, "__init__", patched_init)
         return transport
 
     return _patch
@@ -105,6 +121,40 @@ def test_canonicalize_allows_http_when_private_allowed() -> None:
         _canonicalize_url("http://localhost:8080/x", allow_private=True)
         == "http://localhost:8080/x"
     )
+
+
+def test_canonicalize_lowercases_host() -> None:
+    """Mixed-case hosts canonicalize to lowercase — without this the
+    redirect-loop detector would see ``X.example`` and ``x.example``
+    as distinct URLs, defeating the loop check (review finding #2)."""
+    assert (
+        _canonicalize_url("https://X.Example.com/path", allow_private=False)
+        == "https://x.example.com/path"
+    )
+
+
+def test_canonicalize_strips_default_port() -> None:
+    """``https://x:443`` and ``https://x`` are the same origin —
+    canonicalize to the bare-host form so origin equality and loop
+    detection work (review finding #2)."""
+    assert (
+        _canonicalize_url("https://x.example:443/p", allow_private=False) == "https://x.example/p"
+    )
+    assert _canonicalize_url("http://localhost:80/p", allow_private=True) == "http://localhost/p"
+
+
+def test_canonicalize_preserves_non_default_port() -> None:
+    """Non-default port must be preserved — ``https://x:8443`` is a
+    different origin from ``https://x:443``."""
+    assert (
+        _canonicalize_url("https://x.example:8443/p", allow_private=False)
+        == "https://x.example:8443/p"
+    )
+
+
+def test_canonicalize_lowercases_scheme() -> None:
+    """Scheme normalization: ``HTTPS`` → ``https``."""
+    assert _canonicalize_url("HTTPS://x.example/", allow_private=False) == "https://x.example/"
 
 
 def test_canonicalize_rejects_malformed_url() -> None:
@@ -643,3 +693,99 @@ async def test_resolver_satisfies_jwks_resolver_protocol() -> None:
     coro = resolver.resolve("k")
     assert asyncio.iscoroutine(coro)
     coro.close()
+
+
+# ----- Security regressions from expert review -----
+
+
+@pytest.mark.asyncio
+async def test_resolver_rejects_oversized_brand_json(patch_httpx) -> None:
+    """Body cap regression — counterparty serving a large brand.json
+    must be rejected before parse, not buffered into memory.
+
+    Review finding: no body-size cap. ``response.content`` would
+    buffer arbitrary bytes; cap before parsing.
+    """
+    huge_body = b"{" + b'"x":"' + b"A" * (300 * 1024) + b'"' + b"}"
+    patch_httpx(
+        {
+            "https://example.com/.well-known/brand.json": {
+                "body": huge_body,
+                "headers": {"content-type": "application/json"},
+            },
+        }
+    )
+    resolver = BrandJsonJwksResolver(
+        "https://example.com/.well-known/brand.json",
+        agent_type="brand",
+        max_body_bytes=256 * 1024,  # default cap
+        jwks_fetcher=_jwks_fetcher_for({}),
+    )
+    with pytest.raises(BrandJsonResolverError) as exc:
+        await resolver("k1")
+    assert exc.value.code == "invalid_body"
+    assert "exceeds" in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_resolver_loop_detection_handles_case_aliasing(patch_httpx) -> None:
+    """Review finding #2 — without host lowercase + port-strip,
+    ``https://X.example/`` and ``https://x.example/`` would be
+    distinct entries in the ``seen`` set, defeating loop detection.
+    Verify the canonicalized form is what enters ``seen``."""
+    import json
+
+    patch_httpx(
+        {
+            "https://example.com/.well-known/brand.json": {
+                "body": json.dumps(
+                    {"authoritative_location": "https://EXAMPLE.com:443/.well-known/brand.json"}
+                ).encode(),
+                "headers": {"content-type": "application/json"},
+            },
+        }
+    )
+    resolver = BrandJsonJwksResolver(
+        "https://example.com/.well-known/brand.json",
+        agent_type="brand",
+        jwks_fetcher=_jwks_fetcher_for({}),
+    )
+    # The redirect target canonicalizes to the entry URL — must trip
+    # ``redirect_loop`` rather than fetching twice.
+    with pytest.raises(BrandJsonResolverError) as exc:
+        await resolver("k1")
+    assert exc.value.code == "redirect_loop"
+
+
+@pytest.mark.asyncio
+async def test_resolver_concurrent_resolve_dedups_to_one_fetch(
+    patch_httpx,
+) -> None:
+    """Review finding #5 — N concurrent ``resolve()`` calls on a cold
+    cache must share ONE brand.json fetch via the in-flight future,
+    not serialize through a Lock and fetch N times."""
+    transport = patch_httpx(
+        {
+            "https://example.com/.well-known/brand.json": {
+                "body": _brand_json(),
+                "headers": {"content-type": "application/json"},
+            },
+        }
+    )
+    jwk = {"kty": "OKP", "crv": "Ed25519", "x": "abc", "kid": "k1"}
+    resolver = BrandJsonJwksResolver(
+        "https://example.com/.well-known/brand.json",
+        agent_type="brand",
+        jwks_fetcher=_jwks_fetcher_for({"https://x.example/jwks": jwk}),
+    )
+
+    # Fan out 5 concurrent resolves. All should share one fetch.
+    results = await asyncio.gather(*[resolver("k1") for _ in range(5)])
+    assert all(r is not None and r["kid"] == "k1" for r in results)
+
+    # Count brand.json fetches — should be exactly one. Each
+    # transport.calls entry is a request; filter to the brand.json URL.
+    brand_fetches = [
+        c for c in transport.calls if str(c.url) == "https://example.com/.well-known/brand.json"
+    ]
+    assert len(brand_fetches) == 1, f"expected single shared fetch, got {len(brand_fetches)}"

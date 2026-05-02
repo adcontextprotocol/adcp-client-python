@@ -31,13 +31,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from typing import Any
+
+import httpx
 
 from adcp.signing.capability_cache import (
     CachedCapability,
     CapabilityCache,
     FetchRaw,
 )
+
+logger = logging.getLogger(__name__)
 
 #: The wire op name for the seller's capability advertisement. The
 #: outbound signing wrapper short-circuits on this op so the priming
@@ -85,10 +90,31 @@ async def ensure_capability_loaded(
                 adcp_version=adcp_version,
                 fetched_at=cache._clock(),
             )
-        except Exception:
+        except (
+            httpx.HTTPError,
+            ValueError,
+            TypeError,
+            json.JSONDecodeError,
+            OSError,
+        ) as exc:
             # Fail-open: cache an empty negative entry with a short
             # ``stale_at`` window so a transient outage doesn't block
             # signing decisions for the full TTL.
+            #
+            # Catch only expected discovery failures — let
+            # ``BaseException`` (asyncio.CancelledError,
+            # KeyboardInterrupt, programmer bugs surfacing as
+            # AttributeError) propagate. Without this narrowing, a
+            # cancelled task would silently land in negative-cache and
+            # the awaiter would never see the cancellation.
+            logger.warning(
+                "[adcp.signing.capability_priming] discovery for %s "
+                "failed (%s: %s); negative-caching for %ds",
+                cache_key,
+                type(exc).__name__,
+                exc,
+                int(NEGATIVE_CACHE_TTL_SECONDS),
+            )
             now = cache._clock()
             entry = CachedCapability(
                 request_signing=None,
@@ -101,6 +127,13 @@ async def ensure_capability_loaded(
         if not future.done():
             future.set_result(entry)
         return entry
+    except BaseException as exc:
+        # Anything that propagated past the narrow catch above (e.g.
+        # CancelledError from fetch_raw) — make sure waiters joined to
+        # this future see the failure rather than awaiting forever.
+        if not future.done():
+            future.set_exception(exc)
+        raise
     finally:
         cache._delete_in_flight(cache_key)
 

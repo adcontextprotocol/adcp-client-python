@@ -39,6 +39,7 @@ import asyncio
 import re
 import time
 from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import Any, Literal
 from urllib.parse import urlsplit, urlunsplit
@@ -48,8 +49,16 @@ import httpx
 from adcp.signing.jwks import (
     AsyncCachingJwksResolver,
     AsyncJwksFetcher,
+    SSRFValidationError,
     async_default_jwks_fetcher,
 )
+
+#: Test seam: a callable that returns an :class:`httpx.AsyncClient`
+#: (or any async-context-manager wrapping one) for a given URL. The
+#: production path constructs an IP-pinned client; tests inject a
+#: factory that returns a client wired to a mock transport so they
+#: don't have to monkeypatch ``AsyncClient.__init__`` globally.
+_ClientFactory = Callable[[str], AbstractAsyncContextManager[httpx.AsyncClient]]
 
 #: Functional roles an agent may declare in brand.json's ``agents[]``
 #: array. Mirrors ``schemas/cache/enums/brand-agent-type.json`` and the
@@ -86,6 +95,19 @@ DEFAULT_MIN_COOLDOWN_SECONDS = 30.0
 DEFAULT_MAX_AGE_SECONDS = 3600.0
 DEFAULT_MAX_REDIRECTS = 3
 DEFAULT_BRAND_JSON_TIMEOUT_SECONDS = 10.0
+
+#: brand.json bodies are tiny by design (a single brand portfolio with a
+#: handful of agents). Cap at 256 KiB so a counterparty serving an
+#: adversarial multi-megabyte body can't OOM the verifier. Buffered
+#: into memory after read; no streaming-parse path. Larger legitimate
+#: brand directories (1000+ brands in a portfolio) would need a higher
+#: cap — file an issue if you hit it.
+DEFAULT_MAX_BRAND_JSON_BYTES = 256 * 1024
+
+#: Default ports stripped during URL canonicalization so loop detection
+#: and origin equality see the same string for ``https://x`` and
+#: ``https://x:443``.
+_DEFAULT_PORTS: dict[str, int] = {"http": 80, "https": 443}
 
 # Bare hostname pattern for the ``house`` redirect variant. Matches
 # the regex in brand.json's schema (``schemas/cache/brand.json``)
@@ -157,10 +179,12 @@ class BrandJsonJwksResolver:
         min_cooldown_seconds: float = DEFAULT_MIN_COOLDOWN_SECONDS,
         max_age_seconds: float = DEFAULT_MAX_AGE_SECONDS,
         max_redirects: int = DEFAULT_MAX_REDIRECTS,
+        max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
         allow_private_destinations: bool = False,
         jwks_fetcher: AsyncJwksFetcher | None = None,
         clock: Callable[[], float] | None = None,
         timeout_seconds: float = DEFAULT_BRAND_JSON_TIMEOUT_SECONDS,
+        _client_factory: _ClientFactory | None = None,
     ) -> None:
         self._url = brand_json_url
         self._agent_type = agent_type
@@ -169,14 +193,23 @@ class BrandJsonJwksResolver:
         self._min_cooldown = min_cooldown_seconds
         self._max_age = max_age_seconds
         self._max_redirects = max_redirects
+        self._max_body_bytes = max_body_bytes
         self._allow_private = allow_private_destinations
         self._jwks_fetcher = jwks_fetcher or async_default_jwks_fetcher
+        self._client_factory = _client_factory
         self._clock = clock or time.time
         self._timeout = timeout_seconds
 
         self._snapshot: _BrandSnapshot | None = None
         self._inner: AsyncCachingJwksResolver | None = None
-        self._refresh_lock: asyncio.Lock = asyncio.Lock()
+        # In-flight refresh future for single-flighting concurrent
+        # callers. None when no refresh is running. N concurrent
+        # ``resolve()`` calls on a cold cache share one fetch via this
+        # future — JS uses Promise sharing natively, Python needs the
+        # explicit future. ``asyncio.Lock`` would also work but
+        # SERIALIZES (waiter N+1 fetches AFTER waiter N's fetch
+        # returns), which is what we want to avoid.
+        self._refresh_in_flight: asyncio.Future[None] | None = None
 
     # AsyncJwksResolver Protocol — callable as ``await resolver(kid)``.
     async def __call__(self, kid: str) -> dict[str, Any] | None:
@@ -230,15 +263,50 @@ class BrandJsonJwksResolver:
 
     async def force_refresh(self) -> None:
         """Force refetch of both brand.json and inner JWKS, bypassing
-        the cooldown."""
-        async with self._refresh_lock:
-            self._snapshot = None
-            self._inner = None
-            await self._do_refresh()
+        the cooldown.
+
+        Race semantics match the JS port: state is cleared, then
+        ``_refresh`` is called. If another task is already mid-refresh,
+        we await its completion rather than starting a fresh one — the
+        in-flight task will populate the snapshot we just cleared.
+        ``force_refresh`` therefore means "ensure a fresh fetch is
+        either in progress or just completed", not "always issue a new
+        fetch even when one is pending."
+        """
+        self._snapshot = None
+        self._inner = None
+        await self._refresh()
 
     async def _refresh(self) -> None:
-        async with self._refresh_lock:
-            await self._do_refresh()
+        """Single-flighted brand.json refresh.
+
+        Concurrent callers share one in-flight fetch via
+        ``_refresh_in_flight`` — N verifiers all hitting a cold cache
+        do ONE brand.json fetch, not N. ``asyncio.shield`` protects
+        the in-flight task from a waiter's own cancellation
+        propagating into the shared fetch.
+        """
+        if self._refresh_in_flight is not None:
+            # Another task is fetching; await its result.
+            await asyncio.shield(self._refresh_in_flight)
+            return
+
+        loop = asyncio.get_running_loop()
+        self._refresh_in_flight = loop.create_future()
+        try:
+            try:
+                await self._do_refresh()
+            except BaseException as exc:
+                # Surface the failure to any awaiters before re-raising
+                # so they don't await a never-resolved future.
+                if not self._refresh_in_flight.done():
+                    self._refresh_in_flight.set_exception(exc)
+                raise
+            else:
+                if not self._refresh_in_flight.done():
+                    self._refresh_in_flight.set_result(None)
+        finally:
+            self._refresh_in_flight = None
 
     async def _do_refresh(self) -> None:
         fetched = await _fetch_brand_json(
@@ -247,6 +315,8 @@ class BrandJsonJwksResolver:
             max_redirects=self._max_redirects,
             allow_private=self._allow_private,
             timeout_seconds=self._timeout,
+            max_body_bytes=self._max_body_bytes,
+            client_factory=self._client_factory,
         )
 
         # 304 on the entry URL: extend the lifetime, keep the inner resolver.
@@ -303,6 +373,8 @@ async def _fetch_brand_json(
     max_redirects: int,
     allow_private: bool,
     timeout_seconds: float,
+    max_body_bytes: int = DEFAULT_MAX_BRAND_JSON_BYTES,
+    client_factory: _ClientFactory | None = None,
 ) -> _FetchedBrandJson:
     """Fetch brand.json from ``start_url``, following ``authoritative_location``
     and ``house`` redirect variants up to ``max_redirects`` hops.
@@ -314,102 +386,156 @@ async def _fetch_brand_json(
     rejected at parse time rather than relying on the transport
     layer to catch every pathological shape.
 
-    SSRF protection: ``allow_private=False`` (default) rejects
-    private IPs / link-local / cloud metadata via the underlying
-    httpx client. Production deployments leave it False.
+    SSRF protection (matches the ``adcp.signing.jwks`` posture):
+    each hop's URL is sent through an :func:`build_async_ip_pinned_transport`,
+    which resolves and validates the host once and pins the connect
+    to that IP — closing the DNS-rebinding TOCTOU. ``trust_env=False``
+    so a misconfigured ``HTTPS_PROXY`` env var cannot tunnel the
+    fetch through an attacker-chosen egress. ``allow_private=False``
+    (default) rejects RFC1918 / link-local / cloud-metadata IPs.
+
+    Body cap: each response is bounded to ``max_body_bytes`` (default
+    256 KiB). brand.json is small by design; an adversarial
+    multi-megabyte body would otherwise be buffered into memory by
+    ``response.json()``.
+
+    ``client_factory`` is the test seam — production callers pass
+    ``None`` to use the IP-pinned client; tests inject a factory that
+    returns a client wired to a mock transport.
     """
+    from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
+
     seen: set[str] = set()
     url = _canonicalize_url(start_url, allow_private=allow_private)
 
-    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
-        for hop in range(max_redirects + 1):
-            if url in seen:
-                raise BrandJsonResolverError("redirect_loop", "brand.json redirect loop detected")
-            seen.add(url)
+    for hop in range(max_redirects + 1):
+        if url in seen:
+            raise BrandJsonResolverError("redirect_loop", "brand.json redirect loop detected")
+        seen.add(url)
 
-            headers: dict[str, str] = {"accept": "application/json"}
-            # Only attach If-None-Match on the entry URL: a 304
-            # short-circuits the whole chain, so revalidating a deeper
-            # hop with a stale ETag would lie about the redirect target.
-            if hop == 0 and current_etag is not None:
-                headers["if-none-match"] = current_etag
+        headers: dict[str, str] = {"accept": "application/json"}
+        # Only attach If-None-Match on the entry URL: a 304
+        # short-circuits the whole chain, so revalidating a deeper
+        # hop with a stale ETag would lie about the redirect target.
+        if hop == 0 and current_etag is not None:
+            headers["if-none-match"] = current_etag
 
-            try:
-                response = await client.get(url, headers=headers)
-            except (httpx.HTTPError, OSError) as exc:
-                raise BrandJsonResolverError(
-                    "fetch_failed", f"brand.json fetch failed: {exc}"
-                ) from exc
-
-            if hop == 0 and response.status_code == 304:
-                return _FetchedBrandJson(
-                    status="not_modified",
-                    final_url=url,
-                    data=None,
-                    etag=response.headers.get("etag"),
-                    cache_control=response.headers.get("cache-control"),
-                )
-            if response.status_code != 200:
-                raise BrandJsonResolverError(
-                    "fetch_failed",
-                    f"brand.json fetch returned HTTP {response.status_code}",
-                )
-
-            try:
-                parsed = response.json()
-            except (ValueError, httpx.DecodingError) as exc:
-                raise BrandJsonResolverError(
-                    "invalid_body", "brand.json response is not valid JSON"
-                ) from exc
-            if not isinstance(parsed, dict):
-                raise BrandJsonResolverError("invalid_body", "brand.json response is not an object")
-
-            authoritative = parsed.get("authoritative_location")
-            house = parsed.get("house")
-
-            if isinstance(authoritative, str):
-                if hop == max_redirects:
-                    raise BrandJsonResolverError(
-                        "redirect_depth_exceeded",
-                        "brand.json redirect depth exceeded",
-                    )
-                url = _canonicalize_url(authoritative, allow_private=allow_private)
-                continue
-            if isinstance(house, str):
-                # The "house string" redirect variant: a bare domain
-                # pointing at the authoritative portfolio. Reject
-                # anything that isn't a bare hostname so an attacker
-                # can't inject userinfo, paths, or ports via the
-                # interpolation.
-                if not _BARE_HOSTNAME_RE.match(house):
-                    raise BrandJsonResolverError(
-                        "invalid_house",
-                        'brand.json "house" is not a bare hostname',
-                    )
-                if hop == max_redirects:
-                    raise BrandJsonResolverError(
-                        "redirect_depth_exceeded",
-                        "brand.json redirect depth exceeded",
-                    )
-                url = _canonicalize_url(
-                    f"https://{house}/.well-known/brand.json",
-                    allow_private=allow_private,
-                )
-                continue
-
-            # Narrow shape validation on the terminal document. Full
-            # schema validation is stricter than we need; what we MUST
-            # reject is a document whose shape would let an attacker
-            # smuggle a non-string url or jwks_uri past the selector.
-            _assert_brand_json_shape(parsed)
-
-            return _FetchedBrandJson(
-                status="ok",
-                final_url=url,
-                data=parsed,
-                etag=response.headers.get("etag"),
-                cache_control=response.headers.get("cache-control"),
+        # Build a fresh IP-pinned client per hop — each redirect target
+        # is a different host whose IP must be resolved + validated
+        # independently. Mirrors how the JWKS fetcher constructs a
+        # transport per call.
+        if client_factory is not None:
+            client_cm = client_factory(url)
+        else:
+            transport = build_async_ip_pinned_transport(url, allow_private=allow_private)
+            client_cm = httpx.AsyncClient(
+                transport=transport,
+                timeout=timeout_seconds,
+                follow_redirects=False,
+                trust_env=False,
             )
+
+        try:
+            async with client_cm as client:
+                try:
+                    response = await client.get(url, headers=headers)
+                except SSRFValidationError as exc:
+                    raise BrandJsonResolverError(
+                        "fetch_failed", f"brand.json URL failed SSRF check: {exc}"
+                    ) from exc
+                except (httpx.HTTPError, OSError) as exc:
+                    raise BrandJsonResolverError(
+                        "fetch_failed", f"brand.json fetch failed: {exc}"
+                    ) from exc
+
+                if hop == 0 and response.status_code == 304:
+                    return _FetchedBrandJson(
+                        status="not_modified",
+                        final_url=url,
+                        data=None,
+                        etag=response.headers.get("etag"),
+                        cache_control=response.headers.get("cache-control"),
+                    )
+                if response.status_code != 200:
+                    raise BrandJsonResolverError(
+                        "fetch_failed",
+                        f"brand.json fetch returned HTTP {response.status_code}",
+                    )
+
+                # Body-size cap. ``response.content`` is already buffered
+                # by httpx (we're not streaming); reject if it exceeds
+                # the cap before paying the JSON-parse cost.
+                body = response.content
+                if len(body) > max_body_bytes:
+                    raise BrandJsonResolverError(
+                        "invalid_body",
+                        f"brand.json response exceeds {max_body_bytes} bytes " f"(got {len(body)})",
+                    )
+
+                try:
+                    parsed = response.json()
+                except (ValueError, httpx.DecodingError) as exc:
+                    raise BrandJsonResolverError(
+                        "invalid_body", "brand.json response is not valid JSON"
+                    ) from exc
+        except BrandJsonResolverError:
+            raise
+
+        if not isinstance(parsed, dict):
+            raise BrandJsonResolverError("invalid_body", "brand.json response is not an object")
+
+        # Capture response headers once before the client closes —
+        # used for both the `ok` return below and any 304 returns above
+        # (already returned by this point).
+        etag = response.headers.get("etag")
+        cache_control = response.headers.get("cache-control")
+
+        authoritative = parsed.get("authoritative_location")
+        house = parsed.get("house")
+
+        if isinstance(authoritative, str):
+            if hop == max_redirects:
+                raise BrandJsonResolverError(
+                    "redirect_depth_exceeded",
+                    "brand.json redirect depth exceeded",
+                )
+            url = _canonicalize_url(authoritative, allow_private=allow_private)
+            continue
+        if isinstance(house, str):
+            # The "house string" redirect variant: a bare domain
+            # pointing at the authoritative portfolio. Reject
+            # anything that isn't a bare hostname so an attacker
+            # can't inject userinfo, paths, or ports via the
+            # interpolation.
+            if not _BARE_HOSTNAME_RE.match(house):
+                raise BrandJsonResolverError(
+                    "invalid_house",
+                    'brand.json "house" is not a bare hostname',
+                )
+            if hop == max_redirects:
+                raise BrandJsonResolverError(
+                    "redirect_depth_exceeded",
+                    "brand.json redirect depth exceeded",
+                )
+            url = _canonicalize_url(
+                f"https://{house}/.well-known/brand.json",
+                allow_private=allow_private,
+            )
+            continue
+
+        # Narrow shape validation on the terminal document. Full
+        # schema validation is stricter than we need; what we MUST
+        # reject is a document whose shape would let an attacker
+        # smuggle a non-string url or jwks_uri past the selector.
+        _assert_brand_json_shape(parsed)
+
+        return _FetchedBrandJson(
+            status="ok",
+            final_url=url,
+            data=parsed,
+            etag=etag,
+            cache_control=cache_control,
+        )
 
     raise BrandJsonResolverError("redirect_depth_exceeded", "brand.json redirect depth exceeded")
 
@@ -418,9 +544,22 @@ def _canonicalize_url(raw: str, *, allow_private: bool) -> str:
     """Structurally validate a URL and return it canonicalized.
 
     Rejects URLs the transport layer would later refuse anyway, but
-    catching them here gives a clearer error code and prevents a
-    malformed redirect target from silently bypassing the hop cap
-    because its string form differed from a prior seen URL.
+    catching them here gives a clearer error code AND closes the
+    redirect-loop detector against trivial aliasing attacks
+    (case-mismatched host, default-port elision).
+
+    Canonicalization mirrors the JS port's ``new URL(...)`` semantics:
+
+    * Scheme lowercased.
+    * Host lowercased (``urlsplit`` does NOT do this — we do it).
+    * Default port (443 for https, 80 for http) stripped.
+    * Fragments stripped — they aren't sent on the wire and must not
+      smuggle loop-detection aliases into ``seen``.
+
+    Without these the loop detector sees ``https://X.example/`` and
+    ``https://x.example/`` as distinct strings; the JS-side resolver
+    canonicalizes both via ``new URL``, so a Python-only deployment
+    would fail open where JS fails closed.
     """
     try:
         parts = urlsplit(raw)
@@ -430,11 +569,17 @@ def _canonicalize_url(raw: str, *, allow_private: bool) -> str:
         raise BrandJsonResolverError("invalid_url", "brand.json URL is malformed")
     if parts.username or parts.password:
         raise BrandJsonResolverError("invalid_url", "brand.json URL must not include userinfo")
-    if parts.scheme != "https" and not (allow_private and parts.scheme == "http"):
+    scheme = parts.scheme.lower()
+    if scheme != "https" and not (allow_private and scheme == "http"):
         raise BrandJsonResolverError("invalid_url", "brand.json URL must use https://")
-    # Strip fragments — they aren't sent on the wire and must not
-    # smuggle loop-detection aliases into ``seen``.
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, ""))
+    host = parts.hostname or ""
+    if not host:
+        raise BrandJsonResolverError("invalid_url", "brand.json URL has no host")
+    port = parts.port
+    if port is not None and port == _DEFAULT_PORTS.get(scheme):
+        port = None
+    netloc = host if port is None else f"{host}:{port}"
+    return urlunsplit((scheme, netloc, parts.path, parts.query, ""))
 
 
 def _assert_brand_json_shape(obj: dict[str, Any]) -> None:
