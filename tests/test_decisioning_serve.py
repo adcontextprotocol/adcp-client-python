@@ -448,7 +448,7 @@ def test_serve_fails_fast_when_sales_platform_missing_webhook_sender() -> None:
     assert "create_media_buy" in msg
     # Structured details so adopter harnesses can programmatically
     # surface the exact missing piece + eligible tool list.
-    assert exc_info.value.details["missing"] == "webhook_sender"
+    assert exc_info.value.details["missing"] == "webhook_sender_or_supervisor"
     assert "create_media_buy" in exc_info.value.details["webhook_eligible_tools"]
 
 

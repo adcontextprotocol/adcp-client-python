@@ -47,6 +47,9 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from adcp.webhook_sender import WebhookSender
+    from adcp.webhook_supervisor import WebhookDeliverySupervisor
+
+    DeliveryTarget = WebhookSender | WebhookDeliverySupervisor
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +128,7 @@ def _extract_push_notification_url_and_token(
 
 async def _emit_sync_completion_webhook(
     *,
-    sender: WebhookSender,
+    target: DeliveryTarget,
     url: str,
     token: str | None,
     method_name: str,
@@ -139,10 +142,15 @@ async def _emit_sync_completion_webhook(
     correlate primarily via resource ids on ``result``
     (``media_buy_id``, ``creative_id``, etc.); ``task_id`` here is
     informational for the spec's required-field shape.
+
+    ``target`` is either a bare :class:`WebhookSender` (one attempt,
+    no breaker) or a :class:`WebhookDeliverySupervisor` (retry, breaker,
+    optional delivery log). Both expose ``send_mcp(...)`` with
+    compatible kwargs; the call site is polymorphic.
     """
     task_id = f"sync-{uuid.uuid4().hex[:16]}"
     try:
-        await sender.send_mcp(
+        await target.send_mcp(
             url=url,
             task_id=task_id,
             status="completed",
@@ -169,6 +177,7 @@ def maybe_emit_sync_completion(
     method_name: str,
     params: Any,
     result: Any,
+    supervisor: WebhookDeliverySupervisor | None = None,
 ) -> None:
     """Fire-and-forget auto-emit gate. Called by handler shims after
     the sync-success arm of mutating tools.
@@ -217,7 +226,8 @@ def maybe_emit_sync_completion(
         if config is None:
             return  # buyer didn't register — nothing to do
 
-        if sender is None:
+        target = supervisor or sender
+        if target is None:
             # Buyer registered a webhook config but the adopter didn't
             # wire a sender. Without this branch, the buyer's
             # notification quietly disappears — they think they
@@ -237,8 +247,8 @@ def maybe_emit_sync_completion(
             logger.warning(
                 "[adcp.decisioning] buyer registered "
                 "push_notification_config (url=%s) for %s but auto-emit "
-                "webhook_sender is None — webhook silently dropped. "
-                "Pass webhook_sender to "
+                "has neither webhook_sender nor webhook_supervisor — "
+                "webhook silently dropped. Pass one to "
                 "adcp.decisioning.serve.create_adcp_server_from_platform, "
                 "or set auto_emit_completion_webhooks=False to silence "
                 "this warning.",
@@ -279,7 +289,7 @@ def maybe_emit_sync_completion(
             return
         bg = loop.create_task(
             _emit_sync_completion_webhook(
-                sender=sender,
+                target=target,
                 url=url,
                 token=token,
                 method_name=method_name,
@@ -307,6 +317,7 @@ def validate_webhook_sender_for_platform(
     advertised_tools: frozenset[str] | set[str],
     sender: Any,
     auto_emit: bool,
+    supervisor: Any = None,
 ) -> None:
     """Server-boot fail-fast for the F12 misconfig (Emma sales-direct
     P0 root cause).
@@ -314,9 +325,9 @@ def validate_webhook_sender_for_platform(
     When an adopter claims a specialism whose tool surface includes
     any spec-eligible webhook task type (e.g., ``create_media_buy``,
     ``activate_signal``, ``acquire_rights``) AND auto-emit is on AND
-    no ``webhook_sender`` is wired, every buyer who registers
-    ``push_notification_config.url`` would have their notification
-    silently dropped. The runtime gate at
+    neither ``webhook_sender`` nor ``webhook_supervisor`` is wired,
+    every buyer who registers ``push_notification_config.url`` would
+    have their notification silently dropped. The runtime gate at
     :func:`maybe_emit_sync_completion` warns on the FIRST call, but
     by then the buyer has already burned a request and the adopter
     has shipped without webhook wiring.
@@ -335,7 +346,7 @@ def validate_webhook_sender_for_platform(
     """
     if not auto_emit:
         return
-    if sender is not None:
+    if sender is not None or supervisor is not None:
         return
     eligible = SPEC_WEBHOOK_TASK_TYPES & set(advertised_tools)
     if not eligible:
@@ -347,18 +358,19 @@ def validate_webhook_sender_for_platform(
         message=(
             "auto_emit_completion_webhooks is enabled and the platform's "
             "claimed specialisms expose webhook-eligible tools "
-            f"{sorted(eligible)!r}, but no webhook_sender was wired. "
-            "Buyers who register push_notification_config.url on these "
-            "tools would have their notifications silently dropped. "
-            "Either pass a configured WebhookSender via "
-            "adcp.decisioning.serve.create_adcp_server_from_platform("
-            "..., webhook_sender=...), or set "
-            "auto_emit_completion_webhooks=False if you handle webhooks "
-            "manually inside your platform methods."
+            f"{sorted(eligible)!r}, but neither webhook_sender nor "
+            "webhook_supervisor was wired. Buyers who register "
+            "push_notification_config.url on these tools would have their "
+            "notifications silently dropped. Pass a configured "
+            "WebhookSender (transport only) or InMemoryWebhookDeliverySupervisor "
+            "(retry + circuit breaker) to "
+            "adcp.decisioning.serve.create_adcp_server_from_platform, "
+            "or set auto_emit_completion_webhooks=False if you handle "
+            "webhooks manually inside your platform methods."
         ),
         recovery="terminal",
         details={
-            "missing": "webhook_sender",
+            "missing": "webhook_sender_or_supervisor",
             "webhook_eligible_tools": sorted(eligible),
         },
     )

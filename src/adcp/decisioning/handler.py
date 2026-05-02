@@ -148,6 +148,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.task_registry import TaskRegistry
     from adcp.decisioning.types import Account
     from adcp.webhook_sender import WebhookSender
+    from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
 
 # ---------------------------------------------------------------------------
@@ -465,6 +466,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         state_reader: StateReader | None = None,
         resource_resolver: ResourceResolver | None = None,
         webhook_sender: WebhookSender | None = None,
+        webhook_supervisor: WebhookDeliverySupervisor | None = None,
         auto_emit_completion_webhooks: bool = True,
     ) -> None:
         super().__init__()
@@ -474,6 +476,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._state_reader = state_reader
         self._resource_resolver = resource_resolver
         self._webhook_sender = webhook_sender
+        self._webhook_supervisor = webhook_supervisor
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
 
     # ----- account resolution helper -----
@@ -569,6 +572,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             return
         maybe_emit_sync_completion(
             sender=self._webhook_sender,
+            supervisor=self._webhook_supervisor,
             enabled=self._auto_emit_completion_webhooks,
             method_name=method_name,
             params=params,

@@ -176,8 +176,9 @@ async def test_maybe_emit_warns_when_sender_none_but_buyer_registered_url(
         )
     messages = [r.message for r in caplog.records]
     assert any(
-        "webhook_sender is None" in m and "buyer.example.com/wh" in m for m in messages
-    ), f"expected sender-None warning citing the buyer URL; got {messages}"
+        "neither webhook_sender nor webhook_supervisor" in m and "buyer.example.com/wh" in m
+        for m in messages
+    ), f"expected sender/supervisor-None warning citing the buyer URL; got {messages}"
 
 
 @pytest.mark.asyncio

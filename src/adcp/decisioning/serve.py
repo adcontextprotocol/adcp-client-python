@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.state import StateReader
     from adcp.decisioning.task_registry import TaskRegistry
     from adcp.webhook_sender import WebhookSender
+    from adcp.webhook_supervisor import WebhookDeliverySupervisor
 
 
 def _is_production_env() -> bool:
@@ -77,6 +78,7 @@ def create_adcp_server_from_platform(
     state_reader: StateReader | None = None,
     resource_resolver: ResourceResolver | None = None,
     webhook_sender: WebhookSender | None = None,
+    webhook_supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_completion_webhooks: bool = True,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
@@ -122,11 +124,22 @@ def create_adcp_server_from_platform(
         v6.1).
     :param webhook_sender: Bring-your-own
         :class:`adcp.webhook_sender.WebhookSender` for sync-completion
-        and HITL-completion webhook delivery. Default ``None`` — when
-        unset, sync-completion auto-emit is a silent no-op (no URL to
-        deliver to, framework can't synthesize a sender). Adopters
-        wiring webhook delivery pass a configured sender (with their
-        signing key, IP-pinned transport, etc.).
+        and HITL-completion webhook delivery. Default ``None``. The
+        sender is the *transport* — one HTTP-Signatures POST per call,
+        no retry, no breaker. Production sellers typically wrap the
+        sender in a :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor`
+        and pass that via ``webhook_supervisor=`` instead.
+    :param webhook_supervisor: Bring-your-own
+        :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor` for
+        reliable delivery (retry, circuit breaker, attempt audit). When
+        passed, the F12 auto-emit path routes through it instead of
+        ``webhook_sender``. The reference
+        :class:`~adcp.webhook_supervisor.InMemoryWebhookDeliverySupervisor`
+        wraps a sender; adopters with infra-side retry (Celery, Kafka,
+        durable outbox) implement the Protocol against their queue.
+        Mutually optional with ``webhook_sender``; passing both is
+        valid (supervisor wins for auto-emit, sender remains available
+        for direct calls inside platform methods).
     :param auto_emit_completion_webhooks: F12 feature gate. When
         ``True`` (default), the framework auto-fires a completion
         webhook on the sync-success arm of mutating tools whenever the
@@ -235,6 +248,7 @@ def create_adcp_server_from_platform(
         state_reader=state_reader,
         resource_resolver=resource_resolver,
         webhook_sender=webhook_sender,
+        webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
     )
 
@@ -255,6 +269,7 @@ def create_adcp_server_from_platform(
     validate_webhook_sender_for_platform(
         advertised_tools=handler.advertised_tools_for_instance(),
         sender=webhook_sender,
+        supervisor=webhook_supervisor,
         auto_emit=auto_emit_completion_webhooks,
     )
 
@@ -271,6 +286,7 @@ def serve(
     state_reader: StateReader | None = None,
     resource_resolver: ResourceResolver | None = None,
     webhook_sender: WebhookSender | None = None,
+    webhook_supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_completion_webhooks: bool = True,
     advertise_all: bool = False,
     **serve_kwargs: Any,
@@ -294,7 +310,15 @@ def serve(
     :param resource_resolver: Custom :class:`ResourceResolver` impl (D15).
     :param webhook_sender: BYO :class:`adcp.webhook_sender.WebhookSender`
         for completion webhook delivery (sync auto-emit + HITL terminal).
-        ``None`` disables auto-emit silently.
+        Transport only — one attempt, no retry. ``None`` disables
+        auto-emit silently.
+    :param webhook_supervisor: BYO
+        :class:`~adcp.webhook_supervisor.WebhookDeliverySupervisor` for
+        reliable delivery (retry, circuit breaker, attempt audit).
+        Takes precedence over ``webhook_sender`` for F12 auto-emit
+        when both are passed. Production sellers typically pass an
+        :class:`~adcp.webhook_supervisor.InMemoryWebhookDeliverySupervisor`
+        wrapping their sender.
     :param auto_emit_completion_webhooks: F12 — auto-fire a completion
         webhook on the sync-success arm of mutating tools when the
         request supplied ``push_notification_config.url``. Default
@@ -322,6 +346,7 @@ def serve(
         state_reader=state_reader,
         resource_resolver=resource_resolver,
         webhook_sender=webhook_sender,
+        webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
     )
 
