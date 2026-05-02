@@ -1157,6 +1157,9 @@ from adcp.webhook_sender import (  # noqa: E402
     WebhookDeliveryResult,
     WebhookSender,
 )
+from adcp.webhook_supervisor_pg import (  # noqa: E402
+    PgWebhookDeliverySupervisor,
+)
 
 __all__ = [
     # Sender — payload builders
@@ -1193,4 +1196,6 @@ __all__ = [
     # Dedup / idempotency backends (re-exported so one import root suffices)
     "MemoryBackend",
     "WebhookDedupStore",
+    # Pg-backed supervisor (requires adcp[pg] extra)
+    "PgWebhookDeliverySupervisor",
 ]

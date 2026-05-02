@@ -279,15 +279,6 @@ class TestSendMcp:
     async def test_warning_emitted_only_once(self, caplog: Any) -> None:
         import logging
 
-        async def _send(pool: Any) -> None:
-            conn_c = _make_conn(None)
-            conn_e = _make_conn((1,))
-            _pool = _make_pool(conn_c, conn_e)
-            sup = _make_supervisor(_pool, _make_sender())
-            with caplog.at_level(logging.WARNING, logger="adcp.webhook_supervisor_pg"):
-                await sup.send_mcp(url="u", task_id="t", status="s")
-                await sup.send_mcp(url="u", task_id="t", status="s")
-
         # Two calls on same supervisor → one warning
         conn_c1 = _make_conn(None)
         conn_e1 = _make_conn((1,))
@@ -608,11 +599,9 @@ class TestLogAttemptFault:
         poll_cur = _cursor(_queue_row())
         delete_cur = _cursor(None)
         circuit_cur = _cursor(("closed", 0))
-        log_error_cur = AsyncMock()
-        log_error_cur.fetchone = AsyncMock(side_effect=RuntimeError("DB gone"))
 
         conn.execute = AsyncMock(
-            side_effect=[poll_cur, delete_cur, circuit_cur, log_error_cur]
+            side_effect=[poll_cur, delete_cur, circuit_cur, RuntimeError("DB gone")]
         )
         ctx = AsyncMock()
         ctx.__aenter__ = AsyncMock(return_value=conn)

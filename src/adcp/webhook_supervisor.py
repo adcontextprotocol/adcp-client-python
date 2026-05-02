@@ -214,6 +214,8 @@ class WebhookDeliverySupervisor(Protocol):
         result: Any = None,
         token: str | None = None,
         sequence_key: str | None = None,
+        breaker_key: str | None = None,
+        notification_type: str | None = None,
     ) -> WebhookDeliveryResult | None: ...
 
 
