@@ -132,6 +132,13 @@ from adcp.server.serve import (
     serve,
 )
 from adcp.server.sponsored_intelligence import SponsoredIntelligenceHandler
+from adcp.server.tenant_router import (
+    InMemorySubdomainTenantRouter,
+    SubdomainTenantMiddleware,
+    SubdomainTenantRouter,
+    Tenant,
+    current_tenant,
+)
 from adcp.server.test_controller import (
     TestControllerError,
     TestControllerStore,
@@ -188,6 +195,12 @@ __all__ = [
     # Idempotency middleware (AdCP #2315 seller side)
     "IdempotencyStore",
     "MemoryBackend",
+    # Subdomain tenant routing
+    "InMemorySubdomainTenantRouter",
+    "SubdomainTenantMiddleware",
+    "SubdomainTenantRouter",
+    "Tenant",
+    "current_tenant",
     # Test controller
     "TestControllerStore",
     "TestControllerError",
