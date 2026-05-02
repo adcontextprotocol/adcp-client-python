@@ -92,12 +92,29 @@ from adcp.signing.autosign import (
     SigningDecision,
     operation_needs_signing,
 )
+from adcp.signing.brand_jwks import (
+    BrandAgentType,
+    BrandJsonJwksResolver,
+    BrandJsonResolverError,
+    BrandJsonResolverErrorCode,
+)
 from adcp.signing.canonical import (
     SignatureInputLabel,
     build_signature_base,
     canonicalize_authority,
     canonicalize_target_uri,
     parse_signature_input_header,
+)
+from adcp.signing.capability_cache import (
+    CachedCapability,
+    CapabilityCache,
+    build_capability_cache_key,
+    default_capability_cache,
+)
+from adcp.signing.capability_priming import (
+    CAPABILITY_OP,
+    NEGATIVE_CACHE_TTL_SECONDS,
+    ensure_capability_loaded,
 )
 from adcp.signing.client import (
     CapabilityProvider,
@@ -255,8 +272,15 @@ __all__ = [
     "AsyncJwksFetcher",
     "AsyncJwksResolver",
     "AsyncRevocationListFetcher",
+    "BrandAgentType",
+    "BrandJsonJwksResolver",
+    "BrandJsonResolverError",
+    "BrandJsonResolverErrorCode",
+    "CAPABILITY_OP",
+    "CachedCapability",
     "CachingJwksResolver",
     "CachingRevocationChecker",
+    "CapabilityCache",
     "CapabilityProvider",
     "DEFAULT_ALLOWED_PORTS",
     "DEFAULT_EXPIRES_IN_SECONDS",
@@ -273,6 +297,7 @@ __all__ = [
     "JwsSignatureInvalidError",
     "JwsUnknownKeyError",
     "MAX_WINDOW_SECONDS",
+    "NEGATIVE_CACHE_TTL_SECONDS",
     "NONCE_BYTES",
     "PgReplayStore",
     "REQUEST_SIGNATURE_ALG_NOT_ALLOWED",
@@ -325,14 +350,17 @@ __all__ = [
     "b64url_decode",
     "b64url_encode",
     "build_async_ip_pinned_transport",
+    "build_capability_cache_key",
     "build_ip_pinned_transport",
     "build_signature_base",
     "canonicalize_authority",
     "canonicalize_target_uri",
     "compute_content_digest_sha256",
     "content_digest_matches",
+    "default_capability_cache",
     "default_jwks_fetcher",
     "default_revocation_list_fetcher",
+    "ensure_capability_loaded",
     "extract_signature_bytes",
     "format_signature_header",
     "generate_signing_keypair",
