@@ -107,7 +107,13 @@ def spec_codes() -> frozenset[str]:
             "schemas/cache/enums/error-code.json not found — run from repo checkout"
         )
     data = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
-    return frozenset(data["enum"])
+    codes = frozenset(data.get("enum", []))
+    if not codes:
+        pytest.fail(
+            f"{_SCHEMA_PATH} exists but contains no 'enum' list — "
+            "schema structure may have changed upstream"
+        )
+    return codes
 
 
 def test_no_dynamic_adcp_error_codes() -> None:

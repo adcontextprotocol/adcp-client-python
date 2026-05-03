@@ -344,7 +344,7 @@ _INTERNAL_ERROR_DETAIL_CHARS = 200
 
 
 def _internal_error_message(method_name: str, exc: BaseException) -> str:
-    """Build the wire-side ``message`` for an INTERNAL_ERROR wrap.
+    """Build the wire-side ``message`` for an X_INTERNAL_ERROR wrap.
 
     Adopters debugging "An internal error occurred" with no breadcrumb
     have to grep server logs to even see which exception fired (Emma
@@ -356,7 +356,7 @@ def _internal_error_message(method_name: str, exc: BaseException) -> str:
 
 
 def _internal_error_details(exc: BaseException) -> dict[str, Any]:
-    """Build the wire-side ``details`` payload for an INTERNAL_ERROR
+    """Build the wire-side ``details`` payload for an X_INTERNAL_ERROR
     wrap.
 
     ``details.caused_by`` carries the exception class name + truncated
@@ -855,7 +855,7 @@ async def _invoke_platform_method(
     except TypeError as exc:
         # Most likely an arg_projector signature-drift bug — adopter
         # renamed update_media_buy's `patch` kwarg → `update`, etc.
-        # Bare INTERNAL_ERROR would hide the cause; project to
+        # Bare X_INTERNAL_ERROR would hide the cause; project to
         # INVALID_REQUEST with a hint pointing at the adopter's
         # method signature so they fix it without a server-log dive.
         # Note: server logs see the full traceback; wire response

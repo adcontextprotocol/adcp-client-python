@@ -386,7 +386,7 @@ class TestAdcpErrorDetailsOnMCP:
     of ``adcp.exceptions.ADCPError``, so ``except ADCPError`` in
     ``serve.py`` didn't catch it. The exception propagated to FastMCP's
     default handler and ``details`` (carrying ``caused_by`` from the
-    INTERNAL_ERROR wrap, ``validation_errors`` from #341's narrowing)
+    X_INTERNAL_ERROR wrap, ``validation_errors`` from #341's narrowing)
     was silently dropped.
 
     Post-fix: ``translate_error`` recognizes decisioning ``AdcpError``,
@@ -395,7 +395,7 @@ class TestAdcpErrorDetailsOnMCP:
     libs can split on the prefix and ``json.loads`` the tail."""
 
     def test_adcp_error_details_serialized_on_mcp_wire(self) -> None:
-        """When dispatch raises ``AdcpError(INTERNAL_ERROR,
+        """When dispatch raises ``AdcpError(X_INTERNAL_ERROR,
         details={"caused_by": ...})``, the MCP ToolError payload
         carries ``\\nDetails: {"caused_by": ...}`` so buyer agents can
         parse the structured breadcrumb."""
@@ -405,7 +405,7 @@ class TestAdcpErrorDetailsOnMCP:
         from adcp.server.translate import translate_error
 
         exc = DecisioningAdcpError(
-            "INTERNAL_ERROR",
+            "X_INTERNAL_ERROR",
             message="Platform method 'build_creative' raised AttributeError",
             recovery="terminal",
             details={
@@ -417,7 +417,7 @@ class TestAdcpErrorDetailsOnMCP:
         )
         tool_err = translate_error(exc, protocol="mcp")
         text = str(tool_err.args[0]) if tool_err.args else str(tool_err)
-        assert "INTERNAL_ERROR:" in text
+        assert "X_INTERNAL_ERROR:" in text
         assert "build_creative" in text
         # The structured breadcrumb is parseable from the text payload.
         assert "\nDetails: " in text
@@ -436,7 +436,7 @@ class TestAdcpErrorDetailsOnMCP:
         from adcp.server.translate import translate_error
 
         exc = DecisioningAdcpError(
-            "INTERNAL_ERROR",
+            "X_INTERNAL_ERROR",
             message="Platform method 'build_creative' raised ValidationError",
             recovery="terminal",
             details={
@@ -481,7 +481,7 @@ class TestAdcpErrorDetailsOnMCP:
 
         big = {"blob": "X" * 10_000}
         exc = DecisioningAdcpError(
-            "INTERNAL_ERROR",
+            "X_INTERNAL_ERROR",
             message="huge",
             recovery="terminal",
             details=big,
@@ -512,7 +512,7 @@ class TestAdcpErrorDetailsOnMCP:
         circular: dict[str, object] = {}
         circular["self"] = circular
         exc = DecisioningAdcpError(
-            "INTERNAL_ERROR",
+            "X_INTERNAL_ERROR",
             message="circular",
             recovery="terminal",
             details=circular,

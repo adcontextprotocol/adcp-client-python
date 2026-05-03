@@ -432,7 +432,7 @@ async def _resolve_buyer_agent(
         else:
             # Defensive: a future Credential variant lands and the
             # dispatch path doesn't know how to route it. Fail closed
-            # with INTERNAL_ERROR rather than silently passing the
+            # with X_INTERNAL_ERROR rather than silently passing the
             # request through (which would skip the registry gate
             # entirely and leak the upgrade footgun into production).
             raise AdcpError(
@@ -1130,7 +1130,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         at server boot by ``validate_platform``; optional methods can
         legitimately be absent and need a runtime gate. Without this,
         a buyer calling an optional method on a platform that doesn't
-        implement it would see ``INTERNAL_ERROR`` from the
+        implement it would see ``X_INTERNAL_ERROR`` from the
         AttributeError wrapper in ``_invoke_platform_method`` —
         adopter contract violation, not buyer-fixable.
         """
