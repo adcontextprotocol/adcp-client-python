@@ -149,11 +149,16 @@ class ProtocolAdapter(ABC):
             # Parsing failed - return error result. Preserve idempotency_key
             # and replayed so callers can still correlate/suppress side-effects
             # even when response parsing fails.
+            # Store raw data in metadata so callers (e.g. refresh_capabilities)
+            # can inspect the shape even after parsing fails.
+            meta: dict[str, Any] = dict(raw_result.metadata or {})
+            meta["_parse_failure_raw"] = raw_result.data
             return TaskResult[T](
                 status=TaskStatus.FAILED,
                 error=f"Failed to parse response: {e}",
                 message=raw_result.message,
                 success=False,
+                metadata=meta,
                 debug_info=raw_result.debug_info,
                 idempotency_key=raw_result.idempotency_key,
                 replayed=raw_result.replayed,

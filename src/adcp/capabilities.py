@@ -87,6 +87,46 @@ for _task, _feature in TASK_FEATURE_MAP.items():
 del _task, _feature
 
 
+#: Protocol names that only exist in AdCP v3+. Used by
+#: :func:`is_v3_capabilities_shape` to detect v3-shaped responses.
+_V3_PROTOCOL_NAMES: frozenset[str] = frozenset(
+    {"governance", "sponsored_intelligence", "brand", "creative"}
+)
+
+
+def is_v3_capabilities_shape(data: Any) -> bool:
+    """Return True if *data* appears to be a v3-shaped capabilities response.
+
+    Useful when a raw capabilities dict fails Pydantic validation — the heuristic
+    tells you whether to surface a v3-specific error or fall through to the generic
+    path. Checks, in order:
+
+    1. ``adcp.major_versions`` contains ``3`` (most reliable — present on any
+       response that reached the parse stage).
+    2. ``supported_protocols`` list contains a v3-only protocol name
+       (``governance``, ``sponsored_intelligence``, ``brand``, ``creative``).
+    3. A v3-only capability block key is present at the top level (same names).
+
+    Returns ``False`` for any non-dict input.
+    """
+    if not isinstance(data, dict):
+        return False
+    # Primary: adcp.major_versions contains 3
+    adcp = data.get("adcp")
+    if isinstance(adcp, dict):
+        if 3 in adcp.get("major_versions", []):
+            return True
+    # Secondary: v3-only protocol name in supported_protocols list
+    protocols = data.get("supported_protocols")
+    if isinstance(protocols, list):
+        if any(p in _V3_PROTOCOL_NAMES for p in protocols):
+            return True
+    # Tertiary: v3-only capability block present as a top-level key
+    if _V3_PROTOCOL_NAMES & set(data.keys()):
+        return True
+    return False
+
+
 def build_synthetic_capabilities(
     supported_protocols: list[str],
     *,

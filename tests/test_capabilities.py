@@ -809,3 +809,186 @@ class TestSupportsV3:
         )
         resolver = FeatureResolver(caps)
         assert resolver.supports_v3() is True
+
+
+class TestIsV3CapabilitiesShape:
+    """Tests for is_v3_capabilities_shape()."""
+
+    def test_v3_by_major_version(self) -> None:
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        data = {"adcp": {"major_versions": [3]}, "supported_protocols": ["media_buy"]}
+        assert is_v3_capabilities_shape(data) is True
+
+    def test_v3_by_major_version_mixed(self) -> None:
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        data = {"adcp": {"major_versions": [2, 3]}, "supported_protocols": ["media_buy"]}
+        assert is_v3_capabilities_shape(data) is True
+
+    def test_v3_by_supported_protocols_governance(self) -> None:
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        # v3-only protocol name in supported_protocols list catches media_buy-only
+        # v3 sellers that don't advertise governance/brand/etc capability blocks
+        data = {
+            "adcp": {"major_versions": [2]},
+            "supported_protocols": ["media_buy", "governance"],
+        }
+        assert is_v3_capabilities_shape(data) is True
+
+    def test_v3_by_supported_protocols_sponsored_intelligence(self) -> None:
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        data = {"adcp": {}, "supported_protocols": ["sponsored_intelligence"]}
+        assert is_v3_capabilities_shape(data) is True
+
+    def test_v3_by_top_level_governance_key(self) -> None:
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        data = {
+            "adcp": {"major_versions": [2]},
+            "supported_protocols": ["media_buy"],
+            "governance": {"spend_aggregation_window_days": 30},
+        }
+        assert is_v3_capabilities_shape(data) is True
+
+    def test_genuine_v2_returns_false(self) -> None:
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        data = {"adcp": {"major_versions": [2]}, "supported_protocols": ["media_buy"]}
+        assert is_v3_capabilities_shape(data) is False
+
+    def test_non_dict_returns_false(self) -> None:
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        for val in [None, 42, [], "string", b"bytes"]:
+            assert is_v3_capabilities_shape(val) is False
+
+    def test_empty_dict_returns_false(self) -> None:
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        assert is_v3_capabilities_shape({}) is False
+
+    def test_ambiguous_v2_major_v3_top_key(self) -> None:
+        # A response claiming major_versions=[2] but including a governance block
+        # is detected as v3-shaped via the tertiary key check — the seller has
+        # a misconfiguration, and surfacing a v3 error is more useful than
+        # treating it as a genuine v2 agent.
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        data = {
+            "adcp": {"major_versions": [2]},
+            "supported_protocols": ["media_buy"],
+            "brand": {},
+        }
+        assert is_v3_capabilities_shape(data) is True
+
+    def test_importable_from_top_level(self) -> None:
+        from adcp import is_v3_capabilities_shape
+
+        assert callable(is_v3_capabilities_shape)
+
+
+class TestRefreshCapabilitiesV3Shape:
+    """Tests for the v3-shape detection in refresh_capabilities()."""
+
+    @pytest.mark.asyncio
+    async def test_v3_shaped_parse_failure_raises_loud_error(self) -> None:
+        client = ADCPClient(_make_config())
+
+        # Simulate: transport succeeded (success=True from adapter), but Pydantic
+        # validation failed — _parse_response stashes the raw dict in metadata.
+        failed_result = TaskResult(
+            status=TaskStatus.FAILED,
+            data=None,
+            success=False,
+            error="Failed to parse response: 1 validation error for GetAdcpCapabilitiesResponse",
+            metadata={
+                "_parse_failure_raw": {
+                    "adcp": {"major_versions": [3]},
+                    "supported_protocols": ["media_buy"],
+                    "media_buy": {},
+                }
+            },
+        )
+        with patch.object(client, "get_adcp_capabilities", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = failed_result
+
+            with pytest.raises(ADCPError) as exc_info:
+                await client.refresh_capabilities()
+
+        msg = str(exc_info.value)
+        assert "v3-shaped" in msg
+        assert "schema bug" in msg
+        # Must NOT be the old buried message
+        assert "Failed to fetch capabilities" not in msg
+
+    @pytest.mark.asyncio
+    async def test_v3_shaped_error_includes_pydantic_detail_in_suggestion(self) -> None:
+        client = ADCPClient(_make_config())
+
+        pydantic_err = "1 validation error for GetAdcpCapabilitiesResponse\naccount -> supported_billing"
+        failed_result = TaskResult(
+            status=TaskStatus.FAILED,
+            data=None,
+            success=False,
+            error=f"Failed to parse response: {pydantic_err}",
+            metadata={
+                "_parse_failure_raw": {
+                    "adcp": {"major_versions": [3]},
+                    "supported_protocols": ["governance"],
+                }
+            },
+        )
+        with patch.object(client, "get_adcp_capabilities", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = failed_result
+
+            with pytest.raises(ADCPError) as exc_info:
+                await client.refresh_capabilities()
+
+        # Pydantic field path should appear in the raised exception string
+        assert "supported_billing" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_genuine_v2_failure_raises_generic_error(self) -> None:
+        """A v2-shaped parse failure falls through to the generic error path."""
+        client = ADCPClient(_make_config())
+
+        failed_result = TaskResult(
+            status=TaskStatus.FAILED,
+            data=None,
+            success=False,
+            error="Failed to parse response: unexpected field",
+            metadata={
+                "_parse_failure_raw": {
+                    "adcp": {"major_versions": [2]},
+                    "supported_protocols": ["media_buy"],
+                }
+            },
+        )
+        with patch.object(client, "get_adcp_capabilities", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = failed_result
+
+            with pytest.raises(ADCPError) as exc_info:
+                await client.refresh_capabilities()
+
+        assert "Failed to fetch capabilities" in str(exc_info.value)
+        assert "v3-shaped" not in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_transport_failure_no_raw_data_raises_generic_error(self) -> None:
+        """Transport failure (no raw data at all) still raises the generic error."""
+        client = ADCPClient(_make_config())
+
+        failed_result = TaskResult(
+            status=TaskStatus.FAILED,
+            data=None,
+            success=False,
+            error="Connection refused",
+        )
+        with patch.object(client, "get_adcp_capabilities", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = failed_result
+
+            with pytest.raises(ADCPError, match="Failed to fetch capabilities"):
+                await client.refresh_capabilities()

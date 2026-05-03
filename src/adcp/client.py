@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from mcp import ClientSession
 
 from adcp._version import resolve_adcp_version
-from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver
+from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, is_v3_capabilities_shape
 from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
@@ -1051,6 +1051,22 @@ class ADCPClient:
             self._feature_resolver = FeatureResolver(result.data)
             self._capabilities_fetched_at = time.monotonic()
             return self._capabilities
+        # When Pydantic parsing failed (transport succeeded but schema validation
+        # didn't), _parse_response stashes the raw dict in metadata. Check whether
+        # it looks v3-shaped so we can surface a v3-specific error instead of the
+        # opaque "Failed to fetch capabilities: Failed to parse response:" chain.
+        raw_data = (result.metadata or {}).get("_parse_failure_raw")
+        if raw_data is not None and is_v3_capabilities_shape(raw_data):
+            raise ADCPError(
+                "Capabilities response is v3-shaped but failed validation — "
+                "the seller's get_adcp_capabilities endpoint has a schema bug.",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+                suggestion=(
+                    f"Pydantic validation error: {result.error}. "
+                    "Check the seller's capabilities endpoint against the v3 schema."
+                ),
+            )
         raise ADCPError(
             f"Failed to fetch capabilities: {result.error or result.message}",
             agent_id=self.agent_config.id,

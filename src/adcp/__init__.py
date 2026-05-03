@@ -25,6 +25,7 @@ from adcp.adagents import (
 from adcp.capabilities import (  # noqa: F401
     FeatureResolver,
     build_synthetic_capabilities,
+    is_v3_capabilities_shape,
     validate_capabilities,
 )
 from adcp.client import ADCPClient, ADCPMultiAgentClient, Checkpoint
