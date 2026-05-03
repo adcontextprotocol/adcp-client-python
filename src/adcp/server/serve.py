@@ -155,7 +155,7 @@ class ServeConfig:
                     f"ServeConfig sets MCP-only fields {mcp_set} but "
                     f"transport='a2a'. These fields will be ignored.",
                     UserWarning,
-                    stacklevel=4,
+                    stacklevel=3,
                 )
         elif self.transport not in ("both", "streamable-http", "sse", "stdio"):
             pass  # unknown transport — let serve() raise a clear error
@@ -168,7 +168,7 @@ class ServeConfig:
                     f"ServeConfig sets A2A-only fields {a2a_set} but "
                     f"transport={self.transport!r}. These fields will be ignored.",
                     UserWarning,
-                    stacklevel=4,
+                    stacklevel=3,
                 )
 
 

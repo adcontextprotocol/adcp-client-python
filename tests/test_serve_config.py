@@ -111,11 +111,6 @@ def test_serve_config_no_warning_clean_config() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _patch_serve_internals(mock_fn_name: str = "_serve_mcp") -> Any:
-    """Return a patch context for the internal serve dispatch function."""
-    return patch.object(_serve_mod, mock_fn_name, return_value=None)
-
-
 def test_serve_config_name_propagates() -> None:
     handler = _StubHandler()
     cfg = ServeConfig(name="from-config", transport="streamable-http", port=9999)
