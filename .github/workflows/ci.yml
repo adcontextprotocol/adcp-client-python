@@ -528,6 +528,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,pg]"
+          # Example-local deps: the v3 reference seller imports
+          # sqlalchemy + asyncpg (async Postgres driver) which aren't
+          # in the SDK's [dev,pg] extras. Install inline rather than
+          # adding an example-only optional-dependencies group.
+          pip install "sqlalchemy>=2.0" "asyncpg>=0.29" "respx>=0.20"
 
       - name: Pre-install @adcp/sdk (once, then call binary directly)
         run: |
