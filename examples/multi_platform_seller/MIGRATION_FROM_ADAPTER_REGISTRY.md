@@ -118,6 +118,9 @@ yet and become greenfield work during the port.
   (`models.py:256` and `effective_implementation_config`,
   `models.py:428-448`) → already the right shape; the SDK formalizes
   the seam through `get_products` / `create_media_buy`.
+* `get_media_buy_delivery` (the GAM adapter exposes it at
+  `google_ad_manager.py:998`) → `SalesPlatform.get_media_buy_delivery`.
+  See §3.6.
 
 **Salesagent has a partial implementation (port AND extend):**
 
@@ -138,6 +141,12 @@ yet and become greenfield work during the port.
   `SignalsPlatform` to be per-tenant, sitting behind the
   `PlatformRouter` like every other specialism. The business
   logic translates; the dispatch model changes. See §3.5.
+* **Governance metadata.** `Account.governance_agents`
+  (`models.py:826`) is a JSON list that round-trips through the
+  accounts tool — descriptive metadata only, with no enforcement
+  surface. AdCP 3.0 expects active governance enforcement via
+  three Platform Protocols. The field stays as buyer-facing
+  metadata; the enforcement is greenfield. See §3.7.
 
 **Salesagent is missing entirely (greenfield work during migration):**
 
@@ -151,6 +160,17 @@ yet and become greenfield work during the port.
   resolves a `proposal_id` "threaded across `get_products → refine →
   create_media_buy` without platform code"). Wiring the refine
   handler is greenfield. See §3.3.
+* **`get_creative_delivery`, push reporting.** Per-creative
+  delivery analytics, plus capability-declared push reporting via
+  `webhook` (per-buy `reporting_webhook`) or `offline` cloud-storage
+  bucket (per-account `reporting_bucket`). Salesagent has neither
+  surface today — polling at the media-buy level is the only
+  reporting path. See §3.6.
+* **Governance specialisms** — `BrandRightsPlatform`,
+  `ContentStandardsPlatform`, `CampaignGovernancePlatform`. Each
+  is independently claimable; tenants declare zero, one, or all
+  three. Salesagent has the descriptive `governance_agents` field
+  but no enforcement code. See §3.7.
 
 This guide covers both — the translation table for what ports cleanly
 and the explicit "this is new work" callouts for what salesagent
@@ -676,7 +696,147 @@ it just lives inside the `SignalsPlatform.__init__` (or a
 per-request `upstream_for` resolver) rather than inside the global
 tool body.
 
-### 3.6 HITL gating → `compose_method` + `ShortCircuit`
+### 3.6 Reporting and delivery surfaces
+
+Salesagent today exposes one reporting surface to AdCP buyers:
+`get_media_buy_delivery` on the GAM adapter
+(`google_ad_manager.py:998`). Internally it has more — the
+`GAMReportingService` class
+(`src/adapters/gam_reporting_service.py:61`) drives lifetime / month
+/ today report jobs against GAM's `ReportService` for admin use —
+but that richer surface isn't wired through to a wire tool. AdCP
+3.0 splits reporting into three concerns: per-buy polling (which
+salesagent has), per-creative polling (greenfield), and push
+delivery via webhook or offline bucket (greenfield, optional).
+
+**A. `get_media_buy_delivery` translates cleanly.**
+
+The GAM adapter's existing impl is already close to the wire shape;
+the per-tenant lookup and `ReportingPeriod` handling port verbatim.
+
+```python
+class GAMPlatform(DecisioningPlatform, SalesPlatform):
+    async def get_media_buy_delivery(self, req, ctx):
+        # Body of google_ad_manager.py:998 ports here. The
+        # GAMReportingService stays where it is — it's an internal
+        # admin surface, not a wire tool. The platform method projects
+        # GAM's ReportService output onto the AdCP response shape.
+        ...
+```
+
+The `GAMReportingService` admin surface stays exactly where it is.
+The migration only changes the seam between the AdCP wire and the
+upstream call — adopters who built richer reporting infrastructure
+keep it.
+
+**B. `get_creative_delivery` is greenfield.**
+
+AdCP 3.0 defines per-creative delivery
+(`adcp.types.GetCreativeDeliveryResponse`) — lifetime impressions,
+last-served timestamp, optionally richer per-creative analytics.
+Salesagent today returns delivery at the media-buy level only.
+
+This method lives on `CreativeAdServerPlatform` (the same Protocol
+covered in §3.4); when porting the creative-association surface,
+`get_creative_delivery` is the natural place to add per-creative
+reporting too. Recommended minimum: lifetime impressions +
+`last_served` from the upstream's reporting API. Richer fields
+(by-day breakdowns, audience splits) only when buyers ask. If the
+upstream doesn't report at creative granularity, declare the
+specialism without it and the wire returns minimal stubs.
+
+**C. Push reporting (webhook + offline bucket) is optional.**
+
+`get_adcp_capabilities_response.MediaBuy.reporting_delivery_methods`
+declares `webhook` (push to buyer-provided URL per-buy via
+`reporting_webhook`) and/or `offline` (push batch files to a
+seller-provisioned cloud-storage bucket per-account via
+`reporting_bucket` on the account). Polling via
+`get_media_buy_delivery` stays the baseline regardless.
+
+Salesagent today supports polling only. Push reporting is optional
+work — if a deployment wants to add webhook delivery for
+high-volume buyers (or offline batch drop for analytics shops that
+don't want to poll), the adopter declares the method in
+`DecisioningCapabilities` and implements the push code. Skip this
+unless a buyer asks for it.
+
+### 3.7 Governance specialisms — three Platform Protocols
+
+Salesagent's only governance surface today is
+`Account.governance_agents` (`models.py:826`) — a `list[GovernanceAgent]`
+JSON column that round-trips through the accounts tool. Serialization
+and equality logic live at `core/tools/accounts.py:70, 263, 307-311,
+567`, but that's the entirety of the code path: the field is
+descriptive (which agents this account is wired to), not enforcing.
+No request gating, no per-tenant brand-rights check, no
+content-standards calibration.
+
+AdCP 3.0 splits active governance across three independently
+claimable Platform Protocols:
+
+* **`BrandRightsPlatform`** (`brand-rights` specialism) — brand
+  identity discovery + rights licensing. Three required methods:
+  `get_brand_identity`, `get_rights`, `acquire_rights`.
+* **`ContentStandardsPlatform`** (`content-standards` specialism) —
+  brand-safety policy CRUD, calibration, post-flight conformance.
+  Six required methods (CRUD + `calibrate_content` +
+  `validate_content_delivery`).
+* **`CampaignGovernancePlatform`** (`governance-spend-authority` /
+  `governance-delivery-monitor`) — runtime decisions, plan CRUD,
+  outcome reporting, audit logs. Required: `check_governance`,
+  `sync_plans`, `report_plan_outcome`, `get_plan_audit_logs`.
+  Adopters claiming any `governance-*` slug must also set
+  `DecisioningCapabilities.governance_aware=True` and wire a
+  custom `StateReader` returning real `GovernanceContextJWS` values
+  — `validate_platform()` fails-fast at boot otherwise.
+
+Each is a separate Protocol with its own claim, consulted
+independently per-tenant. A tenant declares zero, one, or all three
+depending on its deployment.
+
+**Migration shape:**
+
+The `Account.governance_agents` field stays — it's still useful as
+buyer-facing metadata. Active enforcement is greenfield. Recommended
+order:
+
+1. Start with `BrandRightsPlatform` — smallest surface (3 methods),
+   most commonly required by buyers running branded inventory.
+2. Add `ContentStandardsPlatform` next if the upstream supports
+   category-blocking lists (most ad servers do).
+3. `CampaignGovernancePlatform` is the heaviest lift — adopters with
+   existing approval-workflow code can wrap that as the platform
+   impl.
+
+A minimum-viable `BrandRightsPlatform` consulting a per-tenant
+block-list:
+
+```python
+from adcp.decisioning.specialisms import BrandRightsPlatform
+
+class AcmeBrandRightsPlatform(DecisioningPlatform, BrandRightsPlatform):
+    capabilities = DecisioningCapabilities(
+        specialisms=["brand-rights"],
+        governance_aware=True,
+    )
+
+    async def get_brand_identity(self, req, ctx):
+        return self._brand_store.get(req.brand_id)
+
+    async def get_rights(self, req, ctx):
+        return self._rights_store.match(req.brand_id, req.use_case)
+
+    async def acquire_rights(self, req, ctx):
+        # Returns one of acquired / pending / rejected per spec
+        ...
+```
+
+Three platforms, three claims, three independent migrations. None of
+them block the sales-side port — adopters can ship the sales platform
+without governance and add it incrementally per-tenant.
+
+### 3.8 HITL gating → `compose_method` + `ShortCircuit`
 
 **Before** — `salesagent/src/adapters/base.py:226` plumbs the flag into
 every adapter, and each adapter checks it inline. From
@@ -731,7 +891,7 @@ returning a bare value instead of `ShortCircuit(value=...)` raises
 `TypeError` at runtime, so adopters porting middleware between
 languages can't accidentally short-circuit with `None`.
 
-### 3.7 Sandbox toggles → `Account.mode`
+### 3.9 Sandbox toggles → `Account.mode`
 
 **Before** — sandbox is a deployment-level concern in salesagent. A
 config dict carries the flag; each adapter (and the middleware in
@@ -778,7 +938,7 @@ on `mode='live'` accounts. Resolvers that spread untrusted input into
 the resolved account leak this gate; the docstring on
 `assert_sandbox_account` calls this out explicitly.
 
-### 3.8 Mock fixtures → `Account.mode='mock'`
+### 3.10 Mock fixtures → `Account.mode='mock'`
 
 **Before** — `salesagent/src/adapters/mock_ad_server.py:53` is a
 ~1,800-LOC in-memory ad server. It implements every abstract method of
@@ -825,7 +985,7 @@ deterministic per-specialism upstream-API responses.
 The `mock_ad_server.py` module deletes wholesale. ~1,800 LOC of
 in-memory state machine becomes a dev-time fixture URL on the account.
 
-### 3.9 Compliance scaffolding → SDK `comply_test_controller` gate
+### 3.11 Compliance scaffolding → SDK `comply_test_controller` gate
 
 **Before** — salesagent's compliance scenarios mix into the adapters
 through environment toggles, seeded state, and per-adapter scenario
@@ -846,7 +1006,7 @@ The bedrock invariant: deterministic-testing surfaces never fire on
 production traffic, regardless of how the adopter's compliance code
 is wired. The gate is the contract.
 
-### 3.10 Lifecycle state machine
+### 3.12 Lifecycle state machine
 
 **Before** — each adapter encodes the legal state graph itself. Inline
 checks scattered through `update_media_buy` and similar:
@@ -885,7 +1045,7 @@ state-graph code at all.
 The same module ships `assert_creative_transition` for the creative
 lifecycle.
 
-### 3.11 Webhook emission → F12 auto-emit
+### 3.13 Webhook emission → F12 auto-emit
 
 **Before** — each adapter (or per-tenant middleware) hand-rolls
 webhook delivery: format the payload, sign it, fire the request, retry
@@ -913,7 +1073,7 @@ pass `auto_emit_completion_webhooks=False` and emit themselves —
 but the auto-emit path is the default, so most adopters delete their
 webhook plumbing entirely.
 
-### 3.12 Per-adapter HTTP client → `UpstreamHttpClient`
+### 3.14 Per-adapter HTTP client → `UpstreamHttpClient`
 
 **Before** — every adapter wires its own httpx client, auth scheme,
 retry policy, JSON parsing, and 404→None handling. From
@@ -963,7 +1123,7 @@ on `ctx.account.metadata` for per-tenant credentials. The
 platform instance, so multi-tenant credential fan-out scales without
 adapter-level connection management.
 
-### 3.13 Error projection
+### 3.15 Error projection
 
 **Before** — each adapter wraps upstream errors in custom error types,
 then a translation layer maps those onto wire shapes:
@@ -1084,20 +1244,35 @@ step:
    position. Start with simple per-product narrowing; the richer
    proposal flow (`adcp.types.Proposal` lifecycle, `find_proposal_by_id`
    threading) can come later.
-10. **Delete `mock_ad_server.py`** once `mode='mock'` is wired and
+10. **(Optional) Declare push reporting capabilities.** Polling via
+    `get_media_buy_delivery` is the baseline and ships with step 2.
+    If a deployment wants webhook or offline-bucket delivery,
+    declare `reporting_delivery_methods` in
+    `DecisioningCapabilities` and implement the push code. Skip
+    unless a buyer asks. See §3.6.
+11. **Add governance specialism platforms per-tenant.** Greenfield.
+    Per-tenant; not every tenant needs every governance specialism.
+    Recommended order: `BrandRightsPlatform` first (3 methods,
+    smallest surface), then `ContentStandardsPlatform` if the
+    upstream supports category blocks, then
+    `CampaignGovernancePlatform` if the deployment has approval-
+    workflow code to wrap. Each adopts independently behind the
+    router. The `Account.governance_agents` field stays as
+    descriptive metadata. See §3.7.
+12. **Delete `mock_ad_server.py`** once `mode='mock'` is wired and
     the storyboard passes. ~1,800 LOC in one PR.
-11. **Repeat for remaining adapters** (Broadstreet, Triton,
+13. **Repeat for remaining adapters** (Broadstreet, Triton,
     `creative_engine`, GAM). GAM last — it's the largest, and the
     ported infrastructure from earlier adapters lets you focus the
     GAM port on the upstream-translation logic alone.
-12. **Stand up `PlatformRouter`** over all platforms. Wire the
+14. **Stand up `PlatformRouter`** over all platforms. Wire the
     router's `accounts` to your existing `AccountStore`; the
     per-tenant dispatch becomes automatic. This is the last step
     on purpose — each platform validates standalone (single-platform
     mode, `examples/v3_reference_seller/` shape) before you flip
     the router on.
 
-At any point in steps 1–11 you can run the storyboard against the
+At any point in steps 1–13 you can run the storyboard against the
 ported tenants while the rest of the registry still serves the
 unported tenants — there's no flag day.
 
@@ -1145,6 +1320,17 @@ gaps from the migration, not flaws in the SDK:
   business logic translates; the dispatch model doesn't. Tenants
   that claim signals each get their own platform; tenants that
   don't get `UNSUPPORTED_FEATURE` from the framework.
+* **Per-creative delivery analytics are upstream-dependent.**
+  `get_creative_delivery` (§3.6) requires reporting at creative
+  granularity. GAM exposes this; most other ad servers don't. If
+  the upstream can't report at creative level, the adopter omits
+  the field on the wire response — minimum-viable returns lifetime
+  impressions + `last_served` only.
+* **Active governance enforcement is greenfield.** §3.7 covers the
+  three Platform Protocols. Salesagent's `governance_agents` field
+  is descriptive metadata — it doesn't gate requests today. Each
+  governance specialism is an independent build per-tenant; none
+  block the sales port.
 
 ## See also
 
