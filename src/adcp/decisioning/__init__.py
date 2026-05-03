@@ -59,6 +59,13 @@ from adcp.decisioning.accounts import (
     FromAuthAccounts,
     SingletonAccounts,
 )
+from adcp.decisioning.compose import (
+    ShortCircuit,
+    compose_method,
+    require_account_match,
+    require_advertiser_match,
+    require_org_scope,
+)
 from adcp.decisioning.context import (
     AuthInfo,
     RequestContext,
@@ -280,12 +287,17 @@ __all__ = [
     "WorkflowHandoff",
     "WorkflowObjectType",
     "WorkflowStep",
+    "ShortCircuit",
     "assert_creative_transition",
     "assert_media_buy_transition",
     "bearer_only_registry",
+    "compose_method",
     "create_adcp_server_from_platform",
     "create_translation_map",
     "create_upstream_http_client",
+    "require_account_match",
+    "require_advertiser_match",
+    "require_org_scope",
     "mixed_registry",
     "project_account_for_response",
     "project_business_entity_for_response",

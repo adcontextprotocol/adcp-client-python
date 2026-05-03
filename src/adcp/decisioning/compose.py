@@ -221,7 +221,7 @@ def _read_field(obj: Any, name: str) -> Any:
             raise AdcpError(
                 "PERMISSION_DENIED",
                 message=_DENIED_MESSAGE,
-                recovery="terminal",
+                recovery="correctable",
             )
         return obj[name]
     try:
@@ -230,7 +230,7 @@ def _read_field(obj: Any, name: str) -> Any:
         raise AdcpError(
             "PERMISSION_DENIED",
             message=_DENIED_MESSAGE,
-            recovery="terminal",
+            recovery="correctable",
         ) from exc
 
 
@@ -242,7 +242,7 @@ def _read_metadata_field(metadata: Any, name: str) -> Any:
         raise AdcpError(
             "PERMISSION_DENIED",
             message=_DENIED_MESSAGE,
-            recovery="terminal",
+            recovery="correctable",
         )
     return _read_field(metadata, name)
 
@@ -276,7 +276,7 @@ def require_account_match(
             raise AdcpError(
                 "PERMISSION_DENIED",
                 message=_DENIED_MESSAGE,
-                recovery="terminal",
+                recovery="correctable",
             )
         return None
 
@@ -308,7 +308,7 @@ def require_advertiser_match(
             raise AdcpError(
                 "PERMISSION_DENIED",
                 message=_DENIED_MESSAGE,
-                recovery="terminal",
+                recovery="correctable",
             )
         return None
 
@@ -341,7 +341,7 @@ def require_org_scope(
             raise AdcpError(
                 "PERMISSION_DENIED",
                 message=_DENIED_MESSAGE,
-                recovery="terminal",
+                recovery="correctable",
             )
         return None
 
