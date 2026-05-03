@@ -383,6 +383,72 @@ async def test_task_registry_persists_stripped_artifact(
 
 
 # ---------------------------------------------------------------------------
+# H3b — WorkflowHandoff direct-complete path (adopter calls
+# ``registry.complete`` from external workflow, NOT through dispatcher)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_workflow_handoff_registry_complete_strips_credentials() -> None:
+    """``WorkflowHandoff`` enqueues to an external system; the adopter's
+    workflow later calls ``registry.complete(task_id, result)`` directly
+    — the framework is NOT on the call stack at that point, so the
+    dispatcher-level strip can't fire.
+
+    The strip must happen inside :meth:`TaskRegistry.complete` so a
+    credential-bearing dict written from the adopter's external workflow
+    can't survive into ``tasks/get``.
+    """
+    registry = InMemoryTaskRegistry()
+    task_id = await registry.issue(
+        account_id="acct_1",
+        task_type="sync_governance",
+    )
+
+    # Simulate the adopter's external workflow calling complete()
+    # directly with a credential-bearing result. No framework code is
+    # on the call stack here.
+    leaky_result = _governance_response_with_credentials()
+    await registry.complete(task_id, leaky_result)
+
+    persisted = await registry.get(task_id, expected_account_id="acct_1")
+    assert persisted is not None
+    assert persisted["state"] == "completed"
+    # Bearer MUST NOT survive into the persisted artifact — ``tasks/get``
+    # would otherwise echo it.
+    assert _BEARER not in str(persisted)
+    assert "authentication" not in str(persisted)
+    # Non-credential fields preserved.
+    agent = persisted["result"]["accounts"][0]["governance_agents"][0]
+    assert agent["url"] == "https://gov.example.com/"
+
+
+@pytest.mark.asyncio
+async def test_registry_complete_skips_strip_for_non_credential_method() -> None:
+    """The strip is method-gated by ``record.task_type``. A non-credential
+    method (``get_products``) skips the recursive walk — adopter-stashed
+    extra keys pass through unchanged."""
+    registry = InMemoryTaskRegistry()
+    task_id = await registry.issue(
+        account_id="acct_1",
+        task_type="get_products",
+    )
+    # A ``get_products`` task can't carry account credentials in the
+    # spec-shape result, so the gate skips the walk entirely. Confirm
+    # no over-eager scrubbing of unrelated keys.
+    big_payload: dict[str, Any] = {
+        "products": [{"id": "p1", "extra_metadata": {"authentication": "literal-string"}}],
+    }
+    await registry.complete(task_id, big_payload)
+    persisted = await registry.get(task_id, expected_account_id="acct_1")
+    assert persisted is not None
+    # ``authentication`` here is a product-level metadata field, not a
+    # governance-agent credential — must pass through unchanged.
+    product_auth = persisted["result"]["products"][0]["extra_metadata"]["authentication"]
+    assert product_auth == "literal-string"
+
+
+# ---------------------------------------------------------------------------
 # M1 — INTERNAL_ERROR caused_by omits exception str()
 # ---------------------------------------------------------------------------
 
@@ -491,9 +557,10 @@ def test_response_builder_strips_billing_entity_bank() -> None:
 
 def test_sync_governance_response_builder_round_trip_strip() -> None:
     """Cross-builder regression: the public ``sync_governance_response``
-    helper is what storyboards / hello-world adopters call. Verify
-    the strip fires when an adopter passes a credential-bearing
-    item dict through the public API."""
+    helper is what storyboards / hello-world adopters call. The
+    builder routes items through ``_serialize`` so a credential-bearing
+    item dict is scrubbed before the response leaves the seller.
+    """
     response = sync_governance_response(
         accounts=[
             {
@@ -511,16 +578,48 @@ def test_sync_governance_response_builder_round_trip_strip() -> None:
             }
         ],
     )
-    # Note: sync_governance_response returns ``{"accounts": [...]}``
-    # without going through ``_serialize`` — the items list is passed
-    # through as-is. This test pins that current behavior so a future
-    # refactor wiring the strip through this builder doesn't surprise.
-    # If the strip is added here, swap the assertion to negative.
-    leaked = _BEARER in str(response)
-    if leaked:
-        # Accept either path — the dispatcher-level strip still fires
-        # for any decisioning path. Pin the current builder behavior.
-        pass
+    assert _BEARER not in str(response)
+    agent = response["accounts"][0]["governance_agents"][0]
+    assert "authentication" not in agent
+    assert agent["url"] == "https://gov.example.com/"
+
+
+def test_sync_accounts_response_builder_round_trip_strip() -> None:
+    """Cross-builder regression: ``sync_accounts_response`` is the
+    other governance-adjacent builder that surfaces ``Account``
+    envelopes. Loose-dict adopters spreading ``billing_entity`` (with
+    ``bank``) onto the response must not leak bank coordinates."""
+    from adcp.server.responses import sync_accounts_response
+
+    response = sync_accounts_response(
+        accounts=[
+            {
+                "account_id": "acct_1",
+                "brand": "Acme",
+                "action": "created",
+                "status": "active",
+                "billing_entity": {
+                    "legal_name": "Acme Inc.",
+                    "bank": {"iban": _IBAN},
+                },
+                "governance_agents": [
+                    {
+                        "url": "https://gov.example.com/",
+                        "authentication": {
+                            "schemes": ["Bearer"],
+                            "credentials": _BEARER,
+                        },
+                    }
+                ],
+            }
+        ],
+    )
+    serialized = response["accounts"][0]
+    assert _IBAN not in str(response)
+    assert _BEARER not in str(response)
+    assert "bank" not in serialized["billing_entity"]
+    assert "authentication" not in serialized["governance_agents"][0]
+    assert serialized["billing_entity"]["legal_name"] == "Acme Inc."
 
 
 # ---------------------------------------------------------------------------
@@ -599,3 +698,64 @@ def test_ctx_metadata_credential_suffix_match_is_case_insensitive(key: str) -> N
     tool_ctx = ToolContext(metadata={key: "value"})
     with pytest.raises(ValueError):
         _build_request_context(tool_ctx, Account(id="x"), None)
+
+
+def test_ctx_metadata_rejects_credentials_in_list_of_dicts() -> None:
+    """``ctx.metadata`` with a list of config dicts is a realistic
+    shape — adopters batch upstream client configs that way. The
+    gate must walk into list items so a credential buried in any
+    element trips the same rejection as a top-level key."""
+    from adcp.decisioning.dispatch import _build_request_context
+
+    tool_ctx = ToolContext(
+        metadata={"upstream_configs": [{"name": "primary"}, {"api_token": "secret"}]}
+    )
+    with pytest.raises(ValueError) as exc_info:
+        _build_request_context(tool_ctx, Account(id="x"), None)
+    msg = str(exc_info.value)
+    assert "upstream_configs" in msg
+    assert "api_token" in msg
+
+
+def test_ctx_metadata_rejects_credentials_in_nested_lists() -> None:
+    """Nested lists (``[[{...}]]``) walk recursively — the gate is
+    not depth-limited, so an adversarial adopter shape can't smuggle a
+    credential past it via list-wrapping."""
+    from adcp.decisioning.dispatch import _build_request_context
+
+    tool_ctx = ToolContext(metadata={"groups": [[{"client_secret": "leak"}]]})
+    with pytest.raises(ValueError) as exc_info:
+        _build_request_context(tool_ctx, Account(id="x"), None)
+    msg = str(exc_info.value)
+    assert "groups" in msg
+    assert "client_secret" in msg
+
+
+def test_ctx_metadata_allows_list_of_strings() -> None:
+    """A plain list of strings (tags, correlation chain) carries no
+    dict to inspect — the gate must not raise on a benign list shape."""
+    from adcp.decisioning.dispatch import _build_request_context
+
+    tool_ctx = ToolContext(
+        metadata={"trace_chain": ["span_a", "span_b", "span_c"], "tags": ["beta"]}
+    )
+    ctx = _build_request_context(tool_ctx, Account(id="x"), None)
+    assert ctx.metadata["trace_chain"] == ["span_a", "span_b", "span_c"]
+
+
+def test_ctx_metadata_allows_list_of_benign_dicts() -> None:
+    """A list of dicts whose keys are NOT credential-shaped passes
+    through unchanged — adopters batch config dicts through metadata
+    without leaking credentials."""
+    from adcp.decisioning.dispatch import _build_request_context
+
+    tool_ctx = ToolContext(
+        metadata={
+            "upstream_configs": [
+                {"name": "primary", "region": "us-east-1"},
+                {"name": "secondary", "region": "eu-west-1"},
+            ]
+        }
+    )
+    ctx = _build_request_context(tool_ctx, Account(id="x"), None)
+    assert ctx.metadata["upstream_configs"][0]["name"] == "primary"

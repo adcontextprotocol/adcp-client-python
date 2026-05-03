@@ -389,16 +389,30 @@ class InMemoryTaskRegistry:
         task_id: str,
         result: dict[str, Any],
     ) -> None:
+        # Defense-in-depth credential strip at the persistence boundary.
+        # The dispatcher's TaskHandoff path also strips before calling
+        # complete() (see ``_project_handoff`` in dispatch.py); the
+        # WorkflowHandoff path does NOT (the adopter's external
+        # workflow calls ``registry.complete`` directly, off the
+        # framework's call stack). Stripping here closes that gap and
+        # protects custom registry consumers that bypass the dispatcher
+        # entirely. The strip is method-gated by ``record.task_type``
+        # (the wire verb name persisted at ``issue()``) and idempotent
+        # on already-stripped payloads, so the dispatcher-side double
+        # strip is a no-op.
+        from adcp.decisioning.account_projection import strip_credentials_from_wire_result
+
         async with self._lock:
             record = self._records.get(task_id)
             if record is None:
                 raise ValueError(f"Task {task_id!r} not found")
+            stripped = strip_credentials_from_wire_result(record.task_type, result)
             if record.state == "completed":
-                if record.result == result:
+                if record.result == stripped:
                     return  # idempotent
                 raise ValueError(f"Task {task_id!r} already completed with a different result")
             record.state = "completed"
-            record.result = dict(result)
+            record.result = dict(stripped) if isinstance(stripped, dict) else stripped
             record.updated_at = time.time()
 
     async def fail(

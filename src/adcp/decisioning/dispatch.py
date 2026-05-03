@@ -468,6 +468,38 @@ def _validate_ctx_metadata_credentials(metadata: Any) -> None:
                 # Re-raise with the parent key prefixed so the diagnostic
                 # walks the adopter to the offending path.
                 raise ValueError(f"In ctx_metadata[{key!r}]: {exc}") from None
+        elif isinstance(value, list):
+            # Lists of dicts are a realistic shape (e.g.,
+            # ``{"upstream_configs": [{"api_token": "..."}]}``). Walk
+            # each item with the same recursion so a credential-shaped
+            # key buried in any list element fails the gate. Nested
+            # lists (``[[{"token": "x"}]]``) recurse via the same
+            # branch.
+            try:
+                _walk_ctx_metadata_list(value)
+            except ValueError as exc:
+                raise ValueError(f"In ctx_metadata[{key!r}]: {exc}") from None
+
+
+def _walk_ctx_metadata_list(items: list[Any]) -> None:
+    """Recurse into a list collected from ``ctx_metadata`` and reject
+    any credential-shaped key found in a dict element.
+
+    Nested lists are walked through this same function. Non-dict,
+    non-list items (strings, numbers, None) are ignored — only
+    container types can hide a credential-shaped key.
+    """
+    for index, item in enumerate(items):
+        if isinstance(item, dict):
+            try:
+                _validate_ctx_metadata_credentials(item)
+            except ValueError as exc:
+                raise ValueError(f"[{index}]: {exc}") from None
+        elif isinstance(item, list):
+            try:
+                _walk_ctx_metadata_list(item)
+            except ValueError as exc:
+                raise ValueError(f"[{index}]: {exc}") from None
 
 
 def _internal_error_message(method_name: str, exc: BaseException) -> str:

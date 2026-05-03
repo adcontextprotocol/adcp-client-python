@@ -211,8 +211,13 @@ def sync_accounts_response(
     action ("created"|"updated"), status ("active"|"pending_approval").
 
     Matches SyncAccountsResponse1 schema (field: "accounts").
+
+    Items pass through :func:`_serialize` so loose-dict adopters who
+    spread an input ``governance_agents`` (with ``authentication``)
+    or ``billing_entity`` (with ``bank``) onto the response get the
+    write-only credential strip.
     """
-    return {"accounts": accounts, "sandbox": sandbox}
+    return {"accounts": _serialize(accounts), "sandbox": sandbox}
 
 
 def sync_governance_response(
@@ -224,8 +229,12 @@ def sync_governance_response(
 
     Each account dict should include: account, status ("synced"),
     governance_agents ([{url, categories}]).
+
+    Items pass through :func:`_serialize` so loose-dict adopters who
+    spread an input ``governance_agents`` (with ``authentication``)
+    onto the response get the write-only credential strip.
     """
-    return {"accounts": accounts, "sandbox": sandbox}
+    return {"accounts": _serialize(accounts), "sandbox": sandbox}
 
 
 # ============================================================================
