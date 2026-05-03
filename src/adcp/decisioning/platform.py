@@ -169,6 +169,13 @@ class DecisioningCapabilities:
     creative_agents: list[Any] = field(default_factory=list)
     config: dict[str, Any] = field(default_factory=dict)
     governance_aware: bool = False
+    # When True, the framework calls get_products and slices the full result
+    # set to the requested page. Only suitable for in-memory / small-catalog
+    # adopters whose get_products returns the complete unfiltered product set.
+    # Adopters with DB-backed catalogs at production scale MUST leave this
+    # False and handle cursor logic natively — returning 100k products only
+    # to discard 99 950 is a silent production latency and memory spike.
+    auto_paginate: bool = False
 
     # Wire capability blocks (mirror ``GetAdcpCapabilitiesResponse``)
     adcp: Adcp | None = None

@@ -44,6 +44,7 @@ from adcp.decisioning.dispatch import (
     _invoke_platform_method,
 )
 from adcp.decisioning.implementation_config import ProductConfigStore
+from adcp.decisioning.pagination import _query_hash, apply_framework_pagination
 from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
 from adcp.server.base import ADCPHandler, ToolContext
 
@@ -1075,6 +1076,15 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 registry=self._registry,
             ),
         )
+        if self._platform.capabilities.auto_paginate and params.pagination is not None:
+            response = cast(
+                "GetProductsResponse",
+                apply_framework_pagination(
+                    response,
+                    params.pagination,
+                    _query_hash(params),
+                ),
+            )
         if params.fields:
             response = _project_product_fields(response, params.fields)
         return response
