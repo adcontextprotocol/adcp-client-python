@@ -282,7 +282,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         try:
             payload = await self._upstream.list_products(network_code=network_code)
         except UpstreamError as exc:
-            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+            raise self._translate_upstream(
+                exc,
+                default_code="SERVICE_UNAVAILABLE",
+                not_found_code="ACCOUNT_NOT_FOUND",
+            ) from exc
         self._record("products.list", {"network_code": network_code})
         agent_url = "https://reference.adcp.org"
         products: list[Product] = []
@@ -422,47 +426,77 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         if order.get("status") in {"approved", "delivering"} and not approval_task_id:
             return self._project_create_success(order, req, budget_amount, budget_currency)
 
+        # No approval task but status not already terminal-success —
+        # the upstream has either auto-progressed past creation or is
+        # still pending. Refetch once and project from current status;
+        # don't enter a polling loop we have no signal to drive.
+        if approval_task_id is None:
+            current = await self._upstream.get_order(network_code=network_code, order_id=order_id)
+            self._record(
+                "media_buy.confirm",
+                {"order_id": order_id, "status": current.get("status")},
+            )
+            return self._finalize_create_or_raise(current, req, budget_amount, budget_currency)
+
         # Slow path — hand off to background polling. The framework
         # allocates a task_id, returns the Submitted envelope, and runs
         # the handoff coroutine in the background. When this coroutine
         # returns, the framework persists the success as the terminal
         # artifact on the registry; buyers see it via ``tasks/get`` or
-        # via the push-notification webhook.
+        # via the push-notification webhook. When this coroutine raises
+        # :class:`AdcpError`, the framework persists ``failed`` with the
+        # wire-shaped error payload — so terminal-failure projection
+        # (rejected, timed-out polling) goes through ``raise``, not
+        # through fabricating a success response.
+        bound_task_id = approval_task_id
+
         async def _poll_until_approved(task_handoff_ctx: Any) -> CreateMediaBuySuccessResponse:
             del task_handoff_ctx
             for _ in range(self._approval_poll_max_iterations):
-                if approval_task_id is not None:
-                    task = await self._upstream.get_task(
-                        network_code=network_code, task_id=approval_task_id
-                    )
-                    self._record(
-                        "task.poll",
-                        {"task_id": approval_task_id, "status": task.get("status")},
-                    )
-                    if task.get("status") == "completed":
-                        result = task.get("result") or {}
-                        if result.get("outcome") == "rejected":
-                            raise AdcpError(
-                                "POLICY_VIOLATION",
-                                message=(
-                                    result.get("reviewer_note") or "Upstream rejected the order."
-                                ),
-                                recovery="terminal",
-                            )
-                        break
-                    if task.get("status") == "rejected":
+                task = await self._upstream.get_task(
+                    network_code=network_code, task_id=bound_task_id
+                )
+                self._record(
+                    "task.poll",
+                    {"task_id": bound_task_id, "status": task.get("status")},
+                )
+                if task.get("status") == "completed":
+                    result = task.get("result") or {}
+                    if result.get("outcome") == "rejected":
                         raise AdcpError(
                             "POLICY_VIOLATION",
-                            message="Upstream rejected the order.",
+                            message=(result.get("reviewer_note") or "Upstream rejected the order."),
                             recovery="terminal",
                         )
+                    break
+                if task.get("status") == "rejected":
+                    raise AdcpError(
+                        "POLICY_VIOLATION",
+                        message="Upstream rejected the order.",
+                        recovery="terminal",
+                    )
                 # Jitter the poll interval so concurrent buys don't
                 # synchronize their upstream calls. Honoring an upstream
                 # ``Retry-After`` is a follow-up — it requires plumbing
                 # the response headers through ``UpstreamError``.
                 jitter = random.uniform(0.5, 1.5)
                 await asyncio.sleep(self._approval_poll_interval_s * jitter)
-            # Re-fetch the order in approved state.
+            else:
+                # Loop exhausted without a terminal task status. We
+                # cannot project a success from a still-pending order,
+                # and we cannot keep polling forever. Surface as a
+                # transient failure so the buyer can retry the create
+                # call later.
+                raise AdcpError(
+                    "SERVICE_UNAVAILABLE",
+                    message=(
+                        "Upstream approval task did not complete within polling window — "
+                        "buyer should retry the create call later."
+                    ),
+                    recovery="transient",
+                )
+            # Refetch the order; project from the actual current status
+            # rather than assume the broken-out loop saw a green light.
             approved_order = await self._upstream.get_order(
                 network_code=network_code, order_id=order_id
             )
@@ -470,9 +504,48 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "media_buy.confirm",
                 {"order_id": order_id, "status": approved_order.get("status")},
             )
-            return self._project_create_success(approved_order, req, budget_amount, budget_currency)
+            return self._finalize_create_or_raise(
+                approved_order, req, budget_amount, budget_currency
+            )
 
         return ctx.handoff_to_task(_poll_until_approved)
+
+    def _finalize_create_or_raise(
+        self,
+        order: dict[str, Any],
+        req: CreateMediaBuyRequest,
+        budget_amount: float,
+        budget_currency: str,
+    ) -> CreateMediaBuySuccessResponse:
+        """Project a terminal upstream order onto a buyer-facing success
+        response — but refuse to fabricate success when the upstream is
+        still ``pending_approval`` / ``draft``, or has gone ``rejected``.
+        """
+        upstream_status = order.get("status", "")
+        if upstream_status == "rejected":
+            # Spec doesn't carry a "human approver rejected" code; the
+            # closest match is ``PERMISSION_DENIED`` (recovery=terminal),
+            # which buyers handle by surfacing the rejection to the
+            # operator rather than retrying.
+            raise AdcpError(
+                "PERMISSION_DENIED",
+                message="Upstream rejected the order during human approval review.",
+                recovery="terminal",
+            )
+        if upstream_status in {"pending_approval", "draft"}:
+            # Reached only when the polling window ran out OR the
+            # no-task refetch path saw the order still pending. Either
+            # way, transient — the buyer retries.
+            raise AdcpError(
+                "SERVICE_UNAVAILABLE",
+                message=(
+                    f"Upstream order is still in {upstream_status!r} status — "
+                    "approval has not completed. Buyer should retry the create "
+                    "call later."
+                ),
+                recovery="transient",
+            )
+        return self._project_create_success(order, req, budget_amount, budget_currency)
 
     def _project_create_success(
         self,
@@ -618,6 +691,25 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 if exc.status_code == 404:
                     continue
                 raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+            # The mock's DeliveryReport schema doesn't carry order
+            # status (see openapi.yaml § DeliveryReport). Double-fetch
+            # the order so we project the correct AdCP MediaBuyStatus
+            # — completed / canceled / rejected buys would otherwise
+            # all surface as 'active' to the buyer.
+            try:
+                order_meta = await self._upstream.get_order(
+                    network_code=network_code, order_id=order_id
+                )
+                upstream_status = order_meta.get("status", "")
+            except UpstreamError as exc:
+                if exc.status_code == 404:
+                    # Delivery row exists but order is gone — odd,
+                    # surface as 'active' so the row is at least
+                    # well-formed; the operator's audit log will catch it.
+                    upstream_status = ""
+                else:
+                    raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+            wire_status = _DELIVERY_STATUS_MAP.get(upstream_status, "active")
             totals = upstream.get("totals", {})
             report_currency = upstream.get("currency", report_currency)
             if report_period is None and upstream.get("reporting_period"):
@@ -625,7 +717,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             delivery_rows.append(
                 {
                     "media_buy_id": order_id,
-                    "status": "active",
+                    "status": wire_status,
                     "totals": {
                         "impressions": int(totals.get("impressions", 0)),
                         "clicks": int(totals.get("clicks", 0)),
@@ -866,7 +958,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         try:
             payload = await self._upstream.list_creatives(network_code=network_code)
         except UpstreamError as exc:
-            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+            raise self._translate_upstream(
+                exc,
+                default_code="SERVICE_UNAVAILABLE",
+                not_found_code="ACCOUNT_NOT_FOUND",
+            ) from exc
         upstream_creatives = [
             c for c in payload.get("creatives", []) if c.get("advertiser_id") == advertiser_id
         ]
@@ -1057,6 +1153,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             if req.status is not None:
                 status_value = req.status.value if hasattr(req.status, "value") else str(req.status)
                 stmt = stmt.where(AccountRow.status == status_value)
+            # Total-count probe runs against the same WHERE clause as
+            # the page query so ``pagination.total_count`` matches
+            # ``list_creatives`` semantics. Adopters with very large
+            # account tables swap this for a separate count() query
+            # rather than materializing all rows.
+            all_q = await session.execute(stmt)
+            total_count = len(list(all_q.scalars()))
             page_q = await session.execute(
                 stmt.order_by(AccountRow.created_at.desc()).limit(limit).offset(offset)
             )
@@ -1077,23 +1180,33 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             safe = project_account_for_response(wire_account)
             projected_accounts.append(safe.model_dump(mode="json", exclude_none=True))
         self._record("accounts.list", {"buyer_agent_id": ctx.buyer_agent.agent_url})
+        has_more = offset + len(rows) < total_count
         return ListAccountsResponse.model_validate(
             {
                 "accounts": projected_accounts,
-                "pagination": {"has_more": len(rows) == limit},
+                "pagination": {"has_more": has_more, "total_count": total_count},
             }
         )
 
     # ----- helpers ---------------------------------------------------------
 
     @staticmethod
-    def _translate_upstream(exc: UpstreamError, default_code: str) -> AdcpError:
+    def _translate_upstream(
+        exc: UpstreamError,
+        default_code: str,
+        *,
+        not_found_code: str = "MEDIA_BUY_NOT_FOUND",
+    ) -> AdcpError:
         """Project an upstream error onto an AdCP wire error.
 
         Maps common HTTP statuses to spec-conformant codes from the
         canonical ``ErrorCode`` enum; unknown statuses fall through to
         ``default_code`` (typically ``SERVICE_UNAVAILABLE``) so the
         dispatcher gets a structured error envelope rather than a 500.
+
+        ``not_found_code`` lets callsites override the 404 mapping —
+        ``get_products`` / ``list_creatives`` / ``list_accounts`` 404s
+        mean an unknown network / account, not a missing media buy.
         """
         upstream_code = exc.payload.get("code")
         upstream_message = exc.payload.get("message", "")
@@ -1121,7 +1234,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             )
         if exc.status_code == 404:
             return AdcpError(
-                "MEDIA_BUY_NOT_FOUND",
+                not_found_code,
                 message=f"Upstream resource not found: {upstream_message}",
                 recovery="terminal",
             )

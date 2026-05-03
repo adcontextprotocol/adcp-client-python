@@ -165,13 +165,16 @@ async def test_list_accounts_runs_projection_on_every_row(
 
     ba_result = MagicMock()
     ba_result.scalar_one_or_none = MagicMock(return_value=buyer_agent_row)
+    # Two scalars() consumers: the total-count probe and the page query.
+    count_result = MagicMock()
+    count_result.scalars = MagicMock(return_value=iter([account_row]))
     accounts_result = MagicMock()
     accounts_result.scalars = MagicMock(return_value=iter([account_row]))
 
     session = MagicMock()
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=None)
-    session.execute = AsyncMock(side_effect=[ba_result, accounts_result])
+    session.execute = AsyncMock(side_effect=[ba_result, count_result, accounts_result])
     sessionmaker = MagicMock(return_value=session)
 
     class _Tenant:
@@ -582,6 +585,23 @@ async def test_get_media_buy_delivery_translates_upstream_report(
             },
         )
     )
+    # The platform double-fetches the order to project the right
+    # AdCP MediaBuyStatus (DeliveryReport doesn't carry status).
+    respx_mock.get("/v1/orders/ord_1").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_1",
+                "name": "Volta",
+                "status": "delivering",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 25000.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
     platform = _platform_with_upstream()
     ctx = _build_ctx()
     req = GetMediaBuyDeliveryRequest.model_validate({"media_buy_ids": ["ord_1"]})
@@ -590,6 +610,7 @@ async def test_get_media_buy_delivery_translates_upstream_report(
     assert len(payload["media_buy_deliveries"]) == 1
     row = payload["media_buy_deliveries"][0]
     assert row["media_buy_id"] == "ord_1"
+    assert row["status"] == "active"
     assert row["totals"]["impressions"] == 1_000_000
     assert payload["currency"] == "USD"
 
@@ -857,3 +878,540 @@ def test_translate_upstream_429_projects_to_rate_limited() -> None:
     )
     assert err.code == "RATE_LIMITED"
     assert err.recovery == "transient"
+
+
+def test_translate_upstream_404_default_is_media_buy_not_found() -> None:
+    """Default 404 mapping surfaces ``MEDIA_BUY_NOT_FOUND`` — used by
+    get_order / get_delivery / post_conversions callsites where 404
+    genuinely means the media buy is gone."""
+    from src.platform import V3ReferenceSeller
+    from src.upstream import UpstreamError
+
+    err = V3ReferenceSeller._translate_upstream(
+        UpstreamError(404, {"message": "no order"}),
+        default_code="SERVICE_UNAVAILABLE",
+    )
+    assert err.code == "MEDIA_BUY_NOT_FOUND"
+
+
+def test_translate_upstream_404_account_callsite_overrides_to_account_not_found() -> None:
+    """get_products / list_creatives 404s mean the network/account is
+    unknown — pass ``not_found_code='ACCOUNT_NOT_FOUND'`` so buyers
+    don't see a misleading ``MEDIA_BUY_NOT_FOUND``."""
+    from src.platform import V3ReferenceSeller
+    from src.upstream import UpstreamError
+
+    err = V3ReferenceSeller._translate_upstream(
+        UpstreamError(404, {"message": "no network"}),
+        default_code="SERVICE_UNAVAILABLE",
+        not_found_code="ACCOUNT_NOT_FOUND",
+    )
+    assert err.code == "ACCOUNT_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# Failure-path coverage — every callsite that hits upstream should
+# project network / json / 5xx failures onto structured AdcpError.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_get_products_401_translates_to_auth_required(respx_mock: Any) -> None:
+    """A 401 from the upstream surfaces as the spec code
+    ``AUTH_REQUIRED`` (post-fix-pack-1; was ``AUTH_INVALID``)."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import GetProductsRequest
+
+    respx_mock.get("/v1/products").mock(
+        return_value=httpx.Response(401, json={"message": "bad bearer"})
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.get_products(
+            GetProductsRequest.model_validate({"buying_mode": "wholesale"}), ctx
+        )
+    assert excinfo.value.code == "AUTH_REQUIRED"
+    assert excinfo.value.recovery == "terminal"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_get_products_500_translates_to_service_unavailable(respx_mock: Any) -> None:
+    """A 500 surfaces as ``SERVICE_UNAVAILABLE`` with
+    ``recovery='transient'`` so buyers retry."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import GetProductsRequest
+
+    respx_mock.get("/v1/products").mock(return_value=httpx.Response(500, json={"message": "boom"}))
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.get_products(
+            GetProductsRequest.model_validate({"buying_mode": "wholesale"}), ctx
+        )
+    assert excinfo.value.code == "SERVICE_UNAVAILABLE"
+    assert excinfo.value.recovery == "transient"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_get_products_429_translates_to_rate_limited(respx_mock: Any) -> None:
+    """A 429 surfaces as ``RATE_LIMITED`` (transient)."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import GetProductsRequest
+
+    respx_mock.get("/v1/products").mock(
+        return_value=httpx.Response(429, json={"message": "slow down"})
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.get_products(
+            GetProductsRequest.model_validate({"buying_mode": "wholesale"}), ctx
+        )
+    assert excinfo.value.code == "RATE_LIMITED"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_get_products_404_translates_to_account_not_found(respx_mock: Any) -> None:
+    """A 404 from get_products means an unknown network/account, not a
+    missing media buy — verify the per-callsite override."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import GetProductsRequest
+
+    respx_mock.get("/v1/products").mock(
+        return_value=httpx.Response(404, json={"message": "no such network"})
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.get_products(
+            GetProductsRequest.model_validate({"buying_mode": "wholesale"}), ctx
+        )
+    assert excinfo.value.code == "ACCOUNT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_upstream_malformed_json_raises_clean_error(respx_mock: Any) -> None:
+    """A non-JSON response body on a 5xx upstream still produces a
+    structured ``AdcpError`` rather than leaking a ``ValueError``."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import GetProductsRequest
+
+    respx_mock.get("/v1/products").mock(
+        return_value=httpx.Response(500, text="<html>nginx oopsie</html>")
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.get_products(
+            GetProductsRequest.model_validate({"buying_mode": "wholesale"}), ctx
+        )
+    # Falls through to default_code on the 5xx path — payload is empty
+    # because JSON decode failed.
+    assert excinfo.value.code == "SERVICE_UNAVAILABLE"
+
+
+# ---------------------------------------------------------------------------
+# create_media_buy polling correctness — the polling loop must NOT
+# project a success when the upstream is still pending or rejected.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_create_media_buy_no_task_id_path_refetches_and_projects(
+    respx_mock: Any,
+) -> None:
+    """When the upstream returns no ``approval_task_id`` AND status is
+    not already ``approved``/``delivering``, the platform refetches the
+    order once and projects from the actual current status — never
+    enters the polling loop (no signal to drive it)."""
+    from adcp.types import CreateMediaBuyRequest, CreateMediaBuySuccessResponse
+
+    respx_mock.post("/v1/orders").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "order_id": "ord_no_task",
+                "name": "No Task Path",
+                "status": "draft",  # no approval_task_id, not approved
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    # Second call: refetch returns it now-approved (e.g. upstream
+    # auto-approval landed between create and refetch).
+    respx_mock.get("/v1/orders/ord_no_task").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_no_task",
+                "name": "No Task Path",
+                "status": "approved",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "idempotency_key": "k_" + "n" * 18,
+            "brand": {"domain": "fast.example"},
+            "total_budget": {"amount": 100.0, "currency": "USD"},
+            "start_time": "asap",
+            "end_time": "2026-06-30T23:59:59Z",
+            "packages": [
+                {
+                    "product_id": "p1",
+                    "format_ids": [
+                        {"agent_url": "https://reference.adcp.org", "id": "video_16x9_30s"}
+                    ],
+                    "budget": 100.0,
+                    "pricing_option_id": "p1-cpm",
+                }
+            ],
+        }
+    )
+    result = await platform.create_media_buy(req, ctx)
+    # No-task-id path returns synchronously — no TaskHandoff.
+    assert isinstance(result, CreateMediaBuySuccessResponse)
+    assert result.media_buy_id == "ord_no_task"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_create_media_buy_no_task_id_path_raises_on_pending(
+    respx_mock: Any,
+) -> None:
+    """When the no-task-id refetch still shows ``pending_approval``,
+    the platform raises ``SERVICE_UNAVAILABLE`` (transient) rather
+    than fabricating a success."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import CreateMediaBuyRequest
+
+    respx_mock.post("/v1/orders").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "order_id": "ord_stuck",
+                "name": "Stuck",
+                "status": "draft",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    respx_mock.get("/v1/orders/ord_stuck").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_stuck",
+                "name": "Stuck",
+                "status": "pending_approval",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "idempotency_key": "k_" + "s" * 18,
+            "brand": {"domain": "stuck.example"},
+            "total_budget": {"amount": 100.0, "currency": "USD"},
+            "start_time": "asap",
+            "end_time": "2026-06-30T23:59:59Z",
+            "packages": [
+                {
+                    "product_id": "p1",
+                    "format_ids": [
+                        {"agent_url": "https://reference.adcp.org", "id": "video_16x9_30s"}
+                    ],
+                    "budget": 100.0,
+                    "pricing_option_id": "p1-cpm",
+                }
+            ],
+        }
+    )
+    with pytest.raises(AdcpError) as excinfo:
+        await platform.create_media_buy(req, ctx)
+    assert excinfo.value.code == "SERVICE_UNAVAILABLE"
+    assert excinfo.value.recovery == "transient"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_create_media_buy_raises_when_polling_times_out(
+    respx_mock: Any,
+) -> None:
+    """When the approval task never completes within the polling
+    window, the polling coroutine raises ``SERVICE_UNAVAILABLE``
+    (transient). The framework projects this as a wire-shaped task
+    failure — never a fabricated success."""
+    from src.platform import V3ReferenceSeller
+    from src.upstream import MockUpstreamClient
+
+    from adcp.decisioning import AdcpError
+    from adcp.types import CreateMediaBuyRequest
+
+    respx_mock.post("/v1/orders").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "order_id": "ord_timeout",
+                "name": "Timeout",
+                "status": "pending_approval",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "approval_task_id": "task_timeout",
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    # Every poll returns ``pending`` — the loop must exhaust.
+    respx_mock.get("/v1/tasks/task_timeout").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "task_id": "task_timeout",
+                "order_id": "ord_timeout",
+                "status": "pending",
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    upstream = MockUpstreamClient(base_url="http://up.test", api_key="test-key")
+    sessionmaker = MagicMock()
+    # Tighten polling so the test finishes fast — 2 iterations × 0.001s.
+    platform = V3ReferenceSeller(
+        sessionmaker=sessionmaker,
+        upstream=upstream,
+        approval_poll_interval_s=0.001,
+        approval_poll_max_iterations=2,
+    )
+    ctx = _build_ctx()
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "idempotency_key": "k_" + "t" * 18,
+            "brand": {"domain": "timeout.example"},
+            "total_budget": {"amount": 100.0, "currency": "USD"},
+            "start_time": "asap",
+            "end_time": "2026-06-30T23:59:59Z",
+            "packages": [
+                {
+                    "product_id": "p1",
+                    "format_ids": [
+                        {"agent_url": "https://reference.adcp.org", "id": "video_16x9_30s"}
+                    ],
+                    "budget": 100.0,
+                    "pricing_option_id": "p1-cpm",
+                }
+            ],
+        }
+    )
+    handoff = await platform.create_media_buy(req, ctx)
+    # Drive the handoff fn directly — the framework would wrap it in
+    # background dispatch. We assert it raises rather than fabricates.
+    fn = handoff._fn  # type: ignore[attr-defined]
+    with pytest.raises(AdcpError) as excinfo:
+        await fn(None)
+    assert excinfo.value.code == "SERVICE_UNAVAILABLE"
+    assert excinfo.value.recovery == "transient"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_create_media_buy_raises_when_task_rejected(respx_mock: Any) -> None:
+    """When the upstream approval task completes with
+    ``outcome='rejected'``, the polling coroutine raises
+    ``POLICY_VIOLATION`` (terminal). The framework projects this as a
+    wire-shaped task failure."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import CreateMediaBuyRequest
+
+    respx_mock.post("/v1/orders").mock(
+        return_value=httpx.Response(
+            201,
+            json={
+                "order_id": "ord_rejected",
+                "name": "Rejected",
+                "status": "pending_approval",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "approval_task_id": "task_rej",
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    respx_mock.get("/v1/tasks/task_rej").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "task_id": "task_rej",
+                "order_id": "ord_rejected",
+                "status": "completed",
+                "result": {
+                    "outcome": "rejected",
+                    "reviewer_note": "Brand-safety violation.",
+                },
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = CreateMediaBuyRequest.model_validate(
+        {
+            "account": {"account_id": "signed-buyer-main"},
+            "idempotency_key": "k_" + "x" * 18,
+            "brand": {"domain": "rejected.example"},
+            "total_budget": {"amount": 100.0, "currency": "USD"},
+            "start_time": "asap",
+            "end_time": "2026-06-30T23:59:59Z",
+            "packages": [
+                {
+                    "product_id": "p1",
+                    "format_ids": [
+                        {"agent_url": "https://reference.adcp.org", "id": "video_16x9_30s"}
+                    ],
+                    "budget": 100.0,
+                    "pricing_option_id": "p1-cpm",
+                }
+            ],
+        }
+    )
+    handoff = await platform.create_media_buy(req, ctx)
+    fn = handoff._fn  # type: ignore[attr-defined]
+    with pytest.raises(AdcpError) as excinfo:
+        await fn(None)
+    assert excinfo.value.code == "POLICY_VIOLATION"
+    assert "Brand-safety" in str(excinfo.value)
+
+
+# ---------------------------------------------------------------------------
+# get_media_buy_delivery — status reflects upstream order state
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_get_media_buy_delivery_projects_completed_status(
+    respx_mock: Any,
+) -> None:
+    """A completed upstream order must surface as AdCP ``completed``,
+    not as ``active`` — buyers rely on terminal-state semantics for
+    finalization."""
+    from adcp.types import GetMediaBuyDeliveryRequest
+
+    respx_mock.get("/v1/orders/ord_done/delivery").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_done",
+                "currency": "USD",
+                "reporting_period": {
+                    "start": "2026-03-01T00:00:00Z",
+                    "end": "2026-03-31T23:59:59Z",
+                },
+                "totals": {"impressions": 500_000, "clicks": 2000, "spend": 1000.0},
+            },
+        )
+    )
+    respx_mock.get("/v1/orders/ord_done").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_done",
+                "name": "Done",
+                "status": "completed",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 1000.0,
+                "created_at": "2026-03-01T00:00:00Z",
+                "updated_at": "2026-04-01T00:00:00Z",
+            },
+        )
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = GetMediaBuyDeliveryRequest.model_validate({"media_buy_ids": ["ord_done"]})
+    resp = await platform.get_media_buy_delivery(req, ctx)
+    payload = resp.model_dump(mode="json", exclude_none=True)
+    assert len(payload["media_buy_deliveries"]) == 1
+    assert payload["media_buy_deliveries"][0]["status"] == "completed"
+
+
+@pytest.mark.asyncio
+@respx.mock(base_url="http://up.test")
+async def test_get_media_buy_delivery_projects_canceled_status(
+    respx_mock: Any,
+) -> None:
+    """A canceled upstream order surfaces as AdCP ``canceled`` —
+    not as the previously-hardcoded ``active``."""
+    from adcp.types import GetMediaBuyDeliveryRequest
+
+    respx_mock.get("/v1/orders/ord_killed/delivery").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_killed",
+                "currency": "USD",
+                "reporting_period": {
+                    "start": "2026-04-01T00:00:00Z",
+                    "end": "2026-04-15T23:59:59Z",
+                },
+                "totals": {"impressions": 100, "clicks": 1, "spend": 1.0},
+            },
+        )
+    )
+    respx_mock.get("/v1/orders/ord_killed").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "order_id": "ord_killed",
+                "name": "Killed",
+                "status": "canceled",
+                "advertiser_id": "adv_volta_motors",
+                "currency": "USD",
+                "budget": 100.0,
+                "created_at": "2026-04-01T00:00:00Z",
+                "updated_at": "2026-04-15T00:00:00Z",
+            },
+        )
+    )
+    platform = _platform_with_upstream()
+    ctx = _build_ctx()
+    req = GetMediaBuyDeliveryRequest.model_validate({"media_buy_ids": ["ord_killed"]})
+    resp = await platform.get_media_buy_delivery(req, ctx)
+    payload = resp.model_dump(mode="json", exclude_none=True)
+    assert payload["media_buy_deliveries"][0]["status"] == "canceled"

@@ -5,6 +5,110 @@ Audience: maintainers of existing pre-v3 sales agents — Prebid's
 FreeWheel-fronting middleware, in-house seller adapters — who want to
 adopt the AdCP Python SDK without rewriting their ad-ops integration.
 
+## Pre-v3 → v3 model/method mapping (Prebid salesagent porting checklist)
+
+This is a checklist for porting your existing AdCP 3.0.0-beta.2 sales
+agent to v3. Each row maps a thing in your old code to a thing in this
+template. The column on the right calls out the gotchas.
+
+| Pre-v3 (3.0.0-beta.2) shape | v3 location | Notes |
+|---|---|---|
+| `MediaBuy` model (local DB) | upstream `POST /v1/orders` | Drop your `MediaBuy` table; the upstream owns this. The translator never persists media-buy rows locally. |
+| `Creative` model (local DB) | upstream `POST /v1/creatives` | Drop your `Creative` table. `sync_creatives` translates AdCP creatives onto the upstream's create call. |
+| `PerformanceFeedback` model | upstream `POST /v1/orders/{id}/conversions` (CAPI) | **Semantic gap** — see "CAPI semantic mismatch" below. AdCP perf feedback is an aggregate; CAPI is per-event. The reference seller accepts only `metric_type='conversion_rate'`. |
+| `Account` model | local DB (commercial-identity layer) | **KEEP**. Add `ext.network_code` + `ext.advertiser_id` columns so the translator can route per-call. The translator's `_make_account_store` reads these onto `ctx.account.metadata`. |
+| `Tenant` / `BuyerAgent` | local DB | **KEEP** — these are the v3 commercial-identity layer. Strict tenant isolation runs in the framework's `SubdomainTenantMiddleware`. |
+| `seller_agent_v1.py` entrypoint | `examples/v3_reference_seller/src/app.py` template | Rewrite around `serve(transport='both', ...)`. Drop your hand-rolled MCP/A2A request parsing. |
+| `get_products(req, ctx)` body | translator method calling upstream | Replace inline catalog logic with HTTP translation. Fall back to your CMS / planner / forecasting service if your upstream's products endpoint isn't enough. |
+| `create_media_buy(req, ctx)` body | translator method | Now async with `TaskHandoff` for HITL approval flows. Sync fast path returns `CreateMediaBuySuccessResponse` directly; slow path returns `ctx.handoff_to_task(fn)` and the framework projects the wire `Submitted` envelope. |
+| `update_media_buy(req, ctx)` body | translator method (or `UNSUPPORTED_FEATURE`) | Wire to your upstream's order-update endpoint (GAM `LineItemService.performLineItemAction`, FreeWheel `updateOrder`). The reference seller raises `UNSUPPORTED_FEATURE` because the JS mock has no update endpoint. Don't ship the shim. |
+| `sync_creatives(req, ctx)` body | translator method | One upstream `POST /v1/creatives` per creative; AdCP `creative_id` passes through as `client_request_id` for upstream dedup. |
+| `get_media_buy_delivery(req, ctx)` body | translator method | The upstream's `DeliveryReport` schema may not carry order status — the reference seller double-fetches `get_order` so AdCP `MediaBuyStatus` reflects the actual state (completed / canceled / rejected don't surface as `active`). |
+| `provide_performance_feedback(req, ctx)` body | translator method | See "CAPI semantic mismatch". |
+| `list_creative_formats(req, ctx)` body | translator method | Static catalog in the reference seller. Real publishers drive this from their format registry. |
+| Hand-rolled idempotency tracking | framework `RequestContext` + `idempotency_key` | The framework persists `idempotency_key → response_hash`; replays are constant-time. |
+| Hand-rolled task lifecycle | framework `TaskRegistry` + `TaskHandoff` | Adopters call `ctx.handoff_to_task(fn)` and the framework manages submitted → working → completed/failed. Adopter coroutine can `raise AdcpError(...)` to signal terminal failure — the framework projects to wire-shape `failed`. |
+
+### Specialism declaration upgrade
+
+The 3.0.0-beta.2 capability shape declared specialism inline on the
+agent card. v3 (currently pinned to `3.0.5` — see
+[`src/adcp/ADCP_VERSION`](../../src/adcp/ADCP_VERSION) for the canonical
+pin) consolidates this onto `DecisioningCapabilities`:
+
+```python
+capabilities = DecisioningCapabilities(
+    specialisms=("sales-non-guaranteed", "sales-guaranteed"),
+    channels=("display", "video"),
+    pricing_models=("cpm",),
+    supported_billing=("operator", "agent"),  # required when 'media_buy' is in supported_protocols
+)
+```
+
+What changed:
+
+* **`DecisioningCapabilities` is the single home** for specialisms,
+  channels, pricing_models, and supported_billing. Don't hand-roll
+  the agent card — `serve(...)` projects this object onto the wire.
+* **`validate_platform()` enforcement** ([PR #423](https://github.com/adcontextprotocol/adcp-client-python/pull/423))
+  warns at boot if your platform claims a specialism but is missing
+  required methods. Treat the warning as an error in CI.
+* **`validate_capabilities_response_shape()`** ([PR #422](https://github.com/adcontextprotocol/adcp-client-python/pull/422))
+  catches drift between your declared capabilities and what the
+  framework projects on the wire. Spec-divergent capability responses
+  fail validation rather than ship.
+
+### Strict validation gotchas
+
+`serve(validation=ValidationHookConfig(requests='strict', responses='strict'))`
+is now the default ([PR #439](https://github.com/adcontextprotocol/adcp-client-python/pull/439)).
+Common shape regressions when porting from 3.0.0-beta.2:
+
+* **`pricing_options[].pricing_model`**, not `type`. The v3 schema
+  renamed the discriminator field; old code using `{"type": "cpm",
+  ...}` fails strict validation.
+* **`pricing_options[].fixed_price`**, not `rate`. The CPM rate field
+  was renamed to `fixed_price` for consistency across pricing models.
+* **`format_id` is structured** (`{"agent_url": ..., "id": ...}`), not
+  a bare string. Pre-v3 `format_id: "display_300x250"` fails.
+* **`AdcpError(recovery=...)` accepts `'transient'` / `'terminal'` /
+  `'retry_with_changes'` / `'correctable'`** only. The legacy
+  `recovery='retry'` string is not in the AdCP enum and fails
+  type-checking.
+
+If you're seeing `responses='warn'` regressions during port, fix the
+projection — don't relax validation. The spec shape is the contract.
+
+### Spec error codes — what to use
+
+The canonical enum ships at
+[`src/adcp/types/generated_poc/enums/error_code.py`](../../src/adcp/types/generated_poc/enums/error_code.py).
+Common codes the translator emits:
+
+| Code | When to use | `recovery` |
+|---|---|---|
+| `INVALID_REQUEST` | Buyer sent a malformed request, or upstream rejected the translated payload (400). | `terminal` |
+| `MEDIA_BUY_NOT_FOUND` | Upstream 404 on a known-media-buy operation (`get_order`, `get_delivery`, `post_conversions`). | `terminal` |
+| `ACCOUNT_NOT_FOUND` | Upstream 404 on an account-scoped operation (`get_products`, `list_creatives`, `list_accounts`). | `terminal` |
+| `SERVICE_UNAVAILABLE` | Upstream 5xx, network timeout, JSON decode failure, server-side onboarding misconfig (account missing `ext.network_code`), or polling timeout on async approval. | `transient` |
+| `PERMISSION_DENIED` | Upstream 403, OR human approver rejected the order during HITL review. | `terminal` |
+| `RATE_LIMITED` | Upstream 429. | `transient` |
+| `AUTH_REQUIRED` | Upstream 401, missing tenant context, missing credentials. | `terminal` |
+| `UNSUPPORTED_FEATURE` | Method exists on the Protocol but this upstream doesn't support it (e.g. `update_media_buy` against an upstream with no order-update endpoint). | `terminal` |
+| `POLICY_VIOLATION` | Buyer's request fails a policy check upstream (brand-safety, traffic-quality). | `terminal` |
+| `CONFLICT` | Upstream 409 (e.g. duplicate idempotency_key with a different body). | `terminal` |
+
+**DO NOT raise on the wire**:
+
+* `INTERNAL_ERROR` — SDK-internal allowlisted; the dispatcher uses it
+  to wrap unhandled exceptions. Platform code MUST NOT emit it.
+  Replace with `SERVICE_UNAVAILABLE` (transient) or `INVALID_REQUEST`
+  (terminal).
+* `AUTH_INVALID` — not in the spec enum. Replace with `AUTH_REQUIRED`.
+
+Strict response validation rejects non-enum codes at boot, so the
+translator can't accidentally ship a vendor code on the wire.
+
 ## Why the translator pattern
 
 A real publisher already has an ad server. GAM, FreeWheel, Kevel,

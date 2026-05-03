@@ -491,13 +491,13 @@ jobs:
             adcp mock-server sales-guaranteed --port 4503 --api-key test-key &
           MOCK_PID=$!
           echo "MOCK_PID=$MOCK_PID" >> "$GITHUB_ENV"
-          # Health-check via /v1/products with bearer + X-Network-Code.
-          # The mock answers 200 on the seeded net_premium_us network.
+          # Health-check via /_debug/traffic — non-network-scoped and
+          # no-auth, so it doesn't break when the JS mock's seed-data
+          # renames or removes a specific network. The endpoint is
+          # always present on the harness-side mock.
           for i in $(seq 1 60); do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
-              -H "Authorization: Bearer test-key" \
-              -H "X-Network-Code: net_premium_us" \
-              http://127.0.0.1:4503/v1/products 2>/dev/null || echo "000")
+              http://127.0.0.1:4503/_debug/traffic 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "Upstream mock ready (HTTP 200, pid $MOCK_PID)"
               break
@@ -542,6 +542,23 @@ jobs:
             fi
             sleep 0.5
           done
+          # Upstream-still-alive probe — guard against the upstream
+          # dying during seller startup (e.g. seller's connection
+          # handshake crashes the mock). If the upstream is gone,
+          # the storyboard run will fail in confusing ways; fail
+          # here with a clear diagnostic instead.
+          UPSTREAM_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 \
+            -H "Authorization: Bearer test-key" \
+            -H "X-Network-Code: net_premium_us" \
+            http://127.0.0.1:4503/v1/products 2>/dev/null || echo "000")
+          if [ "$UPSTREAM_CODE" != "200" ]; then
+            echo "Upstream mock no longer responding after seller boot (HTTP ${UPSTREAM_CODE})"
+            echo "The seller likely crashed the upstream during connection handshake."
+            kill "$SELLER_PID" 2>/dev/null || true
+            kill "$MOCK_PID" 2>/dev/null || true
+            exit 1
+          fi
+          echo "Upstream still alive after seller boot (HTTP ${UPSTREAM_CODE})"
 
       - name: Run storyboard suite
         timeout-minutes: 5
