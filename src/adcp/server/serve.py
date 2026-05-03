@@ -464,6 +464,12 @@ def serve(
             ``cls(app, **kwargs)``. Applied on every HTTP transport
             (``streamable-http``, ``a2a``, ``both``); ignored on
             ``stdio``.
+
+            Middleware sees ``lifespan`` and ``websocket`` scopes in
+            addition to ``http`` — guard non-HTTP scopes by passing
+            them through unchanged (``if scope['type'] != 'http':
+            await self.app(scope, receive, send); return``) so the
+            framework's lifespan composition still runs.
         message_parser: Optional
             :data:`~adcp.server.a2a_server.MessageParser` callable for
             alternative A2A wire shapes (A2A transport only). The

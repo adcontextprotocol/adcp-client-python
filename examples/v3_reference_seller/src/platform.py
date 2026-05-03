@@ -169,11 +169,17 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                         "co_branding": "neither",
                         "landing_page": "any",
                     },
+                    # Conformant CpmPricingOption shape: discriminator
+                    # ``pricing_model`` (not ``type``), required
+                    # ``pricing_option_id``, ``fixed_price`` (not
+                    # ``rate``). See the spec's
+                    # ``pricing_options/cpm_option.json``.
                     pricing_options=[
                         {
-                            "type": "cpm",
-                            "rate": 5.00,
+                            "pricing_option_id": "ron-cpm-5usd",
+                            "pricing_model": "cpm",
                             "currency": "USD",
+                            "fixed_price": 5.00,
                         }
                     ],
                 )

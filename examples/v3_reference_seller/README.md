@@ -148,8 +148,11 @@ exist; the reference seller wires the simpler defaults:
   the SDK; this seller's `app.py` uses the in-memory variants for
   fast iteration.
 - **Alembic migrations** — `Base.metadata.create_all` runs at boot
-  (idempotent). Production sellers wire Alembic + version their
-  schema changes; the in-tree DDL is the starting point.
+  (idempotent on table existence — it does NOT detect column
+  renames or type changes on existing tables). Adopters who
+  prototyped against earlier branches and pulled new column
+  changes should drop and recreate the dev database; production
+  sellers wire Alembic and version their schema changes.
 - **Admin CRUD API** — separate Starlette app for tenant / agent
   CRUD. Patterns to come; for now use `seed.py` and direct SQL.
 
