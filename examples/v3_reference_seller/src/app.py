@@ -164,6 +164,15 @@ def main() -> None:
         # for runners; production sellers leave both kwargs unset.
         mock_ad_server=mock_ad_server,
         enable_debug_endpoints=True,
+        # The reference platform doesn't emit completion webhooks —
+        # turn off the F12 auto-emit gate so server boot doesn't trip
+        # ``validate_webhook_sender_for_platform``. Adopters whose
+        # platforms need webhook delivery wire a
+        # :class:`WebhookSender` (or
+        # :class:`InMemoryWebhookDeliverySupervisor`) and remove this
+        # kwarg — see the webhook_supervisor module for the wiring
+        # pattern.
+        auto_emit_completion_webhooks=False,
     )
 
 
