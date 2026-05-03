@@ -631,6 +631,54 @@ def validate_platform(platform: DecisioningPlatform) -> None:
         )
 
 
+def validate_capabilities_response_shape(platform: DecisioningPlatform) -> None:
+    """Boot-time validator — spec invariants for the capabilities response.
+
+    Invariant: ``account.supported_billing`` must be non-empty whenever
+    any claimed specialism maps to the ``media_buy`` protocol.  The spec
+    requires this field when ``media_buy`` is in ``supported_protocols``;
+    the framework's auto-projection in
+    :meth:`PlatformHandler.get_adcp_capabilities` silently drops the
+    ``account`` block when ``supported_billing`` is empty, producing a
+    wire-invalid capabilities response.
+
+    Called from :func:`~adcp.decisioning.serve.create_adcp_server_from_platform`
+    after :func:`validate_platform`.
+
+    :raises AdcpError: if any spec invariant is violated.
+    """
+    # Lazy import avoids a circular dependency: handler.py imports
+    # dispatch.py for _build_request_context / _invoke_platform_method.
+    from adcp.decisioning.handler import SPECIALISM_TO_PROTOCOLS
+
+    caps = platform.capabilities
+    media_buy_specialisms = [
+        s for s in caps.specialisms if "media_buy" in SPECIALISM_TO_PROTOCOLS.get(s, frozenset())
+    ]
+
+    if media_buy_specialisms and not caps.supported_billing:
+        raise AdcpError(
+            "INVALID_REQUEST",
+            message=(
+                "capabilities.supported_billing must be non-empty when any specialism "
+                "maps to the media_buy protocol. "
+                f"The specialism(s) {sorted(media_buy_specialisms)!r} trigger this "
+                "requirement (the SDK enforces this as a boot-time invariant derived "
+                "from spec intent: account.supported_billing is required by spec prose "
+                "whenever media_buy is in supported_protocols, even though the JSON "
+                "Schema does not encode it as a hard conditional). "
+                'Fix: add supported_billing=["operator", "agent"] '
+                "(or a subset) to your DecisioningCapabilities. "
+                "Note: audience-sync also maps to media_buy and triggers this check."
+            ),
+            recovery="terminal",
+            details={
+                "media_buy_specialisms": sorted(media_buy_specialisms),
+                "supported_billing": caps.supported_billing,
+            },
+        )
+
+
 def _has_overridden_method(platform: DecisioningPlatform, method_name: str) -> bool:
     """True when the platform subclass provides ``method_name``.
 
@@ -1147,5 +1195,6 @@ __all__ = [
     "REQUIRED_METHODS_PER_SPECIALISM",
     "SPEC_SPECIALISM_ENUM",
     "compose_caller_identity",
+    "validate_capabilities_response_shape",
     "validate_platform",
 ]

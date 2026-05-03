@@ -32,6 +32,7 @@ from adcp.decisioning.dispatch import (
     _invoke_platform_method,
     _project_handoff,
     compose_caller_identity,
+    validate_capabilities_response_shape,
     validate_platform,
 )
 from adcp.decisioning.types import Account, TaskHandoff
@@ -1061,3 +1062,113 @@ async def test_handoff_invoked_via_invoke_platform_method(
     assert isinstance(result, dict)
     assert result["status"] == "submitted"
     assert "task_type" not in result
+
+
+# ---- validate_capabilities_response_shape ----
+
+
+class _MediaBuyPlatformMissingSupportedBilling(DecisioningPlatform):
+    """Claims sales-non-guaranteed (media_buy) but omits supported_billing."""
+
+    capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+    )
+    accounts = SingletonAccounts(account_id="test")
+
+    def get_products(self, req, ctx):
+        return {"products": []}
+
+    def create_media_buy(self, req, ctx):
+        return {"media_buy_id": "mb_1"}
+
+    def update_media_buy(self, media_buy_id, patch, ctx):
+        return {"media_buy_id": media_buy_id, "status": "active"}
+
+    def sync_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def get_media_buy_delivery(self, req, ctx):
+        return {"deliveries": []}
+
+
+class _MediaBuyPlatformWithSupportedBilling(DecisioningPlatform):
+    """Claims sales-non-guaranteed (media_buy) with supported_billing populated."""
+
+    capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        supported_billing=["operator", "agent"],
+    )
+    accounts = SingletonAccounts(account_id="test")
+
+    def get_products(self, req, ctx):
+        return {"products": []}
+
+    def create_media_buy(self, req, ctx):
+        return {"media_buy_id": "mb_1"}
+
+    def update_media_buy(self, media_buy_id, patch, ctx):
+        return {"media_buy_id": media_buy_id, "status": "active"}
+
+    def sync_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def get_media_buy_delivery(self, req, ctx):
+        return {"deliveries": []}
+
+
+class _SignalsOnlyPlatform(DecisioningPlatform):
+    """Claims signal-marketplace only — no media_buy; supported_billing not required."""
+
+    capabilities = DecisioningCapabilities(
+        specialisms=["signal-marketplace"],
+    )
+    accounts = SingletonAccounts(account_id="test")
+
+    def get_signals(self, req, ctx):
+        return {"signals": []}
+
+    def activate_signal(self, req, ctx):
+        return {"signal_id": "s_1"}
+
+
+class _AudienceSyncPlatformMissingSupportedBilling(DecisioningPlatform):
+    """Claims audience-sync (also maps to media_buy) but omits supported_billing."""
+
+    capabilities = DecisioningCapabilities(
+        specialisms=["audience-sync"],
+    )
+    accounts = SingletonAccounts(account_id="test")
+
+    def sync_audiences(self, req, ctx):
+        return {"audiences": []}
+
+
+def test_validate_capabilities_shape_fails_media_buy_without_supported_billing() -> None:
+    """Fail-fast: media_buy-mapped specialism claimed without supported_billing."""
+    with pytest.raises(AdcpError) as exc_info:
+        validate_capabilities_response_shape(_MediaBuyPlatformMissingSupportedBilling())
+    err = exc_info.value
+    assert err.code == "INVALID_REQUEST"
+    assert err.recovery == "terminal"
+    assert "supported_billing" in str(err)
+    assert err.details["media_buy_specialisms"] == ["sales-non-guaranteed"]
+    assert err.details["supported_billing"] == []
+
+
+def test_validate_capabilities_response_shape_passes_when_supported_billing_populated() -> None:
+    """Happy path: supported_billing populated — no error raised."""
+    validate_capabilities_response_shape(_MediaBuyPlatformWithSupportedBilling())
+
+
+def test_validate_capabilities_response_shape_passes_for_non_media_buy_specialism() -> None:
+    """Signals-only platform with empty supported_billing is spec-conformant."""
+    validate_capabilities_response_shape(_SignalsOnlyPlatform())
+
+
+def test_validate_capabilities_shape_fails_audience_sync_without_supported_billing() -> None:
+    """audience-sync maps to media_buy — same invariant applies."""
+    with pytest.raises(AdcpError) as exc_info:
+        validate_capabilities_response_shape(_AudienceSyncPlatformMissingSupportedBilling())
+    err = exc_info.value
+    assert err.code == "INVALID_REQUEST"
+    assert err.details["media_buy_specialisms"] == ["audience-sync"]

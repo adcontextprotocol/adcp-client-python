@@ -48,7 +48,10 @@ class _SalesPlatformWithRequiredMethods(DecisioningPlatform):
     required SalesPlatform methods are stubbed so ``validate_platform``
     passes; the test focuses on the webhook gate."""
 
-    capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+    capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        supported_billing=["operator"],
+    )
     accounts = SingletonAccounts(account_id="hello")
 
     def get_products(self, req, ctx):
@@ -374,6 +377,39 @@ def test_create_propagates_governance_opt_in_failure() -> None:
     with pytest.raises(AdcpError) as exc_info:
         create_adcp_server_from_platform(_UnsafeGovernancePlatform())
     assert "governance" in str(exc_info.value).lower()
+
+
+def test_create_propagates_capabilities_shape_failure() -> None:
+    """validate_capabilities_response_shape failure surfaces from
+    create_adcp_server_from_platform — media_buy specialism with no
+    supported_billing is caught before the handler is constructed."""
+
+    class _SalesWithoutBilling(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            # supported_billing intentionally absent — spec invariant violated
+        )
+        accounts = SingletonAccounts(account_id="x")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "mb_1"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"deliveries": []}
+
+    with pytest.raises(AdcpError) as exc_info:
+        create_adcp_server_from_platform(_SalesWithoutBilling())
+    assert exc_info.value.code == "INVALID_REQUEST"
+    assert "supported_billing" in str(exc_info.value)
 
 
 # ---- Custom state_reader / resource_resolver plumbing (D15) ----

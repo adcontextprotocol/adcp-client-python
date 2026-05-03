@@ -33,7 +33,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
-from adcp.decisioning.dispatch import validate_platform
+from adcp.decisioning.dispatch import validate_capabilities_response_shape, validate_platform
 from adcp.decisioning.handler import PlatformHandler
 from adcp.decisioning.task_registry import InMemoryTaskRegistry
 from adcp.decisioning.types import AdcpError
@@ -260,6 +260,7 @@ def create_adcp_server_from_platform(
     # validation diagnostic includes the wiring context. Failure here
     # propagates to the caller.
     validate_platform(platform)
+    validate_capabilities_response_shape(platform)
 
     handler = PlatformHandler(
         platform,
