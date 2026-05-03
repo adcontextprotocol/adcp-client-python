@@ -563,18 +563,25 @@ def test_output_schema_spot_check_known_shapes() -> None:
     shape so structural changes to response models surface here first."""
     tool_schemas = {t["name"]: t.get("outputSchema") for t in ADCP_TOOL_DEFINITIONS}
 
-    # get_products response has a top-level products field (simple model)
+    # get_products: simple model — must advertise the top-level products array
     gp = tool_schemas["get_products"]
     assert gp is not None, "get_products must have outputSchema"
-    # Should be a flat object or anyOf — either way, must be a dict
-    assert isinstance(gp, dict)
+    assert "products" in gp.get("properties", {}), (
+        "get_products outputSchema must include the 'products' field"
+    )
 
-    # create_media_buy response is a union (success | error) — anyOf at root
+    # create_media_buy: union response (success | error) — anyOf at root
     cmb = tool_schemas["create_media_buy"]
     assert cmb is not None, "create_media_buy must have outputSchema"
-    assert isinstance(cmb, dict)
+    assert "anyOf" in cmb, (
+        "create_media_buy outputSchema should be anyOf (union of success/error variants)"
+    )
 
-    # get_adcp_capabilities response is a simple model
+    # get_adcp_capabilities: simple model — must advertise adcp + supported_protocols
     gac = tool_schemas["get_adcp_capabilities"]
     assert gac is not None, "get_adcp_capabilities must have outputSchema"
-    assert isinstance(gac, dict)
+    props = gac.get("properties", {})
+    assert "adcp" in props, "get_adcp_capabilities outputSchema must include 'adcp'"
+    assert "supported_protocols" in props, (
+        "get_adcp_capabilities outputSchema must include 'supported_protocols'"
+    )
