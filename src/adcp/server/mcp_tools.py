@@ -1586,11 +1586,12 @@ def _apply_pydantic_schemas() -> None:
 def _ensure_pydantic_schemas_applied() -> None:
     """Lazily populate Pydantic schemas and apply them to tool definitions.
 
-    Safe to call multiple times — subsequent calls are no-ops. Called
-    automatically by :func:`get_tools_for_handler` on first invocation.
-    Tests that read :data:`_PYDANTIC_SCHEMAS` or ``ADCP_TOOL_DEFINITIONS``
-    schema fields directly should call this first (or use the session-scoped
-    conftest fixture that does so automatically).
+    Mutates :data:`ADCP_TOOL_DEFINITIONS` in-place, replacing each tool's
+    ``inputSchema`` with the Pydantic-generated schema and adding
+    ``outputSchema``. Safe to call multiple times — subsequent calls are
+    no-ops. Called automatically by :func:`create_mcp_tools` /
+    :func:`get_tools_for_handler`; callers outside those paths (e.g. tests
+    or doc generators) must invoke this before reading schema fields.
     """
     global _schemas_applied
     if _schemas_applied:

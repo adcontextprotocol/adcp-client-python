@@ -213,8 +213,9 @@ def test_mcp_tool_input_schema_matches_pydantic_models():
 
     assert drift == [], (
         "MCP tool inputSchema fields have drifted from Pydantic models.\n"
-        "The inputSchema is auto-generated from the request model at\n"
-        "import time; this drift shouldn't be possible unless schema\n"
-        "generation is broken. See tests/test_mcp_schema_drift.py.\n"
+        "The inputSchema is auto-generated from the request model on first\n"
+        "tools/list call (_ensure_pydantic_schemas_applied()); this drift\n"
+        "shouldn't be possible unless schema generation is broken.\n"
+        "See tests/test_mcp_schema_drift.py.\n"
         + "\n".join(f"  - {d}" for d in drift)
     )
