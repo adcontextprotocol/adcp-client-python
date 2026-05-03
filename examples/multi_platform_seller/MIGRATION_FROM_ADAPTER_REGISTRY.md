@@ -140,10 +140,12 @@ yet and become greenfield work during the port.
   implementation — a global tool with `signals_agent_registry`
   cross-tenant lookup, including dynamic-product assembly from
   signal-agent inputs. The SDK has `SignalsPlatform` per-tenant
-  behind the router; the bigger open question is whether the SDK
-  should grow first-class `inventory_store` / `signal_store`
-  primitives so `get_products` can assemble dynamically the way
-  salesagent does today. See §3.5.
+  behind the router for the marketplace surface; the
+  dynamic-product-assembly piece is proposal-side per
+  [#502](https://github.com/adcontextprotocol/adcp-client-python/pull/502)
+  — any `inventory_store` / `signal_store` primitives the SDK ships
+  land on `ProposalManager`, not on `SignalsPlatform` or
+  `DecisioningPlatform`. See §3.5.
 * **Properties.** `src/core/tools/properties.py` is a global tool
   too. AdCP 3.0 lifts list publishing onto `PropertyListsPlatform`
   per-tenant; same tool→platform shape change as signals.
@@ -344,6 +346,31 @@ ceremony, and the dry-run plumbing.
 
 ### 3.3 Product discovery and the refine flow
 
+§3.3 names a seam the rest of the guide treats lightly. `get_products`
+is *proposal-side* — it assembles candidate inventory from a buyer
+brief. `create_media_buy` is *decisioning-side* — it executes the
+buy against an upstream. Salesagent fuses these inside one
+`AdServerAdapter` class today. The SDK is moving toward a two-platform
+composition — `ProposalManager` (proposal assembly) + `DecisioningPlatform`
+(upstream execution) — with the typed `implementation_config` "recipe"
+as the contract between them. The
+[product architecture doc (#502)](https://github.com/adcontextprotocol/adcp-client-python/pull/502)
+walks through the layered model and the binding shapes.
+
+For this migration, the split doesn't change what you write today.
+`SalesPlatform` carries both surfaces — `get_products` and
+`create_media_buy` ride on the same class — and that's the
+recommended port target. But knowing the seam exists shapes how you
+port: keep proposal-assembly logic (catalog projection, refinement,
+signal-driven assembly) separable from decisioning-side translation
+(upstream API calls, error projection, lifecycle assertions) inside
+the platform body. When `ProposalManager` lands as a first-class
+Protocol, you split the class along the seam without re-porting
+either side. The `Product.implementation_config: JSONType` column
+salesagent already carries (`models.py:256`) is the recipe — it
+already flows from proposal-side assembly to decisioning-side
+execution; the SDK just gives the seam a name.
+
 Salesagent already has the right *idea* for product config — the
 `Product.implementation_config: JSONType` column carries
 adapter-specific config (line item template id, ad unit ids, GAM
@@ -512,6 +539,21 @@ This is genuinely new work in salesagent. There's no existing code
 path to translate; the migration is to add a refine handler beside
 the existing brief handler.
 
+The full proposal lifecycle — `refine` with
+`action='finalize'` transitioning a draft proposal to committed with
+a locked `expires_at` inventory hold — is what
+[#502](https://github.com/adcontextprotocol/adcp-client-python/pull/502)
+calls out as `ProposalManager` territory. The framework will own the
+session cache for in-flight recipes, the `finalize` transition, and
+`expires_at` enforcement at `create_media_buy` time. For this port:
+land the refine handler in `SalesPlatform.get_products` as described
+above; the proposal-store plumbing arrives separately when
+`ProposalManager` lands. Adopters who want to start emitting
+`proposal_id` today can do so against the existing
+`find_proposal_by_id` hook; full lifecycle handling (draft → committed,
+HITL approval routing, persistence through buy lifetime) is framework
+work, not adopter work.
+
 ### 3.4 Creative: keep what you have, the SDK absorbs spec churn
 
 Salesagent's current creative shape — `CreativeEngineAdapter` with
@@ -559,7 +601,7 @@ neither is required for the salesagent migration. Keep the
 existing creative engine as it is; let the SDK carry the spec
 revision when the wire shape firms up.
 
-### 3.5 Signals: a slightly different shape, plus an open architectural question
+### 3.5 Signals: a slightly different shape, plus dynamic-product assembly on the proposal side
 
 Salesagent's signals surface
 (`src/core/tools/signals.py` + `src/core/signals_agent_registry.py`)
@@ -569,27 +611,33 @@ already call an internal publisher signals agent and assemble
 dynamic products from signal-agent inputs — that's real cross-tenant
 logic the SDK doesn't model directly today.
 
-The framing isn't tool-shaped → platform-shaped. The framing is:
-the existing logic ports across, and there's an open architectural
-question about how far the SDK should grow into the territory
-salesagent currently owns.
+The framing isn't tool-shaped → platform-shaped. The framing is two
+distinct concerns: (1) the signals-marketplace surface ports to
+`SignalsPlatform`; (2) the dynamic-product-assembly logic that
+consults signals at `get_products` time is *proposal-side*, and
+[#502](https://github.com/adcontextprotocol/adcp-client-python/pull/502)
+names the home for it.
 
-**The open question.** Salesagent today has dynamic products from
-the signals agent — `get_products` can assemble pieces using
-signal-agent inputs and the resulting products can carry
-key-value targeting that threads through to `create_media_buy`.
-The SDK doesn't have first-class primitives for that assembly. A
-plausible direction is for the SDK to grow `inventory_store` and
-`signal_store` concepts so `get_products` can compose products
-dynamically without each adopter rebuilding the assembly logic.
-That hasn't happened yet.
+**Dynamic-product assembly is a `ProposalManager` concern.** Salesagent
+today has dynamic products from the signals agent — `get_products` can
+assemble pieces using signal-agent inputs and the resulting products
+can carry key-value targeting that threads through to
+`create_media_buy`. Per #502's layered model, this is proposal-side
+logic: the assembly reads supporting tables (inventory, signals, rate
+cards) and produces typed recipes for the decisioning side to execute.
+If the SDK grows `inventory_store` / `signal_store` primitives, they
+land on `ProposalManager`, not `DecisioningPlatform`. For the
+migration, that resolves where this code lives long-term: on the
+proposal side of the platform, even though `SalesPlatform` carries
+both surfaces today.
 
-**The threading concern.** When `get_products` returns assembled
-products with key-value targeting, that targeting needs to flow
-through to `create_media_buy`. This is real work. Today it lives
-adopter-side; long-term it might move into the SDK alongside the
-inventory/signal-store concepts. Either way, one side has to own
-it — naming the seam matters more than where it lands first.
+**The threading concern is the recipe.** When `get_products` returns
+assembled products with key-value targeting, that targeting needs to
+flow through to `create_media_buy`. The `implementation_config` /
+recipe (§3.3) IS the threading mechanism — typed JSON that flows from
+proposal-side assembly through the framework to decisioning-side
+execution. Salesagent already does this with its
+`Product.implementation_config` column; the SDK formalizes the seam.
 
 **For the migration today:** port the existing
 `core/tools/signals.py` body into a `SignalsPlatform` impl per
@@ -633,13 +681,17 @@ router entirely; buyers calling `get_signals` against those tenants
 get `UNSUPPORTED_FEATURE` from the framework via
 `validate_platform()`.
 
-**Expect this surface to evolve.** If the SDK grows `inventory_store`
-+ `signal_store` primitives, the dynamic-product-assembly logic
-that lives in salesagent's `get_products` today moves into shared
-SDK infrastructure, and the key-value-targeting threading becomes
-SDK-owned. Adopters who port to `SignalsPlatform` now will inherit
-that evolution; the platform method bodies don't need to change
-when the assembly primitives land.
+**Expect this surface to evolve.** Per #502, if the SDK grows
+`inventory_store` / `signal_store` primitives they live on
+`ProposalManager`, and the dynamic-product-assembly logic that lives
+in salesagent's `get_products` today migrates onto the proposal side
+of the platform. The key-value-targeting threading is already
+SDK-owned in concept — it's the recipe. Adopters who port to
+`SignalsPlatform` now will inherit the evolution; the
+`SignalsPlatform` method bodies don't change when the assembly
+primitives land, because they're orthogonal — `SignalsPlatform` is
+the marketplace-facing surface, the assembly primitives are
+proposal-side.
 
 ### 3.6 Reporting and delivery surfaces
 
@@ -1363,14 +1415,19 @@ gaps from the migration, not flaws in the SDK:
   §3.3 covers the wire shape and the `find_proposal_by_id` threading
   hook. The first pragmatic pass is per-product narrowing; the full
   proposal lifecycle (`'draft'` → `'committed'`, expiry,
-  inventory-reservation semantics) is a larger build.
-* **Signals has an open architectural question.** §3.5 covers the
-  port from `core/tools/signals.py` to a per-tenant
-  `SignalsPlatform`. The bigger question — whether the SDK should
-  grow `inventory_store` / `signal_store` primitives so
-  `get_products` can assemble dynamic products with key-value
-  targeting threading — is unresolved. Adopters port what they
-  have today; expect that surface to evolve.
+  inventory-reservation semantics) is `ProposalManager` framework
+  work per [#502](https://github.com/adcontextprotocol/adcp-client-python/pull/502),
+  not adopter work — adopters land the refine handler today and
+  inherit the lifecycle when `ProposalManager` lands.
+* **Signals dynamic-product assembly is proposal-side.** §3.5 covers
+  the port from `core/tools/signals.py` to a per-tenant
+  `SignalsPlatform`. The dynamic-product-assembly logic that consults
+  signals at `get_products` time lives on the proposal side of the
+  platform; per #502 it's a `ProposalManager` concern, and any
+  `inventory_store` / `signal_store` primitives the SDK eventually
+  ships land there. Adopters port what they have today; the
+  marketplace-facing `SignalsPlatform` surface and the assembly
+  primitives are orthogonal and don't block each other.
 * **Per-creative delivery analytics are upstream-dependent.**
   `get_creative_delivery` (§3.6) requires reporting at creative
   granularity. GAM exposes this; most other ad servers don't. If
@@ -1407,3 +1464,9 @@ gaps from the migration, not flaws in the SDK:
 * [Issue #477](https://github.com/adcontextprotocol/adcp-client-python/issues/477)
   — the multi-platform proof, the `PlatformRouter` recipe, and the
   acceptance criteria the parallel implementation PR satisfies.
+* [`docs/proposals/product-architecture.md`](../../docs/proposals/product-architecture.md)
+  ([PR #502](https://github.com/adcontextprotocol/adcp-client-python/pull/502))
+  — the layered product model and two-platform composition
+  (`ProposalManager` + `DecisioningPlatform`). §3.3 and §3.5 of this
+  guide reference it for the proposal/decisioning seam adopters will
+  split along long-term.
