@@ -112,6 +112,7 @@ from adcp.decisioning.platform import (
     DecisioningCapabilities,
     DecisioningPlatform,
 )
+from adcp.decisioning.platform_router import PlatformRouter
 from adcp.decisioning.registry import (
     ApiKeyCredential,
     BillingMode,
@@ -292,6 +293,7 @@ __all__ = [
     "OAuthCredential",
     "PermissionDeniedError",
     "PgTaskRegistry",
+    "PlatformRouter",
     "PostgresTaskRegistry",
     "Proposal",
     "PropertyList",

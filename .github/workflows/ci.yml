@@ -646,3 +646,104 @@ jobs:
           name: v3-storyboard-result-${{ github.run_attempt }}
           path: examples/v3_reference_seller/v3-storyboard-result.json
           if-no-files-found: warn
+
+  storyboard-multi-platform-seller:
+    name: AdCP storyboard runner — examples/multi_platform_seller (PlatformRouter)
+    runs-on: ubuntu-latest
+    # Multi-tenant proof: one process, two tenants, one router. Each
+    # tenant's storyboard runs against its own subdomain
+    # (tenant-a.localhost / tenant-b.localhost). Non-blocking until
+    # the storyboard reaches passing — same posture as the
+    # examples/seller_agent.py job above.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cache ~/.npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-adcp-sdk
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Pre-install @adcp/sdk
+        run: |
+          npm install -g @adcp/sdk@latest
+          adcp --version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Map tenant subdomains to localhost
+        run: |
+          # The storyboard runner connects to ``tenant-x.localhost`` —
+          # /etc/hosts gives those names a 127.0.0.1 mapping so the
+          # subdomain middleware on the seller process resolves the
+          # right tenant from the Host header.
+          echo "127.0.0.1 tenant-a.localhost tenant-b.localhost" \
+            | sudo tee -a /etc/hosts
+
+      - name: Boot multi-platform seller
+        run: |
+          ADCP_PORT=3001 python -m examples.multi_platform_seller.src.app &
+          SELLER_PID=$!
+          echo "SELLER_PID=$SELLER_PID" >> "$GITHUB_ENV"
+          for i in $(seq 1 60); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
+              http://127.0.0.1:3001/mcp 2>/dev/null) || HTTP_CODE="000"
+            if [ "$HTTP_CODE" != "000" ]; then
+              echo "Seller ready (HTTP ${HTTP_CODE}, pid ${SELLER_PID})"
+              break
+            fi
+            if ! kill -0 "$SELLER_PID" 2>/dev/null; then
+              echo "Seller process died during startup"
+              exit 1
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Seller failed to start within 30s"
+              kill "$SELLER_PID" 2>/dev/null || true
+              exit 1
+            fi
+            sleep 0.5
+          done
+
+      - name: Run storyboard — tenant-a (sales-guaranteed)
+        timeout-minutes: 5
+        run: |
+          adcp storyboard run \
+            http://tenant-a.localhost:3001/mcp media_buy_seller \
+            --json --allow-http \
+            > tenant-a-storyboard.json || true
+          cat tenant-a-storyboard.json | head -50
+
+      - name: Run storyboard — tenant-b (sales-non-guaranteed)
+        timeout-minutes: 5
+        run: |
+          adcp storyboard run \
+            http://tenant-b.localhost:3001/mcp media_buy_seller \
+            --json --allow-http \
+            > tenant-b-storyboard.json || true
+          cat tenant-b-storyboard.json | head -50
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-platform-storyboards-${{ github.run_attempt }}
+          path: |
+            tenant-a-storyboard.json
+            tenant-b-storyboard.json
+          if-no-files-found: warn
