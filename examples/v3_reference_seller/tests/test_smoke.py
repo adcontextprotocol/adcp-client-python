@@ -19,12 +19,18 @@ sys.path.insert(0, str(_HERE.parent))
 
 
 def test_models_import_and_declare_tables() -> None:
-    from src.models import Account, Base, BuyerAgent, MediaBuy, Tenant
+    from src.models import Account, Base, BuyerAgent, MediaBuy, PerformanceFeedback, Tenant
 
     table_names = {t.name for t in Base.metadata.tables.values()}
-    assert {"tenants", "buyer_agents", "accounts", "media_buys"} <= table_names
+    assert {
+        "tenants",
+        "buyer_agents",
+        "accounts",
+        "media_buys",
+        "performance_feedback",
+    } <= table_names
     # Sanity: every model is in the metadata.
-    for cls in (Tenant, BuyerAgent, Account, MediaBuy):
+    for cls in (Tenant, BuyerAgent, Account, MediaBuy, PerformanceFeedback):
         assert cls.__tablename__ in table_names
 
 
@@ -111,3 +117,60 @@ async def test_buyer_registry_returns_none_without_tenant() -> None:
     cred = ApiKeyCredential(kind="api_key", key_id="any")
     assert await registry.resolve_by_agent_url("https://x/") is None
     assert await registry.resolve_by_credential(cred) is None
+
+
+def test_platform_has_all_nine_sales_methods() -> None:
+    """V3ReferenceSeller exposes all nine SalesPlatform methods."""
+    from src.platform import V3ReferenceSeller
+
+    required = {
+        "get_products",
+        "create_media_buy",
+        "update_media_buy",
+        "sync_creatives",
+        "get_media_buy_delivery",
+        "get_media_buys",
+        "provide_performance_feedback",
+        "list_creative_formats",
+        "list_creatives",
+    }
+    missing = required - set(dir(V3ReferenceSeller))
+    assert not missing, f"Missing methods: {missing}"
+
+
+@pytest.mark.asyncio
+async def test_list_creative_formats_returns_valid_response() -> None:
+    """list_creative_formats returns a spec-valid empty catalog."""
+    from src.platform import V3ReferenceSeller
+
+    from adcp.types import ListCreativeFormatsRequest, ListCreativeFormatsResponse
+
+    platform = V3ReferenceSeller(sessionmaker=lambda: None)  # type: ignore[arg-type]
+    req = ListCreativeFormatsRequest()
+    resp = await platform.list_creative_formats(req, ctx=None)  # type: ignore[arg-type]
+    assert isinstance(resp, ListCreativeFormatsResponse)
+    assert resp.formats == []
+
+
+@pytest.mark.asyncio
+async def test_list_creatives_returns_valid_response() -> None:
+    """list_creatives returns a spec-valid empty result."""
+    from src.platform import V3ReferenceSeller
+
+    from adcp.types import ListCreativesRequest, ListCreativesResponse
+
+    platform = V3ReferenceSeller(sessionmaker=lambda: None)  # type: ignore[arg-type]
+    req = ListCreativesRequest()
+    resp = await platform.list_creatives(req, ctx=None)  # type: ignore[arg-type]
+    assert isinstance(resp, ListCreativesResponse)
+    assert resp.creatives == []
+    assert resp.query_summary.total_matching == 0
+
+
+def test_performance_feedback_table_has_idempotency_constraint() -> None:
+    """PerformanceFeedback table declares the idempotency unique constraint."""
+    from src.models import Base
+
+    table = Base.metadata.tables["performance_feedback"]
+    constraint_names = {c.name for c in table.constraints}
+    assert "perf_feedback_idem_uk" in constraint_names

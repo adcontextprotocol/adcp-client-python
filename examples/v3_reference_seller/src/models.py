@@ -4,7 +4,7 @@ The schema is **3.0-compliant on the wire, 3.1-ready in architecture
 and storage**. Adopters fork this file and extend the columns with
 their own seller-side audit / contract / billing fields.
 
-Four tables make up the spine:
+Five tables make up the spine:
 
 * :class:`Tenant` — multi-tenant root. The
   :class:`adcp.server.SubdomainTenantMiddleware` resolves
@@ -20,6 +20,9 @@ Four tables make up the spine:
   delivery target).
 * :class:`MediaBuy` — terminal artifact of ``create_media_buy``.
   Idempotency-keyed for replay safety.
+* :class:`PerformanceFeedback` — buyer-supplied performance signals
+  for a media buy. Idempotency-keyed; persisted by
+  ``provide_performance_feedback``.
 
 Admin API and protocol-side audit log live in separate tables
 (:mod:`audit` ships :class:`AuditEvent`).
@@ -344,4 +347,57 @@ class MediaBuy(Base):
     )
 
 
-__all__ = ["Account", "Base", "BuyerAgent", "MediaBuy", "Tenant"]
+# ---------------------------------------------------------------------------
+# PerformanceFeedback — buyer-supplied performance signals
+# ---------------------------------------------------------------------------
+
+
+class PerformanceFeedback(Base):
+    """Buyer-supplied performance signals for a media buy.
+
+    Persisted by ``provide_performance_feedback``. Idempotency-keyed
+    per tenant — mirrors the :class:`MediaBuy` replay-safety pattern.
+    Adopters extend with campaign-level aggregation columns or FK to
+    their internal attribution tables.
+    """
+
+    __tablename__ = "performance_feedback"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False
+    )
+
+    #: Wire ``media_buy_id`` the feedback is attached to.
+    media_buy_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    #: Buyer's idempotency key — prevents double-counting the same
+    #: feedback event on retry.
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    performance_index: Mapped[float | None] = mapped_column(Float, nullable=True)
+    measurement_period: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    metric_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    package_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    creative_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    feedback_source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "idempotency_key", name="perf_feedback_idem_uk"),
+        Index("perf_feedback_tenant_idx", "tenant_id"),
+        Index("perf_feedback_media_buy_idx", "media_buy_id"),
+    )
+
+
+__all__ = ["Account", "Base", "BuyerAgent", "MediaBuy", "PerformanceFeedback", "Tenant"]

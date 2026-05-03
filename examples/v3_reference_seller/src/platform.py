@@ -1,12 +1,16 @@
 """DecisioningPlatform impl for the v3 reference seller.
 
-Sales-non-guaranteed specialism with the five required Sales methods:
+Sales-non-guaranteed specialism with all nine Sales methods:
 
 * :meth:`get_products` — read inventory catalog
 * :meth:`create_media_buy` — terminal artifact insert; idempotency-keyed
 * :meth:`update_media_buy` — patch (status / pause / spend cap)
 * :meth:`sync_creatives` — accept creative manifests
 * :meth:`get_media_buy_delivery` — read delivery actuals
+* :meth:`get_media_buys` — list media buys for the dispatching principal
+* :meth:`provide_performance_feedback` — accept buyer-side perf signals
+* :meth:`list_creative_formats` — return supported format catalog (stub)
+* :meth:`list_creatives` — list buyer-uploaded creatives (stub)
 
 All five run against the SQLAlchemy models in :mod:`models`. The
 platform reads the resolved :class:`adcp.decisioning.BuyerAgent`
@@ -43,9 +47,17 @@ from adcp.types import (
     CreateMediaBuySuccessResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
+    GetMediaBuysRequest,
+    GetMediaBuysResponse,
     GetProductsRequest,
     GetProductsResponse,
+    ListCreativeFormatsRequest,
+    ListCreativeFormatsResponse,
+    ListCreativesRequest,
+    ListCreativesResponse,
     Product,
+    ProvidePerformanceFeedbackRequest,
+    ProvidePerformanceFeedbackSuccessResponse,
     SyncCreativesRequest,
     SyncCreativesSuccessResponse,
     UpdateMediaBuyRequest,
@@ -59,6 +71,7 @@ if TYPE_CHECKING:
 
 from .models import Account as AccountRow
 from .models import MediaBuy as MediaBuyRow
+from .models import PerformanceFeedback as PerformanceFeedbackRow
 
 logger = logging.getLogger(__name__)
 
@@ -310,6 +323,130 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         delivery / pacing query."""
         del req, ctx
         return GetMediaBuyDeliveryResponse(media_buys=[])
+
+    # ----- get_media_buys --------------------------------------------------
+
+    async def get_media_buys(
+        self, req: GetMediaBuysRequest, ctx: RequestContext
+    ) -> GetMediaBuysResponse:
+        """List media buys for the dispatching principal.
+
+        Queries the existing :class:`MediaBuyRow` table filtered by
+        tenant + account, with optional ``media_buy_ids`` and
+        ``status_filter`` narrowing. Rows missing the wire-required
+        ``currency`` or ``total_budget`` columns (created when the
+        buyer omitted budget in ``create_media_buy``) are silently
+        excluded — production adopters should enforce budget at
+        creation time to avoid silent exclusion here.
+        """
+        if ctx.account is None:
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message="Dispatch should have populated account.",
+                recovery="terminal",
+            )
+        async with self._sessionmaker() as session:
+            stmt = select(MediaBuyRow).where(
+                MediaBuyRow.tenant_id == ctx.account.metadata["tenant_id"],
+                MediaBuyRow.account_id == ctx.account.id,
+            )
+            if req.media_buy_ids:
+                stmt = stmt.where(MediaBuyRow.media_buy_id.in_(req.media_buy_ids))
+            if req.status_filter:
+                stmt = stmt.where(MediaBuyRow.status.in_(req.status_filter))
+            result = await session.execute(stmt)
+            rows = result.scalars().all()
+
+        wire_buys = [
+            {
+                "media_buy_id": row.media_buy_id,
+                "status": row.status,
+                "currency": row.currency,
+                "total_budget": row.total_budget,
+                "packages": [],
+                "start_time": row.start_time,
+                "end_time": row.end_time,
+                "created_at": row.created_at,
+                "updated_at": row.updated_at,
+            }
+            for row in rows
+            if row.total_budget is not None and row.currency is not None
+        ]
+        return GetMediaBuysResponse(media_buys=wire_buys)
+
+    # ----- provide_performance_feedback ------------------------------------
+
+    async def provide_performance_feedback(
+        self, req: ProvidePerformanceFeedbackRequest, ctx: RequestContext
+    ) -> ProvidePerformanceFeedbackSuccessResponse:
+        """Persist buyer-side performance signals for a media buy.
+
+        Idempotency-keyed: a retry with the same ``idempotency_key``
+        under the same tenant raises an ``IntegrityError`` at the DB
+        level (``perf_feedback_idem_uk``), which the framework's
+        idempotency middleware catches and replays the cached response.
+        """
+        if ctx.account is None:
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message="Dispatch should have populated account.",
+                recovery="terminal",
+            )
+        row = PerformanceFeedbackRow(
+            tenant_id=ctx.account.metadata["tenant_id"],
+            account_id=ctx.account.id,
+            media_buy_id=req.media_buy_id,
+            idempotency_key=req.idempotency_key,
+            performance_index=req.performance_index,
+            measurement_period=req.measurement_period.model_dump(mode="json"),
+            metric_type=req.metric_type.value if req.metric_type else None,
+            package_id=req.package_id,
+            creative_id=req.creative_id,
+            feedback_source=req.feedback_source.value if req.feedback_source else None,
+        )
+        async with self._sessionmaker() as session, session.begin():
+            session.add(row)
+        logger.info(
+            "Persisted performance feedback for media_buy=%s account=%s",
+            req.media_buy_id,
+            ctx.account.id,
+        )
+        return ProvidePerformanceFeedbackSuccessResponse(success=True)
+
+    # ----- list_creative_formats -------------------------------------------
+
+    async def list_creative_formats(
+        self, req: ListCreativeFormatsRequest, ctx: RequestContext
+    ) -> ListCreativeFormatsResponse:
+        """Return the seller's supported creative formats.
+
+        Stub: returns an empty catalog. Production adopters replace
+        this with a query against a ``CreativeFormat`` table or a
+        fetch from their creative management platform. When formats
+        are tenant-configurable, add a ``creative_formats`` table and
+        filter by ``ctx.account.metadata['tenant_id']``.
+        """
+        del req, ctx
+        return ListCreativeFormatsResponse(formats=[])
+
+    # ----- list_creatives --------------------------------------------------
+
+    async def list_creatives(
+        self, req: ListCreativesRequest, ctx: RequestContext
+    ) -> ListCreativesResponse:
+        """List buyer-uploaded creatives for the dispatching principal.
+
+        Stub: returns an empty list. Full persistence requires wiring
+        ``sync_creatives`` to a ``Creative`` ORM table and querying it
+        here. That end-to-end wiring is deferred — this stub satisfies
+        the v6.0 rc.1 boot-validation requirement.
+        """
+        del req, ctx
+        return ListCreativesResponse(
+            query_summary={"total_matching": 0, "returned": 0},
+            pagination={"has_more": False},
+            creatives=[],
+        )
 
 
 def _project_start_time(value: Any) -> datetime:
