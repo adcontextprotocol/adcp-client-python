@@ -181,6 +181,18 @@ def main() -> None:
         # kwarg — see the webhook_supervisor module for the wiring
         # pattern.
         auto_emit_completion_webhooks=False,
+        # FastMCP's TransportSecurityMiddleware enforces DNS-rebinding
+        # protection: its default ``allowed_hosts`` accepts only
+        # loopback (``127.0.0.1:*``, ``localhost:*``, ``[::1]:*``), so
+        # subdomain hosts like ``acme.localhost:3001`` are rejected
+        # with ``421 Misdirected Request``. ``SubdomainTenantMiddleware``
+        # above already validates the Host header against the seeded
+        # tenant table — that's the load-bearing host check for this
+        # seller. Disabling the MCP-layer check avoids duplicating
+        # the same validation against a static, hard-to-extend list.
+        # Adopters that don't run a tenant-aware ASGI middleware leave
+        # this kwarg unset to keep the FastMCP defaults active.
+        enable_dns_rebinding_protection=False,
     )
 
 
