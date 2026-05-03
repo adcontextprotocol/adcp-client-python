@@ -127,6 +127,10 @@ async def _running_server(handler: ADCPHandler, observer: _Observer) -> AsyncIte
         name="integration-test-agent",
         port=port,
         message_parser=observer.parser,
+        # Stub handler that returns synthetic responses; the test
+        # exercises A2A context-id wire plumbing, not spec-shape
+        # request payloads. Opt out of the strict server default.
+        validation=None,
     )
     config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
     server = uvicorn.Server(config)
