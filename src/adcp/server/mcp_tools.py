@@ -1224,8 +1224,8 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     spec-accurate schemas with proper field types, descriptions,
     required fields, and nested ``$defs``.
 
-    The result is applied to ``ADCP_TOOL_DEFINITIONS`` at import time
-    by :func:`_apply_pydantic_schemas`. Any tool whose generation
+    The result is applied to ``ADCP_TOOL_DEFINITIONS`` lazily on first
+    ``tools/list`` call by :func:`_ensure_pydantic_schemas_applied`. Any tool whose generation
     fails (or whose request model has no mapping here) silently keeps
     its hand-crafted stub; ``tests/test_mcp_schema_drift.py`` guards
     against that regression by asserting every tool has an entry here.
@@ -1558,9 +1558,12 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
     return schemas
 
 
-# Generate schemas once at import time
-_PYDANTIC_SCHEMAS = _generate_pydantic_schemas()
-_PYDANTIC_OUTPUT_SCHEMAS = _generate_pydantic_output_schemas()
+# Schemas are populated lazily on the first tools/list call to avoid
+# heavy Pydantic type imports at module import time. Use .update() so
+# external references bound before init (e.g. in tests) stay valid.
+_PYDANTIC_SCHEMAS: dict[str, dict[str, Any]] = {}
+_PYDANTIC_OUTPUT_SCHEMAS: dict[str, dict[str, Any]] = {}
+_schemas_applied = False
 
 
 def _apply_pydantic_schemas() -> None:
@@ -1580,7 +1583,22 @@ def _apply_pydantic_schemas() -> None:
             tool_def["outputSchema"] = _PYDANTIC_OUTPUT_SCHEMAS[name]
 
 
-_apply_pydantic_schemas()
+def _ensure_pydantic_schemas_applied() -> None:
+    """Lazily populate Pydantic schemas and apply them to tool definitions.
+
+    Safe to call multiple times — subsequent calls are no-ops. Called
+    automatically by :func:`get_tools_for_handler` on first invocation.
+    Tests that read :data:`_PYDANTIC_SCHEMAS` or ``ADCP_TOOL_DEFINITIONS``
+    schema fields directly should call this first (or use the session-scoped
+    conftest fixture that does so automatically).
+    """
+    global _schemas_applied
+    if _schemas_applied:
+        return
+    _PYDANTIC_SCHEMAS.update(_generate_pydantic_schemas())
+    _PYDANTIC_OUTPUT_SCHEMAS.update(_generate_pydantic_output_schemas())
+    _apply_pydantic_schemas()
+    _schemas_applied = True
 
 
 def _is_sdk_base_class(cls_name: str) -> bool:
@@ -1718,6 +1736,7 @@ def get_tools_for_handler(
     Returns:
         Filtered list of tool definitions.
     """
+    _ensure_pydantic_schemas_applied()
     cls = handler if isinstance(handler, type) else type(handler)
     instance = handler if not isinstance(handler, type) else None
 

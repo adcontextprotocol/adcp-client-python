@@ -173,8 +173,8 @@ def test_tool_filtering_by_handler_type():
 def test_mcp_tool_input_schema_matches_pydantic_models():
     """MCP tool inputSchemas are generated from Pydantic request models.
 
-    The ``ADCP_TOOL_DEFINITIONS[*].inputSchema`` is overwritten at import
-    time by ``_apply_pydantic_schemas()`` with the output of
+    The ``ADCP_TOOL_DEFINITIONS[*].inputSchema`` is overwritten on first
+    ``tools/list`` call by ``_ensure_pydantic_schemas_applied()`` with the output of
     ``model_json_schema()`` on the corresponding ``<ToolName>Request``
     model. This test is a coarse guard that every tool with a mapped
     request model carries a schema advertising every field of that

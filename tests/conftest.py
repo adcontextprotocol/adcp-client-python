@@ -15,6 +15,15 @@ from tests import a2a_compat_shim as _a2a_compat_shim  # noqa: F401
 _INTEGRATION_DIR = (Path(__file__).parent / "integration").resolve()
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _ensure_pydantic_schemas() -> None:
+    """Trigger lazy Pydantic schema init so ADCP_TOOL_DEFINITIONS has
+    inputSchema/outputSchema populated for any test that reads them directly."""
+    from adcp.server.mcp_tools import _ensure_pydantic_schemas_applied
+
+    _ensure_pydantic_schemas_applied()
+
+
 def _is_integration_test(request: pytest.FixtureRequest) -> bool:
     """Is this test under ``tests/integration/``?
 
