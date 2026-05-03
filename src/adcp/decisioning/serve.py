@@ -426,7 +426,11 @@ def serve(
         spec-compliance storyboards) pass ``True``.
     :param serve_kwargs: Forwarded to :func:`adcp.server.serve`. Use
         for ``host``, ``port``, ``transport``, ``test_controller``,
-        ``context_factory``, ``middleware``, ``validation``, etc.
+        ``context_factory``, ``middleware``, ``validation``,
+        ``config`` (:class:`adcp.server.ServeConfig` bundle), etc.
+        Pass ``config=ServeConfig(transport="a2a", ...)`` to supply
+        all server options as a single typed object rather than
+        individual kwargs.
         Pass ``validation=ValidationHookConfig(requests="strict",
         responses="strict")`` to enable schema-driven request/response
         validation against the bundled AdCP JSON schemas — sellers who

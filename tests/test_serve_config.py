@@ -64,9 +64,9 @@ def test_serve_config_replace() -> None:
 
 def test_serve_config_exportable_from_adcp_server() -> None:
     """ServeConfig must be importable from the public adcp.server namespace."""
-    from adcp.server import ServeConfig as SC
+    import adcp.server as _server
 
-    assert SC is ServeConfig
+    assert _server.ServeConfig is ServeConfig
 
 
 # ---------------------------------------------------------------------------
@@ -121,13 +121,11 @@ def test_serve_config_name_propagates() -> None:
     cfg = ServeConfig(name="from-config", transport="streamable-http", port=9999)
 
     with patch.object(_serve_mod, "_serve_mcp") as mock_mcp:
-        try:
-            _serve_mod.serve(handler, config=cfg)
-        except Exception:
-            pass
-        if mock_mcp.call_count:
-            _, kwargs = mock_mcp.call_args
-            assert kwargs.get("name") == "from-config"
+        _serve_mod.serve(handler, config=cfg)
+
+    mock_mcp.assert_called_once()
+    _, kwargs = mock_mcp.call_args
+    assert kwargs.get("name") == "from-config"
 
 
 def test_serve_config_kwargs_ignored_when_config_provided() -> None:
@@ -136,16 +134,14 @@ def test_serve_config_kwargs_ignored_when_config_provided() -> None:
     cfg = ServeConfig(name="from-config", transport="streamable-http", port=9999)
 
     with patch.object(_serve_mod, "_serve_mcp") as mock_mcp:
-        try:
-            # Pass a contradicting name kwarg — config should win
-            _serve_mod.serve(handler, config=cfg, name="ignored-name")
-        except Exception:
-            pass
-        if mock_mcp.call_count:
-            _, kwargs = mock_mcp.call_args
-            assert kwargs.get("name") == "from-config", (
-                "config.name should override the per-kwarg name when config= is provided"
-            )
+        # Pass a contradicting name kwarg — config should win
+        _serve_mod.serve(handler, config=cfg, name="ignored-name")
+
+    mock_mcp.assert_called_once()
+    _, kwargs = mock_mcp.call_args
+    assert kwargs.get("name") == "from-config", (
+        "config.name should override the per-kwarg name when config= is provided"
+    )
 
 
 def test_serve_without_config_uses_kwargs() -> None:
@@ -153,13 +149,11 @@ def test_serve_without_config_uses_kwargs() -> None:
     handler = _StubHandler()
 
     with patch.object(_serve_mod, "_serve_mcp") as mock_mcp:
-        try:
-            _serve_mod.serve(handler, name="kwarg-name", transport="streamable-http")
-        except Exception:
-            pass
-        if mock_mcp.call_count:
-            _, kwargs = mock_mcp.call_args
-            assert kwargs.get("name") == "kwarg-name"
+        _serve_mod.serve(handler, name="kwarg-name", transport="streamable-http")
+
+    mock_mcp.assert_called_once()
+    _, kwargs = mock_mcp.call_args
+    assert kwargs.get("name") == "kwarg-name"
 
 
 def test_serve_config_advertise_all_propagates() -> None:
@@ -167,10 +161,8 @@ def test_serve_config_advertise_all_propagates() -> None:
     cfg = ServeConfig(transport="streamable-http", advertise_all=True)
 
     with patch.object(_serve_mod, "_serve_mcp") as mock_mcp:
-        try:
-            _serve_mod.serve(handler, config=cfg)
-        except Exception:
-            pass
-        if mock_mcp.call_count:
-            _, kwargs = mock_mcp.call_args
-            assert kwargs.get("advertise_all") is True
+        _serve_mod.serve(handler, config=cfg)
+
+    mock_mcp.assert_called_once()
+    _, kwargs = mock_mcp.call_args
+    assert kwargs.get("advertise_all") is True
