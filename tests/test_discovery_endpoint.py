@@ -26,6 +26,7 @@ starlette = pytest.importorskip("starlette")
 from starlette.applications import Starlette
 from starlette.testclient import TestClient
 
+from adcp.schemas import ADCP_AGENTS, load_schema
 from adcp.server import ADCPHandler, ToolContext
 from adcp.server.discovery import (
     DISCOVERY_PATH,
@@ -39,86 +40,8 @@ from adcp.server.serve import (
     _wrap_with_discovery,
 )
 
-# Inline copy of the AdCP discovery schema (PR #3903 / spec
-# adcontextprotocol/adcp@5c3e3e626). Inlined rather than fetched so
-# tests stay deterministic and offline. Update when the upstream
-# schema bumps.
-_DISCOVERY_SCHEMA: dict = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "/schemas/adcp-agents.json",
-    "title": "AdCP Multi-Agent Topology Manifest",
-    "type": "object",
-    "properties": {
-        "$schema": {"type": "string"},
-        "version": {
-            "type": "string",
-            "pattern": r"^[0-9]+\.[0-9]+(\.[0-9]+)?$",
-        },
-        "agents": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "agent_id": {
-                        "type": "string",
-                        "pattern": r"^[a-z0-9](?:[a-z0-9_-]*[a-z0-9])?$",
-                        "minLength": 1,
-                        "maxLength": 64,
-                    },
-                    "url": {
-                        "type": "string",
-                        "format": "uri",
-                        "minLength": 1,
-                        "pattern": r"^https://",
-                    },
-                    "transport": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 64,
-                    },
-                    "specialisms": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 128,
-                        },
-                        "minItems": 1,
-                        "maxItems": 64,
-                        "uniqueItems": True,
-                    },
-                    "auth_hint": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 64,
-                    },
-                    "description": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 500,
-                    },
-                },
-                "required": ["agent_id", "url", "transport", "specialisms"],
-                "additionalProperties": True,
-            },
-            "minItems": 1,
-            "maxItems": 256,
-        },
-        "contact": {
-            "type": "object",
-            "properties": {
-                "name": {"type": "string", "minLength": 1, "maxLength": 255},
-                "email": {"type": "string", "format": "email"},
-                "url": {"type": "string", "format": "uri"},
-            },
-            "required": ["name"],
-            "additionalProperties": True,
-        },
-        "last_updated": {"type": "string", "format": "date-time"},
-    },
-    "required": ["version", "agents"],
-    "additionalProperties": True,
-}
+# Schema sourced from adcp.schemas (adcontextprotocol/adcp PR #3903, commit 5c3e3e626).
+_DISCOVERY_SCHEMA: dict = load_schema(ADCP_AGENTS)
 
 
 def _validate_manifest(payload: dict) -> None:

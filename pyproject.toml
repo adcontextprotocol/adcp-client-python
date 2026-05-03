@@ -132,6 +132,9 @@ adcp = [
     # ``adcp.validation.schema_loader``.
     "_schemas/**/*.json",
 ]
+# Named schemas bundled directly with the SDK (committed, not generated).
+# These live in src/adcp/schemas/ and are loaded via adcp.schemas.load_schema.
+"adcp.schemas" = ["*.json"]
 
 [tool.black]
 line-length = 100
