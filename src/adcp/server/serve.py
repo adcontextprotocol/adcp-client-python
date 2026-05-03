@@ -700,6 +700,77 @@ def _wrap_with_size_limit(app: Any, max_request_size: int | None) -> Any:
     return RequestSizeLimitMiddleware(app, max_bytes=cap)
 
 
+def _build_adcp_agents_doc(
+    handler: ADCPHandler[Any],
+    name: str,
+    advertise_all: bool = False,
+) -> dict[str, Any]:
+    """Generate the /.well-known/adcp-agents.json discovery document.
+
+    Called at request time rather than startup so per-instance capability
+    filters and flag-gated features are reflected accurately.
+    """
+    from adcp._version import resolve_adcp_version
+
+    tool_defs = get_tools_for_handler(handler, advertise_all=advertise_all)
+    capabilities = [
+        td["name"]
+        for td in tool_defs
+        if td["name"] != "comply_test_controller"
+    ]
+    return {
+        "adcp_version": resolve_adcp_version(None),
+        "agents": [
+            {
+                "name": name,
+                "capabilities": capabilities,
+            }
+        ],
+    }
+
+
+def _wrap_with_adcp_agents_route(
+    app: Any,
+    handler: ADCPHandler[Any],
+    name: str,
+    advertise_all: bool = False,
+) -> Any:
+    """Inject a GET /.well-known/adcp-agents.json route before the inner app.
+
+    Fires before the inner ASGI app (and before auth middleware when placed
+    correctly in the wrapper stack) so discovery requests are always served
+    unauthenticated per spec.
+    """
+    import json as _json
+
+    async def _middleware(scope: Any, receive: Any, send: Any) -> None:
+        if (
+            scope.get("type") == "http"
+            and scope.get("path") == "/.well-known/adcp-agents.json"
+            and scope.get("method", "GET") == "GET"
+        ):
+            body = _json.dumps(
+                _build_adcp_agents_doc(handler, name, advertise_all),
+                separators=(",", ":"),
+            ).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                        [b"content-length", str(len(body)).encode()],
+                        [b"cache-control", b"no-cache"],
+                    ],
+                }
+            )
+            await send({"type": "http.response.body", "body": body, "more_body": False})
+            return
+        await app(scope, receive, send)
+
+    return _middleware
+
+
 def _bind_reusable_socket(host: str, port: int) -> Any:
     """Create a listening socket with SO_REUSEADDR set.
 
@@ -808,6 +879,9 @@ def _serve_mcp(
             transport=transport,
             max_request_size=max_request_size,
             asgi_middleware=asgi_middleware,
+            handler=handler,
+            name=name,
+            advertise_all=advertise_all,
         )
     else:
         # stdio — no listening socket, nothing to configure.
@@ -820,6 +894,9 @@ def _run_mcp_http(
     transport: str,
     max_request_size: int | None = None,
     asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    handler: ADCPHandler[Any] | None = None,
+    name: str = "adcp-agent",
+    advertise_all: bool = False,
 ) -> None:
     """Run FastMCP's HTTP transports with a pre-bound SO_REUSEADDR socket.
 
@@ -842,6 +919,8 @@ def _run_mcp_http(
         app = mcp.sse_app()
 
     app = _wrap_with_path_normalize(app)
+    if handler is not None:
+        app = _wrap_with_adcp_agents_route(app, handler, name, advertise_all)
     app = _wrap_with_size_limit(app, max_request_size)
     app = _apply_asgi_middleware(app, asgi_middleware)
 
@@ -905,6 +984,7 @@ def _serve_a2a(
         message_parser=message_parser,
         advertise_all=advertise_all,
     )
+    app = _wrap_with_adcp_agents_route(app, handler, name, advertise_all)
     app = _wrap_with_size_limit(app, max_request_size)
     app = _apply_asgi_middleware(app, asgi_middleware)
     sock = _bind_reusable_socket("0.0.0.0", resolved_port)
@@ -1018,6 +1098,8 @@ def _build_mcp_and_a2a_app(
     async def _dispatch(scope: Scope, receive: Receive, send: Send) -> None:
         """Path-based ASGI dispatcher.
 
+        ``/.well-known/adcp-agents.json`` is served inline (before both
+        inner apps) so it is available on both transports uniformly.
         ``/mcp`` and ``/mcp/...`` route to the FastMCP streamable-http
         app with the full original path preserved (FastMCP's inner
         route is at ``/mcp``). Everything else goes to A2A. Lifespan
@@ -1025,7 +1107,32 @@ def _build_mcp_and_a2a_app(
         inner lifespans.
         """
         if scope["type"] == "http":
+            import json as _json
+
             path = scope.get("path", "")
+            if (
+                path == "/.well-known/adcp-agents.json"
+                and scope.get("method", "GET") == "GET"
+            ):
+                body = _json.dumps(
+                    _build_adcp_agents_doc(handler, name, advertise_all),
+                    separators=(",", ":"),
+                ).encode()
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                            [b"content-length", str(len(body)).encode()],
+                            [b"cache-control", b"no-cache"],
+                        ],
+                    }
+                )
+                await send(
+                    {"type": "http.response.body", "body": body, "more_body": False}
+                )
+                return
             if path == "/mcp" or path.startswith("/mcp/"):
                 await mcp_app(scope, receive, send)
                 return

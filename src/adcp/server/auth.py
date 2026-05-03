@@ -237,12 +237,20 @@ class BearerTokenAuthMiddleware(BaseHTTPMiddleware):
         self._unauth_body = unauthenticated_response or {"error": "unauthenticated"}
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
-        method, tool = await self._peek_jsonrpc(request)
-
         principal_token = None
         tenant_token = None
         metadata_token = None
         try:
+            # .well-known discovery endpoints are public by spec — exempt
+            # before reading the body (GET requests carry no JSON-RPC).
+            if request.method == "GET" and request.url.path.startswith("/.well-known/"):
+                principal_token = current_principal.set(None)
+                tenant_token = current_tenant.set(None)
+                metadata_token = current_principal_metadata.set(None)
+                return await call_next(request)
+
+            method, tool = await self._peek_jsonrpc(request)
+
             if self.is_discovery_request(method, tool):
                 principal_token = current_principal.set(None)
                 tenant_token = current_tenant.set(None)

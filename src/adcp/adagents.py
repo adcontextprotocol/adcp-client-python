@@ -14,7 +14,13 @@ from urllib.parse import urlparse
 
 import httpx
 
-from adcp.exceptions import AdagentsNotFoundError, AdagentsTimeoutError, AdagentsValidationError
+from adcp.exceptions import (
+    AdagentsNotFoundError,
+    AdagentsTimeoutError,
+    AdagentsValidationError,
+    AdcpAgentsNotFoundError,
+    AdcpAgentsValidationError,
+)
 from adcp.validation import ValidationError, validate_adagents
 
 
@@ -690,6 +696,96 @@ def get_properties_by_agent(adagents_data: dict[str, Any], agent_url: str) -> li
         return _resolve_agent_properties(agent, top_level_properties)
 
     return []
+
+
+async def fetch_adcp_agents(
+    agent_base_url: str,
+    timeout: float = 10.0,
+    user_agent: str = "AdCP-Client/1.0",
+    client: httpx.AsyncClient | None = None,
+) -> dict[str, Any]:
+    """Fetch and parse adcp-agents.json from an agent server.
+
+    Buyers use this to discover a seller's declared agents and capabilities
+    from their ``/.well-known/adcp-agents.json`` multi-agent topology document.
+
+    Args:
+        agent_base_url: Base URL of the agent server
+            (e.g. ``"https://seller.example.com"``). Any path component
+            is stripped; only the scheme + host are used.
+        timeout: Request timeout in seconds
+        user_agent: User-Agent header for HTTP request
+        client: Optional httpx.AsyncClient for connection pooling.
+            If provided, caller is responsible for client lifecycle.
+            If None, a new client is created for this request.
+
+    Returns:
+        Parsed adcp-agents.json document.
+
+    Raises:
+        AdcpAgentsNotFoundError: If adcp-agents.json not found (404)
+        AdcpAgentsValidationError: If JSON is invalid or malformed
+        AdagentsTimeoutError: If request times out
+    """
+    from urllib.parse import urlparse as _urlparse
+
+    parsed = _urlparse(agent_base_url.rstrip("/"))
+    base = f"{parsed.scheme}://{parsed.netloc}"
+    url = f"{base}/.well-known/adcp-agents.json"
+
+    try:
+        if client is not None:
+            response = await client.get(
+                url,
+                headers={"User-Agent": user_agent},
+                timeout=timeout,
+                follow_redirects=True,
+            )
+        else:
+            async with httpx.AsyncClient() as new_client:
+                response = await new_client.get(
+                    url,
+                    headers={"User-Agent": user_agent},
+                    timeout=timeout,
+                    follow_redirects=True,
+                )
+
+        if response.status_code == 404:
+            raise AdcpAgentsNotFoundError(parsed.netloc)
+
+        if response.status_code != 200:
+            raise AdcpAgentsValidationError(
+                f"Failed to fetch adcp-agents.json: HTTP {response.status_code}"
+            )
+
+        try:
+            data = response.json()
+        except Exception as exc:
+            raise AdcpAgentsValidationError(
+                f"Invalid JSON in adcp-agents.json: {exc}"
+            ) from exc
+
+        if not isinstance(data, dict):
+            raise AdcpAgentsValidationError("adcp-agents.json must be a JSON object")
+
+        if "agents" not in data:
+            raise AdcpAgentsValidationError(
+                "adcp-agents.json must have an 'agents' field"
+            )
+
+        if not isinstance(data["agents"], list):
+            raise AdcpAgentsValidationError("'agents' must be an array")
+
+        return data
+
+    except httpx.TimeoutException as exc:
+        raise AdagentsTimeoutError(parsed.netloc, timeout) from exc
+    except (AdcpAgentsNotFoundError, AdcpAgentsValidationError, AdagentsTimeoutError):
+        raise
+    except httpx.RequestError as exc:
+        raise AdcpAgentsValidationError(
+            f"Failed to fetch adcp-agents.json: {exc}"
+        ) from exc
 
 
 class AuthorizationContext:

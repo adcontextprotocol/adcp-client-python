@@ -285,6 +285,22 @@ class AdagentsTimeoutError(AdagentsValidationError):
         super().__init__(message, None, None, suggestion)
 
 
+class AdcpAgentsValidationError(AdagentsValidationError):
+    """Error for adcp-agents.json validation issues."""
+
+
+class AdcpAgentsNotFoundError(AdcpAgentsValidationError):
+    """adcp-agents.json file not found (404)."""
+
+    def __init__(self, agent_domain: str):
+        message = f"adcp-agents.json not found for agent: {agent_domain}"
+        suggestion = (
+            "Verify that the agent server has deployed adcp-agents.json to:\n"
+            f"     https://{agent_domain}/.well-known/adcp-agents.json"
+        )
+        super().__init__(message, None, None, suggestion)
+
+
 class ADCPTaskError(ADCPError):
     """A task returned an ADCP error response.
 

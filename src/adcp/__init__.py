@@ -14,6 +14,7 @@ from adcp.adagents import (
     AuthorizationContext,
     domain_matches,
     fetch_adagents,
+    fetch_adcp_agents,
     fetch_agent_authorizations,
     get_all_properties,
     get_all_tags,
@@ -32,6 +33,8 @@ from adcp.exceptions import (  # noqa: F401
     AdagentsNotFoundError,
     AdagentsTimeoutError,
     AdagentsValidationError,
+    AdcpAgentsNotFoundError,
+    AdcpAgentsValidationError,
     ADCPAuthenticationError,
     ADCPConnectionError,
     ADCPError,
@@ -803,6 +806,7 @@ __all__ = [
     # Adagents validation
     "AuthorizationContext",
     "fetch_adagents",
+    "fetch_adcp_agents",
     "fetch_agent_authorizations",
     "verify_agent_authorization",
     "verify_agent_for_property",
@@ -839,6 +843,8 @@ __all__ = [
     "AdagentsValidationError",
     "AdagentsNotFoundError",
     "AdagentsTimeoutError",
+    "AdcpAgentsValidationError",
+    "AdcpAgentsNotFoundError",
     "ConfigurationError",
     "RegistryError",
     # Validation utilities
