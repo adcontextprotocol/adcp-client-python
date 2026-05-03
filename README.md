@@ -46,6 +46,32 @@ serve(MySeller(), name="my-seller", test_controller=MyStore())
 
 Each skill file in [`skills/`](skills/) contains the complete pattern, response shapes, and validation loop for coding agents (Claude, Codex) to generate passing servers.
 
+### Multi-agent discovery manifest
+
+Every HTTP transport (`streamable-http`, `a2a`, `both`) automatically
+serves the AdCP multi-agent topology manifest at
+`/.well-known/adcp-agents.json`. Buyers, conformance runners, and
+tooling fetch this once per origin to discover which agents the host
+serves and over which transports — no out-of-band configuration.
+
+```bash
+curl http://localhost:3001/.well-known/adcp-agents.json
+```
+
+Set `base_url`, `specialisms`, and `description` to populate the
+manifest with your public origin and AdCP specialisms:
+
+```python
+serve(
+    MySeller(),
+    name="my-seller",
+    transport="both",
+    base_url="https://sales.example.com",
+    specialisms=["sales-non-guaranteed", "sales-guaranteed"],
+    description="Premium publisher inventory.",
+)
+```
+
 ## Connecting to AdCP Agents
 
 ## The Core Concept

@@ -76,6 +76,11 @@ from adcp.server.brand import BrandHandler
 from adcp.server.builder import ADCPServerBuilder, adcp_server
 from adcp.server.compliance import ComplianceHandler
 from adcp.server.content_standards import ContentStandardsHandler
+from adcp.server.discovery import (
+    DISCOVERY_PATH,
+    build_manifest,
+    make_discovery_route,
+)
 from adcp.server.governance import GovernanceHandler
 from adcp.server.helpers import (  # noqa: F401
     CORRECTABLE_CODES,
@@ -201,6 +206,10 @@ __all__ = [
     "SubdomainTenantRouter",
     "Tenant",
     "current_tenant",
+    # Multi-agent discovery manifest (/.well-known/adcp-agents.json)
+    "DISCOVERY_PATH",
+    "build_manifest",
+    "make_discovery_route",
     # Test controller
     "TestControllerStore",
     "TestControllerError",

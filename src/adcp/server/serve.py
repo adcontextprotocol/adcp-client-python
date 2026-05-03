@@ -416,6 +416,9 @@ def serve(
     validation: ValidationHookConfig | None = None,
     enable_debug_endpoints: bool = False,
     debug_traffic_source: Callable[[], dict[str, int]] | None = None,
+    base_url: str | None = None,
+    specialisms: list[str] | None = None,
+    description: str | None = None,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -525,6 +528,21 @@ def serve(
             per-method count snapshot for ``/_debug/traffic``. Required
             when ``enable_debug_endpoints=True``; otherwise ignored.
             Typically ``mock_ad_server.get_traffic``.
+        base_url: Optional public origin URL for the binary, used to
+            populate the ``url`` field of each entry in the
+            ``/.well-known/adcp-agents.json`` discovery manifest.
+            Adopters behind a TLS-terminating reverse proxy SHOULD set
+            this (e.g. ``"https://sales.example.com"``). When ``None``
+            the manifest URLs fall back to ``http://<bind-host>:<port>``,
+            which is correct for local development but wrong for
+            production.
+        specialisms: Optional list of AdCP specialism tags surfaced in
+            the discovery manifest (e.g. ``["sales-non-guaranteed"]``).
+            See :data:`adcp.server.discovery` for the full list.
+            Defaults to a placeholder when omitted — adopters who know
+            their specialism SHOULD pass it.
+        description: Optional human-readable description surfaced in
+            the discovery manifest's per-agent ``description`` field.
         validation: Optional :class:`ValidationHookConfig` enabling
             schema validation of every request and response against the
             bundled AdCP JSON schemas. ``requests="strict"`` raises
@@ -600,6 +618,9 @@ def serve(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             validation=validation,
+            base_url=base_url,
+            specialisms=specialisms,
+            description=description,
         )
     elif transport in ("streamable-http", "sse", "stdio"):
         _serve_mcp(
@@ -617,6 +638,9 @@ def serve(
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
             validation=validation,
+            base_url=base_url,
+            specialisms=specialisms,
+            description=description,
         )
     elif transport == "both":
         _serve_mcp_and_a2a(
@@ -636,6 +660,9 @@ def serve(
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
             validation=validation,
+            base_url=base_url,
+            specialisms=specialisms,
+            description=description,
         )
     else:
         valid = ", ".join(sorted(("a2a", "both", "streamable-http", "sse", "stdio")))
@@ -697,6 +724,55 @@ def _apply_asgi_middleware(
     for cls, kwargs in reversed(list(asgi_middleware)):
         app = cls(app, **kwargs)
     return app
+
+
+def _wrap_with_discovery(
+    app: Any,
+    *,
+    name: str,
+    transports: list[Literal["mcp", "a2a"]],
+    base_url: str,
+    description: str | None = None,
+    specialisms: list[str] | None = None,
+) -> Any:
+    """Wrap an ASGI app to serve ``/.well-known/adcp-agents.json``.
+
+    Intercepts the discovery path and serves the AdCP multi-agent
+    topology manifest; every other request passes through unchanged.
+    Sits outside the inner transport apps (FastMCP / a2a-sdk Starlette)
+    so adding the route doesn't require monkey-patching either upstream.
+
+    GET returns the manifest as JSON; non-GET methods at the discovery
+    path 404 back to the inner app — letting the inner Starlette
+    return its standard 405 / 404 keeps the well-known surface
+    read-only without baking method-policy into this wrapper.
+    """
+    from adcp.server.discovery import (
+        DISCOVERY_PATH,
+        build_manifest,
+    )
+
+    async def _middleware(scope: Any, receive: Any, send: Any) -> None:
+        if (
+            scope.get("type") == "http"
+            and scope.get("path") == DISCOVERY_PATH
+            and scope.get("method") == "GET"
+        ):
+            from starlette.responses import JSONResponse
+
+            manifest = build_manifest(
+                name=name,
+                transports=transports,
+                base_url=base_url,
+                description=description,
+                specialisms=specialisms,
+            )
+            response = JSONResponse(manifest)
+            await response(scope, receive, send)
+            return
+        await app(scope, receive, send)
+
+    return _middleware
 
 
 def _wrap_with_path_normalize(app: Any) -> Any:
@@ -861,6 +937,9 @@ def _serve_mcp(
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     validation: ValidationHookConfig | None = None,
+    base_url: str | None = None,
+    specialisms: list[str] | None = None,
+    description: str | None = None,
 ) -> None:
     """Start an MCP server."""
     mcp = create_mcp_server(
@@ -888,6 +967,10 @@ def _serve_mcp(
             transport=transport,
             max_request_size=max_request_size,
             asgi_middleware=asgi_middleware,
+            discovery_name=name,
+            discovery_base_url=base_url,
+            discovery_specialisms=specialisms,
+            discovery_description=description,
         )
     else:
         # stdio — no listening socket, nothing to configure.
@@ -900,6 +983,10 @@ def _run_mcp_http(
     transport: str,
     max_request_size: int | None = None,
     asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    discovery_name: str = "adcp-agent",
+    discovery_base_url: str | None = None,
+    discovery_specialisms: list[str] | None = None,
+    discovery_description: str | None = None,
 ) -> None:
     """Run FastMCP's HTTP transports with a pre-bound SO_REUSEADDR socket.
 
@@ -921,7 +1008,19 @@ def _run_mcp_http(
     else:
         app = mcp.sse_app()
 
+    from adcp.server.discovery import resolve_base_url
+
+    resolved_base_url = discovery_base_url or resolve_base_url(host, port)
+
     app = _wrap_with_path_normalize(app)
+    app = _wrap_with_discovery(
+        app,
+        name=discovery_name,
+        transports=["mcp"],
+        base_url=resolved_base_url,
+        description=discovery_description,
+        specialisms=discovery_specialisms,
+    )
     app = _wrap_with_size_limit(app, max_request_size)
     app = _apply_asgi_middleware(app, asgi_middleware)
 
@@ -966,13 +1065,18 @@ def _serve_a2a(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     validation: ValidationHookConfig | None = None,
+    base_url: str | None = None,
+    specialisms: list[str] | None = None,
+    description: str | None = None,
 ) -> None:
     """Start an A2A server using uvicorn."""
     import uvicorn
 
     from adcp.server.a2a_server import create_a2a_server
+    from adcp.server.discovery import resolve_base_url
 
     resolved_port = port or int(os.environ.get("PORT", "3001"))
+    resolved_base_url = base_url or resolve_base_url("0.0.0.0", resolved_port)
 
     app = create_a2a_server(
         handler,
@@ -986,6 +1090,14 @@ def _serve_a2a(
         message_parser=message_parser,
         advertise_all=advertise_all,
         validation=validation,
+    )
+    app = _wrap_with_discovery(
+        app,
+        name=name,
+        transports=["a2a"],
+        base_url=resolved_base_url,
+        description=description,
+        specialisms=specialisms,
     )
     app = _wrap_with_size_limit(app, max_request_size)
     app = _apply_asgi_middleware(app, asgi_middleware)
@@ -1024,6 +1136,9 @@ def _build_mcp_and_a2a_app(
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     validation: ValidationHookConfig | None = None,
+    base_url: str | None = None,
+    specialisms: list[str] | None = None,
+    description: str | None = None,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -1126,6 +1241,17 @@ def _build_mcp_and_a2a_app(
         await a2a_app(scope, receive, send)
 
     app: ASGIApp = _dispatch
+    from adcp.server.discovery import resolve_base_url
+
+    resolved_base_url = base_url or resolve_base_url(host, port)
+    app = _wrap_with_discovery(
+        app,
+        name=name,
+        transports=["mcp", "a2a"],
+        base_url=resolved_base_url,
+        description=description,
+        specialisms=specialisms,
+    )
     return _wrap_with_size_limit(app, max_request_size)
 
 
@@ -1147,6 +1273,9 @@ def _serve_mcp_and_a2a(
     max_request_size: int | None = None,
     streaming_responses: bool = False,
     validation: ValidationHookConfig | None = None,
+    base_url: str | None = None,
+    specialisms: list[str] | None = None,
+    description: str | None = None,
 ) -> None:
     """Serve MCP and A2A on a single port via path dispatch.
 
@@ -1185,6 +1314,9 @@ def _serve_mcp_and_a2a(
         max_request_size=max_request_size,
         streaming_responses=streaming_responses,
         validation=validation,
+        base_url=base_url,
+        specialisms=specialisms,
+        description=description,
     )
     app = _apply_asgi_middleware(app, asgi_middleware)
 
