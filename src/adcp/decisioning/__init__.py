@@ -147,6 +147,10 @@ from adcp.decisioning.task_registry import (
     TaskRegistry,
     TaskState,
 )
+from adcp.decisioning.translation import (
+    TranslationMap,
+    create_translation_map,
+)
 from adcp.decisioning.types import (
     Account,
     AdcpError,
@@ -154,6 +158,16 @@ from adcp.decisioning.types import (
     SalesResult,
     TaskHandoff,
     WorkflowHandoff,
+)
+from adcp.decisioning.upstream import (
+    ApiKey,
+    AuthContext,
+    DynamicBearer,
+    NoAuth,
+    StaticBearer,
+    UpstreamAuth,
+    UpstreamHttpClient,
+    create_upstream_http_client,
 )
 
 # Conditional import: PgTaskRegistry needs the [pg] extra. Always expose
@@ -195,7 +209,9 @@ __all__ = [
     "AccountNotFoundError",
     "AccountStore",
     "AdcpError",
+    "ApiKey",
     "ApiKeyCredential",
+    "AuthContext",
     "AudiencePlatform",
     "AuditingBuyerAgentRegistry",
     "AuthInfo",
@@ -218,6 +234,7 @@ __all__ = [
     "CreativeBuilderPlatform",
     "DecisioningCapabilities",
     "DecisioningPlatform",
+    "DynamicBearer",
     "ExplicitAccounts",
     "Format",
     "FormatReferenceStructuredObject",
@@ -231,6 +248,7 @@ __all__ = [
     "MaybeAsync",
     "MediaBuyNotFoundError",
     "MockAdServer",
+    "NoAuth",
     "OAuthCredential",
     "PermissionDeniedError",
     "PgTaskRegistry",
@@ -249,11 +267,15 @@ __all__ = [
     "SignalsPlatform",
     "SingletonAccounts",
     "StateReader",
+    "StaticBearer",
     "TaskHandoff",
     "TaskHandoffContext",
     "TaskRegistry",
     "TaskState",
+    "TranslationMap",
     "UnsupportedFeatureError",
+    "UpstreamAuth",
+    "UpstreamHttpClient",
     "ValidationError",
     "WorkflowHandoff",
     "WorkflowObjectType",
@@ -262,6 +284,8 @@ __all__ = [
     "assert_media_buy_transition",
     "bearer_only_registry",
     "create_adcp_server_from_platform",
+    "create_translation_map",
+    "create_upstream_http_client",
     "mixed_registry",
     "project_account_for_response",
     "project_business_entity_for_response",
