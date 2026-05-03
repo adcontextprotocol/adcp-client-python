@@ -49,6 +49,7 @@ from adcp.decisioning.property_list import (
     maybe_apply_property_list_filter,
     property_list_capability_enabled,
 )
+from adcp.decisioning.time_budget import project_incomplete_response, resolve_time_budget
 from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
 from adcp.server.base import ADCPHandler, ToolContext
 
@@ -1072,17 +1073,45 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        response = cast(
-            "GetProductsResponse",
-            await _invoke_platform_method(
-                self._platform,
-                "get_products",
-                params,
-                ctx,
-                executor=self._executor,
-                registry=self._registry,
-            ),
+        # Resolve time_budget to a seconds deadline. _resolve_account and
+        # _build_ctx are intentionally outside this try/except so their
+        # AdcpErrors propagate unmodified; only the platform call is deadline-
+        # wrapped.
+        deadline = resolve_time_budget(params.time_budget)
+        coro = _invoke_platform_method(
+            self._platform,
+            "get_products",
+            params,
+            ctx,
+            executor=self._executor,
+            registry=self._registry,
         )
+        try:
+            result = await (
+                asyncio.wait_for(coro, timeout=deadline) if deadline is not None else coro
+            )
+        except asyncio.TimeoutError:
+            # Deadline expired. The platform coroutine is cancelled; for
+            # sync adopters the underlying thread runs to completion but the
+            # asyncio side has moved on (thread-pool slot leak documented in
+            # adcp.decisioning.time_budget module header).
+            tb = params.time_budget
+            interval = tb.interval if tb is not None else 0
+            unit_raw = tb.unit if tb is not None else None
+            unit = (
+                unit_raw.value if hasattr(unit_raw, "value") else str(unit_raw)
+            ) if unit_raw is not None else "unknown"
+            logger.warning(
+                "[adcp.decisioning] get_products timed out after %ds "
+                "(time_budget=%d %s); returning incomplete response. "
+                "To avoid timeout cancellations, optimise get_products "
+                "latency or reduce the platform's search scope.",
+                deadline,
+                interval,
+                unit,
+            )
+            return project_incomplete_response(interval=interval, unit=unit)
+        response = cast("GetProductsResponse", result)
         # Post-adapter: capability-gated property-list filter.
         response = cast(
             "GetProductsResponse",

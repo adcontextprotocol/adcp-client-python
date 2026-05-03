@@ -97,6 +97,36 @@ else:
 | `UNAUTHORIZED` | Missing/invalid auth | Check auth token |
 | `RATE_LIMITED` | Too many requests | Retry with backoff |
 
+## Optional Protocol Extensions
+
+These protocols are opt-in upgrades for `DecisioningPlatform` subclasses. Implement them to unlock advanced framework behaviour.
+
+| Protocol | Method | Domain | Description |
+|---|---|---|---|
+| `IncrementalGetProducts` | `get_products_incremental` | media_buy | **Protocol declaration only — dispatch path ships in a follow-up to #495.** Implement to stream partial results on `time_budget` timeout; the framework will collect yielded batches until the deadline and project `incomplete[]` for unfinished scopes. Until the dispatch path lands, implementing this Protocol has no effect — timeouts still return `products: []` + `incomplete: [{scope: 'products'}]`. |
+
+Import from `adcp.decisioning`:
+
+```python
+from adcp.decisioning import IncrementalGetProducts, ProductsCheckpoint
+from adcp.types import GetProductsRequest
+from adcp.decisioning import RequestContext
+from typing import AsyncIterator
+
+class MySeller(DecisioningPlatform, IncrementalGetProducts):
+    async def get_products_incremental(
+        self,
+        req: GetProductsRequest,
+        ctx: RequestContext,
+        checkpoint: ProductsCheckpoint,
+    ) -> AsyncIterator[dict]:
+        for batch in self._stream_products(req):
+            checkpoint.add_batch(batch)
+            yield batch
+```
+
+**Note:** `get_products_incremental` MUST be an async generator (`async def` with `yield`). Detection uses `asyncio.isasyncgenfunction`. When `req.time_budget.unit == 'campaign'`, no SDK-managed deadline is installed; the adopter decides timing.
+
 ## DX Helpers (adcp.server.helpers)
 
 Eliminate boilerplate in handler code. Import from `adcp.server` or `adcp.server.helpers`.
