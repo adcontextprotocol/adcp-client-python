@@ -18,6 +18,7 @@ Stand up an ADCP-compliant server with a single function call:
 
 from __future__ import annotations
 
+import json as _json
 import logging
 import os
 import warnings
@@ -729,6 +730,31 @@ def _build_adcp_agents_doc(
     }
 
 
+async def _send_adcp_agents_response(
+    handler: ADCPHandler[Any],
+    name: str,
+    advertise_all: bool,
+    send: Any,
+) -> None:
+    """Send a 200 JSON response for the adcp-agents.json discovery document."""
+    body = _json.dumps(
+        _build_adcp_agents_doc(handler, name, advertise_all),
+        separators=(",", ":"),
+    ).encode()
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [
+                [b"content-type", b"application/json"],
+                [b"content-length", str(len(body)).encode()],
+                [b"cache-control", b"no-cache"],
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": body, "more_body": False})
+
+
 def _wrap_with_adcp_agents_route(
     app: Any,
     handler: ADCPHandler[Any],
@@ -741,7 +767,6 @@ def _wrap_with_adcp_agents_route(
     correctly in the wrapper stack) so discovery requests are always served
     unauthenticated per spec.
     """
-    import json as _json
 
     async def _middleware(scope: Any, receive: Any, send: Any) -> None:
         if (
@@ -749,22 +774,7 @@ def _wrap_with_adcp_agents_route(
             and scope.get("path") == "/.well-known/adcp-agents.json"
             and scope.get("method", "GET") == "GET"
         ):
-            body = _json.dumps(
-                _build_adcp_agents_doc(handler, name, advertise_all),
-                separators=(",", ":"),
-            ).encode()
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 200,
-                    "headers": [
-                        [b"content-type", b"application/json"],
-                        [b"content-length", str(len(body)).encode()],
-                        [b"cache-control", b"no-cache"],
-                    ],
-                }
-            )
-            await send({"type": "http.response.body", "body": body, "more_body": False})
+            await _send_adcp_agents_response(handler, name, advertise_all, send)
             return
         await app(scope, receive, send)
 
@@ -1107,31 +1117,12 @@ def _build_mcp_and_a2a_app(
         inner lifespans.
         """
         if scope["type"] == "http":
-            import json as _json
-
             path = scope.get("path", "")
             if (
                 path == "/.well-known/adcp-agents.json"
                 and scope.get("method", "GET") == "GET"
             ):
-                body = _json.dumps(
-                    _build_adcp_agents_doc(handler, name, advertise_all),
-                    separators=(",", ":"),
-                ).encode()
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 200,
-                        "headers": [
-                            [b"content-type", b"application/json"],
-                            [b"content-length", str(len(body)).encode()],
-                            [b"cache-control", b"no-cache"],
-                        ],
-                    }
-                )
-                await send(
-                    {"type": "http.response.body", "body": body, "more_body": False}
-                )
+                await _send_adcp_agents_response(handler, name, advertise_all, send)
                 return
             if path == "/mcp" or path.startswith("/mcp/"):
                 await mcp_app(scope, receive, send)

@@ -8,6 +8,7 @@ exclusion.
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 
@@ -262,3 +263,69 @@ async def test_fetch_adcp_agents_404(monkeypatch):
 
     with pytest.raises(AdcpAgentsNotFoundError):
         await fetch_adcp_agents("https://seller.example.com")
+
+
+@pytest.mark.asyncio
+async def test_fetch_adcp_agents_timeout(monkeypatch):
+    """fetch_adcp_agents raises AdcpAgentsTimeoutError (not AdagentsTimeoutError) on timeout."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    import httpx
+
+    from adcp import fetch_adcp_agents
+    from adcp.exceptions import AdcpAgentsTimeoutError
+
+    mock_client = MagicMock()
+    mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timed out"))
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda: mock_client)
+
+    with pytest.raises(AdcpAgentsTimeoutError):
+        await fetch_adcp_agents("https://seller.example.com", timeout=5.0)
+
+
+@pytest.mark.asyncio
+async def test_fetch_adcp_agents_rejects_private_addresses():
+    """fetch_adcp_agents raises AdcpAgentsValidationError for private/localhost targets (SSRF)."""
+    from adcp import fetch_adcp_agents
+    from adcp.exceptions import AdcpAgentsValidationError
+
+    with pytest.raises(AdcpAgentsValidationError, match="localhost"):
+        await fetch_adcp_agents("https://localhost")
+
+    with pytest.raises(AdcpAgentsValidationError, match="private"):
+        await fetch_adcp_agents("https://192.168.1.1")
+
+    with pytest.raises(AdcpAgentsValidationError, match="private"):
+        await fetch_adcp_agents("https://10.0.0.1")
+
+
+def test_auth_middleware_bypass_discovery():
+    """BearerTokenAuthMiddleware does not block GET /.well-known/adcp-agents.json."""
+    from adcp.server.auth import BearerTokenAuthMiddleware
+
+    async def _reject_all(scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] == "lifespan":
+            while True:
+                msg = await receive()
+                if msg["type"] == "lifespan.startup":
+                    await send({"type": "lifespan.startup.complete"})
+                elif msg["type"] == "lifespan.shutdown":
+                    await send({"type": "lifespan.shutdown.complete"})
+                    return
+        elif scope["type"] == "http":
+            await send({"type": "http.response.start", "status": 403, "headers": []})
+            await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+    handler = _MinimalHandler()
+    discovery_app = _wrap_with_adcp_agents_route(_reject_all, handler, "auth-bypass-agent", False)
+    authed_app = BearerTokenAuthMiddleware(discovery_app, validate_token=lambda t: None)
+
+    with TestClient(authed_app) as client:
+        resp = client.get(DISCOVERY_PATH)
+
+    assert resp.status_code == 200
+    doc = resp.json()
+    assert doc["agents"][0]["name"] == "auth-bypass-agent"

@@ -19,6 +19,7 @@ from adcp.exceptions import (
     AdagentsTimeoutError,
     AdagentsValidationError,
     AdcpAgentsNotFoundError,
+    AdcpAgentsTimeoutError,
     AdcpAgentsValidationError,
 )
 from adcp.validation import ValidationError, validate_adagents
@@ -725,11 +726,28 @@ async def fetch_adcp_agents(
     Raises:
         AdcpAgentsNotFoundError: If adcp-agents.json not found (404)
         AdcpAgentsValidationError: If JSON is invalid or malformed
-        AdagentsTimeoutError: If request times out
+        AdcpAgentsTimeoutError: If request times out
     """
-    from urllib.parse import urlparse as _urlparse
+    parsed = urlparse(agent_base_url.rstrip("/"))
 
-    parsed = _urlparse(agent_base_url.rstrip("/"))
+    if parsed.scheme not in ("http", "https"):
+        raise AdcpAgentsValidationError(
+            f"agent_base_url must use http or https scheme, got {parsed.scheme!r}"
+        )
+
+    # SSRF protection: reject private/reserved IPs and localhost
+    hostname = parsed.hostname or ""
+    if hostname in ("localhost", "localhost.localdomain") or hostname.endswith(".local"):
+        raise AdcpAgentsValidationError("agent_base_url must not target localhost")
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise AdcpAgentsValidationError(
+                "agent_base_url must not target private/reserved addresses"
+            )
+    except ValueError:
+        pass  # Not an IP literal — hostname is fine
+
     base = f"{parsed.scheme}://{parsed.netloc}"
     url = f"{base}/.well-known/adcp-agents.json"
 
@@ -779,8 +797,8 @@ async def fetch_adcp_agents(
         return data
 
     except httpx.TimeoutException as exc:
-        raise AdagentsTimeoutError(parsed.netloc, timeout) from exc
-    except (AdcpAgentsNotFoundError, AdcpAgentsValidationError, AdagentsTimeoutError):
+        raise AdcpAgentsTimeoutError(parsed.netloc, timeout) from exc
+    except (AdcpAgentsNotFoundError, AdcpAgentsValidationError, AdcpAgentsTimeoutError):
         raise
     except httpx.RequestError as exc:
         raise AdcpAgentsValidationError(

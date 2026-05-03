@@ -301,6 +301,18 @@ class AdcpAgentsNotFoundError(AdcpAgentsValidationError):
         super().__init__(message, None, None, suggestion)
 
 
+class AdcpAgentsTimeoutError(AdcpAgentsValidationError):
+    """Request for adcp-agents.json timed out."""
+
+    def __init__(self, agent_domain: str, timeout: float):
+        message = f"Request to fetch adcp-agents.json timed out after {timeout}s"
+        suggestion = (
+            "The agent server may be slow or unresponsive.\n"
+            "     Try increasing the timeout value or check the domain is correct."
+        )
+        super().__init__(message, None, None, suggestion)
+
+
 class ADCPTaskError(ADCPError):
     """A task returned an ADCP error response.
 

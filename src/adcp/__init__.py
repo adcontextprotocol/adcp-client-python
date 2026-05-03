@@ -34,6 +34,7 @@ from adcp.exceptions import (  # noqa: F401
     AdagentsTimeoutError,
     AdagentsValidationError,
     AdcpAgentsNotFoundError,
+    AdcpAgentsTimeoutError,
     AdcpAgentsValidationError,
     ADCPAuthenticationError,
     ADCPConnectionError,
@@ -845,6 +846,7 @@ __all__ = [
     "AdagentsTimeoutError",
     "AdcpAgentsValidationError",
     "AdcpAgentsNotFoundError",
+    "AdcpAgentsTimeoutError",
     "ConfigurationError",
     "RegistryError",
     # Validation utilities
