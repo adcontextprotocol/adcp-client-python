@@ -43,6 +43,38 @@ from adcp.server.test_controller import TestControllerError, TestControllerStore
 PORT = int(os.environ.get("ADCP_PORT") or os.environ.get("PORT") or 3001)
 AGENT_URL = f"http://localhost:{PORT}/mcp"
 
+# Spec-valid values for ``Product.channels`` (the canonical
+# ``MediaChannelSchema`` enum from schemas/cache/enums/channels.json).
+# Storyboard fixtures occasionally seed legacy channel names ("video")
+# that aren't in the enum; ``seed_product`` filters incoming fixture
+# channels against this set so the demo seller doesn't echo invalid
+# values back through ``get_products`` and trip strict response
+# validation.
+_VALID_CHANNELS: frozenset[str] = frozenset(
+    {
+        "display",
+        "olv",
+        "social",
+        "search",
+        "ctv",
+        "linear_tv",
+        "radio",
+        "streaming_audio",
+        "podcast",
+        "dooh",
+        "ooh",
+        "print",
+        "cinema",
+        "email",
+        "gaming",
+        "retail_media",
+        "influencer",
+        "affiliate",
+        "product_placement",
+        "sponsored_intelligence",
+    }
+)
+
 accounts: dict[str, dict[str, Any]] = {}
 media_buys: dict[str, dict[str, Any]] = {}
 creatives: dict[str, dict[str, Any]] = {}
@@ -769,6 +801,17 @@ class DemoStore(TestControllerStore):
         data = dict(fixture or {})
         pid = product_id or data.get("product_id") or f"seeded-{uuid.uuid4().hex[:8]}"
         data["product_id"] = pid
+        # Filter ``channels`` to spec-valid values from the canonical
+        # ``MediaChannelSchema`` enum. Upstream storyboard fixtures
+        # occasionally ship legacy names like ``"video"`` that aren't
+        # in the enum; surfacing them through get_products would fail
+        # strict response validation.
+        if "channels" in data:
+            valid = [c for c in data.get("channels") or [] if c in _VALID_CHANNELS]
+            if valid:
+                data["channels"] = valid
+            else:
+                data.pop("channels", None)
         # Ensure schema-required fields are present so downstream validation
         # passes even when the runner sends a minimal fixture with only
         # product_id. Defaults are spec-valid (non-empty arrays where
