@@ -44,6 +44,7 @@ from adcp.server import (
     current_tenant,
 )
 from adcp.validation import ValidationHookConfig
+from adcp.validation.client_hooks import ValidationMode
 
 from .audit import make_sink as make_audit_sink
 from .buyer_registry import make_registry as make_buyer_registry
@@ -103,8 +104,8 @@ def _build_validation_config() -> ValidationHookConfig:
     when you need the softer mode.
     """
     adcp_env = os.environ.get("ADCP_ENV", "").strip().lower()
-    mode: str = "warn" if adcp_env in {"prod", "production"} else "strict"
-    return ValidationHookConfig(requests=mode, responses=mode)  # type: ignore[arg-type]
+    mode: ValidationMode = "warn" if adcp_env in {"prod", "production"} else "strict"
+    return ValidationHookConfig(requests=mode, responses=mode)
 
 
 def main() -> None:

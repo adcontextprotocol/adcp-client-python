@@ -126,7 +126,26 @@ This reuses the same convention the SDK's client-side validator uses, so both si
 |---|---|---|
 | Malformed requests | Rejected — `VALIDATION_ERROR` | Processed + warning logged |
 | Non-conformant responses | Rejected — `VALIDATION_ERROR` | Returned to buyer + warning logged |
-| Best for | Dev / CI / compliance testing | Production rollouts with mixed buyer versions |
+| Best for | Dev / CI / compliance testing | Production rollouts with mixed buyer or spec versions |
+
+**What a validation rejection looks like** — a strict-mode rejection returns a spec-shaped error body before the platform method runs:
+
+```json
+{
+  "adcp_error": {
+    "errors": [
+      {
+        "code": "VALIDATION_ERROR",
+        "message": "Request validation failed: 'brief' is a required property",
+        "field": "/brief",
+        "details": { "side": "request" }
+      }
+    ]
+  }
+}
+```
+
+Look for `errors[0].code == "VALIDATION_ERROR"` and `errors[0].details.side` (`"request"` or `"response"`) to distinguish validation failures from application errors in your buyer logs.
 
 ## Auth modes
 

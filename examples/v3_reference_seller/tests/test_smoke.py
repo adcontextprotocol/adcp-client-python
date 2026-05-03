@@ -148,6 +148,7 @@ def test_build_validation_config_warn_for_prod_alias(monkeypatch: pytest.MonkeyP
 
     cfg = _build_validation_config()
     assert cfg.requests == "warn"
+    assert cfg.responses == "warn"
 
 
 @pytest.mark.asyncio
