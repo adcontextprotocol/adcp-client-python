@@ -63,6 +63,10 @@ from adcp.decisioning.context import (
     AuthInfo,
     RequestContext,
 )
+from adcp.decisioning.mock_ad_server import (
+    InMemoryMockAdServer,
+    MockAdServer,
+)
 from adcp.decisioning.platform import (
     GOVERNANCE_SPECIALISMS,
     DecisioningCapabilities,
@@ -192,8 +196,10 @@ __all__ = [
     "GOVERNANCE_SPECIALISMS",
     "GovernanceContextJWS",
     "HttpSigCredential",
+    "InMemoryMockAdServer",
     "InMemoryTaskRegistry",
     "MaybeAsync",
+    "MockAdServer",
     "OAuthCredential",
     "PgTaskRegistry",
     "PostgresTaskRegistry",

@@ -36,6 +36,7 @@ from adcp.decisioning import (
     DecisioningCapabilities,
     DecisioningPlatform,
     ExplicitAccounts,
+    MockAdServer,
 )
 from adcp.decisioning.specialisms import SalesPlatform
 from adcp.types import (
@@ -157,9 +158,27 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         supported_billing=("operator", "agent"),
     )
 
-    def __init__(self, *, sessionmaker: async_sessionmaker) -> None:
+    def __init__(
+        self,
+        *,
+        sessionmaker: async_sessionmaker,
+        mock_ad_server: MockAdServer | None = None,
+    ) -> None:
         self._sessionmaker = sessionmaker
+        self._mock_ad_server = mock_ad_server
         self.accounts = _make_account_store(sessionmaker)
+
+    def _record(self, method: str, args: dict[str, Any]) -> None:
+        """Record an outbound upstream call on the wired
+        :class:`MockAdServer`, if any.
+
+        Anti-façade contract — storyboard runners assert traffic
+        counts via ``GET /_debug/traffic``. Methods that return spec-
+        valid envelopes without recording at least one upstream call
+        are textbook façade adapters.
+        """
+        if self._mock_ad_server is not None:
+            self._mock_ad_server.record_call(method, args)
 
     # ----- get_products ----------------------------------------------------
 
@@ -169,6 +188,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """Static product catalog for the reference seller. Real
         adopters query a CMS / forecasting service."""
         del req, ctx  # this reference impl ignores brief / context
+        self._record("products.list", {})
         return GetProductsResponse(
             products=[
                 Product(
@@ -245,6 +265,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         )
         async with self._sessionmaker() as session, session.begin():
             session.add(row)
+        self._record(
+            "media_buy.create",
+            {"media_buy_id": media_buy_id, "account_id": ctx.account.id},
+        )
         logger.info(
             "Created media buy %s for account=%s buyer=%s",
             media_buy_id,
@@ -294,6 +318,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             elif patch.paused is False and row.status == "paused":
                 row.status = "active"
             row.updated_at = datetime.now(timezone.utc)
+        self._record(
+            "media_buy.update",
+            {"media_buy_id": media_buy_id, "status": row.status},
+        )
         return UpdateMediaBuySuccessResponse(
             media_buy_id=row.media_buy_id,
             status=row.status,  # type: ignore[arg-type]
@@ -308,7 +336,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """Accept creative manifests — the reference impl persists
         nothing; production adopters route to their creative review
         pipeline here."""
-        del req, ctx
+        del ctx
+        creative_count = len(req.creatives) if req.creatives else 0
+        self._record("creative.upload", {"count": creative_count})
         return SyncCreativesSuccessResponse(creatives=[])
 
     # ----- get_media_buy_delivery ------------------------------------------
@@ -319,6 +349,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """Stub delivery — production adopters wire their real
         delivery / pacing query."""
         del req, ctx
+        self._record("delivery.read", {})
         return GetMediaBuyDeliveryResponse(media_buys=[])
 
 
