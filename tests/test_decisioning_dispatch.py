@@ -50,7 +50,10 @@ def executor():
 
 
 class _ValidPlatform(DecisioningPlatform):
-    capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+    capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        supported_billing=["operator"],
+    )
     accounts = SingletonAccounts(account_id="hello")
 
     def get_products(self, req, ctx):
@@ -231,6 +234,62 @@ def test_validate_platform_empty_specialisms_passes() -> None:
         accounts = SingletonAccounts(account_id="hello")
 
     validate_platform(_NoClaimsPlatform())
+
+
+def test_validate_platform_warns_when_sales_specialism_missing_supported_billing() -> None:
+    """Sales-* platform without supported_billing emits UserWarning.
+
+    The AdCP spec requires account.supported_billing in the
+    get_adcp_capabilities response for media_buy sellers. The framework
+    warns at server boot so adopters discover the gap before shipping."""
+
+    class _SalesWithoutBilling(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "mb_1"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"deliveries": []}
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        validate_platform(_SalesWithoutBilling())
+    billing_warnings = [w for w in caught if "supported_billing" in str(w.message)]
+    assert len(billing_warnings) == 1
+    assert "media_buy" in str(billing_warnings[0].message)
+
+
+def test_validate_platform_no_billing_warning_for_non_sales_specialisms() -> None:
+    """Signals-only platform does not emit the supported_billing warning
+    — billing is only required for sales-* (media_buy) sellers."""
+    from adcp.decisioning.dispatch import validate_platform as _vp
+
+    class _SignalsPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["signal-marketplace"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_signals(self, req, ctx):
+            return {"signals": []}
+
+        def activate_signal(self, req, ctx):
+            return {"deployments": []}
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        _vp(_SignalsPlatform())
+    billing_warnings = [w for w in caught if "supported_billing" in str(w.message)]
+    assert not billing_warnings, "supported_billing warning must not fire for non-sales platforms"
 
 
 def test_required_methods_per_specialism_pinned_for_sales() -> None:

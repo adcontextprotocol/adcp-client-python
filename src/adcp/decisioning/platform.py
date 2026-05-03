@@ -38,6 +38,14 @@ class DecisioningCapabilities:
     :param pricing_models: Pricing models the platform supports —
         ``'cpm'``, ``'cpc'``, ``'cpa'``, ``'cpcv'``. Surfaced on
         capabilities.
+    :param supported_billing: Billing models this seller supports.
+        Required by the AdCP spec when declaring ``media_buy`` support.
+        Valid values: ``'operator'`` (seller invoices the operator),
+        ``'agent'`` (agent consolidates billing), ``'advertiser'``
+        (seller invoices the advertiser directly). Sales-* adopters
+        MUST declare at least one. A :class:`UserWarning` fires at
+        server boot when a sales-* specialism is claimed but this is
+        empty; a future minor will make it a hard fail.
     :param creative_agents: Optional list of creative-agent endpoints
         the platform delegates creative review/generation to. Empty
         list means "no creative-agent integration; review is in-house."
@@ -64,6 +72,11 @@ class DecisioningCapabilities:
     specialisms: list[str] = field(default_factory=list)
     channels: list[str] = field(default_factory=list)
     pricing_models: list[str] = field(default_factory=list)
+    # Billing models this seller supports. Required by the AdCP spec
+    # (get-adcp-capabilities-response.json account.supported_billing,
+    # required: ["supported_billing"]) whenever a seller claims a sales-*
+    # specialism. Valid values: "operator", "agent", "advertiser".
+    supported_billing: list[str] = field(default_factory=list)
     creative_agents: list[Any] = field(default_factory=list)
     config: dict[str, Any] = field(default_factory=dict)
     governance_aware: bool = False

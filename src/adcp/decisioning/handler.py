@@ -77,6 +77,7 @@ from adcp.types import (
     DeleteCollectionListResponse,
     DeletePropertyListRequest,
     DeletePropertyListResponse,
+    GetAdcpCapabilitiesRequest,
     GetBrandIdentityRequest,
     GetBrandIdentitySuccessResponse,
     GetCollectionListRequest,
@@ -308,6 +309,48 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
     "content-standards": _CONTENT_STANDARDS_ADVERTISED_TOOLS,
     "property-lists": _PROPERTY_LISTS_ADVERTISED_TOOLS,
     "collection-lists": _COLLECTION_LISTS_ADVERTISED_TOOLS,
+}
+
+
+#: Maps each spec specialism slug to the ``supported_protocols`` value it
+#: contributes to the ``get_adcp_capabilities`` response. Used by the
+#: auto-generated :meth:`PlatformHandler.get_adcp_capabilities` shim so
+#: adopters don't have to manually derive which protocol domains their
+#: specialisms cover.
+#:
+#: Meta-claims (``signed-requests``, ``governance-aware-seller``) and
+#: sub-feature claims (``audience-sync``) are excluded — they don't
+#: directly introduce a standalone protocol domain. ``audience-sync`` gets
+#: ``media_buy`` from the co-claimed sales-* specialism; advertising
+#: ``media_buy`` without sales tools would be a buyer-visible lie.
+SPECIALISM_TO_PROTOCOL: dict[str, str] = {
+    # Sales archetypes → media_buy
+    "sales-non-guaranteed": "media_buy",
+    "sales-guaranteed": "media_buy",
+    "sales-broadcast-tv": "media_buy",
+    "sales-social": "media_buy",
+    "sales-proposal-mode": "media_buy",
+    "sales-catalog-driven": "media_buy",
+    # Signals
+    "signal-marketplace": "signals",
+    "signal-owned": "signals",
+    # audience-sync intentionally omitted: it's a sub-feature of media_buy,
+    # not a standalone protocol domain. A co-claimed sales-* specialism
+    # drives the media_buy declaration; advertising media_buy without
+    # sales tools would be a buyer-visible lie.
+    # Creative
+    "creative-template": "creative",
+    "creative-generative": "creative",
+    "creative-ad-server": "creative",
+    # Governance agents
+    "governance-spend-authority": "governance",
+    "governance-delivery-monitor": "governance",
+    # Brand rights
+    "brand-rights": "brand",
+    # Content / list governance features
+    "content-standards": "governance",
+    "property-lists": "governance",
+    "collection-lists": "governance",
 }
 
 
@@ -750,6 +793,49 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             state_reader=self._state_reader,
             resource_resolver=self._resource_resolver,
             buyer_agent=buyer_agent,
+        )
+
+    # ----- Protocol discovery -----
+
+    async def get_adcp_capabilities(
+        self,
+        params: GetAdcpCapabilitiesRequest | dict[str, Any],
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Auto-generate capabilities from :class:`DecisioningCapabilities`.
+
+        Derives ``supported_protocols`` from the platform's claimed
+        specialisms via :data:`SPECIALISM_TO_PROTOCOL` and projects
+        ``account.supported_billing`` from
+        :attr:`~adcp.decisioning.DecisioningCapabilities.supported_billing`
+        when non-empty. Adopters who need to advertise additional
+        capability details (pricing models, media-buy features, idempotency
+        declaration, etc.) should override this method and call
+        :func:`adcp.server.responses.capabilities_response` directly.
+        """
+        from adcp.server.responses import capabilities_response
+
+        caps = self._platform.capabilities
+
+        # Derive supported_protocols from claimed specialisms.
+        protocols: set[str] = set()
+        for specialism in caps.specialisms:
+            proto = SPECIALISM_TO_PROTOCOL.get(specialism)
+            if proto is not None:
+                protocols.add(proto)
+
+        # Project account.supported_billing when declared.
+        account: dict[str, Any] | None = None
+        if caps.supported_billing:
+            account = {"supported_billing": list(caps.supported_billing)}
+
+        # The spec requires adcp.idempotency. Default to unsupported — adopters
+        # with replay protection should override this method and pass
+        # idempotency=store.capability() from their IdempotencyStore.
+        return capabilities_response(
+            sorted(protocols),
+            account=account,
+            idempotency={"supported": False},
         )
 
     # ----- Sales tools -----

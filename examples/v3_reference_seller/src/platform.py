@@ -142,9 +142,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     """
 
     capabilities = DecisioningCapabilities(
-        specialisms=("sales-non-guaranteed",),
-        channels=("display", "video"),
-        pricing_models=("cpm",),
+        specialisms=["sales-non-guaranteed"],
+        channels=["display", "video"],
+        pricing_models=["cpm"],
+        supported_billing=["operator"],
     )
 
     def __init__(self, *, sessionmaker: async_sessionmaker) -> None:

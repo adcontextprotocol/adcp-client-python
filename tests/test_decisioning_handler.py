@@ -401,3 +401,116 @@ async def test_handler_extract_auth_info_from_dict(executor) -> None:
         ctx,
     )
     assert received_kind == ["bearer"]
+
+
+# ---- get_adcp_capabilities shim ----
+
+
+@pytest.mark.asyncio
+async def test_get_adcp_capabilities_projects_supported_billing(executor) -> None:
+    """PlatformHandler.get_adcp_capabilities auto-generates the response
+    from DecisioningCapabilities, including account.supported_billing."""
+
+    class _SalesPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            supported_billing=["operator"],
+        )
+        accounts = SingletonAccounts(account_id="acme")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "mb_1"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"deliveries": []}
+
+    handler = _make_handler(_SalesPlatform(), executor)
+    resp = await handler.get_adcp_capabilities({}, ToolContext())
+    assert isinstance(resp, dict)
+    assert "media_buy" in resp.get("supported_protocols", [])
+    assert resp.get("account", {}).get("supported_billing") == ["operator"]
+
+
+@pytest.mark.asyncio
+async def test_get_adcp_capabilities_omits_account_when_billing_empty(executor) -> None:
+    """When supported_billing is not declared, account block is omitted
+    (not emitted as account: {supported_billing: []}, which would fail
+    the schema's minItems: 1 constraint)."""
+
+    class _NoBillingPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["signal-marketplace"])
+        accounts = SingletonAccounts(account_id="acme")
+
+        def get_signals(self, req, ctx):
+            return {"signals": []}
+
+        def activate_signal(self, req, ctx):
+            return {"deployments": []}
+
+    handler = _make_handler(_NoBillingPlatform(), executor)
+    resp = await handler.get_adcp_capabilities({}, ToolContext())
+    assert isinstance(resp, dict)
+    assert "account" not in resp
+
+
+@pytest.mark.asyncio
+async def test_get_adcp_capabilities_response_is_schema_valid(executor) -> None:
+    """The auto-generated capabilities response passes JSON Schema
+    validation against the bundled get-adcp-capabilities-response.json
+    schema (schemas/cache/protocol/get-adcp-capabilities-response.json)."""
+    import json
+    import pathlib
+
+    import jsonschema
+
+    schema_path = (
+        pathlib.Path(__file__).parent.parent
+        / "schemas"
+        / "cache"
+        / "protocol"
+        / "get-adcp-capabilities-response.json"
+    )
+    with open(schema_path) as f:
+        schema = json.load(f)
+
+    class _SalesPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            supported_billing=["operator"],
+        )
+        accounts = SingletonAccounts(account_id="acme")
+
+        def get_products(self, req, ctx):
+            return {"products": []}
+
+        def create_media_buy(self, req, ctx):
+            return {"media_buy_id": "mb_1"}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {"media_buy_id": media_buy_id, "status": "active"}
+
+        def sync_creatives(self, req, ctx):
+            return {"creatives": []}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {"deliveries": []}
+
+    handler = _make_handler(_SalesPlatform(), executor)
+    resp = await handler.get_adcp_capabilities({}, ToolContext())
+
+    # Schema uses $ref relative paths — resolve against the schemas/cache dir
+    # so jsonschema can dereference cross-file $refs.
+    resolver = jsonschema.RefResolver(
+        base_uri=schema_path.parent.as_uri() + "/",
+        referrer=schema,
+    )
+    jsonschema.validate(resp, schema, resolver=resolver)

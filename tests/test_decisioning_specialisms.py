@@ -238,7 +238,8 @@ def test_signals_platform_can_compose_with_sales() -> None:
 
     class _ComposedPlatform(DecisioningPlatform):
         capabilities = DecisioningCapabilities(
-            specialisms=["sales-non-guaranteed", "signal-marketplace"]
+            specialisms=["sales-non-guaranteed", "signal-marketplace"],
+            supported_billing=["operator"],
         )
         accounts = SingletonAccounts(account_id="hello")
 

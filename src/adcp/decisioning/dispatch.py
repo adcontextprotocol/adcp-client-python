@@ -112,6 +112,16 @@ SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
     }
 )
 
+#: Sales specialisms — the subset of :data:`SPEC_SPECIALISM_ENUM` whose
+#: wire contracts include a media-buy billing relationship. Used by
+#: :func:`validate_platform` to warn when ``capabilities.supported_billing``
+#: is empty: the AdCP spec requires ``account.supported_billing`` in the
+#: ``get_adcp_capabilities`` response whenever a seller declares ``media_buy``
+#: support, and sales-* claims are the billing-relevant surface.
+SALES_SPECIALISMS: frozenset[str] = frozenset(
+    s for s in SPEC_SPECIALISM_ENUM if s.startswith("sales-")
+)
+
 
 # ---------------------------------------------------------------------------
 # REQUIRED_METHODS_PER_SPECIALISM — what each specialism must implement
@@ -630,6 +640,29 @@ def validate_platform(platform: DecisioningPlatform) -> None:
             },
         )
 
+    # supported_billing advisory (sales-* adopters).
+    # The AdCP spec requires account.supported_billing in the
+    # get_adcp_capabilities response for any seller declaring media_buy.
+    # Enforce via UserWarning now; a future minor will promote to AdcpError
+    # after adopters have had a deprecation window.
+    sales_specialisms_claimed = [
+        s for s in platform.capabilities.specialisms if s in SALES_SPECIALISMS
+    ]
+    if sales_specialisms_claimed and not platform.capabilities.supported_billing:
+        warnings.warn(
+            (
+                f"DecisioningPlatform claims sales-* specialism(s) "
+                f"{sorted(sales_specialisms_claimed)!r} but "
+                "capabilities.supported_billing is empty. The AdCP spec requires "
+                "account.supported_billing in the get_adcp_capabilities response "
+                "for media_buy sellers. Add supported_billing=[...] to your "
+                "DecisioningCapabilities — valid values: 'operator', 'agent', "
+                "'advertiser'. This will become a hard fail in a future minor."
+            ),
+            UserWarning,
+            stacklevel=2,
+        )
+
 
 def _has_overridden_method(platform: DecisioningPlatform, method_name: str) -> bool:
     """True when the platform subclass provides ``method_name``.
@@ -1145,6 +1178,7 @@ async def _project_workflow_handoff(
 
 __all__ = [
     "REQUIRED_METHODS_PER_SPECIALISM",
+    "SALES_SPECIALISMS",
     "SPEC_SPECIALISM_ENUM",
     "compose_caller_identity",
     "validate_platform",

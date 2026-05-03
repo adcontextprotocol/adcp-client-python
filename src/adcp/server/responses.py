@@ -55,6 +55,7 @@ def capabilities_response(
     features: dict[str, Any] | None = None,
     idempotency: dict[str, Any] | None = None,
     compliance_testing: dict[str, Any] | None = None,
+    account: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a get_adcp_capabilities response.
 
@@ -89,6 +90,15 @@ def capabilities_response(
         compliance_testing: Optional top-level ``compliance_testing`` block
             to advertise compliance-testing capabilities. When provided,
             emitted as a sibling of ``adcp`` in the response.
+        account: Optional ``account`` capabilities block. When the seller
+            supports ``media_buy``, the AdCP spec requires this object and
+            its ``supported_billing`` field (values: ``"operator"``,
+            ``"agent"``, ``"advertiser"``). Pass
+            ``{"supported_billing": ["operator"]}`` (or the appropriate
+            billing model(s)) for any media-buy–capable server. The
+            :class:`~adcp.decisioning.DecisioningPlatform` framework
+            auto-populates this from
+            :attr:`~adcp.decisioning.DecisioningCapabilities.supported_billing`.
 
     Example::
 
@@ -129,6 +139,8 @@ def capabilities_response(
         resp["features"] = features
     if compliance_testing is not None:
         resp["compliance_testing"] = compliance_testing
+    if account is not None:
+        resp["account"] = account
     return resp
 
 
