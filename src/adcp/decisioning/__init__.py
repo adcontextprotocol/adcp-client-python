@@ -121,6 +121,13 @@ from adcp.decisioning.property_list import (
     resolve_property_list,
     validate_property_list_config,
 )
+from adcp.decisioning.proposal_manager import (
+    MockProposalManager,
+    ProposalCapabilities,
+    ProposalManager,
+    SalesSpecialism,
+)
+from adcp.decisioning.recipe import Recipe
 from adcp.decisioning.refine import (
     RefinementOutcome,
     RefinementStatus,
@@ -313,6 +320,7 @@ __all__ = [
     "MediaBuyNotFoundError",
     "MediaBuyStore",
     "MockAdServer",
+    "MockProposalManager",
     "NoAuth",
     "OAuthCredential",
     "PermissionDeniedError",
@@ -320,6 +328,8 @@ __all__ = [
     "PlatformRouter",
     "PostgresTaskRegistry",
     "Proposal",
+    "ProposalCapabilities",
+    "ProposalManager",
     "PropertyList",
     "PropertyListFetcher",
     "PropertyListReference",
@@ -339,11 +349,13 @@ __all__ = [
     "project_refine_response",
     "RateLimitedBuyerAgentRegistry",
     "RateLimitedError",
+    "Recipe",
     "RequestContext",
     "ResolveContext",
     "ResourceResolver",
     "SalesPlatform",
     "SalesResult",
+    "SalesSpecialism",
     "ServiceUnavailableError",
     "SignalsPlatform",
     "SingletonAccounts",

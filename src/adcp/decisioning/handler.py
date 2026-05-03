@@ -162,6 +162,7 @@ if TYPE_CHECKING:
 
     from adcp.decisioning.platform import DecisioningPlatform
     from adcp.decisioning.property_list import PropertyListFetcher
+    from adcp.decisioning.proposal_manager import ProposalManager
     from adcp.decisioning.registry import BuyerAgent, BuyerAgentRegistry
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
@@ -708,6 +709,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         buyer_agent_registry: BuyerAgentRegistry | None = None,
         config_store: ProductConfigStore | None = None,
         property_list_fetcher: PropertyListFetcher | None = None,
+        proposal_manager: ProposalManager | None = None,
     ) -> None:
         super().__init__()
         self._platform = platform
@@ -721,6 +723,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._buyer_agent_registry = buyer_agent_registry
         self._config_store = config_store
         self._property_list_fetcher = property_list_fetcher
+        self._proposal_manager = proposal_manager
 
         # Cache whether the platform's create_media_buy accepts 'configs'
         # so we only pay the inspect.signature cost at construction time.
@@ -1068,10 +1071,24 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: GetProductsRequest,
         context: ToolContext | None = None,
     ) -> GetProductsResponse:
-        """Invoke the platform's ``get_products`` method and apply fields projection.
+        """Invoke ``get_products`` on the wired ProposalManager when present,
+        else fall through to the platform's ``get_products`` method.
+
+        Routing precedence:
+
+        1. If a :class:`ProposalManager` is wired AND
+           ``params.buying_mode == 'refine'`` AND the manager declares
+           :attr:`ProposalCapabilities.refine` AND implements
+           ``refine_products`` → route to ``proposal_manager.refine_products``.
+        2. If a :class:`ProposalManager` is wired (any buying_mode) →
+           route to ``proposal_manager.get_products``.
+        3. Otherwise (no proposal_manager wired) → fall through to
+           ``platform.get_products``. Existing adopters who haven't
+           wired a ProposalManager keep their current behaviour
+           unchanged — backward-compat by construction.
 
         When ``params.fields`` is set the framework drops unrequested product
-        fields after the platform method returns, always retaining the eight
+        fields after the method returns, always retaining the eight
         schema-required fields.  When ``params.fields`` is ``None`` the
         response passes through unchanged.
         """
@@ -1096,7 +1113,12 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             if buying_mode_attr is not None
             else None
         )
-        if mode == "refine":
+        if mode == "refine" and self._proposal_manager is None:
+            # Refine routing through the platform is only consulted when
+            # no ProposalManager is wired. With a ProposalManager wired,
+            # the refine decision is owned by the proposal-side surface
+            # (selected via _select_proposal_method below) and the
+            # platform's refine_get_products() is irrelevant.
             from adcp.decisioning.types import AdcpError
 
             if not has_refine_support(self._platform):
@@ -1124,9 +1146,19 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # AdcpErrors propagate unmodified; only the platform call is deadline-
         # wrapped.
         deadline = resolve_time_budget(params.time_budget)
+
+        target: Any
+        method_name: str
+        if self._proposal_manager is not None:
+            target = self._proposal_manager
+            method_name = self._select_proposal_method(params)
+        else:
+            target = self._platform
+            method_name = "get_products"
+
         coro = _invoke_platform_method(
-            self._platform,
-            "get_products",
+            target,
+            method_name,
             params,
             ctx,
             executor=self._executor,
@@ -1184,6 +1216,40 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if params.fields:
             response = _project_product_fields(response, params.fields)
         return response
+
+    def _select_proposal_method(self, params: GetProductsRequest) -> str:
+        """Choose between ``get_products`` and ``refine_products`` on the
+        wired ProposalManager.
+
+        Refine is dispatched only when all three conditions hold:
+
+        1. The request's ``buying_mode`` is ``'refine'``.
+        2. The manager's ``capabilities.refine`` flag is True.
+        3. The manager subclass implements ``refine_products``
+           (``hasattr`` covers the Protocol's "present-or-absent"
+           semantics).
+
+        Otherwise routes to ``get_products``. Adopters whose
+        ``get_products`` handler also handles refine internally keep
+        working without declaring the refine capability.
+        """
+        manager = self._proposal_manager
+        if manager is None:
+            return "get_products"
+        buying_mode = getattr(params, "buying_mode", None)
+        # ``buying_mode`` may be a string or a generated enum (the
+        # Pydantic model coerces). Normalize via ``getattr(.., 'value',
+        # buying_mode)`` so both shapes compare cleanly.
+        buying_mode_str = getattr(buying_mode, "value", buying_mode)
+        if buying_mode_str != "refine":
+            return "get_products"
+        caps = getattr(manager, "capabilities", None)
+        refine_supported = bool(getattr(caps, "refine", False))
+        if not refine_supported:
+            return "get_products"
+        if not hasattr(manager, "refine_products"):
+            return "get_products"
+        return "refine_products"
 
     async def create_media_buy(  # type: ignore[override]
         self,

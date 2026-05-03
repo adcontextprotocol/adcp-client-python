@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from adcp.decisioning.implementation_config import ProductConfigStore
     from adcp.decisioning.platform import DecisioningPlatform
     from adcp.decisioning.property_list import PropertyListFetcher
+    from adcp.decisioning.proposal_manager import ProposalManager
     from adcp.decisioning.registry import BuyerAgentRegistry
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
@@ -87,6 +88,7 @@ def create_adcp_server_from_platform(
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    proposal_manager: ProposalManager | None = None,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -176,6 +178,17 @@ def create_adcp_server_from_platform(
         (avoid duplicate delivery; idempotency-key dedup at the
         receiver would handle it but explicit suppression matches the
         v5 manual-emit posture for adopters mid-migration).
+
+    :param proposal_manager: Optional :class:`ProposalManager` —
+        the v1 two-platform composition. When wired, the framework
+        routes ``get_products`` (and refine-mode ``get_products``
+        when capability-gated) to the manager instead of the
+        platform's own ``get_products`` method. When ``None``
+        (default), all ``get_products`` requests fall through to
+        ``platform.get_products`` — backward-compatible with every
+        existing adopter that hasn't migrated to the two-platform
+        composition yet. See
+        ``docs/proposals/product-architecture.md``.
 
     :raises ValueError: when ``executor`` and ``thread_pool_size`` are
         both supplied (D5 mutually-exclusive validation).
@@ -278,6 +291,7 @@ def create_adcp_server_from_platform(
         buyer_agent_registry=buyer_agent_registry,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        proposal_manager=proposal_manager,
     )
 
     # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
@@ -341,6 +355,7 @@ def serve(
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     config_store: ProductConfigStore | None = None,
     property_list_fetcher: PropertyListFetcher | None = None,
+    proposal_manager: ProposalManager | None = None,
     advertise_all: bool = False,
     mock_ad_server: Any | None = None,
     enable_debug_endpoints: bool = False,
@@ -420,6 +435,7 @@ def serve(
         buyer_agent_registry=buyer_agent_registry,
         config_store=config_store,
         property_list_fetcher=property_list_fetcher,
+        proposal_manager=proposal_manager,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account
