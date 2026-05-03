@@ -689,7 +689,7 @@ async def test_registry_miss_raises_permission_denied_no_details(
             tool_ctx,
         )
     assert exc_info.value.code == "PERMISSION_DENIED"
-    assert exc_info.value.recovery == "terminal"
+    assert exc_info.value.recovery == "correctable"
     assert exc_info.value.details == {}
 
 
@@ -697,11 +697,10 @@ async def test_registry_miss_raises_permission_denied_no_details(
 async def test_suspended_agent_raises_permission_denied_terminal(executor) -> None:
     """Status=suspended is rejected as ``PERMISSION_DENIED`` with
     ``details.scope="agent"`` + ``details.status="suspended"``.
-    Recovery is ``terminal`` — the framework treats commercial-
-    identity denials as out-of-band-resolution (operator onboarding)
-    rather than buyer-side correction; this overrides the spec's
-    ``enumMetadata`` default of ``correctable`` for the
-    ``PERMISSION_DENIED`` code."""
+    Wire-level ``recovery`` is ``correctable`` per the spec's
+    ``enumMetadata`` for ``PERMISSION_DENIED``; the
+    ``details.scope == "agent"`` discriminator is the signal callers
+    surface to a human operator rather than auto-retry."""
     from adcp.types import GetProductsRequest
 
     suspended = BuyerAgent(
@@ -732,7 +731,7 @@ async def test_suspended_agent_raises_permission_denied_terminal(executor) -> No
             tool_ctx,
         )
     assert exc_info.value.code == "PERMISSION_DENIED"
-    assert exc_info.value.recovery == "terminal"
+    assert exc_info.value.recovery == "correctable"
     assert exc_info.value.details["scope"] == "agent"
     assert exc_info.value.details["status"] == "suspended"
     assert exc_info.value.details["agent_url"] == "https://suspended/"
@@ -741,9 +740,11 @@ async def test_suspended_agent_raises_permission_denied_terminal(executor) -> No
 @pytest.mark.asyncio
 async def test_blocked_agent_raises_permission_denied_terminal(executor) -> None:
     """Status=blocked is rejected as ``PERMISSION_DENIED`` with
-    ``details.scope="agent"`` + ``details.status="blocked"``,
-    ``recovery="terminal"`` — buyer cannot retry their way out,
-    must contact seller directly."""
+    ``details.scope="agent"`` + ``details.status="blocked"``.
+    Wire-level ``recovery`` is ``correctable`` per the spec's
+    ``enumMetadata``; the ``details.scope == "agent"`` discriminator
+    signals callers to surface to a human operator rather than
+    auto-retry."""
     from adcp.types import GetProductsRequest
 
     blocked = BuyerAgent(
@@ -774,7 +775,7 @@ async def test_blocked_agent_raises_permission_denied_terminal(executor) -> None
             tool_ctx,
         )
     assert exc_info.value.code == "PERMISSION_DENIED"
-    assert exc_info.value.recovery == "terminal"
+    assert exc_info.value.recovery == "correctable"
     assert exc_info.value.details["scope"] == "agent"
     assert exc_info.value.details["status"] == "blocked"
 

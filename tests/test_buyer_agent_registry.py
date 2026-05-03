@@ -296,7 +296,7 @@ def test_validate_billing_rejects_passthrough_only_with_agent_billing() -> None:
         validate_billing_for_agent(requested_billing="agent", agent=agent)
     assert exc.value.code == "BILLING_NOT_PERMITTED_FOR_AGENT"
     assert exc.value.field == "billing"
-    assert exc.value.recovery == "terminal"
+    assert exc.value.recovery == "correctable"
     details = exc.value.details
     # ``rejected_billing`` is required.
     assert details["rejected_billing"] == "agent"

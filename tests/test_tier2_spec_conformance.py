@@ -201,7 +201,7 @@ async def test_suspended_carries_scope_and_status_details(executor) -> None:
             ToolContext(metadata={"adcp.auth_info": _signed_auth_info("https://s/")}),
         )
     assert exc.value.code == "PERMISSION_DENIED"
-    assert exc.value.recovery == "terminal"
+    assert exc.value.recovery == "correctable"
     assert exc.value.details["scope"] == "agent"
     assert exc.value.details["status"] == "suspended"
 
@@ -222,7 +222,7 @@ async def test_blocked_carries_scope_and_status_details(executor) -> None:
             ToolContext(metadata={"adcp.auth_info": _signed_auth_info("https://b/")}),
         )
     assert exc.value.code == "PERMISSION_DENIED"
-    assert exc.value.recovery == "terminal"
+    assert exc.value.recovery == "correctable"
     assert exc.value.details["scope"] == "agent"
     assert exc.value.details["status"] == "blocked"
 
@@ -252,7 +252,7 @@ async def test_registry_miss_omits_details(executor) -> None:
             ToolContext(metadata={"adcp.auth_info": _signed_auth_info("https://x/")}),
         )
     assert exc.value.code == "PERMISSION_DENIED"
-    assert exc.value.recovery == "terminal"
+    assert exc.value.recovery == "correctable"
     # The critical no-leak property: NO scope, NO status, NO agent_url.
     assert exc.value.details == {}
 
@@ -324,7 +324,7 @@ def test_billing_validation_carries_rejected_billing() -> None:
     with pytest.raises(AdcpError) as exc:
         validate_billing_for_agent(requested_billing="agent", agent=agent)
     assert exc.value.code == "BILLING_NOT_PERMITTED_FOR_AGENT"
-    assert exc.value.recovery == "terminal"
+    assert exc.value.recovery == "correctable"
     assert exc.value.details["rejected_billing"] == "agent"
 
 

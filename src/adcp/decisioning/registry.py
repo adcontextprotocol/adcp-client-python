@@ -382,7 +382,7 @@ def validate_billing_for_agent(
             "durable store."
         ),
         field="billing",
-        recovery="terminal",
+        recovery="correctable",
         details=details,
     )
 

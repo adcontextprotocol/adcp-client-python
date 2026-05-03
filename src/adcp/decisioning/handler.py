@@ -359,13 +359,13 @@ async def _resolve_buyer_agent(
     and identical audit/metric side-effects is the next step.
 
     :raises AdcpError: ``PERMISSION_DENIED`` (all four denial paths).
-        Recovery is ``terminal`` for the commercial-identity gate —
-        the buyer cannot retry their way out of a commercial-state
-        rejection. Note this overrides the spec's ``enumMetadata``
-        default of ``correctable`` for ``PERMISSION_DENIED``; the
-        framework treats commercial-identity denials as terminal
-        because the resolution path is operator-onboarding, not
-        request-side correction.
+        Recovery is ``correctable`` per the spec's ``enumMetadata``
+        for ``PERMISSION_DENIED``. The wire-level recovery hint is
+        independent of the resolution channel: the buyer cannot
+        auto-retry a commercial-identity rejection, but the
+        ``details.scope == "agent"`` discriminator (when present) is
+        the signal callers surface to a human operator rather than
+        loop on the request.
     """
     from adcp.decisioning.registry import (
         ApiKeyCredential,
@@ -421,7 +421,7 @@ async def _resolve_buyer_agent(
         raise AdcpError(
             "PERMISSION_DENIED",
             message=_denied_message,
-            recovery="terminal",
+            recovery="correctable",
         )
 
     if agent.status == "active":
@@ -430,7 +430,7 @@ async def _resolve_buyer_agent(
         raise AdcpError(
             "PERMISSION_DENIED",
             message=_denied_message,
-            recovery="terminal",
+            recovery="correctable",
             details={
                 "scope": "agent",
                 "status": "suspended",
@@ -441,7 +441,7 @@ async def _resolve_buyer_agent(
         raise AdcpError(
             "PERMISSION_DENIED",
             message=_denied_message,
-            recovery="terminal",
+            recovery="correctable",
             details={
                 "scope": "agent",
                 "status": "blocked",
@@ -460,7 +460,7 @@ async def _resolve_buyer_agent(
     raise AdcpError(
         "PERMISSION_DENIED",
         message=_denied_message,
-        recovery="terminal",
+        recovery="correctable",
     )
 
 
