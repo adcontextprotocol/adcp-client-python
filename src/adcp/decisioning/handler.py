@@ -34,6 +34,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
+from adcp.decisioning._get_products_helpers import _project_product_fields
 from adcp.decisioning.context import AuthInfo
 from adcp.decisioning.dispatch import (
     _build_request_context,
@@ -1017,10 +1018,17 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: GetProductsRequest,
         context: ToolContext | None = None,
     ) -> GetProductsResponse:
+        """Invoke the platform's ``get_products`` method and apply fields projection.
+
+        When ``params.fields`` is set the framework drops unrequested product
+        fields after the platform method returns, always retaining the eight
+        schema-required fields.  When ``params.fields`` is ``None`` the
+        response passes through unchanged.
+        """
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
-        return cast(
+        response = cast(
             "GetProductsResponse",
             await _invoke_platform_method(
                 self._platform,
@@ -1031,6 +1039,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 registry=self._registry,
             ),
         )
+        if params.fields:
+            response = _project_product_fields(response, params.fields)
+        return response
 
     async def create_media_buy(  # type: ignore[override]
         self,
