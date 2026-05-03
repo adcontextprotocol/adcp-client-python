@@ -242,7 +242,7 @@ class UpstreamHttpClient:
         headers: Mapping[str, str] | None,
         auth_context: AuthContext | None,
         not_found_code: str,
-    ) -> dict[str, Any] | None:
+    ) -> Any:
         auth_header = await _resolve_auth_header(self._auth, auth_context)
         merged: dict[str, str] = {**self._default_headers, **auth_header}
         if headers:
@@ -268,7 +268,7 @@ class UpstreamHttpClient:
         )
         if response.status_code == 404 and self._treat_404_as_none:
             return None
-        if response.status_code >= 400:
+        if response.status_code >= 300:
             try:
                 body_text = response.text
             except Exception:  # pragma: no cover — defensive
@@ -282,7 +282,7 @@ class UpstreamHttpClient:
             )
         if response.status_code == 204 or not response.content:
             return {}
-        parsed: dict[str, Any] = response.json()
+        parsed: Any = response.json()
         return parsed
 
     async def get(
@@ -293,7 +293,7 @@ class UpstreamHttpClient:
         headers: Mapping[str, str] | None = None,
         auth_context: AuthContext | None = None,
         not_found_code: str = _DEFAULT_NOT_FOUND_CODE,
-    ) -> dict[str, Any] | None:
+    ) -> Any:
         """``GET path``. Returns parsed JSON, or ``None`` on 404 when ``treat_404_as_none``."""
         return await self._request(
             "GET",
@@ -314,7 +314,7 @@ class UpstreamHttpClient:
         headers: Mapping[str, str] | None = None,
         auth_context: AuthContext | None = None,
         not_found_code: str = _DEFAULT_NOT_FOUND_CODE,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """``POST path`` with JSON body. Returns parsed JSON."""
         result = await self._request(
             "POST",
@@ -344,7 +344,7 @@ class UpstreamHttpClient:
         headers: Mapping[str, str] | None = None,
         auth_context: AuthContext | None = None,
         not_found_code: str = _DEFAULT_NOT_FOUND_CODE,
-    ) -> dict[str, Any]:
+    ) -> Any:
         """``PUT path`` with JSON body. Returns parsed JSON."""
         result = await self._request(
             "PUT",
@@ -371,7 +371,7 @@ class UpstreamHttpClient:
         headers: Mapping[str, str] | None = None,
         auth_context: AuthContext | None = None,
         not_found_code: str = _DEFAULT_NOT_FOUND_CODE,
-    ) -> dict[str, Any] | None:
+    ) -> Any:
         """``DELETE path``. Returns parsed JSON, or ``None`` on 404 when ``treat_404_as_none``."""
         return await self._request(
             "DELETE",
