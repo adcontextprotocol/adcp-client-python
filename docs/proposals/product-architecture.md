@@ -277,19 +277,56 @@ class PrebidProposalManager(ProposalManager):
 Tenant config is one ProposalManager + a registry of DecisioningPlatforms
 keyed by recipe kind.
 
-**Shape 3 — Naive (programmatic non-guaranteed).**
+**Shape 3 — Mock-backed (the v1 default for new adopters).**
 
-The simplest end. ProposalManager just enumerates products from a
-catalog; recipes are stub configurations the DecisioningPlatform reads
-and executes without elaborate assembly logic. Brian's framing: *"a
-naive implementation would simply say 'I can just basically get the
-ingredients.'"*
+The naive case is **already implemented** — by the mock seller backend
+(`bin/adcp.js mock-server <specialism>`) the lifecycle-state work
+introduced in Phase 2. The mock-server returns product fixtures with
+trivial recipes; the SDK doesn't need to ship a separate
+`SimpleCatalogProposalManager` reference impl.
 
-This is the on-ramp for new adopters. The SDK should ship a default
-`SimpleCatalogProposalManager` that takes a static product list and
-emits trivial recipes — adopters who want sophisticated assembly
-implement their own; everyone else gets a working proposal layer
-for free.
+**v1 of ProposalManager is just the wiring that forwards to the mock
+backend.** Symmetric with DecisioningPlatform's `upstream_for(ctx)`
+mock-mode dispatch: adopter declares a `mock_upstream_url`, framework
+forwards `get_products` / `refine` to that endpoint, recipes flow back.
+Same on-ramp pattern, applied to the proposal side.
+
+```python
+class MockProposalManager(ProposalManager):
+    """v1 forwarder. Dispatches get_products / refine to a running
+    bin/adcp.js mock-server. Adopters who don't yet have their own
+    proposal logic point at this; the mock fixtures provide a working
+    catalog with stub recipes."""
+    capabilities = ProposalCapabilities(
+        sales_specialism="sales-non-guaranteed",
+    )
+    mock_upstream_url: ClassVar[str | None] = None
+
+    async def get_products(self, req, ctx):
+        client = self.proposal_upstream_for(ctx)
+        return await client.forward_get_products(req)
+```
+
+The on-ramp story: adopters who don't yet have proposal logic of their
+own start with `MockProposalManager` pointed at the appropriate
+mock-server specialism. Their first working seller agent runs against
+the mock fixtures with zero adopter code on the proposal side. They
+implement their own ProposalManager incrementally as they replace
+mock-served slices with real assembly logic.
+
+The two platforms run in independent modes:
+
+| ProposalManager | DecisioningPlatform | Use case |
+|---|---|---|
+| Mock | Mock | Storyboard / conformance / cold-start dev |
+| Mock | Live/sandbox | Adopter has their adapter ready before proposal logic |
+| Live/sandbox | Mock | Adopter has proposal logic but no real upstream yet |
+| Live/sandbox | Live/sandbox | Production |
+
+This is the same pattern Phase 2 established for DecisioningPlatform
+mock-mode, applied symmetrically to the proposal side. **What the SDK
+ships as v1 is the framework wiring; the catalog content lives in the
+mock-server.**
 
 ### How recipes are shared between the two platforms
 
@@ -415,9 +452,9 @@ Two recognized flavors, naming matches the spec specialisms:
   adapter does the upstream work. The naive on-ramp shape.
 
 Adopters declare which they implement via `sales_specialism`. The
-SDK's reference `SimpleCatalogProposalManager` defaults to
-`sales-non-guaranteed` — adopters opting into guaranteed proposal
-flow build on top.
+SDK's v1 reference impl is `MockProposalManager` (forwards to
+`bin/adcp.js mock-server`); adopters opting into guaranteed proposal
+flow implement their own ProposalManager.
 
 (Other AdCP specialisms — creative, signals, governance — don't have
 a proposal-shaped lifecycle; they don't need a ProposalManager.)
@@ -568,10 +605,12 @@ These come out of the four-layer model + two-platform composition.
   Implementation detail of Path B. Should land alongside
   `ProposalManager`.
 
-* **`SimpleCatalogProposalManager` reference impl.** The naive
-  on-ramp. Takes a static product list, emits trivial recipes.
-  Lets adopters who don't yet have proposal logic skip ahead to a
-  working integration.
+* **`MockProposalManager` (v1 default).** Forwarder that dispatches
+  `get_products` / `refine` to the running `bin/adcp.js mock-server`
+  for the relevant specialism. Symmetric with DecisioningPlatform's
+  Phase 2 mock-mode dispatch. Doesn't ship a separate static-catalog
+  impl — the mock-server already provides product fixtures, so v1
+  ProposalManager work is just the framework wiring.
 
 * **Capability-overlap declaration on Recipe.** Layer 3 seam.
   Recipe carries a `capability_overlap: ProductCapabilityOverlap`
