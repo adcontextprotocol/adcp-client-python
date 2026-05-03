@@ -22,7 +22,7 @@ import asyncio
 import os
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from src.models import Account, Base, BuyerAgent, Tenant
+from src.models import Account, Base, BuyerAgent, Creative, Tenant
 
 
 async def main() -> None:
@@ -99,8 +99,49 @@ async def main() -> None:
                     ),
                 ]
             )
+            await session.flush()
+            session.add_all(
+                [
+                    Creative(
+                        id="cr_demo_1",
+                        tenant_id="t_acme",
+                        account_id="a_acme_1",
+                        creative_id="signed-300x250-spring",
+                        name="Spring 300x250 Display",
+                        format_id={
+                            "agent_url": "https://reference.adcp.org",
+                            "id": "display_300x250",
+                        },
+                        status="approved",
+                        manifest_json={
+                            "creative_id": "signed-300x250-spring",
+                            "name": "Spring 300x250 Display",
+                            "format_id": {
+                                "agent_url": "https://reference.adcp.org",
+                                "id": "display_300x250",
+                            },
+                        },
+                    ),
+                    Creative(
+                        id="cr_demo_2",
+                        tenant_id="t_acme",
+                        account_id="a_acme_2",
+                        creative_id="bearer-video-30s",
+                        name="Bearer Buyer Video 30s",
+                        format_id={
+                            "agent_url": "https://reference.adcp.org",
+                            "id": "video_16x9_30s",
+                        },
+                        status="approved",
+                        manifest_json={
+                            "creative_id": "bearer-video-30s",
+                            "name": "Bearer Buyer Video 30s",
+                        },
+                    ),
+                ]
+            )
 
-    print("Seeded: 2 tenants, 3 buyer agents, 2 accounts.")
+    print("Seeded: 2 tenants, 3 buyer agents, 2 accounts, 2 creatives.")
     print("Hit: http://acme.localhost:3001/.well-known/agent.json")
     print("Hit: http://acme.localhost:3001/mcp")
 

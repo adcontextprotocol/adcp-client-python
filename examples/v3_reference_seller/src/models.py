@@ -330,6 +330,16 @@ class MediaBuy(Base):
     request_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     response_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
+    #: Per-buy invoice override. When the buyer supplies
+    #: ``CreateMediaBuyRequest.invoice_recipient`` (a
+    #: :class:`adcp.types.BusinessEntity`), the seller persists the
+    #: full payload here — bank details included — so invoicing can
+    #: route to a recipient different from the account default. The
+    #: column is response-projected through
+    #: :func:`adcp.decisioning.project_business_entity_for_response`
+    #: before serialization (write-only ``bank``).
+    invoice_recipient: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )
@@ -344,4 +354,117 @@ class MediaBuy(Base):
     )
 
 
-__all__ = ["Account", "Base", "BuyerAgent", "MediaBuy", "Tenant"]
+# ---------------------------------------------------------------------------
+# Creative — seller-side view of buyer-uploaded creatives
+# ---------------------------------------------------------------------------
+
+
+class Creative(Base):
+    """Seller-side projection of a buyer-uploaded creative.
+
+    Populated by ``sync_creatives``; surfaced by ``list_creatives``.
+    Idempotency is keyed on ``(tenant_id, creative_id)`` so a buyer
+    re-syncing the same creative under the same wire id updates the
+    existing row in place.
+
+    The full creative manifest (assets, format parameters, tags) is
+    persisted in ``manifest_json`` — production adopters split the hot
+    fields (format_id, status) into typed columns and route the rest
+    to a creative-management service.
+    """
+
+    __tablename__ = "creatives"
+
+    id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default=lambda: f"cr_{uuid.uuid4().hex[:12]}"
+    )
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    account_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
+
+    #: Wire ``creative_id`` provided by the buyer.
+    creative_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    #: Format reference — stored as the structured object
+    #: ``{agent_url, id}`` from the spec. We persist the JSON shape so
+    #: adopters can layer on parameterized template formats without a
+    #: column migration.
+    format_id: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+    #: Spec ``CreativeStatus`` — pending_review / approved / rejected /
+    #: archived / processing.
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="approved")
+
+    #: Full creative manifest (assets, tags, ext) — projection-time
+    #: shape kept opaque so spec evolution doesn't force migrations.
+    manifest_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+    )
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "creative_id", name="creatives_tenant_creative_uk"),
+        Index("creatives_tenant_idx", "tenant_id"),
+        Index("creatives_account_idx", "account_id"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# PerformanceFeedback — buyer-supplied performance signal
+# ---------------------------------------------------------------------------
+
+
+class PerformanceFeedback(Base):
+    """Persisted record of a ``provide_performance_feedback`` call.
+
+    Buyer-supplied attribution / measurement signals route into this
+    table for downstream optimization. ``value`` carries the full
+    request payload (performance_index, metric_type, package_id,
+    creative_id, measurement_period) so adopters can backfill new
+    dimensions without column migrations.
+    """
+
+    __tablename__ = "performance_feedback"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    media_buy_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("media_buys.id", ondelete="CASCADE"), nullable=False
+    )
+
+    #: Spec ``MetricType`` — overall_performance / conversion_rate /
+    #: ctr / brand_safety / etc.
+    feedback_type: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    #: Full request payload (performance_index, period bounds, source).
+    value: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+
+    __table_args__ = (
+        Index("performance_feedback_tenant_idx", "tenant_id"),
+        Index("performance_feedback_media_buy_idx", "media_buy_id"),
+    )
+
+
+__all__ = [
+    "Account",
+    "Base",
+    "BuyerAgent",
+    "Creative",
+    "MediaBuy",
+    "PerformanceFeedback",
+    "Tenant",
+]
