@@ -89,13 +89,15 @@ CREATIVE_ASSET_TRANSITIONS: Mapping[str, frozenset[str]] = {
     "processing": frozenset({"pending_review", "approved", "rejected"}),
     # Awaiting human or automated policy review.
     "pending_review": frozenset({"approved", "rejected"}),
-    # Approved creatives can be archived (buyer-initiated retirement).
-    "approved": frozenset({"archived"}),
-    # Rejected creatives can be archived but not re-reviewed in place
-    # (the buyer resubmits a new asset).
-    "rejected": frozenset({"archived"}),
-    # Terminal — archived assets are out of rotation.
-    "archived": frozenset(),
+    # Approved creatives can be archived OR sent back to review by the
+    # seller (re-review per ``creative-status.json``).
+    "approved": frozenset({"archived", "pending_review"}),
+    # Rejected is NOT terminal per spec — buyer fixes the issue and
+    # resubmits via sync_creatives, which returns the creative to
+    # ``processing``. Also archivable.
+    "rejected": frozenset({"archived", "processing"}),
+    # Archived can be unarchived back to approved per spec.
+    "archived": frozenset({"approved"}),
 }
 
 

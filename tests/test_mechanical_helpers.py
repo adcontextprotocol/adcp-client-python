@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from adcp.decisioning import (
-    CREATIVE_ASSET_TRANSITIONS,
     MEDIA_BUY_TRANSITIONS,
     AccountNotFoundError,
     AdcpError,
@@ -98,9 +97,6 @@ class TestMediaBuyTransitions:
 
 
 class TestCreativeTransitions:
-    def test_table_archived_is_terminal(self) -> None:
-        assert CREATIVE_ASSET_TRANSITIONS["archived"] == frozenset()
-
     def test_processing_to_pending_review_legal(self) -> None:
         assert_creative_transition("processing", "pending_review")
 
@@ -117,20 +113,33 @@ class TestCreativeTransitions:
     def test_approved_to_archived_legal(self) -> None:
         assert_creative_transition("approved", "archived")
 
-    def test_archived_terminal_raises(self) -> None:
-        with pytest.raises(AdcpError) as exc_info:
-            assert_creative_transition("archived", "approved")
-        assert exc_info.value.code == "INVALID_STATE"
-        assert exc_info.value.recovery == "correctable"
+    def test_approved_to_pending_review_legal(self) -> None:
+        # Per spec: approved creatives may be sent back to review by the
+        # seller (re-review). Was wrongly terminal in initial PR.
+        assert_creative_transition("approved", "pending_review")
+
+    def test_rejected_to_processing_legal(self) -> None:
+        # Per spec: rejected is NOT terminal — buyer fixes and resubmits
+        # via sync_creatives, which returns the creative to processing.
+        assert_creative_transition("rejected", "processing")
+
+    def test_archived_to_approved_legal(self) -> None:
+        # Per spec: archived may be unarchived back to approved.
+        assert_creative_transition("archived", "approved")
 
     def test_approved_to_processing_illegal(self) -> None:
         with pytest.raises(AdcpError) as exc_info:
             assert_creative_transition("approved", "processing")
         assert exc_info.value.code == "INVALID_STATE"
 
+    def test_pending_review_to_processing_illegal(self) -> None:
+        with pytest.raises(AdcpError) as exc_info:
+            assert_creative_transition("pending_review", "processing")
+        assert exc_info.value.code == "INVALID_STATE"
+
     def test_creative_id_propagated_to_details(self) -> None:
         with pytest.raises(AdcpError) as exc_info:
-            assert_creative_transition("archived", "approved", creative_id="cr_abc")
+            assert_creative_transition("approved", "processing", creative_id="cr_abc")
         assert exc_info.value.details["creative_id"] == "cr_abc"
 
 
