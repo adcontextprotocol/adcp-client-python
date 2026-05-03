@@ -25,6 +25,7 @@ behavior the adapter or wire serializer could silently depend on.
 from __future__ import annotations
 
 import sys
+import warnings
 from typing import Any
 
 from a2a import types as pb
@@ -62,26 +63,45 @@ __all__ = [
 ]
 
 
+def _proto_alias(cls: Any, src: str, dst: str) -> None:
+    """Set cls.dst = cls.src, warning independently per alias if src is absent.
+
+    Guarding each alias independently avoids partial-patch state: if one
+    source attribute is missing the rest still land, and each missing
+    attribute gets its own actionable warning rather than a group abort.
+    """
+    if not hasattr(cls, src):
+        warnings.warn(
+            f"a2a_compat_shim: {cls.__name__}.{src} not found — "
+            "verify a2a-sdk>=1.0.1,<1.0.2 is installed. "
+            "Run: pip install 'a2a-sdk>=1.0.1,<1.0.2'. A2A tests may fail.",
+            RuntimeWarning,
+            stacklevel=1,
+        )
+        return
+    setattr(cls, dst, getattr(cls, src))
+
+
 # --- Role enum backwards-compat aliases (attribute-level monkey-patch) ---
 # ``Role.user`` / ``Role.agent`` didn't exist on the proto enum; tests
 # referenced them verbatim. Adding them once here means every call site
 # (``role=Role.user``) keeps compiling without per-file edits.
-pb.Role.user = pb.Role.ROLE_USER  # type: ignore[attr-defined]
-pb.Role.agent = pb.Role.ROLE_AGENT  # type: ignore[attr-defined]
+_proto_alias(pb.Role, "ROLE_USER", "user")
+_proto_alias(pb.Role, "ROLE_AGENT", "agent")
 
 
 # --- TaskState backwards-compat aliases ---
 # Tests reference ``TaskState.working`` / ``TaskState.completed`` / etc.
 # Proto enums don't have these symbol-shaped attributes; shim them in.
-pb.TaskState.completed = pb.TaskState.TASK_STATE_COMPLETED  # type: ignore[attr-defined]
-pb.TaskState.failed = pb.TaskState.TASK_STATE_FAILED  # type: ignore[attr-defined]
-pb.TaskState.working = pb.TaskState.TASK_STATE_WORKING  # type: ignore[attr-defined]
-pb.TaskState.submitted = pb.TaskState.TASK_STATE_SUBMITTED  # type: ignore[attr-defined]
-pb.TaskState.input_required = pb.TaskState.TASK_STATE_INPUT_REQUIRED  # type: ignore[attr-defined]
-pb.TaskState.auth_required = pb.TaskState.TASK_STATE_AUTH_REQUIRED  # type: ignore[attr-defined]
-pb.TaskState.canceled = pb.TaskState.TASK_STATE_CANCELED  # type: ignore[attr-defined]
-pb.TaskState.rejected = pb.TaskState.TASK_STATE_REJECTED  # type: ignore[attr-defined]
-pb.TaskState.unknown = pb.TaskState.TASK_STATE_UNSPECIFIED  # type: ignore[attr-defined]
+_proto_alias(pb.TaskState, "TASK_STATE_COMPLETED", "completed")
+_proto_alias(pb.TaskState, "TASK_STATE_FAILED", "failed")
+_proto_alias(pb.TaskState, "TASK_STATE_WORKING", "working")
+_proto_alias(pb.TaskState, "TASK_STATE_SUBMITTED", "submitted")
+_proto_alias(pb.TaskState, "TASK_STATE_INPUT_REQUIRED", "input_required")
+_proto_alias(pb.TaskState, "TASK_STATE_AUTH_REQUIRED", "auth_required")
+_proto_alias(pb.TaskState, "TASK_STATE_CANCELED", "canceled")
+_proto_alias(pb.TaskState, "TASK_STATE_REJECTED", "rejected")
+_proto_alias(pb.TaskState, "TASK_STATE_UNSPECIFIED", "unknown")
 
 
 Role = pb.Role
