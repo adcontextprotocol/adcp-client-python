@@ -371,7 +371,7 @@ def validate_billing_for_agent(
         details["suggested_billing"] = suggested
 
     raise AdcpError(
-        "BILLING_NOT_PERMITTED_FOR_AGENT",
+        "X_BILLING_NOT_PERMITTED_FOR_AGENT",
         message=(
             f"Buyer agent {agent.agent_url!r} is not authorized for "
             f"billing={requested_billing!r}. Common cause: this agent "

@@ -294,7 +294,7 @@ def test_validate_billing_rejects_passthrough_only_with_agent_billing() -> None:
     )
     with pytest.raises(AdcpError) as exc:
         validate_billing_for_agent(requested_billing="agent", agent=agent)
-    assert exc.value.code == "BILLING_NOT_PERMITTED_FOR_AGENT"
+    assert exc.value.code == "X_BILLING_NOT_PERMITTED_FOR_AGENT"
     assert exc.value.field == "billing"
     assert exc.value.recovery == "correctable"
     details = exc.value.details
@@ -319,7 +319,7 @@ def test_validate_billing_rejects_advertiser_when_not_in_capabilities() -> None:
     )
     with pytest.raises(AdcpError) as exc:
         validate_billing_for_agent(requested_billing="advertiser", agent=agent)
-    assert exc.value.code == "BILLING_NOT_PERMITTED_FOR_AGENT"
+    assert exc.value.code == "X_BILLING_NOT_PERMITTED_FOR_AGENT"
     assert "advertiser" in str(exc.value)
     # Sanity: with a non-empty permitted set, suggested_billing is set.
     assert exc.value.details["suggested_billing"] in {"agent", "operator"}

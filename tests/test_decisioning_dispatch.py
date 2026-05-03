@@ -639,7 +639,7 @@ async def test_invoke_wraps_unexpected_exceptions_to_internal_error(
             executor=executor,
             registry=InMemoryTaskRegistry(),
         )
-    assert exc_info.value.code == "INTERNAL_ERROR"
+    assert exc_info.value.code == "X_INTERNAL_ERROR"
     assert exc_info.value.recovery == "terminal"
     # Original exception preserved as __cause__ for server-side
     # debugging.
@@ -726,7 +726,7 @@ async def test_invoke_validation_error_surfaces_narrowed_field_paths(
             executor=executor,
             registry=InMemoryTaskRegistry(),
         )
-    assert exc_info.value.code == "INTERNAL_ERROR"
+    assert exc_info.value.code == "X_INTERNAL_ERROR"
     # ``caused_by`` still surfaces the exception class for triage.
     assert exc_info.value.details["caused_by"]["type"] == "ValidationError"
     # NEW: ``validation_errors`` is populated with structured field
@@ -944,7 +944,7 @@ async def test_handoff_unexpected_exception_wraps_to_internal_error(
     rec = await registry.get(envelope["task_id"], expected_account_id="acct_a")
     assert rec is not None
     assert rec["state"] == "failed"
-    assert rec["error"]["code"] == "INTERNAL_ERROR"
+    assert rec["error"]["code"] == "X_INTERNAL_ERROR"
     # Original exception text NOT exposed.
     assert "internal bug" not in rec["error"].get("message", "")
 

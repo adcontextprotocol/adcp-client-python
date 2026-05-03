@@ -436,7 +436,7 @@ async def _resolve_buyer_agent(
             # request through (which would skip the registry gate
             # entirely and leak the upgrade footgun into production).
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "X_INTERNAL_ERROR",
                 message=(
                     f"BuyerAgentRegistry dispatch received an unknown "
                     f"Credential variant {type(credential).__name__!r}. "

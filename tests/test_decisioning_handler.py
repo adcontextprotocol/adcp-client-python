@@ -167,7 +167,7 @@ async def test_get_products_wraps_unexpected_exception(executor) -> None:
         await handler.get_products(
             GetProductsRequest(buying_mode="brief", brief="any"), ToolContext()
         )
-    assert exc_info.value.code == "INTERNAL_ERROR"
+    assert exc_info.value.code == "X_INTERNAL_ERROR"
     # Original exception preserved as __cause__; not exposed in message.
     assert isinstance(exc_info.value.__cause__, KeyError)
 

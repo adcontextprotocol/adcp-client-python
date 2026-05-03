@@ -99,7 +99,7 @@ class TestMCPWebhooks:
             "result": {
                 "errors": [
                     {
-                        "code": "INTERNAL_ERROR",
+                        "code": "X_INTERNAL_ERROR",
                         "message": "Database connection failed",
                     }
                 ]
@@ -1171,7 +1171,7 @@ class TestExtractWebhookResultData:
             "result": {
                 "errors": [
                     {
-                        "code": "INTERNAL_ERROR",
+                        "code": "X_INTERNAL_ERROR",
                         "message": "Database connection failed",
                     }
                 ]
@@ -1183,7 +1183,7 @@ class TestExtractWebhookResultData:
         assert result is not None
         assert "errors" in result
         assert len(result["errors"]) == 1
-        assert result["errors"][0]["code"] == "INTERNAL_ERROR"
+        assert result["errors"][0]["code"] == "X_INTERNAL_ERROR"
 
 
 # Load official AdCP HMAC test vectors from fixtures.

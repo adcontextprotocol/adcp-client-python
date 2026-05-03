@@ -881,11 +881,11 @@ async def _invoke_platform_method(
             ) from exc
         # Non-projected TypeError — fall through to generic wrap.
         logger.exception(
-            "Unhandled exception in platform.%s — wrapping to INTERNAL_ERROR",
+            "Unhandled exception in platform.%s — wrapping to X_INTERNAL_ERROR",
             method_name,
         )
         raise AdcpError(
-            "INTERNAL_ERROR",
+            "X_INTERNAL_ERROR",
             message=_internal_error_message(method_name, exc),
             recovery="terminal",
             details=_internal_error_details(exc),
@@ -903,11 +903,11 @@ async def _invoke_platform_method(
         # on secret material doesn't leak the secret value through
         # the wire response.
         logger.exception(
-            "Unhandled exception in platform.%s — wrapping to INTERNAL_ERROR",
+            "Unhandled exception in platform.%s — wrapping to X_INTERNAL_ERROR",
             method_name,
         )
         raise AdcpError(
-            "INTERNAL_ERROR",
+            "X_INTERNAL_ERROR",
             message=_internal_error_message(method_name, exc),
             recovery="terminal",
             details=_internal_error_details(exc),
@@ -1004,7 +1004,7 @@ async def _project_handoff(
                 task_id,
             )
             wrapped = AdcpError(
-                "INTERNAL_ERROR",
+                "X_INTERNAL_ERROR",
                 message=(
                     f"Background task for {method_name!r} raised "
                     f"{type(exc).__name__}; see details for cause"
