@@ -1,49 +1,54 @@
-"""DecisioningPlatform impl for the v3 reference seller.
+"""DecisioningPlatform impl for the v3 reference seller — translator pattern.
 
-Sales-non-guaranteed specialism with the full Sales surface:
+Sales-non-guaranteed AND sales-guaranteed specialism. The seller is a
+**translator**: AdCP wire on the inside, the JS mock-server (GAM-flavored
+upstream) on the outside. Ad-ops state — orders / line items / creatives /
+delivery — lives upstream. The local Postgres carries only the
+commercial-identity layer (tenants, buyer agents, accounts).
 
 Required (every sales-* specialism):
 
-* :meth:`get_products` — read inventory catalog
-* :meth:`create_media_buy` — terminal artifact insert; idempotency-keyed
-* :meth:`update_media_buy` — patch (status / pause / spend cap /
-  invoice recipient)
-* :meth:`sync_creatives` — accept creative manifests, persist to
-  ``creatives`` table
-* :meth:`get_media_buy_delivery` — read delivery actuals
+* :meth:`get_products` — translate ``GET /v1/products`` upstream
+* :meth:`create_media_buy` — ``POST /v1/orders``; returns
+  :class:`Submitted` task envelope; background handoff polls
+  ``/v1/tasks/{id}`` until approved
+* :meth:`update_media_buy` — UNSUPPORTED (mock has no order-update
+  endpoint; the framework raises ``UNSUPPORTED_FEATURE``)
+* :meth:`sync_creatives` — ``POST /v1/creatives`` per creative
+* :meth:`get_media_buy_delivery` — ``GET /v1/orders/{id}/delivery``
 
-Optional (v6.0 rc.1+ — present for sales-non-guaranteed):
+Optional (v6.0 rc.1+):
 
-* :meth:`get_media_buys` — list buys for the resolved account with
-  cursor-friendly limit/offset paging
-* :meth:`provide_performance_feedback` — persist buyer-supplied
-  performance signals
-* :meth:`list_creative_formats` — static catalog of accepted formats
-* :meth:`list_creatives` — seller-side view of buyer-uploaded
-  creatives
+* :meth:`get_media_buys` — ``GET /v1/orders``
+* :meth:`provide_performance_feedback` — ``POST /v1/orders/{id}/conversions``
+  (CAPI is the GAM-flavored equivalent of perf feedback)
+* :meth:`list_creative_formats` — STATIC (publisher-defined; no upstream
+  endpoint)
+* :meth:`list_creatives` — ``GET /v1/creatives``
 
-Account ops (3.1-readiness anchor):
+Account ops (3.1-readiness anchor — local Postgres):
 
 * :meth:`sync_accounts` — upsert with full :class:`BusinessEntity`
-  payload (bank details persisted; never echoed)
+  payload; the AdCP account → upstream ``network_code`` translation
+  is the durable record this seller owns.
 * :meth:`list_accounts` — projected through
   :func:`adcp.decisioning.project_account_for_response` so bank
-  details never leak on response
+  details never leak on response.
 
-All methods run against the SQLAlchemy models in :mod:`models`. The
-platform reads :attr:`RequestContext.buyer_agent` and
-:attr:`account` from the typed request context, both populated by
-the framework's dispatch layer before the method runs.
+Adopters fork this file and replace :class:`upstream.MockUpstreamClient`
+with their real ad server's HTTP client. Method bodies stay
+shape-compatible — only the upstream URL / auth / payload mapping
+changes.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
-import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from adcp.decisioning import (
     Account,
@@ -61,7 +66,6 @@ from adcp.types import (
     Account as AccountWire,
 )
 from adcp.types import (
-    BusinessEntity,
     CreateMediaBuyRequest,
     CreateMediaBuySuccessResponse,
     Format,
@@ -88,9 +92,8 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuySuccessResponse,
 )
-from adcp.types import (
-    MediaBuy as MediaBuyWire,
-)
+
+from .upstream import MockUpstreamClient, UpstreamError
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -99,9 +102,6 @@ if TYPE_CHECKING:
 
 from .models import Account as AccountRow
 from .models import BuyerAgent as BuyerAgentRow
-from .models import Creative as CreativeRow
-from .models import MediaBuy as MediaBuyRow
-from .models import PerformanceFeedback as PerformanceFeedbackRow
 
 logger = logging.getLogger(__name__)
 
@@ -115,18 +115,12 @@ def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
     """Adopter ``AccountStore`` — resolves
     ``request.account.account_id`` against the ``accounts`` table.
 
-    The framework calls this BEFORE the platform method runs.
-    Returns the typed :class:`Account` dataclass that lands on
-    :attr:`RequestContext.account`.
-
-    Tenant scoping happens implicitly: the request's tenant is
-    pinned by :class:`SubdomainTenantMiddleware`, threads onto
-    :attr:`ToolContext.tenant_id`, and we filter accounts by it
-    here.
+    Reads ``ext`` (the upstream routing payload, ``{"network_code":
+    ..., "advertiser_id": ...}``) onto :attr:`Account.metadata` so
+    platform methods can pluck them out without a second query.
     """
 
     async def loader(account_id: str) -> Account[dict[str, Any]]:
-        # Read tenant from the contextvar set by the middleware.
         tenant = current_tenant()
         if tenant is None:
             raise AdcpError(
@@ -152,6 +146,19 @@ def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
                 recovery="terminal",
                 field="account.account_id",
             )
+        ext_payload = row.ext or {}
+        network_code = ext_payload.get("network_code")
+        advertiser_id = ext_payload.get("advertiser_id")
+        if not network_code or not advertiser_id:
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message=(
+                    f"Account {account_id!r} is missing upstream routing "
+                    "(ext.network_code / ext.advertiser_id). Reseed the "
+                    "account with translator-pattern routing."
+                ),
+                recovery="terminal",
+            )
         return Account(
             id=row.id,
             name=row.name,
@@ -162,6 +169,8 @@ def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
                 "account_id": row.account_id,
                 "billing": row.billing,
                 "sandbox": row.sandbox,
+                "network_code": network_code,
+                "advertiser_id": advertiser_id,
             },
         )
 
@@ -169,32 +178,46 @@ def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
 
 
 # ---------------------------------------------------------------------------
-# Platform — sales-non-guaranteed
+# Platform — sales-non-guaranteed + sales-guaranteed (translator)
 # ---------------------------------------------------------------------------
 
 
-class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
-    """Sales-non-guaranteed seller against the v3 reference schema.
+_DELIVERY_STATUS_MAP: dict[str, str] = {
+    # Upstream → AdCP MediaBuyStatus
+    "draft": "pending_creatives",
+    "pending_approval": "pending_creatives",
+    "approved": "pending_start",
+    "delivering": "active",
+    "completed": "completed",
+    "canceled": "canceled",
+    "rejected": "rejected",
+}
 
-    Every method body reads :attr:`RequestContext.buyer_agent` (the
-    Tier 2 commercial-identity record) and :attr:`account` (the
-    resolved account for this request). Both are populated by the
-    framework's dispatch layer before the method runs.
+
+class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
+    """Translator-pattern seller against the JS mock-server upstream.
+
+    Every method body reads :attr:`RequestContext.account` for the
+    upstream routing (``network_code`` + ``advertiser_id``) and calls
+    :class:`upstream.MockUpstreamClient` over HTTP. The local
+    Postgres is consulted only for the commercial-identity layer
+    (account resolution + ``sync_accounts`` / ``list_accounts``).
     """
 
     capabilities = DecisioningCapabilities(
-        specialisms=("sales-non-guaranteed",),
+        # Real GAM-shaped publishers sell BOTH guaranteed (IO-driven)
+        # and non-guaranteed (programmatic remnant). The mock supports
+        # ``delivery_type: guaranteed/non_guaranteed`` directly so we
+        # claim both — adopters whose upstream is non-guaranteed-only
+        # narrow this to the single specialism.
+        specialisms=("sales-non-guaranteed", "sales-guaranteed"),
         channels=("display", "video"),
         pricing_models=("cpm",),
         # Required by the spec whenever ``media_buy`` is in
-        # ``supported_protocols`` (per
-        # ``protocol/get-adcp-capabilities-response.json``,
-        # ``account.supported_billing`` ``minItems: 1``). The
-        # framework projects this into ``account.supported_billing``
-        # on the auto-generated ``get_adcp_capabilities`` response.
-        # This reference seller invoices the operator (agency / brand
-        # buying direct) and supports agent-consolidated billing for
-        # platforms acting on behalf of multiple advertisers.
+        # ``supported_protocols``. The reference seller invoices the
+        # operator (agency / brand buying direct) and supports
+        # agent-consolidated billing for platforms acting on behalf
+        # of multiple advertisers.
         supported_billing=("operator", "agent"),
     )
 
@@ -202,10 +225,16 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         self,
         *,
         sessionmaker: async_sessionmaker,
+        upstream: MockUpstreamClient,
         mock_ad_server: MockAdServer | None = None,
+        approval_poll_interval_s: float = 1.0,
+        approval_poll_max_iterations: int = 60,
     ) -> None:
         self._sessionmaker = sessionmaker
+        self._upstream = upstream
         self._mock_ad_server = mock_ad_server
+        self._approval_poll_interval_s = approval_poll_interval_s
+        self._approval_poll_max_iterations = approval_poll_max_iterations
         self.accounts = _make_account_store(sessionmaker)
 
     def _record(self, method: str, args: dict[str, Any]) -> None:
@@ -213,9 +242,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         :class:`MockAdServer`, if any.
 
         Anti-façade contract — storyboard runners assert traffic
-        counts via ``GET /_debug/traffic``. Methods that return spec-
-        valid envelopes without recording at least one upstream call
-        are textbook façade adapters.
+        counts via ``GET /_debug/traffic``.
         """
         if self._mock_ad_server is not None:
             self._mock_ad_server.record_call(method, args)
@@ -225,57 +252,111 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     async def get_products(
         self, req: GetProductsRequest, ctx: RequestContext
     ) -> GetProductsResponse:
-        """Static product catalog for the reference seller. Real
-        adopters query a CMS / forecasting service."""
-        del req, ctx  # this reference impl ignores brief / context
-        self._record("products.list", {})
-        return GetProductsResponse(
-            products=[
-                Product(
-                    product_id="display-run-of-network",
-                    name="Display run-of-network",
-                    delivery_type="non_guaranteed",
-                    creative_policy={
-                        "co_branding": "neither",
-                        "landing_page": "any",
-                    },
-                    # Conformant CpmPricingOption shape: discriminator
-                    # ``pricing_model`` (not ``type``), required
-                    # ``pricing_option_id``, ``fixed_price`` (not
-                    # ``rate``). See the spec's
-                    # ``pricing_options/cpm_option.json``.
-                    pricing_options=[
-                        {
-                            "pricing_option_id": "ron-cpm-5usd",
-                            "pricing_model": "cpm",
-                            "currency": "USD",
-                            "fixed_price": 5.00,
-                        }
-                    ],
+        """Translate ``GET /v1/products`` upstream → AdCP ``Product[]``.
+
+        Maps upstream ``pricing.cpm`` + ``min_spend`` onto an AdCP
+        :class:`CpmPricingOption` (``pricing_model='cpm'``,
+        ``fixed_price``, ``min_spend_per_package``). ``delivery_type``
+        passes through unchanged (upstream and AdCP use the same
+        ``guaranteed``/``non_guaranteed`` enum).
+        """
+        if ctx.account is None:
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message="Dispatch should have populated account.",
+                recovery="terminal",
+            )
+        network_code = ctx.account.metadata["network_code"]
+        # Forward optional filtering hints to the upstream.
+        # ``GetProductsRequest.brief`` / ``targeting`` are AdCP-shaped;
+        # adopters with their own upstream translate the AdCP brief
+        # into upstream targeting json here. The reference seller keeps
+        # it minimal — pass the targeting as a JSON string when
+        # provided so the upstream can perturb supply.
+        try:
+            payload = await self._upstream.list_products(network_code=network_code)
+        except UpstreamError as exc:
+            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+        self._record("products.list", {"network_code": network_code})
+        agent_url = "https://reference.adcp.org"
+        products: list[Product] = []
+        for upstream in payload.get("products", []):
+            pricing = upstream.get("pricing", {})
+            currency = pricing.get("currency", "USD")
+            cpm = pricing.get("cpm")
+            min_spend = pricing.get("min_spend")
+            pricing_option: dict[str, Any] = {
+                "pricing_option_id": f"{upstream['product_id']}-{pricing.get('model', 'cpm')}",
+                "pricing_model": "cpm",
+                "currency": currency,
+            }
+            if cpm is not None:
+                pricing_option["fixed_price"] = float(cpm)
+            if min_spend is not None:
+                pricing_option["min_spend_per_package"] = float(min_spend)
+            # Project upstream format ids onto AdCP structured format
+            # references. The reference seller's format namespace lives
+            # at ``reference.adcp.org`` — adopters whose upstream uses a
+            # different format namespace (their own publisher domain)
+            # rewrite ``agent_url`` here.
+            upstream_formats = upstream.get("format_ids") or []
+            format_ids = [{"agent_url": agent_url, "id": fid} for fid in upstream_formats]
+            if not format_ids:
+                # Spec requires at least one format on the response.
+                # Fall back to the channel-default — adopters with
+                # richer per-product format tables wire the lookup here.
+                channel = upstream.get("channel", "display")
+                fallback_id = "display_300x250" if channel == "display" else "video_16x9_30s"
+                format_ids = [{"agent_url": agent_url, "id": fallback_id}]
+            products.append(
+                Product.model_validate(
+                    {
+                        "product_id": upstream["product_id"],
+                        "name": upstream["name"],
+                        "description": upstream.get("name", ""),
+                        "delivery_type": upstream.get("delivery_type", "non_guaranteed"),
+                        "publisher_properties": [
+                            # The reference seller is a single-publisher
+                            # demo; ``selection_type='all'`` matches the
+                            # spec's "all properties from this publisher"
+                            # discriminator. Multi-publisher adopters
+                            # narrow with ``selection_type='by_id'`` /
+                            # ``'by_tag'``.
+                            {
+                                "publisher_domain": "reference.adcp.org",
+                                "selection_type": "all",
+                            }
+                        ],
+                        "format_ids": format_ids,
+                        "reporting_capabilities": {
+                            "available_reporting_frequencies": ["daily"],
+                            "expected_delay_minutes": 240,
+                            "timezone": "UTC",
+                            "supports_webhooks": False,
+                            "available_metrics": [
+                                "impressions",
+                                "spend",
+                                "clicks",
+                            ],
+                            "date_range_support": "date_range",
+                        },
+                        "pricing_options": [pricing_option],
+                    }
                 )
-            ]
-        )
+            )
+        return GetProductsResponse(products=products)
 
     # ----- create_media_buy ------------------------------------------------
 
-    async def create_media_buy(
-        self, req: CreateMediaBuyRequest, ctx: RequestContext
-    ) -> CreateMediaBuySuccessResponse:
-        """Insert the canonical media-buy row.
+    async def create_media_buy(self, req: CreateMediaBuyRequest, ctx: RequestContext):
+        """``POST /v1/orders`` → upstream returns ``pending_approval``
+        with an ``approval_task_id``. Hand off to a background coroutine
+        that polls ``/v1/tasks/{id}`` until approved, then returns the
+        :class:`CreateMediaBuySuccessResponse`.
 
-        Idempotency-keyed: the framework's outer middleware caches by
-        ``(scope_key, idempotency_key)`` and serves the cached
-        response on retry. We additionally enforce uniqueness at the
-        DB level via ``UniqueConstraint(tenant_id, idempotency_key)``
-        so a misconfigured cache can't double-insert.
-
-        :attr:`CreateMediaBuyRequest.invoice_recipient` is persisted
-        as a flat JSON column on the row (full
-        :class:`BusinessEntity` payload, bank details included). The
-        seller projects through
-        :func:`project_business_entity_for_response` only when
-        echoing on a response — the SQL column is the durable
-        invoicing record.
+        Buyer experience: ``{status: 'submitted', task_id}`` immediately;
+        framework's task registry surfaces the success on
+        ``tasks/get`` polling once the upstream approves.
         """
         if ctx.buyer_agent is None or ctx.account is None:
             raise AdcpError(
@@ -283,58 +364,117 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 message="Dispatch should have populated buyer_agent and account.",
                 recovery="terminal",
             )
-        # The (tenant_id, idempotency_key) unique constraint already
-        # enforces replay safety; the public id just needs to be
-        # globally unique. Don't derive from the idempotency key —
-        # a 16-hex prefix of a UUID v4 collides at scale, throwing
-        # IntegrityError on the unique constraint over media_buy_id.
-        media_buy_id = f"mb_{uuid.uuid4().hex}"
-        # CreateMediaBuyRequest fields:
-        #   total_budget: TotalBudget | None  (with .amount + .currency)
-        #   start_time: StartTiming           (root: 'asap' | AwareDatetime)
-        #   end_time:   AwareDatetime
-        # Project at the seam — the SQL columns are flat float / str /
-        # datetime so the platform owns the unwrapping.
-        budget_amount = req.total_budget.amount if req.total_budget else None
-        budget_currency = req.total_budget.currency if req.total_budget else None
-        start_dt = _project_start_time(req.start_time)
-        invoice_recipient_payload: dict[str, Any] | None = None
-        if req.invoice_recipient is not None:
-            # Persist full payload (bank included) — write-only on
-            # response, not on storage.
-            invoice_recipient_payload = req.invoice_recipient.model_dump(
-                mode="json", exclude_none=True
+        network_code = ctx.account.metadata["network_code"]
+        advertiser_id = ctx.account.metadata["advertiser_id"]
+        budget_amount = req.total_budget.amount if req.total_budget else 0.0
+        budget_currency = req.total_budget.currency if req.total_budget else "USD"
+        order_payload: dict[str, Any] = {
+            "name": (
+                req.brand.domain
+                if req.brand and getattr(req.brand, "domain", None)
+                else f"adcp-buy-{req.idempotency_key[:12]}"
+            ),
+            "advertiser_id": advertiser_id,
+            "currency": budget_currency,
+            "budget": float(budget_amount),
+            "client_request_id": req.idempotency_key,
+        }
+        try:
+            order = await self._upstream.create_order(
+                network_code=network_code,
+                payload=order_payload,
             )
-        row = MediaBuyRow(
-            tenant_id=ctx.account.metadata["tenant_id"],
-            account_id=ctx.account.id,
-            media_buy_id=media_buy_id,
-            idempotency_key=req.idempotency_key,
-            status="active",
-            brand_domain=getattr(req.brand, "domain", None) if req.brand else None,
-            total_budget=budget_amount,
-            currency=budget_currency,
-            start_time=start_dt,
-            end_time=req.end_time,
-            invoice_recipient=invoice_recipient_payload,
-            request_snapshot=req.model_dump(mode="json"),
-        )
-        async with self._sessionmaker() as session, session.begin():
-            session.add(row)
+        except UpstreamError as exc:
+            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
         self._record(
             "media_buy.create",
-            {"media_buy_id": media_buy_id, "account_id": ctx.account.id},
+            {
+                "network_code": network_code,
+                "advertiser_id": advertiser_id,
+                "order_id": order.get("order_id"),
+            },
         )
-        logger.info(
-            "Created media buy %s for account=%s buyer=%s",
-            media_buy_id,
-            ctx.account.id,
-            ctx.buyer_agent.agent_url,
-        )
-        return CreateMediaBuySuccessResponse(
-            media_buy_id=media_buy_id,
-            packages=[],
-            status="active",
+
+        order_id: str = order["order_id"]
+        approval_task_id: str | None = order.get("approval_task_id")
+        # Sync fast path — the upstream may auto-approve on creation
+        # for non-guaranteed delivery (rare, but possible).
+        if order.get("status") in {"approved", "delivering"} and not approval_task_id:
+            return self._project_create_success(order, req, budget_amount, budget_currency)
+
+        # Slow path — hand off to background polling. The framework
+        # allocates a task_id, returns the Submitted envelope, and runs
+        # the handoff coroutine in the background. When this coroutine
+        # returns, the framework persists the success as the terminal
+        # artifact on the registry; buyers see it via ``tasks/get`` or
+        # via the push-notification webhook.
+        async def _poll_until_approved(task_handoff_ctx: Any) -> CreateMediaBuySuccessResponse:
+            del task_handoff_ctx
+            for _ in range(self._approval_poll_max_iterations):
+                if approval_task_id is not None:
+                    task = await self._upstream.get_task(
+                        network_code=network_code, task_id=approval_task_id
+                    )
+                    self._record(
+                        "task.poll",
+                        {"task_id": approval_task_id, "status": task.get("status")},
+                    )
+                    if task.get("status") == "completed":
+                        result = task.get("result") or {}
+                        if result.get("outcome") == "rejected":
+                            raise AdcpError(
+                                "POLICY_VIOLATION",
+                                message=(
+                                    result.get("reviewer_note") or "Upstream rejected the order."
+                                ),
+                                recovery="terminal",
+                            )
+                        break
+                    if task.get("status") == "rejected":
+                        raise AdcpError(
+                            "POLICY_VIOLATION",
+                            message="Upstream rejected the order.",
+                            recovery="terminal",
+                        )
+                await asyncio.sleep(self._approval_poll_interval_s)
+            # Re-fetch the order in approved state.
+            approved_order = await self._upstream.get_order(
+                network_code=network_code, order_id=order_id
+            )
+            self._record(
+                "media_buy.confirm",
+                {"order_id": order_id, "status": approved_order.get("status")},
+            )
+            return self._project_create_success(approved_order, req, budget_amount, budget_currency)
+
+        return ctx.handoff_to_task(_poll_until_approved)
+
+    def _project_create_success(
+        self,
+        order: dict[str, Any],
+        req: CreateMediaBuyRequest,
+        budget_amount: float,
+        budget_currency: str,
+    ) -> CreateMediaBuySuccessResponse:
+        """Translate upstream ``Order`` to AdCP
+        :class:`CreateMediaBuySuccessResponse`."""
+        invoice_recipient = None
+        if req.invoice_recipient is not None:
+            # Project bank details out before echoing on response.
+            invoice_recipient = project_business_entity_for_response(req.invoice_recipient)
+        del budget_amount, budget_currency
+        wire_status = _DELIVERY_STATUS_MAP.get(order.get("status", ""), "active")
+        return CreateMediaBuySuccessResponse.model_validate(
+            {
+                "media_buy_id": order["order_id"],
+                "status": wire_status,
+                "packages": [],
+                "invoice_recipient": (
+                    invoice_recipient.model_dump(mode="json", exclude_none=True)
+                    if invoice_recipient is not None
+                    else None
+                ),
+            }
         )
 
     # ----- update_media_buy ------------------------------------------------
@@ -342,52 +482,20 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     async def update_media_buy(
         self, media_buy_id: str, patch: UpdateMediaBuyRequest, ctx: RequestContext
     ) -> UpdateMediaBuySuccessResponse:
-        """Patch a media buy's status / pause flag / invoice recipient.
-
-        Tenant + account scoped — the SQL UPDATE includes both in the
-        WHERE clause so a misrouted request can't mutate rows
-        belonging to another tenant. ``invoice_recipient`` overrides
-        replace the full :class:`BusinessEntity` payload (bank
-        included) when present on the patch — 3.1-ready for per-buy
-        invoice override semantics.
+        """The mock upstream has no order-update endpoint. Real
+        adopters with a GAM-style upstream wire ``PATCH /v1/orders/{id}``
+        or per-line-item updates here.
         """
-        if ctx.account is None:
-            raise AdcpError(
-                "INTERNAL_ERROR",
-                message="Dispatch should have populated account.",
-                recovery="terminal",
-            )
-        async with self._sessionmaker() as session, session.begin():
-            result = await session.execute(
-                select(MediaBuyRow).where(
-                    MediaBuyRow.tenant_id == ctx.account.metadata["tenant_id"],
-                    MediaBuyRow.account_id == ctx.account.id,
-                    MediaBuyRow.media_buy_id == media_buy_id,
-                )
-            )
-            row = result.scalar_one_or_none()
-            if row is None:
-                raise AdcpError(
-                    "MEDIA_BUY_NOT_FOUND",
-                    message=f"No media buy {media_buy_id!r} under this account.",
-                    recovery="terminal",
-                )
-            if patch.paused is True and row.status == "active":
-                row.status = "paused"
-            elif patch.paused is False and row.status == "paused":
-                row.status = "active"
-            patch_invoice = getattr(patch, "invoice_recipient", None)
-            if patch_invoice is not None:
-                row.invoice_recipient = patch_invoice.model_dump(mode="json", exclude_none=True)
-            row.updated_at = datetime.now(timezone.utc)
-        self._record(
-            "media_buy.update",
-            {"media_buy_id": media_buy_id, "status": row.status},
-        )
-        return UpdateMediaBuySuccessResponse(
-            media_buy_id=row.media_buy_id,
-            status=row.status,  # type: ignore[arg-type]
-            packages=[],
+        del media_buy_id, patch, ctx
+        raise AdcpError(
+            "UNSUPPORTED_FEATURE",
+            message=(
+                "update_media_buy is not implemented against the JS "
+                "mock-server upstream — the mock has no order-update "
+                "endpoint. Adopters with a real upstream wire their "
+                "PATCH /orders / line-item update flow here."
+            ),
+            recovery="terminal",
         )
 
     # ----- sync_creatives --------------------------------------------------
@@ -395,15 +503,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     async def sync_creatives(
         self, req: SyncCreativesRequest, ctx: RequestContext
     ) -> SyncCreativesSuccessResponse:
-        """Accept creative manifests and persist to the ``creatives``
-        table.
+        """``POST /v1/creatives`` per creative.
 
-        Idempotency-keyed on ``(tenant_id, creative_id)`` — re-syncing
-        the same wire id under the same tenant updates the existing
-        row in place (UPSERT). Auto-approves on ingest; production
-        adopters route to a creative-review pipeline that flips
-        ``status`` to ``pending_review`` and signs back via
-        :meth:`adcp.decisioning.RequestContext.publish_status_change`.
+        Idempotency: the upstream accepts ``client_request_id`` per
+        upload; we pass the AdCP ``creative_id`` through so a buyer
+        re-syncing the same creative_id is upstream-deduplicated.
         """
         if ctx.account is None:
             raise AdcpError(
@@ -411,53 +515,42 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 message="Dispatch should have populated account.",
                 recovery="terminal",
             )
-        tenant_id = ctx.account.metadata["tenant_id"]
+        network_code = ctx.account.metadata["network_code"]
+        advertiser_id = ctx.account.metadata["advertiser_id"]
         results: list[SyncCreativeResult] = []
-        async with self._sessionmaker() as session, session.begin():
-            for creative in req.creatives:
-                manifest_json = creative.model_dump(mode="json", exclude_none=True)
-                format_id_payload = manifest_json.get("format_id") or {}
-                # Look up by natural key first so we know whether
-                # this is a create or update for the response action
-                # field — UPSERT alone collapses both to one path.
-                existing_q = await session.execute(
-                    select(CreativeRow).where(
-                        CreativeRow.tenant_id == tenant_id,
-                        CreativeRow.creative_id == creative.creative_id,
-                    )
+        for creative in req.creatives:
+            # The upstream's ``format_id`` is a string; the AdCP
+            # ``format_id`` is a structured ``{agent_url, id}`` object.
+            # Pass the ``id`` through — adopters whose upstream uses a
+            # different format namespace map across here.
+            format_id_raw = creative.format_id
+            format_id_str = format_id_raw.id if hasattr(format_id_raw, "id") else str(format_id_raw)
+            payload: dict[str, Any] = {
+                "name": creative.name,
+                "format_id": format_id_str,
+                "advertiser_id": advertiser_id,
+                "client_request_id": creative.creative_id,
+            }
+            snippet = getattr(creative, "snippet", None)
+            if snippet is not None:
+                payload["snippet"] = str(snippet)
+            try:
+                await self._upstream.upload_creative(network_code=network_code, payload=payload)
+            except UpstreamError as exc:
+                raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+            results.append(
+                SyncCreativeResult.model_validate(
+                    {
+                        "creative_id": creative.creative_id,
+                        "action": "created",
+                        "status": creative.status or "approved",
+                    }
                 )
-                existing = existing_q.scalar_one_or_none()
-                if existing is None:
-                    session.add(
-                        CreativeRow(
-                            tenant_id=tenant_id,
-                            account_id=ctx.account.id,
-                            creative_id=creative.creative_id,
-                            name=creative.name,
-                            format_id=format_id_payload,
-                            status=(creative.status or "approved"),
-                            manifest_json=manifest_json,
-                        )
-                    )
-                    action: Literal["created", "updated"] = "created"
-                else:
-                    existing.name = creative.name
-                    existing.format_id = format_id_payload
-                    existing.manifest_json = manifest_json
-                    if creative.status is not None:
-                        existing.status = creative.status
-                    existing.updated_at = datetime.now(timezone.utc)
-                    action = "updated"
-                results.append(
-                    SyncCreativeResult.model_validate(
-                        {
-                            "creative_id": creative.creative_id,
-                            "action": action,
-                            "status": creative.status or "approved",
-                        }
-                    )
-                )
-        self._record("creative.upload", {"count": len(req.creatives) if req.creatives else 0})
+            )
+        self._record(
+            "creative.upload",
+            {"network_code": network_code, "count": len(req.creatives) if req.creatives else 0},
+        )
         return SyncCreativesSuccessResponse(creatives=results)
 
     # ----- get_media_buy_delivery ------------------------------------------
@@ -465,23 +558,83 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     async def get_media_buy_delivery(
         self, req: GetMediaBuyDeliveryRequest, ctx: RequestContext
     ) -> GetMediaBuyDeliveryResponse:
-        """Stub delivery — production adopters wire their real
-        delivery / pacing query."""
-        del req, ctx
-        self._record("delivery.read", {})
-        return GetMediaBuyDeliveryResponse(media_buys=[])
+        """``GET /v1/orders/{id}/delivery`` → AdCP delivery shape.
+
+        The request lists media_buy_ids; we fan out one upstream call
+        per id. Adopters whose upstream supports batch delivery
+        replace this with a single batched call.
+        """
+        if ctx.account is None:
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message="Dispatch should have populated account.",
+                recovery="terminal",
+            )
+        network_code = ctx.account.metadata["network_code"]
+        media_buy_ids: list[str] = list(getattr(req, "media_buy_ids", None) or [])
+        # Defaults — the spec requires ``reporting_period`` + ``currency``
+        # on the response root even when no buys are returned. We carry
+        # them from the first upstream report that succeeds.
+        report_currency = "USD"
+        report_period: dict[str, Any] | None = None
+        delivery_rows: list[dict[str, Any]] = []
+        for order_id in media_buy_ids:
+            try:
+                upstream = await self._upstream.get_delivery(
+                    network_code=network_code, order_id=order_id
+                )
+            except UpstreamError as exc:
+                if exc.status_code == 404:
+                    continue
+                raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+            totals = upstream.get("totals", {})
+            report_currency = upstream.get("currency", report_currency)
+            if report_period is None and upstream.get("reporting_period"):
+                report_period = upstream["reporting_period"]
+            delivery_rows.append(
+                {
+                    "media_buy_id": order_id,
+                    "status": "active",
+                    "totals": {
+                        "impressions": int(totals.get("impressions", 0)),
+                        "clicks": int(totals.get("clicks", 0)),
+                        "spend": float(totals.get("spend", 0.0)),
+                    },
+                    "by_package": [],
+                }
+            )
+        self._record(
+            "delivery.read",
+            {"network_code": network_code, "count": len(media_buy_ids)},
+        )
+        # The mock-server returns a per-order reporting_period; if no
+        # upstream call succeeded (no media_buy_ids, or all 404'd), use
+        # a now-anchored window. Adopters with a richer reporting
+        # surface plumb a request-level start/end through.
+        if report_period is None:
+            now = datetime.now(timezone.utc)
+            report_period = {
+                "start": now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat(),
+                "end": now.isoformat(),
+            }
+        return GetMediaBuyDeliveryResponse.model_validate(
+            {
+                "reporting_period": report_period,
+                "currency": report_currency,
+                "media_buy_deliveries": delivery_rows,
+            }
+        )
 
     # ----- get_media_buys --------------------------------------------------
 
     async def get_media_buys(
         self, req: GetMediaBuysRequest, ctx: RequestContext
     ) -> GetMediaBuysResponse:
-        """List media buys for the resolved account.
+        """``GET /v1/orders`` → AdCP ``MediaBuy[]``.
 
-        Filters by ``(tenant_id, account_id)`` from the resolved
-        :class:`Account`. Pagination is offset/limit on the request's
-        :class:`PaginationRequest` — adopters with billions of buys
-        upgrade to seek-pagination on ``(created_at, id)``.
+        Pagination is offset/limit applied client-side after the
+        upstream returns the full list. Adopters whose upstream
+        supports cursor pagination plumb the cursor through here.
         """
         if ctx.account is None:
             raise AdcpError(
@@ -489,69 +642,62 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 message="Dispatch should have populated account.",
                 recovery="terminal",
             )
+        network_code = ctx.account.metadata["network_code"]
+        advertiser_id = ctx.account.metadata["advertiser_id"]
         limit = 50
         offset = 0
         if req.pagination is not None:
             limit = getattr(req.pagination, "limit", None) or 50
             offset = getattr(req.pagination, "offset", None) or 0
-        async with self._sessionmaker() as session:
-            result = await session.execute(
-                select(MediaBuyRow)
-                .where(
-                    MediaBuyRow.tenant_id == ctx.account.metadata["tenant_id"],
-                    MediaBuyRow.account_id == ctx.account.id,
-                )
-                .order_by(MediaBuyRow.created_at.desc())
-                .limit(limit)
-                .offset(offset)
-            )
-            rows = list(result.scalars())
-        media_buys: list[MediaBuyWire] = []
-        for row in rows:
-            invoice_recipient: BusinessEntity | None = None
-            if row.invoice_recipient is not None:
-                # Project bank details out before echoing on response.
-                entity = BusinessEntity.model_validate(row.invoice_recipient)
-                invoice_recipient = project_business_entity_for_response(entity)
+        try:
+            payload = await self._upstream.list_orders(network_code=network_code)
+        except UpstreamError as exc:
+            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+        # Filter to this advertiser_id (the upstream is per-network,
+        # but a single network can host multiple advertisers under the
+        # same network_code — our AdCP account maps to one of them).
+        upstream_orders = [
+            o for o in payload.get("orders", []) if o.get("advertiser_id") == advertiser_id
+        ]
+        page = upstream_orders[offset : offset + limit]
+        media_buys: list[dict[str, Any]] = []
+        for order in page:
+            wire_status = _DELIVERY_STATUS_MAP.get(order.get("status", ""), "active")
             media_buys.append(
-                MediaBuyWire.model_validate(
-                    {
-                        "media_buy_id": row.media_buy_id,
-                        "status": row.status,
-                        "currency": row.currency or "USD",
-                        "total_budget": row.total_budget or 0.0,
-                        "start_time": row.start_time,
-                        "end_time": row.end_time,
-                        "created_at": row.created_at,
-                        "updated_at": row.updated_at,
-                        "packages": [],
-                        "invoice_recipient": invoice_recipient,
-                    }
-                )
+                {
+                    "media_buy_id": order["order_id"],
+                    "status": wire_status,
+                    "currency": order.get("currency", "USD"),
+                    "total_budget": float(order.get("budget", 0.0)),
+                    "packages": [],
+                    "created_at": order.get("created_at"),
+                    "updated_at": order.get("updated_at"),
+                }
             )
         self._record(
             "media_buys.list",
-            {"account_id": ctx.account.id, "limit": limit, "offset": offset},
+            {
+                "network_code": network_code,
+                "advertiser_id": advertiser_id,
+                "limit": limit,
+                "offset": offset,
+            },
         )
-        # Pydantic re-validates each item against the response-specific
-        # ``MediaBuy`` shape. Passing the public-API ``MediaBuy``
-        # instances we built above ensures field drift surfaces here
-        # rather than at the wire boundary.
-        return GetMediaBuysResponse.model_validate(
-            {"media_buys": [m.model_dump(mode="python", exclude_none=True) for m in media_buys]}
-        )
+        return GetMediaBuysResponse.model_validate({"media_buys": media_buys})
 
     # ----- provide_performance_feedback ------------------------------------
 
     async def provide_performance_feedback(
         self, req: ProvidePerformanceFeedbackRequest, ctx: RequestContext
     ) -> ProvidePerformanceFeedbackSuccessResponse:
-        """Persist buyer-supplied performance signal.
+        """``POST /v1/orders/{id}/conversions`` (CAPI).
 
-        Looks up the media buy by ``(tenant_id, media_buy_id)`` —
-        rejects with ``MEDIA_BUY_NOT_FOUND`` if the buyer's id doesn't
-        resolve under this tenant. Production adopters route the
-        feedback into their optimization / pacing service from here.
+        CAPI is the GAM-flavored equivalent of buyer-supplied
+        performance feedback. We project the spec's
+        :class:`MetricType` onto a single conversion event:
+        ``event_name = metric_type``, ``value = performance_index``.
+        Adopters whose upstream supports richer feedback shapes
+        replace this projection.
         """
         if ctx.account is None:
             raise AdcpError(
@@ -559,42 +705,53 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 message="Dispatch should have populated account.",
                 recovery="terminal",
             )
-        tenant_id = ctx.account.metadata["tenant_id"]
-        async with self._sessionmaker() as session, session.begin():
-            result = await session.execute(
-                select(MediaBuyRow).where(
-                    MediaBuyRow.tenant_id == tenant_id,
-                    MediaBuyRow.media_buy_id == req.media_buy_id,
-                )
+        network_code = ctx.account.metadata["network_code"]
+        metric_type = (
+            (req.metric_type.value if hasattr(req.metric_type, "value") else str(req.metric_type))
+            if req.metric_type is not None
+            else "overall_performance"
+        )
+        # Use measurement_period.end (or now) as the event_time.
+        period = getattr(req, "measurement_period", None)
+        period_end = getattr(period, "end", None) if period is not None else None
+        event_time = (
+            int(period_end.timestamp())
+            if isinstance(period_end, datetime)
+            else int(datetime.now(timezone.utc).timestamp())
+        )
+        # ``performance_index`` is the spec field; default to 1.0 if
+        # the buyer omitted it (the spec allows it on conversion-rate
+        # and similar metrics where the value lives elsewhere).
+        performance_index = float(getattr(req, "performance_index", None) or 1.0)
+        payload: dict[str, Any] = {
+            "order_id": req.media_buy_id,
+            "conversions": [
+                {
+                    "event_name": metric_type,
+                    "event_time": event_time,
+                    "value": performance_index,
+                    "dedup_key": f"{req.media_buy_id}:{metric_type}:{event_time}",
+                }
+            ],
+        }
+        try:
+            await self._upstream.post_conversions(
+                network_code=network_code,
+                order_id=req.media_buy_id,
+                payload=payload,
             )
-            mb = result.scalar_one_or_none()
-            if mb is None:
+        except UpstreamError as exc:
+            if exc.status_code == 404:
                 raise AdcpError(
                     "MEDIA_BUY_NOT_FOUND",
-                    message=f"No media buy {req.media_buy_id!r} under this tenant.",
+                    message=f"No media buy {req.media_buy_id!r} on the upstream.",
                     recovery="terminal",
                     field="media_buy_id",
-                )
-            metric_type = (
-                (
-                    req.metric_type.value
-                    if hasattr(req.metric_type, "value")
-                    else str(req.metric_type)
-                )
-                if req.metric_type is not None
-                else "overall_performance"
-            )
-            session.add(
-                PerformanceFeedbackRow(
-                    tenant_id=tenant_id,
-                    media_buy_id=mb.id,
-                    feedback_type=metric_type,
-                    value=req.model_dump(mode="json", exclude_none=True),
-                )
-            )
+                ) from exc
+            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
         self._record(
             "performance.feedback",
-            {"media_buy_id": req.media_buy_id, "feedback_type": metric_type},
+            {"media_buy_id": req.media_buy_id, "metric_type": metric_type},
         )
         return ProvidePerformanceFeedbackSuccessResponse.model_validate({"success": True})
 
@@ -603,11 +760,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     async def list_creative_formats(
         self, req: ListCreativeFormatsRequest, ctx: RequestContext
     ) -> ListCreativeFormatsResponse:
-        """Static catalog of accepted formats.
-
-        Real adopters drive this from a creative-format registry
-        keyed on the seller's actual placement / template inventory.
-        """
+        """Static catalog of accepted formats — the upstream has no
+        format-list endpoint (formats are publisher-defined, baked
+        into the upstream's product catalog). Real adopters drive this
+        from a creative-format registry."""
         del req, ctx
         agent_url = "https://reference.adcp.org"
         formats = [
@@ -641,12 +797,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     async def list_creatives(
         self, req: ListCreativesRequest, ctx: RequestContext
     ) -> ListCreativesResponse:
-        """List the seller's view of buyer-uploaded creatives for the
-        resolved account.
+        """``GET /v1/creatives`` → AdCP ``Creative[]``.
 
-        Sourced from the ``creatives`` table populated by
-        :meth:`sync_creatives`. Pagination is offset/limit; adopters
-        with millions of creatives per buyer upgrade to seek-pagination.
+        Pagination is offset/limit applied client-side after the
+        upstream returns the full list.
         """
         if ctx.account is None:
             raise AdcpError(
@@ -654,47 +808,38 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 message="Dispatch should have populated account.",
                 recovery="terminal",
             )
+        network_code = ctx.account.metadata["network_code"]
+        advertiser_id = ctx.account.metadata["advertiser_id"]
+        agent_url = "https://reference.adcp.org"
         limit = 50
         offset = 0
         if req.pagination is not None:
             limit = getattr(req.pagination, "limit", None) or 50
             offset = getattr(req.pagination, "offset", None) or 0
-        async with self._sessionmaker() as session:
-            count_q = await session.execute(
-                select(func.count())
-                .select_from(CreativeRow)
-                .where(
-                    CreativeRow.tenant_id == ctx.account.metadata["tenant_id"],
-                    CreativeRow.account_id == ctx.account.id,
-                )
-            )
-            total = int(count_q.scalar() or 0)
-            page_q = await session.execute(
-                select(CreativeRow)
-                .where(
-                    CreativeRow.tenant_id == ctx.account.metadata["tenant_id"],
-                    CreativeRow.account_id == ctx.account.id,
-                )
-                .order_by(CreativeRow.created_at.desc())
-                .limit(limit)
-                .offset(offset)
-            )
-            rows = list(page_q.scalars())
+        try:
+            payload = await self._upstream.list_creatives(network_code=network_code)
+        except UpstreamError as exc:
+            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+        upstream_creatives = [
+            c for c in payload.get("creatives", []) if c.get("advertiser_id") == advertiser_id
+        ]
+        total = len(upstream_creatives)
+        page = upstream_creatives[offset : offset + limit]
         creatives = [
             {
-                "creative_id": row.creative_id,
-                "name": row.name,
-                "format_id": row.format_id,
-                "status": row.status,
-                "created_date": row.created_at,
-                "updated_date": row.updated_at,
+                "creative_id": c["creative_id"],
+                "name": c["name"],
+                "format_id": {"agent_url": agent_url, "id": c.get("format_id", "")},
+                "status": _project_creative_status(c.get("status", "active")),
+                "created_date": c.get("created_at"),
+                "updated_date": c.get("created_at"),
             }
-            for row in rows
+            for c in page
         ]
         has_more = offset + len(creatives) < total
         self._record(
             "creatives.list",
-            {"account_id": ctx.account.id, "limit": limit, "offset": offset},
+            {"network_code": network_code, "advertiser_id": advertiser_id},
         )
         return ListCreativesResponse.model_validate(
             {
@@ -711,15 +856,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     ) -> SyncAccountsSuccessResponse:
         """Upsert incoming accounts under the authenticated buyer agent.
 
-        Persists the full :class:`BusinessEntity` payload (bank
-        details included) on ``billing_entity`` — the column is the
-        durable invoicing record. The response goes through
-        :func:`project_business_entity_for_response` so bank details
-        never echo on the wire.
-
-        Natural key: ``(tenant_id, brand.domain + operator)``. The
-        wire ``account_id`` is seller-assigned on first sight and
-        stable thereafter.
+        **Local Postgres only — this is the translator's commercial
+        identity layer.** The AdCP account → upstream ``network_code``
+        mapping is the durable record this seller owns; the upstream
+        ad server doesn't model AdCP accounts at all.
         """
         if ctx.buyer_agent is None:
             raise AdcpError(
@@ -736,7 +876,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             )
         results: list[dict[str, Any]] = []
         async with self._sessionmaker() as session, session.begin():
-            # Look up the buyer-agent SQL row id by agent_url.
             ba_q = await session.execute(
                 select(BuyerAgentRow).where(
                     BuyerAgentRow.tenant_id == tenant.id,
@@ -748,15 +887,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 raise AdcpError(
                     "INTERNAL_ERROR",
                     message=(
-                        "Authenticated buyer_agent has no matching row — " "registry / table drift."
+                        "Authenticated buyer_agent has no matching row — registry / table drift."
                     ),
                     recovery="terminal",
                 )
             for incoming in req.accounts:
-                # Natural key per the spec — brand.domain + operator
-                # under the buyer's agent. Both fields are required by
-                # the schema (BrandReference.domain, Account.brand) so
-                # no None guard is needed.
                 brand_domain = incoming.brand.domain
                 natural_account_id = f"{brand_domain}::{incoming.operator}"
                 billing_entity_payload: dict[str, Any] | None = None
@@ -795,8 +930,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     existing.sandbox = bool(incoming.sandbox)
                     existing.updated_at = datetime.now(timezone.utc)
                     action = "updated"
-                # Project bank out of the echoed billing_entity per
-                # spec write-only rule.
                 response_billing: dict[str, Any] | None = None
                 if incoming.billing_entity is not None:
                     response_billing = project_business_entity_for_response(
@@ -827,12 +960,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     ) -> ListAccountsResponse:
         """List accounts for the authenticated buyer agent.
 
-        **Headline 3.1-readiness claim**: every account in the
-        response is run through
+        Local Postgres only — the upstream doesn't know about AdCP
+        accounts. Every row is run through
         :func:`project_account_for_response` so the spec's
         write-only ``billing_entity.bank`` field cannot leak on the
-        wire — even when adopters persist full bank coordinates for
-        invoicing.
+        wire.
         """
         if ctx.buyer_agent is None:
             raise AdcpError(
@@ -861,8 +993,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             )
             buyer_agent_row = ba_q.scalar_one_or_none()
             if buyer_agent_row is None:
-                # Authenticated agent unknown to the accounts table —
-                # return empty page rather than 500.
                 self._record(
                     "accounts.list",
                     {"buyer_agent_id": ctx.buyer_agent.agent_url},
@@ -897,8 +1027,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     "sandbox": row.sandbox,
                 }
             )
-            # The 3.1-readiness guard: strip bank details before the
-            # response leaves the platform.
             safe = project_account_for_response(wire_account)
             projected_accounts.append(safe.model_dump(mode="json", exclude_none=True))
         self._record("accounts.list", {"buyer_agent_id": ctx.buyer_agent.agent_url})
@@ -909,28 +1037,60 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             }
         )
 
+    # ----- helpers ---------------------------------------------------------
 
-def _project_start_time(value: Any) -> datetime:
-    """Project :class:`StartTiming` (root: ``'asap'`` | :class:`AwareDatetime`)
-    into a flat timezone-aware datetime for SQL storage.
+    @staticmethod
+    def _translate_upstream(exc: UpstreamError, default_code: str) -> AdcpError:
+        """Project an upstream error onto an AdCP wire error.
 
-    The spec lets buyers send either ``'asap'`` or an ISO 8601 datetime;
-    this seller normalizes ``'asap'`` to ``now()`` so the column is
-    always populated. Adopters who need to preserve the literal flag
-    add a separate ``start_immediately`` boolean column and project
-    here.
+        Maps common HTTP statuses to spec-conformant codes; unknown
+        statuses fall through to ``default_code`` so the dispatcher
+        gets a structured error envelope rather than a 500.
+        """
+        if exc.status_code == 401:
+            return AdcpError(
+                "AUTH_INVALID",
+                message=f"Upstream rejected credentials: {exc.payload.get('message', '')}",
+                recovery="terminal",
+            )
+        if exc.status_code == 403:
+            return AdcpError(
+                "PERMISSION_DENIED",
+                message=f"Upstream forbade request: {exc.payload.get('message', '')}",
+                recovery="terminal",
+            )
+        if exc.status_code == 404:
+            return AdcpError(
+                "MEDIA_BUY_NOT_FOUND",
+                message=f"Upstream resource not found: {exc.payload.get('message', '')}",
+                recovery="terminal",
+            )
+        if exc.status_code == 409:
+            return AdcpError(
+                "CONFLICT",
+                message=f"Upstream conflict: {exc.payload.get('message', '')}",
+                recovery="terminal",
+            )
+        return AdcpError(
+            default_code,
+            message=f"Upstream error {exc.status_code}: {exc.payload.get('message', '')}",
+            recovery="retry",
+        )
+
+
+def _project_creative_status(upstream_status: str) -> str:
+    """Translate the upstream's ``Creative.status`` enum (active/paused/
+    archived) onto the AdCP ``CreativeStatus`` enum (approved/
+    pending_review/rejected/archived/processing).
+
+    Adopters whose upstream models richer review states upgrade this
+    table.
     """
-    root = getattr(value, "root", value)
-    if root == "asap":
-        return datetime.now(timezone.utc)
-    if isinstance(root, datetime):
-        return root if root.tzinfo else root.replace(tzinfo=timezone.utc)
-    raise AdcpError(
-        "INVALID_REQUEST",
-        message=f"Unrecognized StartTiming value {root!r}.",
-        recovery="terminal",
-        field="start_time",
-    )
+    if upstream_status == "archived":
+        return "archived"
+    if upstream_status == "paused":
+        return "approved"
+    return "approved"
 
 
 __all__ = ["V3ReferenceSeller"]

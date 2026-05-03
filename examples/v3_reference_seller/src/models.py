@@ -1,10 +1,14 @@
 """SQLAlchemy models for the v3 reference seller.
 
-The schema is **3.0-compliant on the wire, 3.1-ready in architecture
-and storage**. Adopters fork this file and extend the columns with
-their own seller-side audit / contract / billing fields.
+The reference seller demonstrates the **translator pattern**: AdCP
+wire on the inside, a real upstream ad server (the JS mock-server
+shipped in ``@adcp/client``, GAM-flavored) on the outside. Ad-ops
+data — orders / line items / creatives / delivery — lives upstream.
+The local Postgres only stores the *commercial-identity* layer:
+which buyer agent is allowed to talk to us, which account they map
+to upstream, what billing terms apply.
 
-Four tables make up the spine:
+Three tables make up the spine:
 
 * :class:`Tenant` — multi-tenant root. The
   :class:`adcp.server.SubdomainTenantMiddleware` resolves
@@ -17,9 +21,9 @@ Four tables make up the spine:
 * :class:`Account` — buyer-side account under a recognized agent.
   Carries 3.1-ready columns ``billing_entity`` (write-only bank
   details — projection-guarded) and ``reporting_bucket`` (offline
-  delivery target).
-* :class:`MediaBuy` — terminal artifact of ``create_media_buy``.
-  Idempotency-keyed for replay safety.
+  delivery target). The ``ext`` column maps the AdCP account to the
+  upstream ad server's ``network_code`` + ``advertiser_id`` — this
+  is the translation seam.
 
 Admin API and protocol-side audit log live in separate tables
 (:mod:`audit` ships :class:`AuditEvent`).
@@ -33,11 +37,9 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
-    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
-    Float,
     ForeignKey,
     Index,
     String,
@@ -72,9 +74,9 @@ class Tenant(Base):
     the request's ``Host`` header (lower-cased, port-stripped) and
     finds the matching row.
 
-    All downstream tables (buyer agents, accounts, media buys, audit
-    events) FK back to :attr:`Tenant.id` so a single Postgres
-    instance hosts multiple tenants without per-tenant table sharding.
+    All downstream tables (buyer agents, accounts, audit events) FK
+    back to :attr:`Tenant.id` so a single Postgres instance hosts
+    multiple tenants without per-tenant table sharding.
     """
 
     __tablename__ = "tenants"
@@ -202,7 +204,7 @@ class BuyerAgent(Base):
 
 
 # ---------------------------------------------------------------------------
-# Account — 3.1-ready buyer account
+# Account — 3.1-ready buyer account; carries upstream routing in ext
 # ---------------------------------------------------------------------------
 
 
@@ -217,6 +219,15 @@ class Account(Base):
       :func:`adcp.types.project_account_for_response` before
       serializing on the wire.
     * ``reporting_bucket`` — offline-reporting delivery target.
+
+    ``ext`` carries the **translator pattern routing** — for the
+    reference seller this is ``{"network_code": "...",
+    "advertiser_id": "..."}``, the keys the upstream JS mock-server
+    requires on the ``X-Network-Code`` header and order body
+    respectively. Adopters with their own upstream replace these
+    keys with their ad server's identifiers (GAM ``networkCode`` +
+    ``advertiserId``, FreeWheel ``customerId`` + ``advertiserId``,
+    etc.).
 
     ``billing`` carries the spec ``BillingParty`` enum (operator /
     agent / advertiser); the framework's ``sync_accounts`` dispatch
@@ -264,6 +275,10 @@ class Account(Base):
 
     sandbox: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    #: Translator-pattern routing — ``{"network_code": "...",
+    #: "advertiser_id": "..."}``. Read by
+    #: :class:`upstream.MockUpstreamClient` to scope upstream calls
+    #: to the right tenant on the JS mock-server.
     ext: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -286,185 +301,9 @@ class Account(Base):
     tenant: Mapped[Tenant] = relationship("Tenant", back_populates="accounts")
 
 
-# ---------------------------------------------------------------------------
-# MediaBuy — terminal artifact of create_media_buy
-# ---------------------------------------------------------------------------
-
-
-class MediaBuy(Base):
-    """Terminal artifact of ``create_media_buy``.
-
-    Idempotency-keyed for replay safety — the framework's idempotency
-    middleware caches by ``(scope_key, idempotency_key)`` and replays
-    the same response. This row is what the platform method returns
-    on the canonical insert.
-
-    Row state mirrors the spec's :class:`MediaBuyStatus` literal.
-    """
-
-    __tablename__ = "media_buys"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-
-    tenant_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
-    )
-    account_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False
-    )
-
-    #: Wire ``media_buy_id`` returned to the buyer.
-    media_buy_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-
-    #: The buyer's idempotency key for ``create_media_buy``.
-    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
-
-    brand_domain: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    total_budget: Mapped[float | None] = mapped_column(Float, nullable=True)
-    currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
-    start_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    request_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    response_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-
-    #: Per-buy invoice override. When the buyer supplies
-    #: ``CreateMediaBuyRequest.invoice_recipient`` (a
-    #: :class:`adcp.types.BusinessEntity`), the seller persists the
-    #: full payload here — bank details included — so invoicing can
-    #: route to a recipient different from the account default. The
-    #: column is response-projected through
-    #: :func:`adcp.decisioning.project_business_entity_for_response`
-    #: before serialization (write-only ``bank``).
-    invoice_recipient: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
-    )
-
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "idempotency_key", name="media_buys_idem_uk"),
-        Index("media_buys_tenant_idx", "tenant_id"),
-        Index("media_buys_account_idx", "account_id"),
-    )
-
-
-# ---------------------------------------------------------------------------
-# Creative — seller-side view of buyer-uploaded creatives
-# ---------------------------------------------------------------------------
-
-
-class Creative(Base):
-    """Seller-side projection of a buyer-uploaded creative.
-
-    Populated by ``sync_creatives``; surfaced by ``list_creatives``.
-    Idempotency is keyed on ``(tenant_id, creative_id)`` so a buyer
-    re-syncing the same creative under the same wire id updates the
-    existing row in place.
-
-    The full creative manifest (assets, format parameters, tags) is
-    persisted in ``manifest_json`` — production adopters split the hot
-    fields (format_id, status) into typed columns and route the rest
-    to a creative-management service.
-    """
-
-    __tablename__ = "creatives"
-
-    id: Mapped[str] = mapped_column(
-        String(64), primary_key=True, default=lambda: f"cr_{uuid.uuid4().hex[:12]}"
-    )
-    tenant_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
-    )
-    account_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
-    )
-
-    #: Wire ``creative_id`` provided by the buyer.
-    creative_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    #: Format reference — stored as the structured object
-    #: ``{agent_url, id}`` from the spec. We persist the JSON shape so
-    #: adopters can layer on parameterized template formats without a
-    #: column migration.
-    format_id: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
-
-    #: Spec ``CreativeStatus`` — pending_review / approved / rejected /
-    #: archived / processing.
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="approved")
-
-    #: Full creative manifest (assets, tags, ext) — projection-time
-    #: shape kept opaque so spec evolution doesn't force migrations.
-    manifest_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
-    )
-
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "creative_id", name="creatives_tenant_creative_uk"),
-        Index("creatives_tenant_idx", "tenant_id"),
-        Index("creatives_account_idx", "account_id"),
-    )
-
-
-# ---------------------------------------------------------------------------
-# PerformanceFeedback — buyer-supplied performance signal
-# ---------------------------------------------------------------------------
-
-
-class PerformanceFeedback(Base):
-    """Persisted record of a ``provide_performance_feedback`` call.
-
-    Buyer-supplied attribution / measurement signals route into this
-    table for downstream optimization. ``value`` carries the full
-    request payload (performance_index, metric_type, package_id,
-    creative_id, measurement_period) so adopters can backfill new
-    dimensions without column migrations.
-    """
-
-    __tablename__ = "performance_feedback"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    tenant_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
-    )
-    media_buy_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("media_buys.id", ondelete="CASCADE"), nullable=False
-    )
-
-    #: Spec ``MetricType`` — overall_performance / conversion_rate /
-    #: ctr / brand_safety / etc.
-    feedback_type: Mapped[str] = mapped_column(String(64), nullable=False)
-
-    #: Full request payload (performance_index, period bounds, source).
-    value: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
-
-    occurred_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=_utcnow
-    )
-
-    __table_args__ = (
-        Index("performance_feedback_tenant_idx", "tenant_id"),
-        Index("performance_feedback_media_buy_idx", "media_buy_id"),
-    )
-
-
 __all__ = [
     "Account",
     "Base",
     "BuyerAgent",
-    "Creative",
-    "MediaBuy",
-    "PerformanceFeedback",
     "Tenant",
 ]

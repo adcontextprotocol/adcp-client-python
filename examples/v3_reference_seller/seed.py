@@ -1,8 +1,17 @@
-"""Dev fixtures — seed two tenants + buyer agents for local
-end-to-end testing.
+"""Dev fixtures — seed two tenants + buyer agents + accounts for local
+end-to-end testing of the translator pattern.
+
+Each seeded :class:`Account` carries upstream-routing (``network_code`` +
+``advertiser_id``) on the ``ext`` JSON column. The platform reads these
+to scope upstream calls to the right tenant on the JS mock-server.
 
 ::
 
+    # Boot the upstream first
+    npx -y -p @adcp/client@latest \\
+        adcp mock-server sales-guaranteed --port 4503 --api-key test-key &
+
+    # Then seed
     docker compose up -d postgres
     DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp \\
       python -m examples.v3_reference_seller.seed
@@ -22,7 +31,7 @@ import asyncio
 import os
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from src.models import Account, Base, BuyerAgent, Creative, Tenant
+from src.models import Account, Base, BuyerAgent, Tenant
 
 
 async def main() -> None:
@@ -35,8 +44,6 @@ async def main() -> None:
         await conn.run_sync(Base.metadata.create_all)
     sm = async_sessionmaker(engine, expire_on_commit=False)
 
-    # Insert in FK-dependency order with explicit flushes so the
-    # accounts → buyer_agents → tenants chain commits correctly.
     async with sm() as session:
         async with session.begin():
             session.add_all(
@@ -77,6 +84,11 @@ async def main() -> None:
                 ]
             )
             await session.flush()
+            # Translator-pattern routing: each account.ext maps to
+            # an upstream (network_code, advertiser_id) pair. The mock-
+            # server's seeded networks are net_premium_us, net_premium_uk,
+            # net_acmeoutdoor, net_pinnacle. The advertiser_id values
+            # are seeded in the mock's seed-data.ts.
             session.add_all(
                 [
                     Account(
@@ -87,6 +99,10 @@ async def main() -> None:
                         name="Signed Buyer — Main",
                         status="active",
                         billing="operator",
+                        ext={
+                            "network_code": "net_premium_us",
+                            "advertiser_id": "adv_volta_motors",
+                        },
                     ),
                     Account(
                         id="a_acme_2",
@@ -96,52 +112,16 @@ async def main() -> None:
                         name="Bearer Buyer — Main",
                         status="active",
                         billing="operator",
-                    ),
-                ]
-            )
-            await session.flush()
-            session.add_all(
-                [
-                    Creative(
-                        id="cr_demo_1",
-                        tenant_id="t_acme",
-                        account_id="a_acme_1",
-                        creative_id="signed-300x250-spring",
-                        name="Spring 300x250 Display",
-                        format_id={
-                            "agent_url": "https://reference.adcp.org",
-                            "id": "display_300x250",
-                        },
-                        status="approved",
-                        manifest_json={
-                            "creative_id": "signed-300x250-spring",
-                            "name": "Spring 300x250 Display",
-                            "format_id": {
-                                "agent_url": "https://reference.adcp.org",
-                                "id": "display_300x250",
-                            },
-                        },
-                    ),
-                    Creative(
-                        id="cr_demo_2",
-                        tenant_id="t_acme",
-                        account_id="a_acme_2",
-                        creative_id="bearer-video-30s",
-                        name="Bearer Buyer Video 30s",
-                        format_id={
-                            "agent_url": "https://reference.adcp.org",
-                            "id": "video_16x9_30s",
-                        },
-                        status="approved",
-                        manifest_json={
-                            "creative_id": "bearer-video-30s",
-                            "name": "Bearer Buyer Video 30s",
+                        ext={
+                            "network_code": "net_premium_us",
+                            "advertiser_id": "adv_volta_motors",
                         },
                     ),
                 ]
             )
 
-    print("Seeded: 2 tenants, 3 buyer agents, 2 accounts, 2 creatives.")
+    print("Seeded: 2 tenants, 3 buyer agents, 2 accounts.")
+    print("Each account routes to upstream network=net_premium_us advertiser=adv_volta_motors.")
     print("Hit: http://acme.localhost:3001/.well-known/agent.json")
     print("Hit: http://acme.localhost:3001/mcp")
 
