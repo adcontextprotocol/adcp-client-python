@@ -15,6 +15,13 @@ import warnings
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from adcp.decisioning.account_mode import get_account_mode, get_mock_upstream_url
+from adcp.decisioning.types import AdcpError
+from adcp.decisioning.upstream import (
+    NoAuth,
+    UpstreamAuth,
+    UpstreamHttpClient,
+)
 from adcp.types.capabilities import (
     Adcp,
     Brand,
@@ -34,6 +41,7 @@ from adcp.types.capabilities import (
 
 if TYPE_CHECKING:
     from adcp.decisioning.accounts import AccountStore
+    from adcp.decisioning.context import RequestContext
 
 
 @dataclass
@@ -362,3 +370,168 @@ class DecisioningPlatform:
     #: (different ``TMeta`` per adopter); ``validate_platform``
     #: confirms an :class:`AccountStore` instance is set.
     accounts: AccountStore[Any] = None  # type: ignore[assignment]
+
+    #: Optional: the adopter's production upstream API URL. Adapters
+    #: that talk to a real upstream (GAM, Kevel, FreeWheel, etc.) set
+    #: this to the canonical production endpoint
+    #: (``"https://googleads.googleapis.com"``,
+    #: ``"https://api.kevel.co"``, etc.). The value is fixed per
+    #: platform — credentials and per-tenant routing flow through
+    #: ``ctx.auth_info`` and ``ctx.account.metadata``, not through
+    #: this URL.
+    #:
+    #: Leave ``None`` for platforms that don't talk to an HTTP
+    #: upstream (pure in-process, in-memory, or composing via
+    #: framework-level resolvers only).
+    #:
+    #: When :attr:`upstream_url` is ``None``, :meth:`upstream_for`
+    #: refuses to construct a client for ``mode='live'`` /
+    #: ``mode='sandbox'`` accounts (raising ``CONFIGURATION_ERROR``).
+    #: ``mode='mock'`` accounts always read from
+    #: ``account.metadata['mock_upstream_url']`` and never consult
+    #: this attribute.
+    upstream_url: str | None = None
+
+    def upstream_for(
+        self,
+        ctx: RequestContext[Any],
+        *,
+        auth: UpstreamAuth | None = None,
+        default_headers: dict[str, str] | None = None,
+        timeout: float = 30.0,
+        treat_404_as_none: bool = True,
+    ) -> UpstreamHttpClient:
+        """Return an :class:`UpstreamHttpClient` pointed at the right URL
+        for this request's resolved account.
+
+        Routing rules:
+
+        - ``mode='live'`` / ``mode='sandbox'``: client at
+          :attr:`upstream_url`. The adopter's production upstream URL is
+          fixed per platform; only credentials vary per tenant (and flow
+          through ``auth`` / ``ctx.auth_info``).
+        - ``mode='mock'``: client at
+          ``ctx.account.metadata['mock_upstream_url']``. The adopter
+          populates this on mock-mode accounts; the framework points
+          the client at the per-tenant fixture URL. Adapter business
+          logic runs unchanged.
+
+        Clients are cached per-platform-instance keyed by
+        ``(base_url, id(auth))`` so repeated requests pool connections
+        through one ``httpx.AsyncClient``. Different auth strategies
+        get distinct clients (the auth is injected at construction
+        and can't be swapped per-request from a cached client).
+
+        :param ctx: The current request context. Required for
+            ``ctx.account.mode`` and ``ctx.account.metadata``.
+        :param auth: Auth strategy for the upstream. Defaults to
+            :class:`NoAuth` (no header injected). Adopters typically
+            pass a :class:`StaticBearer`, :class:`DynamicBearer`, or
+            :class:`ApiKey`. The same auth is used regardless of mode
+            — mock-mode fixtures usually accept any token, but adopters
+            may want their adapter to send identical headers in mock
+            and live so the wire shape matches end-to-end.
+        :param default_headers: Headers included on every request
+            (e.g. ``X-API-Version``).
+        :param timeout: Per-request timeout in seconds. Default 30.0.
+        :param treat_404_as_none: When ``True`` (default), GET/DELETE
+            404s return ``None`` rather than raising.
+
+        :raises AdcpError: ``CONFIGURATION_ERROR`` when:
+
+            - Account is ``mode='mock'`` but
+              ``account.metadata['mock_upstream_url']`` is missing,
+              empty, or non-string. Adopter must populate it on
+              mock-mode accounts in their ``AccountStore.resolve``.
+            - Account is ``mode='live'`` / ``mode='sandbox'`` but
+              ``self.upstream_url`` is ``None``. Adopter must declare
+              the production URL on their platform subclass.
+        """
+        account = ctx.account
+        mode = get_account_mode(account)
+
+        if mode == "mock":
+            base_url = get_mock_upstream_url(account)
+            if base_url is None:
+                raise AdcpError(
+                    "CONFIGURATION_ERROR",
+                    message=(
+                        "account is mode='mock' but no 'mock_upstream_url' "
+                        "string in metadata; populate it in "
+                        "AccountStore.resolve for mock-mode accounts. "
+                        "See docs/handler-authoring.md#mock-mode-upstream-routing."
+                    ),
+                    recovery="terminal",
+                    field="account.metadata.mock_upstream_url",
+                )
+        else:
+            # mode in {'live', 'sandbox'} — point at the platform's
+            # declared production URL. Sandbox is the adopter's own
+            # test infra; the URL is the same as live (credentials
+            # + tenant routing change, not the URL).
+            if self.upstream_url is None:
+                raise AdcpError(
+                    "CONFIGURATION_ERROR",
+                    message=(
+                        f"platform {type(self).__name__!s} has no "
+                        f"upstream_url declared but resolved account is "
+                        f"mode={mode!r}. Set the class attribute "
+                        "upstream_url to the production upstream API URL, "
+                        "or mark the account mode='mock' and populate "
+                        "metadata['mock_upstream_url']."
+                    ),
+                    recovery="terminal",
+                )
+            base_url = self.upstream_url
+
+        return self._cached_upstream_client(
+            base_url=base_url,
+            auth=auth or NoAuth(),
+            default_headers=default_headers,
+            timeout=timeout,
+            treat_404_as_none=treat_404_as_none,
+        )
+
+    def _cached_upstream_client(
+        self,
+        *,
+        base_url: str,
+        auth: UpstreamAuth,
+        default_headers: dict[str, str] | None,
+        timeout: float,
+        treat_404_as_none: bool,
+    ) -> UpstreamHttpClient:
+        """Per-instance cached :class:`UpstreamHttpClient` factory.
+
+        Cache key is ``(base_url, id(auth))``. Pooling correctness
+        requires keying on the auth instance — different ``DynamicBearer``
+        closures for different tenants need distinct clients so the
+        token resolver doesn't get accidentally shared, and the
+        ``UpstreamHttpClient`` itself owns the underlying
+        ``httpx.AsyncClient`` connection pool.
+
+        Cache lives on the platform instance (``__dict__`` lazy init);
+        multi-platform processes don't cross-pollute. Adopter code
+        does not mutate the cache; lifecycle is "create once, reuse
+        for the platform instance's lifetime."
+        """
+        cache: dict[tuple[str, int], UpstreamHttpClient] | None
+        cache = getattr(self, "_upstream_client_cache", None)
+        if cache is None:
+            cache = {}
+            self._upstream_client_cache = cache
+
+        key = (base_url, id(auth))
+        existing = cache.get(key)
+        if existing is not None:
+            return existing
+
+        client = UpstreamHttpClient(
+            base_url=base_url,
+            auth=auth,
+            default_headers=default_headers,
+            timeout=timeout,
+            treat_404_as_none=treat_404_as_none,
+        )
+        cache[key] = client
+        return client

@@ -393,7 +393,17 @@ class Account(Generic[TMeta]):
         ``'active'``, ``'disabled'``, etc. Adopters consuming the
         ``account-status.json`` enum can use this directly.
     :param metadata: Adopter-defined typed metadata. Defaults to an
-        untyped dict for adopters who don't care.
+        untyped dict for adopters who don't care. Two framework-reserved
+        keys when ``metadata`` is a dict-shaped payload:
+
+        - ``mock_upstream_url`` (``str``): For ``mode='mock'`` accounts
+          only. Tells :meth:`DecisioningPlatform.upstream_for` which
+          mock-server fixture URL to point the adapter's
+          :class:`UpstreamHttpClient` at. Read via
+          :func:`get_mock_upstream_url`. The adopter populates this in
+          ``AccountStore.resolve`` for mock-mode accounts; the framework
+          fail-closes when missing.
+        - All other keys are adopter-defined.
     :param auth_info: The verified principal that authenticated this
         request, if any. Distinct from ``id`` because one principal
         can act on multiple accounts in 'explicit' resolution mode.

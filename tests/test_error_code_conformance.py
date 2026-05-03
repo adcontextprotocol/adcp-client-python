@@ -73,6 +73,21 @@ KNOWN_NON_SPEC_CODES: dict[str, str] = {
         "Pre-canonical 3.1 split of AUTH_REQUIRED. Documented in the "
         "AUTH_REQUIRED enumDescription as a future spec change."
     ),
+    # TODO: track upstream addition to error-code.json enum.
+    # Server-side adopter-misconfiguration signal raised at framework
+    # seams where the platform's declared shape can't service the
+    # request — e.g., DecisioningPlatform.upstream_for() with no
+    # ``upstream_url`` and a non-mock account, or a mock-mode account
+    # whose ``metadata['mock_upstream_url']`` is missing/empty.
+    # Distinct from INVALID_REQUEST (buyer's payload bad) and
+    # SERVICE_UNAVAILABLE (transient upstream failure); buyers can't
+    # fix this — only the seller's deployment can. Surfaces with
+    # recovery=terminal so buyers don't retry.
+    "CONFIGURATION_ERROR": (
+        "Adopter-misconfiguration signal raised by "
+        "DecisioningPlatform.upstream_for. Distinct from INVALID_REQUEST "
+        "(buyer-fixable) and SERVICE_UNAVAILABLE (transient)."
+    ),
 }
 
 CANONICAL_CODES: frozenset[str] = frozenset(member.value for member in ErrorCode)

@@ -689,6 +689,87 @@ For the full set of scope invariants — what each field means, how
 cache keys are composed, what leaks if you populate fields wrong — see
 [docs/multi-tenant-contract.md](./multi-tenant-contract.md).
 
+## Account modes and mock-mode upstream routing
+
+The framework recognizes three operationally distinct account modes
+([proposal](https://github.com/adcontextprotocol/adcp-client/blob/main/docs/proposals/lifecycle-state-and-sandbox-authority.md)):
+
+- `mode='live'` — production traffic. Adopter's upstream is truth.
+- `mode='sandbox'` — adopter's own test infrastructure (test DB, test
+  GAM tenant). Test-only surfaces (`comply_test_controller`) are
+  admitted; everything else flows through the adopter's normal code
+  path.
+- `mode='mock'` — points the adapter's HTTP client at a per-tenant
+  mock-server fixture URL. Adapter business logic runs unchanged;
+  only the upstream URL changes per request.
+
+Adopters mark accounts with their mode in `AccountStore.resolve`. The
+framework reads `account.mode` to gate test-only surfaces and route
+upstream HTTP.
+
+### Adapter URL contract
+
+Adapters declare their production upstream URL on the platform class.
+The URL is fixed per platform — credentials and per-tenant routing
+flow through `ctx.auth_info` and `ctx.account.metadata`, not through
+the URL.
+
+```python
+class GAMPlatform(DecisioningPlatform, SalesPlatform):
+    upstream_url = "https://googleads.googleapis.com"
+    ...
+
+    async def get_products(self, req, ctx):
+        client = self.upstream_for(ctx, auth=self._auth_for(ctx))
+        # client._base_url == upstream_url for mode='live'/'sandbox';
+        # client._base_url == account.metadata['mock_upstream_url']
+        # for mode='mock'.
+        data = await client.get("/v1/products")
+        ...
+```
+
+`upstream_for(ctx)` returns a cached `UpstreamHttpClient` keyed by
+`(base_url, id(auth))`. Connection pooling stays correct across
+requests; different tenants with different auth strategies get
+distinct clients.
+
+### Mock-mode account fixture URLs
+
+Mock-mode accounts populate `metadata['mock_upstream_url']` in their
+`AccountStore.resolve` return value:
+
+```python
+ExplicitAccounts(loader=lambda aid: Account(
+    id=aid,
+    mode="mock",
+    metadata={"mock_upstream_url": "http://localhost:4500"},
+))
+```
+
+The mock-server is per-specialism (`bin/adcp.js mock-server
+<specialism>`, default port 4500). Adopters or CI start it before
+running storyboards. The SDK does not manage the mock-server's
+lifecycle — it just points the adapter at the URL.
+
+### Fail-closed cases
+
+`upstream_for(ctx)` raises `AdcpError(code='CONFIGURATION_ERROR')`
+when:
+
+- `mode='mock'` and `metadata['mock_upstream_url']` is missing /
+  empty / non-string. Fix in `AccountStore.resolve`.
+- `mode='live'` / `mode='sandbox'` and `platform.upstream_url is
+  None`. Set the class attribute, or mark the account `mode='mock'`.
+
+`recovery='terminal'` — buyers can't fix this; only the adopter's
+deployment can.
+
+### Worked example
+
+See `examples/hello_mock_seller.py` for a single platform with four
+accounts demonstrating all four routes (live, sandbox, mock-A,
+mock-B).
+
 ## A2A transport
 
 `serve(MyAgent(), transport="a2a")` wires the same handler through the

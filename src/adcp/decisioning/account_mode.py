@@ -8,9 +8,11 @@ env vars are operator-error-prone proxies for what is fundamentally an
 authority decision per principal.
 
 Mirrors the JS-side ``src/lib/server/account-mode.ts`` for cross-language
-parity. Phase 1 of the lifecycle-state-and-sandbox-authority proposal —
-ships the field, helpers, and dispatch gate. Mock-mode routing
-(Phase 2) is deferred.
+parity. Phase 1 of the lifecycle-state-and-sandbox-authority proposal
+ships the field, helpers, and dispatch gate; Phase 2 ships
+:func:`get_mock_upstream_url` and :meth:`DecisioningPlatform.upstream_for`
+so mock-mode accounts route HTTP requests at a per-tenant fixture URL
+without touching adapter business logic.
 
 See ``docs/proposals/lifecycle-state-and-sandbox-authority.md`` for the
 full three-mode design.
@@ -18,9 +20,10 @@ full three-mode design.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Literal, cast
 
-from adcp.decisioning.types import AdcpError
+from adcp.decisioning.types import Account, AdcpError
 
 #: Three operationally distinct account modes:
 #:
@@ -127,6 +130,38 @@ def assert_sandbox_account(
         recovery="terminal",
         details=details,
     )
+
+
+def get_mock_upstream_url(account: Account[Any]) -> str | None:
+    """Read ``account.metadata['mock_upstream_url']`` safely.
+
+    Adopters populate this in :meth:`AccountStore.resolve` for
+    ``mode='mock'`` accounts so the framework's
+    :meth:`DecisioningPlatform.upstream_for` knows which mock-server
+    fixture URL to point the adapter's :class:`UpstreamHttpClient` at.
+    The mock-server is per-specialism (``bin/adcp.js mock-server
+    <specialism>``); adopters or CI start it and supply the URL on the
+    account.
+
+    Returns ``None`` when:
+
+    - ``account.metadata`` is not a :class:`Mapping`.
+    - ``mock_upstream_url`` is absent.
+    - ``mock_upstream_url`` is empty / falsy / not a string.
+
+    The framework treats any of these as "no mock URL declared" and
+    fails closed at :meth:`DecisioningPlatform.upstream_for` rather
+    than silently routing to a live URL.
+    """
+    if account is None:
+        return None
+    metadata = getattr(account, "metadata", None)
+    if not isinstance(metadata, Mapping):
+        return None
+    url = metadata.get("mock_upstream_url")
+    if not isinstance(url, str) or not url:
+        return None
+    return url
 
 
 def _attr(obj: Any, name: str) -> Any:
