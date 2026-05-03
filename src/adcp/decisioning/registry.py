@@ -19,7 +19,7 @@ Today the framework can't enforce that and the resulting commercial
 drift is invisible to buyers. With :class:`BuyerAgent.billing_capabilities`
 the framework rejects mismatched ``billing`` values with a structured
 :class:`adcp.decisioning.AdcpError`
-``code="BILLING_NOT_PERMITTED_FOR_AGENT"``.
+``code="X_BILLING_NOT_PERMITTED_FOR_AGENT"``.
 
 Per :issue:`adcp-client#1269` and the v3-identity-bundle RFC, the
 registry is *durable* infrastructure — it stays useful even after
@@ -338,7 +338,7 @@ def validate_billing_for_agent(
     agent: BuyerAgent,
 ) -> None:
     """Raise :class:`adcp.decisioning.AdcpError`
-    ``BILLING_NOT_PERMITTED_FOR_AGENT`` when ``requested_billing`` is
+    ``X_BILLING_NOT_PERMITTED_FOR_AGENT`` when ``requested_billing`` is
     not in ``agent.billing_capabilities``.
 
     Called by the framework's ``sync_accounts`` shim before invoking

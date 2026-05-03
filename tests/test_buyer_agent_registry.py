@@ -6,7 +6,7 @@ Behavior under test:
 * Three implementer postures (signing-only / bearer-only / mixed)
   reject the off-posture credential type by returning ``None``.
 * :func:`validate_billing_for_agent` accepts permitted modes and
-  raises ``BILLING_NOT_PERMITTED_FOR_AGENT`` on others, with details
+  raises ``X_BILLING_NOT_PERMITTED_FOR_AGENT`` on others, with details
   scoped to ``rejected_billing`` (and optional ``suggested_billing``)
   — the full ``permitted_billing`` subset is never leaked.
 * ``BuyerAgent`` defaults match the pre-trust beta passthrough-only

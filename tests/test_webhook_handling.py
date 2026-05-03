@@ -473,7 +473,7 @@ class TestA2AWebhooks:
         error_data = {
             "errors": [
                 {
-                    "code": "INTERNAL_ERROR",
+                    "code": "X_INTERNAL_ERROR",
                     "message": "Database connection failed",
                 }
             ]

@@ -10,7 +10,7 @@ This file pins the spec-conformant wire shape:
 
 * All four denial paths surface a code from the spec vocabulary
   (``PERMISSION_DENIED`` for the three commercial-identity paths;
-  ``BILLING_NOT_PERMITTED_FOR_AGENT`` for the billing-capability path —
+  ``X_BILLING_NOT_PERMITTED_FOR_AGENT`` for the billing-capability path —
   see PR notes for the spec status of the billing code).
 * Recognized-but-denied paths (suspended / blocked) carry
   ``details.scope="agent"`` + ``details.status``.
@@ -323,7 +323,7 @@ def test_billing_validation_carries_rejected_billing() -> None:
     )
     with pytest.raises(AdcpError) as exc:
         validate_billing_for_agent(requested_billing="agent", agent=agent)
-    assert exc.value.code == "BILLING_NOT_PERMITTED_FOR_AGENT"
+    assert exc.value.code == "X_BILLING_NOT_PERMITTED_FOR_AGENT"
     assert exc.value.recovery == "correctable"
     assert exc.value.details["rejected_billing"] == "agent"
 

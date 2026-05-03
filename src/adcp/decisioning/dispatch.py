@@ -16,7 +16,7 @@ existing ``adcp.server`` transport machinery and the new
 * :func:`_invoke_platform_method` — the method-call seam. Detects
   async-vs-sync, runs sync on a thread-pool executor with
   ``contextvars`` snapshot, projects ``TaskHandoff`` returns, wraps
-  non-``AdcpError`` exceptions to ``INTERNAL_ERROR`` (wire never
+  non-``AdcpError`` exceptions to ``X_INTERNAL_ERROR`` (wire never
   leaks a stack trace).
 * :func:`_project_handoff` — TaskHandoff lifecycle: allocates
   ``task_id``, projects the wire ``Submitted`` envelope, kicks off
@@ -814,7 +814,7 @@ async def _invoke_platform_method(
     Submitted envelope.
 
     Wraps any non-:class:`AdcpError` exception to
-    ``AdcpError("INTERNAL_ERROR", recovery="terminal")`` so the wire
+    ``AdcpError("X_INTERNAL_ERROR", recovery="terminal")`` so the wire
     response never leaks a stack trace. Adopters get the original
     exception logged via the framework's observability hooks (the
     raise re-raises the wrapped error; the original is the
@@ -957,7 +957,7 @@ async def _project_handoff(
        calls ``registry.complete(task_id, result.model_dump() if
        Pydantic else result)``; on :class:`AdcpError` calls
        ``registry.fail(task_id, error.to_wire())``; on any other
-       exception, wraps to ``INTERNAL_ERROR`` and calls
+       exception, wraps to ``X_INTERNAL_ERROR`` and calls
        ``registry.fail``.
     4. Returns the wire ``Submitted`` envelope dict to the synchronous
        caller (the platform method's typed shim), which projects it
