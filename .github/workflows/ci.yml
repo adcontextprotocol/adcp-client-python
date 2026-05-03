@@ -364,8 +364,10 @@ jobs:
           for i in $(seq 1 60); do
             # Any HTTP response (including 405 on GET to a POST-only endpoint)
             # means the server is up and accepting connections.
+            # ``||`` runs on the assignment so curl's "000" stdout and the
+            # fallback don't concatenate when the connection is refused.
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
-              http://127.0.0.1:3001/mcp 2>/dev/null || echo "000")
+              http://127.0.0.1:3001/mcp 2>/dev/null) || HTTP_CODE="000"
             if [ "$HTTP_CODE" != "000" ]; then
               echo "Seller agent ready (HTTP ${HTTP_CODE}, pid ${AGENT_PID})"
               break
@@ -503,8 +505,10 @@ jobs:
             # SubdomainTenantMiddleware resolves ``acme.localhost`` →
             # ``t_acme`` and the request progresses past the 404
             # ``unknown-host`` early-return.
+            # ``||`` runs on the assignment so curl's "000" stdout and the
+            # fallback don't concatenate when the connection is refused.
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 1 \
-              http://acme.localhost:3001/mcp 2>/dev/null || echo "000")
+              http://acme.localhost:3001/mcp 2>/dev/null) || HTTP_CODE="000"
             if [ "$HTTP_CODE" != "000" ] && [ "$HTTP_CODE" != "404" ]; then
               echo "v3 reference seller ready (HTTP ${HTTP_CODE}, pid ${AGENT_PID})"
               break
