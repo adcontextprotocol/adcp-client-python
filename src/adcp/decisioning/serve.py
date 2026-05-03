@@ -42,6 +42,7 @@ from adcp.decisioning.types import AdcpError
 if TYPE_CHECKING:
     from adcp.decisioning.implementation_config import ProductConfigStore
     from adcp.decisioning.platform import DecisioningPlatform
+    from adcp.decisioning.property_list import PropertyListFetcher
     from adcp.decisioning.registry import BuyerAgentRegistry
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
@@ -85,6 +86,7 @@ def create_adcp_server_from_platform(
     auto_emit_completion_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     config_store: ProductConfigStore | None = None,
+    property_list_fetcher: PropertyListFetcher | None = None,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -275,6 +277,18 @@ def create_adcp_server_from_platform(
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         buyer_agent_registry=buyer_agent_registry,
         config_store=config_store,
+        property_list_fetcher=property_list_fetcher,
+    )
+
+    # Boot-time fail-fast: property_list_filtering declared but no fetcher wired.
+    from adcp.decisioning.property_list import (
+        property_list_capability_enabled,
+        validate_property_list_config,
+    )
+
+    validate_property_list_config(
+        capability_enabled=property_list_capability_enabled(platform),
+        fetcher=property_list_fetcher,
     )
 
     # F12 boot-time fail-fast (Emma sales-direct P0 root cause): if
@@ -326,6 +340,7 @@ def serve(
     auto_emit_completion_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     config_store: ProductConfigStore | None = None,
+    property_list_fetcher: PropertyListFetcher | None = None,
     advertise_all: bool = False,
     mock_ad_server: Any | None = None,
     enable_debug_endpoints: bool = False,
@@ -404,6 +419,7 @@ def serve(
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         buyer_agent_registry=buyer_agent_registry,
         config_store=config_store,
+        property_list_fetcher=property_list_fetcher,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account

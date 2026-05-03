@@ -45,6 +45,10 @@ from adcp.decisioning.dispatch import (
 )
 from adcp.decisioning.implementation_config import ProductConfigStore
 from adcp.decisioning.pagination import _query_hash, apply_framework_pagination
+from adcp.decisioning.property_list import (
+    maybe_apply_property_list_filter,
+    property_list_capability_enabled,
+)
 from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
 from adcp.server.base import ADCPHandler, ToolContext
 
@@ -151,6 +155,7 @@ if TYPE_CHECKING:
     from concurrent.futures import ThreadPoolExecutor
 
     from adcp.decisioning.platform import DecisioningPlatform
+    from adcp.decisioning.property_list import PropertyListFetcher
     from adcp.decisioning.registry import BuyerAgent, BuyerAgentRegistry
     from adcp.decisioning.resolve import ResourceResolver
     from adcp.decisioning.state import StateReader
@@ -696,6 +701,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         auto_emit_completion_webhooks: bool = True,
         buyer_agent_registry: BuyerAgentRegistry | None = None,
         config_store: ProductConfigStore | None = None,
+        property_list_fetcher: PropertyListFetcher | None = None,
     ) -> None:
         super().__init__()
         self._platform = platform
@@ -708,6 +714,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
         self._buyer_agent_registry = buyer_agent_registry
         self._config_store = config_store
+        self._property_list_fetcher = property_list_fetcher
 
         # Cache whether the platform's create_media_buy accepts 'configs'
         # so we only pay the inspect.signature cost at construction time.
@@ -1074,6 +1081,16 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 ctx,
                 executor=self._executor,
                 registry=self._registry,
+            ),
+        )
+        # Post-adapter: capability-gated property-list filter.
+        response = cast(
+            "GetProductsResponse",
+            await maybe_apply_property_list_filter(
+                params=params,
+                response=response,
+                fetcher=self._property_list_fetcher,
+                capability_enabled=property_list_capability_enabled(self._platform),
             ),
         )
         if self._platform.capabilities.auto_paginate and params.pagination is not None:
