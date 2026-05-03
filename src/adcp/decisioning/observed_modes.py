@@ -17,6 +17,19 @@ adopters are exactly who the env-fallback bridge exists for. Only the
 deliberate explicit mode (resolver populated ``mode='...'`` and stamped
 ``_mode_explicit=True``) trips the guard.
 
+**Multi-tenant blast radius.** This tracker is process-scoped, not
+tenant-scoped. In a multi-tenant SaaS process (salesagent-style — many
+tenants share one Python process), if ANY tenant's resolver returns an
+explicit ``mode='live'`` account, every subsequent comply-controller
+call that would admit only via ``ADCP_SANDBOX=1`` raises ``RuntimeError``
+across ALL tenants. SaaS adopters MUST NOT set ``ADCP_SANDBOX=1`` in
+shared dev/staging environments where some tenants may resolve live
+accounts; either gate per tenant via ``mode='sandbox'`` on the resolved
+account or run sandbox tenants in a separate process. JS takes the same
+posture; the cross-tenant tripping is intentional (silent admission
+under env-fallback would be the worse failure mode) but worth
+surfacing.
+
 Mirrors the JS-side
 ``src/lib/server/decisioning/runtime/observed-modes.ts``.
 """

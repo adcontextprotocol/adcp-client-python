@@ -40,6 +40,16 @@ from adcp.server.test_controller import (
     register_test_controller,
 )
 
+
+@pytest.fixture(autouse=True)
+def _admit_sandbox_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests cover header-context threading, not the
+    sandbox-authority gate. Set the legacy env opt-in so the gate
+    admits without requiring per-call resolver wiring. The gate's
+    own behavior is exercised in ``test_account_mode_gate.py``."""
+    monkeypatch.setenv("ADCP_SANDBOX", "1")
+
+
 # ---------------------------------------------------------------------------
 # Minimal handler — TestControllerStore tests need an MCP server but not
 # an interesting ADCPHandler.

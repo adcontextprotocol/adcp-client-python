@@ -146,6 +146,7 @@ from adcp.server.tenant_router import (
     current_tenant,
 )
 from adcp.server.test_controller import (
+    INSECURE_ALLOW_ALL,
     TestControllerError,
     TestControllerStore,
     register_test_controller,
@@ -213,6 +214,7 @@ __all__ = [
     "build_manifest",
     "make_discovery_route",
     # Test controller
+    "INSECURE_ALLOW_ALL",
     "TestControllerStore",
     "TestControllerError",
     "register_test_controller",

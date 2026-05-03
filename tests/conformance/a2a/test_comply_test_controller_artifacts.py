@@ -29,6 +29,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+@pytest.fixture(autouse=True)
+def _admit_sandbox_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A2A conformance tests cover wire-shape contracts, not the
+    sandbox-authority gate. Set the legacy env opt-in so the gate
+    admits without requiring per-call resolver wiring."""
+    monkeypatch.setenv("ADCP_SANDBOX", "1")
+
+
 class _MinimalSeller(ADCPHandler):
     async def get_adcp_capabilities(self, params: Any, context: Any = None) -> dict[str, Any]:
         return {"adcp": {"major_versions": [3]}}

@@ -26,6 +26,16 @@ from adcp.server.a2a_server import (
 from adcp.server.test_controller import TestControllerError, TestControllerStore
 
 
+@pytest.fixture(autouse=True)
+def _admit_sandbox_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A2A executor / agent-card tests cover transport + skill
+    advertisement, not the sandbox-authority gate. Set the legacy env
+    opt-in so the gate admits without requiring per-call resolver
+    wiring. The gate's own behavior is exercised in
+    ``test_account_mode_gate.py``."""
+    monkeypatch.setenv("ADCP_SANDBOX", "1")
+
+
 def ADCPAgentExecutor(*args: Any, **kwargs: Any) -> _ADCPAgentExecutor:  # noqa: N802
     """Test wrapper that defaults ``validation=None``.
 

@@ -433,26 +433,18 @@ def _build_test_controller_account_resolver(
     comply controller's sandbox gate.
 
     The resolver takes a wire account ref dict (from the request's
-    ``account`` or ``context.account``) and returns the framework
-    :class:`Account` or raises. The comply gate consults
-    ``account.mode`` to admit / deny — see :mod:`adcp.decisioning.account_mode`.
-
-    Pulls auth_info from a thread-local set by the dispatcher when
-    available; falls back to ``None`` when the comply call arrives
-    outside an authenticated context (e.g., conformance bootstrap).
-    The framework's :class:`AccountStore` impls handle missing-auth
-    cases per their own resolution mode.
+    ``account`` or ``context.account``) plus the verified ``auth_info``
+    threaded by the comply dispatch out of ``ToolContext.metadata``.
+    ``FromAuthAccounts`` adopters (signed-request agents,
+    OAuth-bearer-bound vendors) need auth_info to find the principal's
+    account; without it the store would raise ``AUTH_INVALID``, which
+    the gate now treats as DENY rather than fall-through. See
+    :mod:`adcp.decisioning.account_mode`.
     """
+    from adcp.decisioning.context import AuthInfo
 
-    def _resolve(ref: dict[str, Any] | None) -> Any:
-        # Phase 1 keeps auth_info unthreaded — the comply controller's
-        # gate runs in advance of the per-tool dispatch's auth wiring,
-        # and the resolver only needs the wire ref to admit/deny.
-        # ``FromAuthAccounts`` adopters whose resolution depends on
-        # auth_info will fall through to the ``None`` branch in their
-        # store's ``resolve``; the gate then drops to the wire-ref /
-        # env fallback path. That preserves the JS PR #1453 posture.
-        return platform.accounts.resolve(ref, auth_info=None)
+    def _resolve(ref: dict[str, Any] | None, *, auth_info: AuthInfo | None = None) -> Any:
+        return platform.accounts.resolve(ref, auth_info=auth_info)
 
     return _resolve
 

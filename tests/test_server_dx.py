@@ -34,6 +34,16 @@ from adcp.server.test_controller import (
     _list_scenarios,
 )
 
+
+@pytest.fixture(autouse=True)
+def _admit_sandbox_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests cover dispatcher / scenarios / response builders,
+    not the sandbox-authority gate. Set the legacy env opt-in so the
+    gate admits without requiring per-call resolver wiring. The gate's
+    own behavior is exercised in ``test_account_mode_gate.py``."""
+    monkeypatch.setenv("ADCP_SANDBOX", "1")
+
+
 # ============================================================================
 # Response builder tests — match actual AdCP spec schemas
 # ============================================================================
@@ -461,7 +471,9 @@ class TestHandleTestController:
             {
                 "scenario": "seed_creative_format",
                 "params": {
-                    "fixture": {"format_id": {"agent_url": "http://localhost", "id": "display_300x250"}}
+                    "fixture": {
+                        "format_id": {"agent_url": "http://localhost", "id": "display_300x250"}
+                    }
                 },
             },
         )

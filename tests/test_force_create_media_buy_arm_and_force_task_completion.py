@@ -10,7 +10,6 @@ list_scenarios advertisement.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import pytest
@@ -20,6 +19,16 @@ from adcp.server.test_controller import (
     TestControllerStore,
     _handle_test_controller,
 )
+
+
+@pytest.fixture(autouse=True)
+def _admit_sandbox_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests cover force_* dispatch / replay / isolation, not the
+    sandbox-authority gate. Set the legacy env opt-in so the gate admits
+    without requiring per-call resolver wiring. The gate's own behavior
+    is exercised in ``test_account_mode_gate.py``."""
+    monkeypatch.setenv("ADCP_SANDBOX", "1")
+
 
 # ---------------------------------------------------------------------------
 # Concrete store implementations for tests
@@ -81,7 +90,11 @@ class _CompletionStore(TestControllerStore):
                 raise TestControllerError("NOT_FOUND", f"task {task_id!r} not found")
             if stored["result"] == result:
                 # Identical-params replay — idempotent
-                return {"success": True, "previous_state": "submitted", "current_state": "completed"}
+                return {
+                    "success": True,
+                    "previous_state": "submitted",
+                    "current_state": "completed",
+                }
             raise TestControllerError(
                 "INVALID_TRANSITION",
                 f"task {task_id!r} already completed with different result",
@@ -218,9 +231,7 @@ async def test_arm_message_too_long() -> None:
 async def test_arm_whitespace_task_id_treated_as_missing() -> None:
     """A whitespace-only task_id is stripped to empty, then treated as absent."""
     store = _ArmStore()
-    resp = await _handle_test_controller(
-        store, _arm_req({"arm": "submitted", "task_id": "   "})
-    )
+    resp = await _handle_test_controller(store, _arm_req({"arm": "submitted", "task_id": "   "}))
     assert resp["success"] is False
     assert resp["error"] == "INVALID_PARAMS"
 
@@ -306,9 +317,7 @@ async def test_completion_cross_account_not_found() -> None:
 @pytest.mark.asyncio
 async def test_completion_missing_task_id() -> None:
     store = _CompletionStore()
-    resp = await _handle_test_controller(
-        store, _completion_req({"result": _GOOD_RESULT})
-    )
+    resp = await _handle_test_controller(store, _completion_req({"result": _GOOD_RESULT}))
     assert resp["success"] is False
     assert resp["error"] == "INVALID_PARAMS"
     assert "task_id" in resp["error_detail"]

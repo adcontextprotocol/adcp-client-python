@@ -30,7 +30,9 @@ from adcp.decisioning.observed_modes import (
     record_resolved_account_mode,
 )
 from adcp.decisioning.types import Account
+from adcp.server.base import ToolContext
 from adcp.server.test_controller import (
+    INSECURE_ALLOW_ALL,
     TestControllerStore,
     _handle_test_controller,
 )
@@ -182,15 +184,19 @@ async def test_spoofed_wire_sandbox_ignored_when_resolver_returns_live() -> None
 
 @pytest.mark.asyncio
 async def test_unresolved_account_with_context_sandbox_admits() -> None:
-    """When no account resolves AND ``context.sandbox=True``, admit.
+    """When the resolver cleanly returns ``None`` (genuine no-account
+    request) AND ``context.sandbox=True``, admit.
 
     Capability-probe / conformance bootstrap path: requests that don't
     carry an account ref at all but signal sandbox intent through
     ``context.sandbox``. Mirrors today's ``isSandboxRequest`` semantics.
+
+    A resolver that *raises* is fail-closed (DENY) — see
+    :func:`test_resolver_raise_denies_even_with_context_sandbox`.
     """
 
-    def resolve(_ref: dict[str, Any] | None) -> Account:
-        raise RuntimeError("no account resolves for this request")
+    def resolve(_ref: dict[str, Any] | None, *, auth_info: Any = None) -> Account | None:
+        return None
 
     params = _force_status_params()
     params["context"] = {"sandbox": True}
@@ -205,10 +211,11 @@ async def test_unresolved_account_with_context_sandbox_admits() -> None:
 
 @pytest.mark.asyncio
 async def test_unresolved_account_without_context_sandbox_denied() -> None:
-    """When no account resolves AND no sandbox signal, refuse."""
+    """When the resolver cleanly returns ``None`` AND no sandbox signal
+    is set, refuse."""
 
-    def resolve(_ref: dict[str, Any] | None) -> Account:
-        raise RuntimeError("no account resolves for this request")
+    def resolve(_ref: dict[str, Any] | None, *, auth_info: Any = None) -> Account | None:
+        return None
 
     result = await _handle_test_controller(
         _store(),
@@ -337,6 +344,115 @@ async def test_list_scenarios_exempt_even_on_live(
     )
     assert result["success"] is True
     assert "scenarios" in result
+
+
+# ---------------------------------------------------------------------------
+# Resolver-raise + auth-info threading regression tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_resolver_raise_denies_even_with_context_sandbox() -> None:
+    """B1 regression: a resolver that raises (e.g.,
+    :class:`FromAuthAccounts` raising ``AUTH_INVALID`` when auth_info is
+    None) MUST NOT fall through to the buyer-supplied wire flag.
+
+    Before the fix: gate caught the exception, set resolved_account =
+    None, then admitted via ``account.sandbox=True``. That let a buyer
+    flip state on a live principal by spoofing the wire flag.
+
+    After the fix: resolver-raised → DENY, full stop.
+    """
+    from adcp.decisioning import AdcpError
+
+    def resolve(_ref: dict[str, Any] | None, *, auth_info: Any = None) -> Account:
+        raise AdcpError("AUTH_INVALID", message="missing auth", recovery="terminal")
+
+    params = _force_status_params()
+    # Buyer-supplied wire flag — under the old behavior this admitted.
+    params["account"] = {"account_id": "acc_1", "sandbox": True}
+    params["context"] = {"sandbox": True}
+
+    result = await _handle_test_controller(
+        _store(),
+        params,
+        account_resolver=resolve,
+    )
+    assert result["success"] is False
+    assert result["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.asyncio
+async def test_no_resolver_no_env_denies_by_default() -> None:
+    """B2 regression: when no ``account_resolver`` is wired AND
+    ``ADCP_SANDBOX`` is unset, the gate fail-closes.
+
+    Before the fix: the gate was dormant (admitted everything) — every
+    manually-wired ADCPHandler / ComplianceHandler was unprotected.
+    After the fix: DENY by default.
+    """
+    result = await _handle_test_controller(
+        _store(),
+        _force_status_params(),
+        account_resolver=None,
+    )
+    assert result["success"] is False
+    assert result["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.asyncio
+async def test_insecure_allow_all_sentinel_admits() -> None:
+    """B2 escape hatch: ``INSECURE_ALLOW_ALL`` sentinel admits
+    unconditionally.
+
+    Tests / dev fixtures pass this when they intentionally want to
+    bypass the sandbox-authority gate. The sentinel short-circuits
+    every other check — including any wire signal that would otherwise
+    deny.
+    """
+    result = await _handle_test_controller(
+        _store(),
+        _force_status_params(),
+        account_resolver=INSECURE_ALLOW_ALL,
+    )
+    assert result["success"] is True
+    assert result["current_state"] == "disabled"
+
+
+@pytest.mark.asyncio
+async def test_resolver_receives_auth_info_from_context() -> None:
+    """Auth-info threading: the resolver MUST be called with the
+    ``AuthInfo`` extracted from ``ToolContext.metadata['adcp.auth_info']``.
+
+    The auto-wired resolver in ``decisioning.serve`` forwards this to
+    ``platform.accounts.resolve``; ``FromAuthAccounts`` adopters need
+    it to find the principal's account.
+    """
+    from adcp.decisioning import AuthInfo
+
+    received: list[AuthInfo | None] = []
+
+    def resolve(_ref: dict[str, Any] | None, *, auth_info: AuthInfo | None = None) -> Account:
+        received.append(auth_info)
+        return Account(id="acc_1", mode="sandbox", _mode_explicit=True)
+
+    auth = AuthInfo(
+        kind="bearer",
+        key_id="kid-1",
+        principal="signed-buyer",
+        scopes=["decisioning"],
+    )
+    ctx = ToolContext(metadata={"adcp.auth_info": auth})
+
+    result = await _handle_test_controller(
+        _store(),
+        _force_status_params(),
+        context=ctx,
+        account_resolver=resolve,
+    )
+    assert result["success"] is True
+    assert len(received) == 1
+    assert received[0] is auth
 
 
 # ---------------------------------------------------------------------------
