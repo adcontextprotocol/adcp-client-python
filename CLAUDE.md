@@ -158,6 +158,7 @@ agent an isolated checkout.
 > **Note:** Conductor worktrees handle this automatically via `.conductor.json`
 > (runs `setup_conductor_env.py` + `pre-commit install` on create). Use the
 > manual steps below only for raw `git worktree` outside of Conductor.
+> See `CONDUCTOR.md` for Conductor-specific setup and troubleshooting.
 
 **Create a worktree:**
 
@@ -169,7 +170,7 @@ git worktree add /tmp/claude-issue-<N>-<slug> -b claude/issue-<N>-<slug> main
 
 ```bash
 cd /tmp/claude-issue-<N>-<slug>
-cp /path/to/repo-root/.env .env   # .env is not inherited; copy from repo root
+cp "$(git rev-parse --git-common-dir)/../.env" .env   # .env is not inherited
 pre-commit install                 # hooks are not inherited from parent worktree
 pip install -e .[dev]              # install in this worktree's context
 ```
