@@ -77,6 +77,7 @@ from adcp.decisioning.types import (
 
 if TYPE_CHECKING:
     from adcp.decisioning.accounts import ResolveContext
+    from adcp.decisioning.context import AuthInfo
     from adcp.types import AccountReference
 
 __all__ = ["create_roster_account_store"]
@@ -124,7 +125,7 @@ class _RosterAccountStore(Generic[TMeta]):
     async def resolve(
         self,
         ref: AccountReference | None,
-        ctx: ResolveContext | None = None,
+        auth_info: AuthInfo | None = None,
     ) -> Account[TMeta] | None:
         """Resolve a wire reference to a roster :class:`Account`.
 
@@ -132,10 +133,13 @@ class _RosterAccountStore(Generic[TMeta]):
         refs, and ref-less calls return ``None``. The framework
         projects ``None`` to ``ACCOUNT_NOT_FOUND`` on the wire.
 
-        ``ctx`` is accepted for Protocol parity but unused — the
-        roster is the allowlist, no auth-based filtering at this layer.
+        Signature mirrors the :class:`AccountStore` Protocol's
+        ``resolve(ref, auth_info=None)`` — the framework dispatcher
+        passes ``auth_info`` as a keyword argument. ``auth_info`` is
+        accepted for Protocol parity but unused: the roster IS the
+        allowlist, no auth-based filtering at this layer.
         """
-        del ctx  # roster is the allowlist; no per-principal filtering
+        del auth_info  # roster is the allowlist; no per-principal filtering
         account_id = ref_account_id(ref)
         if account_id is None:
             return None
@@ -205,12 +209,14 @@ class _RosterAccountStore(Generic[TMeta]):
             for entry in entries
         ]
 
-    # ``list`` is declared LAST in this class deliberately. Its name
-    # shadows the built-in ``list`` in class scope, so any subsequent
-    # method whose annotations use ``list[...]`` would resolve the
-    # method, not the built-in. Keeping it at the end means
-    # ``upsert``/``sync_governance`` annotations above resolve
-    # correctly.
+    # ``list`` MUST be declared LAST in this class. mypy resolves
+    # annotations in class scope; once ``list`` is defined as a method,
+    # any subsequent method whose annotations reference ``list[...]``
+    # binds to the method, not the builtin — even with
+    # ``from __future__ import annotations`` (lazy string evaluation
+    # at runtime doesn't change static-analysis class-scope lookup).
+    # Keeping ``list`` last means ``upsert``/``sync_governance`` above
+    # see the builtin.
     async def list(
         self,
         filter: dict[str, Any] | None = None,

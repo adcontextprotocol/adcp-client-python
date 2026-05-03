@@ -18,7 +18,10 @@ import pytest
 
 from adcp.decisioning import (
     Account,
+    AccountStore,
+    AuthInfo,
     ResolveContext,
+    SyncAccountsResultRow,
     SyncGovernanceEntry,
     create_roster_account_store,
 )
@@ -50,7 +53,7 @@ def _make_roster() -> dict[str, Account]:
 def test_resolve_hit_returns_account() -> None:
     """ref carrying a known ``account_id`` returns the roster entry."""
     store = create_roster_account_store(roster=_make_roster())
-    result = asyncio.run(store.resolve(_by_id("acct_alpha"), ResolveContext()))
+    result = asyncio.run(store.resolve(_by_id("acct_alpha")))
     assert result is not None
     assert result.id == "acct_alpha"
     assert result.name == "Alpha"
@@ -60,7 +63,7 @@ def test_resolve_miss_returns_none() -> None:
     """ref carrying an unknown ``account_id`` returns ``None`` —
     fall-through path the framework projects to ``ACCOUNT_NOT_FOUND``."""
     store = create_roster_account_store(roster=_make_roster())
-    result = asyncio.run(store.resolve(_by_id("acct_unknown"), ResolveContext()))
+    result = asyncio.run(store.resolve(_by_id("acct_unknown")))
     assert result is None
 
 
@@ -69,9 +72,7 @@ def test_resolve_natural_key_returns_none() -> None:
     curated rosters are queried by explicit id only. Adopters wanting
     natural-key resolution wrap ``resolve``."""
     store = create_roster_account_store(roster=_make_roster())
-    result = asyncio.run(
-        store.resolve(_by_natural_key("alpha.example.com", "alpha.example.com"), ResolveContext())
-    )
+    result = asyncio.run(store.resolve(_by_natural_key("alpha.example.com", "alpha.example.com")))
     assert result is None
 
 
@@ -81,8 +82,39 @@ def test_resolve_none_ref_returns_none() -> None:
     the helper returns ``None`` and adopters wrap to synthesize a
     publisher singleton when needed."""
     store = create_roster_account_store(roster=_make_roster())
-    result = asyncio.run(store.resolve(None, ResolveContext()))
+    result = asyncio.run(store.resolve(None))
     assert result is None
+
+
+def test_resolve_accepts_auth_info_kwarg() -> None:
+    """The framework dispatcher calls ``accounts.resolve(ref_dict,
+    auth_info=auth_info)`` — i.e. ``auth_info`` is a keyword argument
+    on every dispatch path. Verify the roster store accepts that exact
+    call shape (and ignores ``auth_info`` because the roster IS the
+    allowlist)."""
+    store = create_roster_account_store(roster=_make_roster())
+    auth = AuthInfo(kind="signed_request", principal="agent_foo", scopes=["read"])
+    result = asyncio.run(store.resolve(_by_id("acct_alpha"), auth_info=auth))
+    assert result is not None
+    assert result.id == "acct_alpha"
+
+
+def test_resolve_positional_no_auth_info() -> None:
+    """Positional single-arg calls (no ``auth_info``) keep working —
+    matches the Protocol's ``auth_info=None`` default."""
+    store = create_roster_account_store(roster=_make_roster())
+    result = asyncio.run(store.resolve(_by_id("acct_beta")))
+    assert result is not None
+    assert result.id == "acct_beta"
+
+
+def test_store_conforms_to_account_store_protocol() -> None:
+    """``AccountStore`` is ``runtime_checkable``; the framework's
+    boot-time platform validator calls ``isinstance(store,
+    AccountStore)``. Any structural drift between the roster store's
+    ``resolve`` signature and the Protocol breaks that check."""
+    store = create_roster_account_store(roster=_make_roster())
+    assert isinstance(store, AccountStore)
 
 
 def test_resolution_literal_is_explicit() -> None:
@@ -147,6 +179,31 @@ def test_upsert_empty_refs_returns_empty() -> None:
     store = create_roster_account_store(roster=_make_roster())
     rows = asyncio.run(store.upsert([], ctx=ResolveContext()))
     assert rows == []
+
+
+def test_upsert_denies_by_id_refs_with_conformant_row_shape() -> None:
+    """The typical ``sync_accounts`` shape carries ``account_id``-arm
+    refs (buyer pre-selected an account id, calling sync to bind
+    governance / verify exists). Roster stores reject those entries
+    too — accounts are publisher-curated. Verify the failed row's
+    shape conforms to :class:`SyncAccountsResultRow` (instance type +
+    required fields populated, so the framework's wire projector
+    won't crash on a missing field)."""
+    store = create_roster_account_store(roster=_make_roster())
+    rows = asyncio.run(
+        store.upsert([_by_id("acct_alpha"), _by_id("acct_unknown")], ctx=ResolveContext())
+    )
+    assert len(rows) == 2
+    for row in rows:
+        assert isinstance(row, SyncAccountsResultRow)
+        assert row.action == "failed"
+        assert row.status == "failed"
+        assert row.errors is not None
+        assert row.errors[0]["code"] == "PERMISSION_DENIED"
+        # id-arm refs don't carry brand/operator; failed rows surface
+        # empty defaults (the buyer correlates by request order).
+        assert row.brand == {}
+        assert row.operator == ""
 
 
 def test_upsert_echoes_brand_operator_for_natural_key_refs() -> None:
@@ -257,5 +314,5 @@ def test_external_mutation_does_not_leak_into_store() -> None:
     assert ids == {"acct_alpha", "acct_beta"}
     assert "acct_attacker" not in ids
 
-    attacker = asyncio.run(store.resolve(_by_id("acct_attacker"), ResolveContext()))
+    attacker = asyncio.run(store.resolve(_by_id("acct_attacker")))
     assert attacker is None
