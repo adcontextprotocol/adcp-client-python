@@ -105,7 +105,7 @@ def assert_buying_mode_consistent(req: GetProductsRequest) -> None:
     """
     from adcp.decisioning.types import AdcpError
 
-    mode = _coerce_enum_value(req.buying_mode)
+    mode = _coerce_enum_value(getattr(req, "buying_mode", None))
     brief = getattr(req, "brief", None)
     refine = getattr(req, "refine", None)
 

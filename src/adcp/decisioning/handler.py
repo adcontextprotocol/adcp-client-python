@@ -1086,13 +1086,14 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         # to refine_get_products() (when present) and projects the result
         # into the wire response — adopters return a RefineResult and
         # framework constructs position-matched refinement_applied[].
+        buying_mode_attr = getattr(params, "buying_mode", None)
         mode = (
             (
-                params.buying_mode.value
-                if hasattr(params.buying_mode, "value")
-                else str(params.buying_mode)
+                buying_mode_attr.value
+                if hasattr(buying_mode_attr, "value")
+                else str(buying_mode_attr)
             )
-            if params.buying_mode is not None
+            if buying_mode_attr is not None
             else None
         )
         if mode == "refine":
