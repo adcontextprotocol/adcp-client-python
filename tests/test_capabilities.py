@@ -931,7 +931,7 @@ class TestRefreshCapabilitiesV3Shape:
 
         msg = str(exc_info.value)
         assert "v3-shaped" in msg
-        assert "schema bug" in msg
+        assert "required field may be missing" in msg
         # Must NOT be the old buried message
         assert "Failed to fetch capabilities" not in msg
 
@@ -958,9 +958,10 @@ class TestRefreshCapabilitiesV3Shape:
             with pytest.raises(ADCPError) as exc_info:
                 await client.refresh_capabilities()
 
-        # Pydantic field path should appear in the suggestion field directly
+        # Pydantic field path should appear in suggestion without the internal prefix
         assert exc_info.value.suggestion is not None
         assert "supported_billing" in exc_info.value.suggestion
+        assert "Failed to parse response" not in exc_info.value.suggestion
 
     @pytest.mark.asyncio
     async def test_genuine_v2_failure_raises_generic_error(self) -> None:

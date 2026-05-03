@@ -1057,13 +1057,17 @@ class ADCPClient:
         # opaque "Failed to fetch capabilities: Failed to parse response:" chain.
         raw_data = (result.metadata or {}).get("_parse_failure_raw")
         if raw_data is not None and is_v3_capabilities_shape(raw_data):
+            pydantic_detail = (result.error or "").removeprefix(
+                "Failed to parse response: "
+            )
             raise ADCPError(
-                "Capabilities response is v3-shaped but failed validation — "
-                "the seller's get_adcp_capabilities endpoint has a schema bug.",
+                "Capabilities response is v3-shaped but does not satisfy the "
+                "v3 schema — a required field may be missing or have an "
+                "unexpected type.",
                 agent_id=self.agent_config.id,
                 agent_uri=self.agent_config.agent_uri,
                 suggestion=(
-                    f"Pydantic validation error: {result.error}. "
+                    f"Pydantic detail: {pydantic_detail}. "
                     "Check the seller's capabilities endpoint against the v3 schema."
                 ),
             )
