@@ -222,7 +222,7 @@ def test_ref_account_id_empty_dict() -> None:
 def test_permission_denied_error_code_and_recovery() -> None:
     err = PermissionDeniedError("update_media_buy")
     assert err.code == "PERMISSION_DENIED"
-    assert err.recovery == "terminal"
+    assert err.recovery == "correctable"
     assert "update_media_buy" in str(err)
 
 
@@ -276,7 +276,7 @@ def test_account_not_found_error() -> None:
 def test_billing_not_permitted_for_agent_error() -> None:
     err = BillingNotPermittedForAgentError()
     assert err.code == "BILLING_NOT_PERMITTED_FOR_AGENT"
-    assert err.recovery == "terminal"
+    assert err.recovery == "correctable"
 
 
 def test_request_validation_error() -> None:

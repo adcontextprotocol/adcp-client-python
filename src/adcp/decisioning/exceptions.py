@@ -22,7 +22,10 @@ from adcp.decisioning.types import AdcpError
 class PermissionDeniedError(AdcpError):
     """Raised when the authenticated principal lacks permission for ``action``.
 
-    Maps to wire code ``PERMISSION_DENIED`` with ``recovery='terminal'``.
+    Maps to wire code ``PERMISSION_DENIED`` with ``recovery='correctable'``
+    (spec ``enumMetadata`` classification — the request can be retried after
+    the underlying permission is resolved, e.g. minting a valid governance
+    token or contacting the seller).
     """
 
     def __init__(self, action: str = "", **details: Any) -> None:
@@ -30,7 +33,7 @@ class PermissionDeniedError(AdcpError):
         super().__init__(
             "PERMISSION_DENIED",
             message=msg,
-            recovery="terminal",
+            recovery="correctable",
             details=details if details else None,
         )
 
@@ -119,14 +122,16 @@ class BillingNotPermittedForAgentError(AdcpError):
     """Raised when a buyer agent attempts a billing operation it is not
     authorised to perform.
 
-    Maps to ``BILLING_NOT_PERMITTED_FOR_AGENT`` with ``recovery='terminal'``.
+    Maps to ``BILLING_NOT_PERMITTED_FOR_AGENT`` with ``recovery='correctable'``
+    (spec ``enumMetadata`` classification — retry with a permitted billing value
+    from ``error.details.suggested_billing``, or surface to a human when absent).
     """
 
     def __init__(self, **details: Any) -> None:
         super().__init__(
             "BILLING_NOT_PERMITTED_FOR_AGENT",
             message="Billing operations are not permitted for this agent",
-            recovery="terminal",
+            recovery="correctable",
             details=details if details else None,
         )
 
