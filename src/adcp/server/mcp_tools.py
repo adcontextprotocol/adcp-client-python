@@ -1173,6 +1173,49 @@ def _inline_refs(schema: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _model_to_json_schema(
+    model_type: Any, *, allow_root_union: bool = False
+) -> dict[str, Any] | None:
+    """Generate a flat JSON Schema for a Pydantic model or union.
+
+    * Plain ``BaseModel`` subclasses use ``model_json_schema()``.
+    * Union / Optional types use ``TypeAdapter`` so discriminated unions
+      and aliases (``CreateMediaBuyResponse = ...Response1 | ...Response2``)
+      generate as ``anyOf``.
+    * ``$ref`` nodes are inlined (see :func:`_inline_refs`) so MCP
+      clients that don't resolve references see the full surface.
+
+    When ``allow_root_union`` is ``False`` (the default — used for input
+    schemas), schemas with a root-level ``anyOf`` / ``$ref`` return
+    ``None`` so the caller falls back to a hand-crafted shape.
+    Input schemas need ``type: "object"`` at the root so MCP clients can
+    render the form. Output schemas can validly be a discriminated
+    union, so ``allow_root_union=True`` keeps the ``anyOf``.
+
+    Returns ``None`` on any failure — callers fall back to skipping.
+    """
+    try:
+        from pydantic import TypeAdapter
+
+        if isinstance(model_type, type) and hasattr(model_type, "model_json_schema"):
+            schema = model_type.model_json_schema()
+        else:
+            adapter = TypeAdapter(model_type)
+            schema = adapter.json_schema()
+    except Exception:
+        return None
+
+    schema.pop("title", None)
+
+    if not allow_root_union and ("anyOf" in schema or "$ref" in schema):
+        return None
+
+    try:
+        return _inline_refs(schema)
+    except Exception:
+        return None
+
+
 def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     """Generate JSON schemas from Pydantic request models.
 
@@ -1188,8 +1231,6 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
     against that regression by asserting every tool has an entry here.
     """
     try:
-        from pydantic import TypeAdapter
-
         from adcp.types import (
             AcquireRightsRequest,
             ActivateSignalRequest,
@@ -1331,49 +1372,212 @@ def _generate_pydantic_schemas() -> dict[str, dict[str, Any]]:
 
     schemas: dict[str, dict[str, Any]] = {}
     for tool_name, request_type in _tool_to_request.items():
-        try:
-            # Handle union types (e.g. PreviewCreativeRequest, ComplyTestControllerRequest)
-            if isinstance(request_type, type) and hasattr(request_type, "model_json_schema"):
-                schema = request_type.model_json_schema()
-            else:
-                # Union types need TypeAdapter
-                adapter = TypeAdapter(request_type)
-                schema = adapter.json_schema()
-
-            schema.pop("title", None)
-
-            # Union types produce anyOf with $ref at root — these can't
-            # be represented as flat MCP schemas. Keep hand-crafted.
-            if "anyOf" in schema or "$ref" in schema:
-                continue
-
-            # Inline every $ref into its $defs body so MCP clients that
-            # don't resolve JSON-Schema references (a surprisingly large
-            # slice of the ecosystem) still see the full tool surface.
-            # Spec-wise the schema is equivalent — just flat.
-            schema = _inline_refs(schema)
-
-            schemas[tool_name] = schema
-        except Exception:
+        # Input schemas must be flat ``type: "object"`` — root-level
+        # ``anyOf`` / ``$ref`` schemas are skipped so the hand-crafted
+        # stub stays in place.
+        schema = _model_to_json_schema(request_type, allow_root_union=False)
+        if schema is None:
             logger.debug(
-                "Pydantic schema generation failed for %s, using hand-crafted schema",
+                "Pydantic input-schema generation skipped for %s, using hand-crafted schema",
                 tool_name,
-                exc_info=True,
             )
+            continue
+        schemas[tool_name] = schema
+
+    return schemas
+
+
+def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
+    """Generate JSON schemas from Pydantic response models.
+
+    Mirror of :func:`_generate_pydantic_schemas` for the response side.
+    Each AdCP tool has a corresponding ``Response`` type — for plain
+    success responses this is a single ``BaseModel`` subclass; for tools
+    that distinguish success / error / pending / rejected on the wire
+    (``CreateMediaBuyResponse``, ``AcquireRightsResponse``, etc.) it's a
+    union alias.
+
+    Output schemas advertise the structured-content shape on
+    ``tools/list`` (matches the TS port) so MCP clients can validate
+    ``structuredContent`` without a separate spec lookup.
+
+    Unlike input schemas, root-level ``anyOf`` is allowed — discriminated
+    response unions are valid JSON Schema and clients that consume
+    ``outputSchema`` already handle them.
+    """
+    try:
+        from adcp.types import (
+            AcquireRightsResponse,
+            ActivateSignalResponse,
+            BuildCreativeResponse,
+            CalibrateContentResponse,
+            CheckGovernanceResponse,
+            ComplyTestControllerResponse,
+            ContextMatchResponse,
+            CreateCollectionListResponse,
+            CreateContentStandardsResponse,
+            CreateMediaBuyResponse,
+            CreatePropertyListResponse,
+            DeleteCollectionListResponse,
+            DeletePropertyListResponse,
+            GetAccountFinancialsResponse,
+            GetAdcpCapabilitiesResponse,
+            GetBrandIdentityResponse,
+            GetCollectionListResponse,
+            GetContentStandardsResponse,
+            GetCreativeDeliveryResponse,
+            GetCreativeFeaturesResponse,
+            GetMediaBuyArtifactsResponse,
+            GetMediaBuyDeliveryResponse,
+            GetMediaBuysResponse,
+            GetPlanAuditLogsResponse,
+            GetProductsResponse,
+            GetPropertyListResponse,
+            GetRightsResponse,
+            GetSignalsResponse,
+            IdentityMatchResponse,
+            ListAccountsResponse,
+            ListCollectionListsResponse,
+            ListContentStandardsResponse,
+            ListCreativeFormatsResponse,
+            ListCreativesResponse,
+            ListPropertyListsResponse,
+            LogEventResponse,
+            PreviewCreativeResponse,
+            ProvidePerformanceFeedbackResponse,
+            ReportPlanOutcomeResponse,
+            ReportUsageResponse,
+            SiGetOfferingResponse,
+            SiInitiateSessionResponse,
+            SiSendMessageResponse,
+            SiTerminateSessionResponse,
+            SyncAccountsResponse,
+            SyncAudiencesResponse,
+            SyncCatalogsResponse,
+            SyncCreativesResponse,
+            SyncEventSourcesResponse,
+            SyncGovernanceResponse,
+            SyncPlansResponse,
+            UpdateCollectionListResponse,
+            UpdateContentStandardsResponse,
+            UpdateMediaBuyResponse,
+            UpdatePropertyListResponse,
+            UpdateRightsResponse,
+            ValidateContentDeliveryResponse,
+        )
+    except ImportError:
+        return {}
+
+    _tool_to_response: dict[str, Any] = {
+        # Catalog
+        "get_products": GetProductsResponse,
+        "list_creative_formats": ListCreativeFormatsResponse,
+        # Creative
+        "sync_creatives": SyncCreativesResponse,
+        "list_creatives": ListCreativesResponse,
+        "build_creative": BuildCreativeResponse,
+        "preview_creative": PreviewCreativeResponse,
+        "get_creative_delivery": GetCreativeDeliveryResponse,
+        # Media Buy
+        "create_media_buy": CreateMediaBuyResponse,
+        "update_media_buy": UpdateMediaBuyResponse,
+        "get_media_buy_delivery": GetMediaBuyDeliveryResponse,
+        "get_media_buys": GetMediaBuysResponse,
+        # Signals
+        "get_signals": GetSignalsResponse,
+        "activate_signal": ActivateSignalResponse,
+        # Account
+        "list_accounts": ListAccountsResponse,
+        "sync_accounts": SyncAccountsResponse,
+        "get_account_financials": GetAccountFinancialsResponse,
+        "report_usage": ReportUsageResponse,
+        # Events & Catalogs
+        "log_event": LogEventResponse,
+        "sync_event_sources": SyncEventSourcesResponse,
+        "sync_audiences": SyncAudiencesResponse,
+        "sync_catalogs": SyncCatalogsResponse,
+        "sync_governance": SyncGovernanceResponse,
+        # Feedback
+        "provide_performance_feedback": ProvidePerformanceFeedbackResponse,
+        # Protocol Discovery
+        "get_adcp_capabilities": GetAdcpCapabilitiesResponse,
+        # Compliance
+        "comply_test_controller": ComplyTestControllerResponse,
+        # Content Standards
+        "create_content_standards": CreateContentStandardsResponse,
+        "get_content_standards": GetContentStandardsResponse,
+        "list_content_standards": ListContentStandardsResponse,
+        "update_content_standards": UpdateContentStandardsResponse,
+        "calibrate_content": CalibrateContentResponse,
+        "validate_content_delivery": ValidateContentDeliveryResponse,
+        "get_media_buy_artifacts": GetMediaBuyArtifactsResponse,
+        # Governance
+        "get_creative_features": GetCreativeFeaturesResponse,
+        "sync_plans": SyncPlansResponse,
+        "check_governance": CheckGovernanceResponse,
+        "report_plan_outcome": ReportPlanOutcomeResponse,
+        "get_plan_audit_logs": GetPlanAuditLogsResponse,
+        # Property Lists
+        "create_property_list": CreatePropertyListResponse,
+        "get_property_list": GetPropertyListResponse,
+        "list_property_lists": ListPropertyListsResponse,
+        "update_property_list": UpdatePropertyListResponse,
+        "delete_property_list": DeletePropertyListResponse,
+        # Collection Lists
+        "create_collection_list": CreateCollectionListResponse,
+        "get_collection_list": GetCollectionListResponse,
+        "list_collection_lists": ListCollectionListsResponse,
+        "update_collection_list": UpdateCollectionListResponse,
+        "delete_collection_list": DeleteCollectionListResponse,
+        # Sponsored Intelligence
+        "si_get_offering": SiGetOfferingResponse,
+        "si_initiate_session": SiInitiateSessionResponse,
+        "si_send_message": SiSendMessageResponse,
+        "si_terminate_session": SiTerminateSessionResponse,
+        # Brand
+        "get_brand_identity": GetBrandIdentityResponse,
+        "get_rights": GetRightsResponse,
+        "acquire_rights": AcquireRightsResponse,
+        "update_rights": UpdateRightsResponse,
+        # TMP
+        "context_match": ContextMatchResponse,
+        "identity_match": IdentityMatchResponse,
+    }
+
+    schemas: dict[str, dict[str, Any]] = {}
+    for tool_name, response_type in _tool_to_response.items():
+        schema = _model_to_json_schema(response_type, allow_root_union=True)
+        if schema is None:
+            logger.debug(
+                "Pydantic output-schema generation failed for %s",
+                tool_name,
+            )
+            continue
+        schemas[tool_name] = schema
 
     return schemas
 
 
 # Generate schemas once at import time
 _PYDANTIC_SCHEMAS = _generate_pydantic_schemas()
+_PYDANTIC_OUTPUT_SCHEMAS = _generate_pydantic_output_schemas()
 
 
 def _apply_pydantic_schemas() -> None:
-    """Replace hand-crafted inputSchemas with Pydantic-generated ones."""
+    """Apply Pydantic-generated input + output schemas to tool definitions.
+
+    * ``inputSchema``: replaced when a Pydantic-generated schema is
+      available (handles drift between hand-crafted stubs and the spec).
+    * ``outputSchema``: added so ``tools/list`` advertises the structured
+      response shape — matches the TS port and lets MCP clients validate
+      ``structuredContent`` without a separate spec lookup.
+    """
     for tool_def in ADCP_TOOL_DEFINITIONS:
         name = tool_def["name"]
         if name in _PYDANTIC_SCHEMAS:
             tool_def["inputSchema"] = _PYDANTIC_SCHEMAS[name]
+        if name in _PYDANTIC_OUTPUT_SCHEMAS:
+            tool_def["outputSchema"] = _PYDANTIC_OUTPUT_SCHEMAS[name]
 
 
 _apply_pydantic_schemas()

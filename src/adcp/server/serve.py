@@ -1310,6 +1310,7 @@ def _register_handler_tools(
             continue
         description = tool_def.get("description", "")
         input_schema = tool_def.get("inputSchema", {"type": "object", "properties": {}})
+        output_schema = tool_def.get("outputSchema")
         caller = create_tool_caller(handler, tool_name, validation=validation)
         _register_tool(
             mcp,
@@ -1319,6 +1320,7 @@ def _register_handler_tools(
             caller,
             context_factory=context_factory,
             middleware=middleware_tuple,
+            output_schema=output_schema,
         )
         registered.append(tool_name)
 
@@ -1339,6 +1341,7 @@ def _register_tool(
     *,
     context_factory: ContextFactory | None = None,
     middleware: tuple[SkillMiddleware, ...] = (),
+    output_schema: dict[str, Any] | None = None,
 ) -> None:
     """Register a single ADCP tool on a FastMCP server.
 
@@ -1449,9 +1452,18 @@ def _register_tool(
                 result.update(self.model_extra)
             return result
 
+    # Advertise the spec response schema on ``tools/list`` when one is
+    # available. FastMCP serializes ``Tool.output_schema`` (which reads
+    # ``fn_metadata.output_schema``) into the ``outputSchema`` field of
+    # the ``tools/list`` response — matches the TS port. Falls back to
+    # the auto-derived shape from the ``fn`` return annotation when no
+    # spec schema is mapped (e.g. handler-only custom tools).
+    effective_output_schema = (
+        output_schema if output_schema is not None else tool.fn_metadata.output_schema
+    )
     tool.fn_metadata = FuncMetadata(
         arg_model=_AdcpArgs,
-        output_schema=tool.fn_metadata.output_schema,
+        output_schema=effective_output_schema,
         output_model=tool.fn_metadata.output_model,
         wrap_output=False,
     )
