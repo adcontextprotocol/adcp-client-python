@@ -76,7 +76,7 @@ def _proto_alias(cls: Any, src: str, dst: str) -> None:
             "verify a2a-sdk>=1.0.1,<1.0.2 is installed. "
             "Run: pip install 'a2a-sdk>=1.0.1,<1.0.2'. A2A tests may fail.",
             RuntimeWarning,
-            stacklevel=1,
+            stacklevel=2,
         )
         return
     setattr(cls, dst, getattr(cls, src))
@@ -145,6 +145,12 @@ def Message(  # noqa: N802 (0.3 fixture shim)
     return pb.Message(**kwargs)
 
 
+# Note: this dict accesses pb.TaskState.TASK_STATE_* directly (no _proto_alias guard).
+# Any AttributeError here propagates out of the module, but conftest.py's
+# `except (ImportError, AttributeError)` catches it and sets _a2a_compat_shim=None,
+# so collection still succeeds. _proto_alias guards only the setattr side-effects;
+# this dict is purely read-only at construction and is only reached when pb.TaskState
+# has the correct 1.0 shape.
 _STATE_STRING_MAP: dict[str, pb.TaskState.ValueType] = {
     "completed": pb.TaskState.TASK_STATE_COMPLETED,
     "failed": pb.TaskState.TASK_STATE_FAILED,
