@@ -147,14 +147,78 @@ exist; the reference seller wires the simpler defaults:
   in `src/app.py` for production durability. Both classes ship in
   the SDK; this seller's `app.py` uses the in-memory variants for
   fast iteration.
-- **Alembic migrations** — `Base.metadata.create_all` runs at boot
-  (idempotent on table existence — it does NOT detect column
-  renames or type changes on existing tables). Adopters who
-  prototyped against earlier branches and pulled new column
-  changes should drop and recreate the dev database; production
-  sellers wire Alembic and version their schema changes.
 - **Admin CRUD API** — separate Starlette app for tenant / agent
   CRUD. Patterns to come; for now use `seed.py` and direct SQL.
+
+## Migrations
+
+The app boots with `Base.metadata.create_all` — idempotent on table
+existence, but **blind to column renames, type changes, and new columns
+on existing tables**.  For local fast-iteration this is fine.  Once you
+have production data, use Alembic to evolve the schema safely.
+
+> ⚠️ **`create_all` is unsafe for schema evolution once production data
+> exists.** Column renames and type changes applied after first boot
+> will not be detected and will silently leave the schema stale.
+
+### Install Alembic
+
+```bash
+pip install alembic
+# or, if using a requirements file:
+echo "alembic" >> requirements.txt && pip install -r requirements.txt
+```
+
+### Apply migrations
+
+```bash
+cd examples/v3_reference_seller
+
+# Apply all pending migrations (run after every git pull that touches models).
+DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp python -m migrate
+
+# Equivalent direct alembic invocation:
+DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp alembic upgrade head
+```
+
+### Generate a new migration after changing models
+
+```bash
+cd examples/v3_reference_seller
+DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp \
+  alembic revision --autogenerate -m "describe your change"
+```
+
+Alembic compares the live database to `Base.metadata` and emits a
+migration file under `alembic/versions/`.  **Always review the generated
+file before committing** — autogenerate misses some constructs (partial
+index predicates, custom CHECK constraints, server defaults).
+
+> ⚙️ **Adding a new model file?** Import it in `alembic/env.py` alongside
+> `src.models` and `src.audit`, or autogenerate will silently omit its
+> tables from the migration.
+
+### Roll back
+
+```bash
+# Roll back one step.
+DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp alembic downgrade -1
+
+# Roll back to before any migrations (drops all tables defined in this schema).
+DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp alembic downgrade base
+```
+
+> ⚠️ **`downgrade` in production is irreversible without a data backup.**
+> Take a snapshot before running downgrade against any database that
+> holds real data.
+
+### Run migration integration tests
+
+```bash
+# Uses a throw-away database (adcp_test) so the migration run starts clean.
+DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp_test \
+  pytest examples/v3_reference_seller/tests/test_migrations.py -m integration -v
+```
 
 ## Customization
 
