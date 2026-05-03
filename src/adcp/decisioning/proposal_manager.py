@@ -40,16 +40,18 @@ design doc):
 * Capability-overlap declaration on Recipe + framework validation
 * Recipe persistence through buy lifecycle (hydration in
   ``create_media_buy`` / ``update_media_buy`` / ``get_delivery``)
-* Per-tenant ProposalManager binding (v1 ships a single
-  ProposalManager per :func:`serve` call; PlatformRouter integration
-  comes next)
 
-**Tenant binding (v1).** The ProposalManager is wired at
-:func:`serve` time via a new ``proposal_manager=`` kwarg. When wired,
-the framework dispatches ``get_products`` (and optionally
-``refine``-mode ``get_products``) to the manager; when not wired, the
-existing ``DecisioningPlatform.get_products`` path runs unchanged.
-Backward-compatible by construction.
+**Tenant binding (v1).** The ProposalManager is wired per-tenant on
+:class:`PlatformRouter` via the ``proposal_managers={tenant_id:
+ProposalManager}`` kwarg. Multi-tenant deployments (salesagent,
+agentic-adapters social) need different proposal logic per tenant —
+a GAM tenant has different products from a Kevel tenant; a Meta
+tenant has different proposal assembly from a TikTok tenant. The
+router dispatches ``get_products`` (and optionally ``refine``-mode
+``get_products``) to the tenant's manager when one is wired; tenants
+without a manager fall through to the tenant's
+:meth:`DecisioningPlatform.get_products` — backward-compatible per
+tenant. Single-tenant adopters use a one-entry router.
 """
 
 from __future__ import annotations
@@ -292,7 +294,13 @@ class MockProposalManager:
         manager = MockProposalManager(
             mock_upstream_url="http://localhost:4500",
         )
-        serve(platform=MyPlatform(), proposal_manager=manager)
+        router = PlatformRouter(
+            accounts=...,
+            platforms={"default": MyPlatform()},
+            proposal_managers={"default": manager},
+            capabilities=...,
+        )
+        serve(router)
 
     :param mock_upstream_url: URL of the running mock-server. The
         forwarder POSTs ``GetProductsRequest`` payloads to

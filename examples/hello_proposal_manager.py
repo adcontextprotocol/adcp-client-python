@@ -1,22 +1,27 @@
 """Hello-proposal-manager — the v1 two-platform composition demo.
 
-Wires a :class:`MockProposalManager` (proposal side) and a trivial
-:class:`DecisioningPlatform` (execution side) together. The
-:class:`MockProposalManager` forwards ``get_products`` requests to a
-running mock-server (``bin/adcp.js mock-server sales-non-guaranteed``);
-the platform handles ``create_media_buy`` directly without consulting
-the mock-server.
+Shows the per-tenant ProposalManager binding via :class:`PlatformRouter`.
+Multi-tenant deployments need different proposal logic per tenant — a
+GAM tenant's products differ from a Kevel tenant's; a Meta tenant's
+proposal assembly differs from a TikTok tenant's. The router binds
+``proposal_managers={tenant_id: ProposalManager}`` per tenant; tenants
+without an entry fall through to the tenant's
+:meth:`DecisioningPlatform.get_products` (back-compat per tenant).
 
-This is the on-ramp shape for adopters whose proposal logic isn't
-ready yet but who already have an adapter for their upstream:
+Single-tenant adopters use a one-entry router with
+``platforms={"default": ...}`` and
+``proposal_managers={"default": ...}`` — same code path, no branching.
 
-* The mock-server provides product fixtures + stub recipes.
-* The platform's ``create_media_buy`` translates buyer requests into
-  upstream calls (here, it's a no-op stub).
-* As the adopter writes real proposal logic, they replace
-  :class:`MockProposalManager` with their own
-  :class:`ProposalManager` subclass — incrementally, one slice at a
-  time.
+This demo wires two tenants:
+
+* ``tenant_acme`` — has a :class:`MockProposalManager` wired. Forwards
+  ``get_products`` to a running mock-server.
+* ``tenant_globex`` — no proposal_manager. Falls through to the
+  tenant's :meth:`HelloDecisioningPlatform.get_products` (which here
+  returns a static stub catalogue).
+
+Both tenants share the same :class:`HelloDecisioningPlatform` shape
+for ``create_media_buy`` / ``update_media_buy`` / etc.
 
 **Prerequisite:** start the mock-server before running this example::
 
@@ -26,13 +31,8 @@ Then::
 
     uv run python examples/hello_proposal_manager.py
 
-The server answers ``get_products`` by forwarding to the mock-server
-on port 4500; ``create_media_buy`` runs entirely in this process.
-Tail the mock-server log to see the proposal-side traffic; tail this
-process's log to see the execution-side traffic.
-
 See ``docs/proposals/product-architecture.md`` for the full design
-context — § "The two-platform composition" + § "Shape 3 — Mock-backed".
+context — § "The two-platform composition" + § "Tenant binding model".
 """
 
 from __future__ import annotations
@@ -44,11 +44,12 @@ from adcp.decisioning import (
     DecisioningCapabilities,
     DecisioningPlatform,
     MockProposalManager,
+    PlatformRouter,
     RequestContext,
     SalesPlatform,
-    SingletonAccounts,
     serve,
 )
+from adcp.decisioning.accounts import Account, AuthInfo
 from adcp.decisioning.capabilities import (
     Account as CapabilitiesAccount,
 )
@@ -64,8 +65,12 @@ class HelloDecisioningPlatform(DecisioningPlatform, SalesPlatform):
 
     Handles ``create_media_buy`` / ``update_media_buy`` /
     ``sync_creatives`` / ``get_media_buy_delivery`` with stub responses.
-    Does NOT implement ``get_products`` — the wired
-    :class:`MockProposalManager` handles that surface.
+
+    Also implements ``get_products`` so tenants WITHOUT a wired
+    ProposalManager (here: ``tenant_globex``) have a working product
+    catalog. Tenants WITH a wired ProposalManager (here:
+    ``tenant_acme``) bypass this — the router routes to the manager
+    instead.
 
     In production, this is where the adopter's adapter code lives —
     translating wire ``CreateMediaBuyRequest`` payloads into upstream
@@ -85,19 +90,56 @@ class HelloDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         account=CapabilitiesAccount(supported_billing=["operator"]),
         media_buy=MediaBuy(supported_pricing_models=["cpm"]),
     )
-    accounts = SingletonAccounts(account_id="hello-proposal-manager-acct")
+    # ``accounts`` is required on the Protocol but the router's
+    # dispatch path does NOT consult per-platform AccountStores —
+    # the router's own ``accounts`` does the resolution. Stub here.
+    accounts = None  # type: ignore[assignment]
+
+    def get_products(self, req: Any, ctx: RequestContext[Any]) -> dict[str, Any]:
+        """Static stub catalogue for tenants without a ProposalManager."""
+        del req, ctx
+        return {
+            "products": [
+                {
+                    "product_id": "globex-static-catalog-product",
+                    "name": "Globex catalog stub",
+                    "description": "Static catalog product served by the platform.",
+                    "delivery_type": "non_guaranteed",
+                    "publisher_properties": [
+                        {"publisher_domain": "globex.example", "selection_type": "all"},
+                    ],
+                    "format_ids": [
+                        {
+                            "agent_url": "https://creative.adcontextprotocol.org/",
+                            "id": "display_300x250",
+                        },
+                    ],
+                    "pricing_options": [
+                        {
+                            "pricing_option_id": "po-cpm-default",
+                            "pricing_model": "cpm",
+                            "floor_price": 5.0,
+                            "currency": "USD",
+                        },
+                    ],
+                    "reporting_capabilities": {
+                        "available_metrics": ["impressions"],
+                        "available_reporting_frequencies": ["daily"],
+                        "date_range_support": "date_range",
+                        "supports_webhooks": False,
+                        "expected_delay_minutes": 60,
+                        "timezone": "UTC",
+                    },
+                    "delivery_measurement": {"provider": "internal"},
+                },
+            ],
+        }
 
     def create_media_buy(
         self,
         req: Any,
         ctx: RequestContext[Any],
     ) -> dict[str, Any]:
-        """Stub create_media_buy — returns a synthetic media_buy_id.
-
-        Production: this is where the adopter's adapter code calls the
-        upstream API (the recipe attached to the request's products
-        carries the upstream-specific config the adapter consumes).
-        """
         del ctx
         idem_key = getattr(req, "idempotency_key", "unknown")
         return {
@@ -150,30 +192,87 @@ class HelloDecisioningPlatform(DecisioningPlatform, SalesPlatform):
         }
 
 
+class _DemoMultiTenantAccounts:
+    """Demo AccountStore that maps the wire ``account_id`` to a tenant.
+
+    Real adopters back this with a database lookup or read
+    :func:`adcp.server.tenant_router.current_tenant` (set by
+    :class:`SubdomainTenantMiddleware`). Kept intentionally simple here
+    so the example focuses on the router wiring.
+    """
+
+    resolution = "explicit"
+
+    def resolve(
+        self,
+        ref: dict[str, Any] | None = None,
+        auth_info: AuthInfo | None = None,
+    ) -> Account[Any]:
+        ref = ref or {}
+        account_id = str(ref.get("account_id", "tenant_acme:default"))
+        # Convention: ``"<tenant_id>:<rest>"`` — extract the tenant.
+        tenant_id = account_id.split(":", 1)[0]
+        return Account(
+            id=account_id,
+            name=account_id,
+            status="active",
+            metadata={"tenant_id": tenant_id},
+            auth_info=None,
+        )
+
+
 if __name__ == "__main__":
-    # Mock-server URL — adopters in production point this at the
-    # appropriate `bin/adcp.js mock-server <specialism>` instance, or
-    # at a fixture-server in their own infra. Override via env var
-    # for CI / local dev.
+    # Mock-server URL — tenant_acme's MockProposalManager forwards to
+    # this URL. Override via env for CI / local dev.
     mock_url = os.environ.get(
         "ADCP_MOCK_PROPOSAL_URL",
         "http://localhost:4500",
     )
 
-    # The proposal manager — forwards get_products to the running
-    # mock-server. Adopters replace this with their own ProposalManager
-    # subclass as their proposal logic comes online.
-    proposal_manager = MockProposalManager(
-        mock_upstream_url=mock_url,
-        sales_specialism="sales-non-guaranteed",
+    # Per-tenant ProposalManager mapping. tenant_acme gets a mock-
+    # backed ProposalManager; tenant_globex falls through to its
+    # platform's own ``get_products`` — both shapes coexist behind
+    # one router.
+    proposal_managers = {
+        "tenant_acme": MockProposalManager(
+            mock_upstream_url=mock_url,
+            sales_specialism="sales-non-guaranteed",
+        ),
+        # tenant_globex: deliberately omitted — fall-through to
+        # platform.get_products demonstrates per-tenant back-compat.
+    }
+
+    router = PlatformRouter(
+        accounts=_DemoMultiTenantAccounts(),
+        platforms={
+            "tenant_acme": HelloDecisioningPlatform(),
+            "tenant_globex": HelloDecisioningPlatform(),
+        },
+        proposal_managers=proposal_managers,
+        capabilities=DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed"],
+            adcp=Adcp(
+                major_versions=[3],
+                idempotency=IdempotencySupported(
+                    supported=True,
+                    replay_ttl_seconds=86400,
+                ),
+            ),
+            account=CapabilitiesAccount(supported_billing=["operator"]),
+            media_buy=MediaBuy(supported_pricing_models=["cpm"]),
+        ),
     )
 
-    # serve() composes the two platforms. The dispatcher routes
-    # get_products to the proposal manager and create_media_buy /
-    # update_media_buy / etc. to the platform.
+    # Single-tenant adopters use the same shape:
+    #
+    #     PlatformRouter(
+    #         accounts=...,
+    #         platforms={"default": MyPlatform()},
+    #         proposal_managers={"default": MyProposalManager(...)},
+    #         capabilities=...,
+    #     )
     serve(
-        HelloDecisioningPlatform(),
-        proposal_manager=proposal_manager,
+        router,
         name="hello-proposal-manager",
         port=3001,
         auto_emit_completion_webhooks=False,

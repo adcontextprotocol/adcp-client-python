@@ -120,6 +120,7 @@ from adcp.decisioning.types import AdcpError
 if TYPE_CHECKING:
     from adcp.decisioning.accounts import AccountStore
     from adcp.decisioning.context import RequestContext
+    from adcp.decisioning.proposal_manager import ProposalManager
 
 
 # Every specialism Protocol the framework knows about. New Protocol
@@ -290,6 +291,19 @@ class PlatformRouter(DecisioningPlatform):
         router copies the dict shallowly at construction; later
         mutations to the source dict are NOT reflected. Pass a fresh
         dict per ``serve()`` call.
+    :param proposal_managers: Optional ``{tenant_id: ProposalManager}``
+        mapping for the two-platform composition (see
+        ``docs/proposals/product-architecture.md``). When a tenant has
+        a wired :class:`ProposalManager`, the router routes
+        ``get_products`` (and refine-mode ``get_products`` when the
+        manager declares :attr:`ProposalCapabilities.refine` and
+        implements ``refine_products``) to that manager instead of the
+        tenant's :class:`DecisioningPlatform`. Tenants without an
+        entry fall through to ``platform.get_products`` —
+        backward-compatible per tenant. Keys MUST be a subset of
+        :attr:`platforms`; orphan tenants raise at construction.
+        Single-tenant adopters use a one-entry router with
+        ``{"default": MyProposalManager(...)}``.
     :param capabilities: The router's wire-shape capability
         declaration. Should be the union of every child platform's
         specialisms — the framework's ``tools/list`` filter reads this
@@ -299,7 +313,9 @@ class PlatformRouter(DecisioningPlatform):
         provides).
 
     :raises ValueError: when :attr:`platforms` is empty (a router with
-        no children is misconfiguration, not a valid empty state).
+        no children is misconfiguration, not a valid empty state), or
+        when :attr:`proposal_managers` contains tenant_ids not present
+        in :attr:`platforms`.
     """
 
     def __init__(
@@ -308,6 +324,7 @@ class PlatformRouter(DecisioningPlatform):
         accounts: AccountStore[Any],
         platforms: Mapping[str, DecisioningPlatform],
         capabilities: DecisioningCapabilities,
+        proposal_managers: Mapping[str, ProposalManager] | None = None,
     ) -> None:
         if not platforms:
             raise ValueError(
@@ -320,6 +337,20 @@ class PlatformRouter(DecisioningPlatform):
         # router's view. Children are NOT defensively copied (they're
         # framework-instance singletons by contract).
         self._platforms: dict[str, DecisioningPlatform] = dict(platforms)
+
+        # Per-tenant ProposalManager binding. Validate keys are a
+        # subset of platforms — every tenant that wires a manager must
+        # have a corresponding execution-side platform; orphan tenants
+        # would silently route nothing.
+        self._proposal_managers: dict[str, ProposalManager] = dict(proposal_managers or {})
+        if self._proposal_managers:
+            orphans = set(self._proposal_managers) - set(self._platforms)
+            if orphans:
+                raise ValueError(
+                    f"proposal_managers keys must be a subset of platforms keys; "
+                    f"orphan tenant_id(s): {sorted(orphans)}"
+                )
+
         self.accounts = accounts
         self.capabilities = capabilities
 
@@ -330,11 +361,21 @@ class PlatformRouter(DecisioningPlatform):
         # to find methods; instance-level callables work for that.
         # Sorted for deterministic synthesis order — easier to debug
         # than the underlying frozenset iteration order.
+        #
+        # ``get_products`` is special-cased: when proposal_managers is
+        # wired the router needs to inspect the request's buying_mode
+        # and the manager's capabilities before delegating. The
+        # synthesized delegation can't do that — it just forwards.
+        # Skip get_products here; the explicit method below handles it.
         for method_name in sorted(_all_specialism_methods()):
             if method_name in _ACCOUNT_STORE_METHODS:
                 # Defensive: AccountStore methods MUST stay on the
                 # router's accounts store, not be synthesized as
                 # tenant-keyed delegations. Skip.
+                continue
+            if method_name == "get_products":
+                # Handled explicitly by ``self.get_products`` below to
+                # support per-tenant proposal_manager routing.
                 continue
             self.__dict__[method_name] = self._make_delegate(method_name)
 
@@ -381,6 +422,99 @@ class PlatformRouter(DecisioningPlatform):
                 recovery="terminal",
             )
         return platform
+
+    async def refine_get_products(self, *args: Any, **kwargs: Any) -> Any:
+        """Refine entry point — delegates to :meth:`get_products`.
+
+        The handler's refine pathway dispatches via
+        ``_invoke_platform_method(platform, "refine_get_products", ...)``
+        when the platform's :func:`has_refine_support` returns True. The
+        router's get_products already handles refine routing internally
+        (per-tenant ProposalManager.refine_products selection), so this
+        method just forwards. Keeps the handler's existing call shape
+        intact without router-specific branching there.
+        """
+        return await self.get_products(*args, **kwargs)
+
+    async def get_products(self, *args: Any, **kwargs: Any) -> Any:
+        """Per-tenant ``get_products`` dispatch.
+
+        Resolves the tenant from ``ctx.account.metadata['tenant_id']``
+        (same path as every other router delegation). When the tenant
+        has a wired :class:`ProposalManager`, routes the call to it;
+        when refine-mode + capability + method-presence all hold,
+        routes to ``proposal_manager.refine_products``; otherwise
+        falls through to the tenant's
+        :meth:`DecisioningPlatform.get_products`.
+
+        The fall-through path (no proposal_manager wired for this
+        tenant) is bit-identical to the synthesized delegation
+        :meth:`_make_delegate` would have produced — adopters with
+        zero proposal_managers configured see the same behaviour as
+        before this method existed.
+        """
+        ctx = _resolve_ctx_from_args(args, kwargs)
+        tenant_id = _tenant_id_from_ctx(ctx)
+        manager = self._proposal_managers.get(tenant_id)
+
+        if manager is not None:
+            method_name = self._select_proposal_method(manager, args, kwargs)
+            method = getattr(manager, method_name)
+            if inspect.iscoroutinefunction(method):
+                return await method(*args, **kwargs)
+            return await asyncio.to_thread(method, *args, **kwargs)
+
+        # No proposal_manager for this tenant — fall through to the
+        # platform. Reuses the same lookup helper as the synthesized
+        # delegations so error projection is identical.
+        platform = self._platform_for(ctx, "get_products")
+        method = getattr(platform, "get_products")
+        if inspect.iscoroutinefunction(method):
+            return await method(*args, **kwargs)
+        return await asyncio.to_thread(method, *args, **kwargs)
+
+    def _select_proposal_method(
+        self,
+        manager: ProposalManager,
+        args: tuple[Any, ...],
+        kwargs: Mapping[str, Any],
+    ) -> str:
+        """Choose between ``get_products`` and ``refine_products`` on
+        the wired :class:`ProposalManager`.
+
+        Refine is dispatched only when all three conditions hold:
+
+        1. The request's ``buying_mode`` is ``'refine'``.
+        2. The manager's ``capabilities.refine`` flag is True.
+        3. The manager subclass implements ``refine_products``
+           (``hasattr`` covers the Protocol's "present-or-absent"
+           semantics).
+
+        Otherwise routes to ``get_products``. Adopters whose
+        ``get_products`` handler also handles refine internally keep
+        working without declaring the refine capability.
+
+        ``buying_mode`` is read off the request — conventionally the
+        first positional argument of ``get_products(req, ctx)``, or
+        the ``req=`` kwarg.
+        """
+        req: Any = kwargs.get("req")
+        if req is None and args:
+            req = args[0]
+        buying_mode = getattr(req, "buying_mode", None)
+        # ``buying_mode`` may be a string or a generated enum (the
+        # Pydantic model coerces). Normalize via ``getattr(.., 'value',
+        # buying_mode)`` so both shapes compare cleanly.
+        buying_mode_str = getattr(buying_mode, "value", buying_mode)
+        if buying_mode_str != "refine":
+            return "get_products"
+        caps = getattr(manager, "capabilities", None)
+        refine_supported = bool(getattr(caps, "refine", False))
+        if not refine_supported:
+            return "get_products"
+        if not hasattr(manager, "refine_products"):
+            return "get_products"
+        return "refine_products"
 
     def _make_delegate(self, method_name: str) -> Any:
         """Create a delegating callable for ``method_name``.
@@ -443,6 +577,13 @@ class PlatformRouter(DecisioningPlatform):
             projects to ``ACCOUNT_NOT_FOUND``.
         """
         return self._platforms[tenant_id]
+
+    def proposal_manager_for_tenant(self, tenant_id: str) -> ProposalManager | None:
+        """Return the :class:`ProposalManager` for ``tenant_id``, or
+        ``None`` when the tenant falls through to its platform's own
+        ``get_products``.
+        """
+        return self._proposal_managers.get(tenant_id)
 
 
 __all__ = ["PlatformRouter"]

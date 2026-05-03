@@ -828,13 +828,18 @@ work.
 
 ## Open questions
 
-1. **Tenant binding model.** Path B above proposes
-   `decisioning_platforms: dict[recipe_kind, DecisioningPlatform]`.
-   Does this fit cleanly into the existing `PlatformRouter`
-   (multi-platform-per-process work in #477), or does it need a new
-   binding type? The two are orthogonal — `PlatformRouter` routes
-   by tenant; proposal-side binding routes by recipe_kind within a
-   tenant — but they may share a conceptual seam worth unifying.
+1. **Tenant binding model.** *Resolved.* The `ProposalManager` v1
+   ships per-tenant binding via `PlatformRouter`:
+   `PlatformRouter(proposal_managers={tenant_id: ProposalManager,
+   ...})`. Multi-tenant deployments (salesagent, agentic-adapters
+   social) need different proposal logic per tenant — a GAM tenant
+   has different products from a Kevel tenant; a Meta tenant has
+   different proposal assembly from a TikTok tenant. Single-tenant
+   adopters use a one-entry router. Tenants without a wired
+   ProposalManager fall through to their `DecisioningPlatform`'s
+   `get_products` — backward-compatible per tenant. The orthogonal
+   axis (per-`recipe_kind` `DecisioningPlatform` binding for Path B
+   multi-decisioning within a tenant) remains future work.
 
 2. **Default `recipe_kind` for legacy adopters.** Adopters who
    haven't yet migrated to typed recipes pass opaque

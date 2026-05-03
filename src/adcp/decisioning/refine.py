@@ -244,8 +244,26 @@ def project_refine_response(
 
 
 def has_refine_support(platform: Any) -> bool:
-    """Return True when the platform implements ``refine_get_products``."""
-    return callable(getattr(platform, "refine_get_products", None))
+    """Return True when refine is reachable through this platform.
+
+    A platform supports refine if it implements ``refine_get_products``
+    directly OR — in the case of a ``PlatformRouter`` — if any of its
+    wired ProposalManagers declares the refine capability. The router
+    itself doesn't expose ``refine_get_products``; refine routes
+    through the ProposalManager's ``refine_products`` method on the
+    proposal-side surface.
+    """
+    if callable(getattr(platform, "refine_get_products", None)):
+        return True
+    proposal_managers = getattr(platform, "_proposal_managers", None)
+    if isinstance(proposal_managers, dict):
+        for manager in proposal_managers.values():
+            caps = getattr(manager, "capabilities", None)
+            if getattr(caps, "refine", False) and callable(
+                getattr(manager, "refine_products", None)
+            ):
+                return True
+    return False
 
 
 def _coerce_enum_value(value: Any) -> str | None:
