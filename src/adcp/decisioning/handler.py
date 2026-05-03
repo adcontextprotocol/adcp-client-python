@@ -1083,7 +1083,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         if self._config_store is not None:
             # proposal_id flows have packages=None — skip lookup, inject {}
             if params.packages:
-                product_ids = list({p.product_id for p in params.packages})
+                product_ids = list(dict.fromkeys(p.product_id for p in params.packages))
                 try:
                     configs = await self._config_store.lookup_implementation_configs(
                         product_ids, ctx

@@ -240,15 +240,15 @@ async def test_no_store_wired_adopter_gets_empty_configs(executor) -> None:
 
             return CreateMediaBuySuccessResponse(media_buy_id="mb_006", packages=[])
 
-    # No config_store passed
-    handler = _make_handler(_Platform(), executor, config_store=None)
-    req = _make_request(["pid1", "pid2"])
-    # Warning expected because method accepts configs but no store wired
     import warnings
 
+    # Warning fires at construction time (not at call time), so suppress there.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
-        await handler.create_media_buy(req, ToolContext())
+        handler = _make_handler(_Platform(), executor, config_store=None)
+
+    req = _make_request(["pid1", "pid2"])
+    await handler.create_media_buy(req, ToolContext())
 
     assert received_configs == [{}]
 
