@@ -141,6 +141,13 @@ yet and become greenfield work during the port.
   `SignalsPlatform` to be per-tenant, sitting behind the
   `PlatformRouter` like every other specialism. The business
   logic translates; the dispatch model changes. See §3.5.
+* **Properties.** `src/core/tools/properties.py` is a global tool
+  too. AdCP 3.0 lifts list publishing onto `PropertyListsPlatform`
+  per-tenant; same tool→platform shape change as signals.
+  Verification (`adagents.json` fetch via
+  `property_verification_service.py`) stays adopter-side; the SDK
+  formalizes the wire reference so buyers can re-verify
+  independently. See §3.8.
 * **Governance metadata.** `Account.governance_agents`
   (`models.py:826`) is a JSON list that round-trips through the
   accounts tool — descriptive metadata only, with no enforcement
@@ -171,6 +178,11 @@ yet and become greenfield work during the port.
   is independently claimable; tenants declare zero, one, or all
   three. Salesagent has the descriptive `governance_agents` field
   but no enforcement code. See §3.7.
+* **`CollectionListsPlatform`.** Program-level brand-safety
+  lists (shows, series, podcasts, keyed by IMDb / Gracenote /
+  EIDR ids). Salesagent has no collection-list code today.
+  Greenfield for adopters whose business model exposes
+  collection-shaped bundles. See §3.8.
 
 This guide covers both — the translation table for what ports cleanly
 and the explicit "this is new work" callouts for what salesagent
@@ -836,7 +848,90 @@ Three platforms, three claims, three independent migrations. None of
 them block the sales-side port — adopters can ship the sales platform
 without governance and add it incrementally per-tenant.
 
-### 3.8 HITL gating → `compose_method` + `ShortCircuit`
+### 3.8 Property lists, collection lists, and `adagents.json`
+
+Salesagent's property surfaces are tool-shaped today, the same way
+signals were (§3.5). The CRUD-shaped list specialisms in AdCP 3.0
+(`PropertyListsPlatform`, `CollectionListsPlatform`) are per-tenant
+platforms behind the router. The `adagents.json` verification
+infrastructure salesagent already runs at provisioning time stays
+adopter-side; the SDK formalizes the wire reference so buyers can
+re-verify independently.
+
+#### A. Property lists: tool → `PropertyListsPlatform`
+
+**Before** — `src/core/tools/properties.py` is a global tool. One
+`_list_authorized_properties_impl` resolves the tenant from
+`identity`, queries `list_publisher_partners()`, projects the
+advertising-policy JSON onto the response. Per-request resolution
+lives in `core/property_list_resolver.py` (caching by `(agent_url,
+list_id)` with `cache_valid_until` TTL); discovery and verification
+live in `services/property_discovery_service.py` and
+`services/property_verification_service.py`.
+
+**After** — `PropertyListsPlatform`
+(`adcp.decisioning.specialisms.lists.PropertyListsPlatform`) is
+per-tenant, behind the router. Five required methods (CRUD plus
+`list_property_lists`), each `(req, ctx) -> response`. The
+publisher-domain enumeration and policy-text projection port into
+the platform method bodies unchanged. The dispatch model is the
+same shape change as §3.5: `account.metadata['tenant_id']` selects
+the platform; tenants that don't claim `property-lists` skip it;
+buyers hitting the surface get `UNSUPPORTED_FEATURE`.
+`create_property_list` issues a per-seller `fetch_token`;
+`delete_property_list` revokes it (compromise-driven revocation
+MUST trigger delete).
+
+#### B. Collection lists: greenfield
+
+Salesagent has no collection-list code (`grep collection
+src/core/tools/` is empty). `CollectionListsPlatform` is the
+parallel CRUD shape over program-level brand-safety lists keyed by
+IMDb / Gracenote / EIDR ids. Adopters whose business model exposes
+collection-shaped bundles (curated property packages, themed
+inventory groups) implement this; tenants that don't, don't.
+Recommended minimum-viable: return the tenant's collection
+catalog from `list_collection_lists` and `get_collection_list`;
+mutating CRUD can come later if buyers demand it.
+
+#### C. `PropertyListReference` and `ResourceResolver`
+
+Products and packages reference property lists via wire-encoded
+`PropertyListReference` (`agent_url`, `list_id`, optional
+`auth_token`) — not by inline embedding. The framework
+materializes those references through the `ResourceResolver`
+Protocol on `ctx.resolve`: `await ctx.resolve.property_list(list_id)`
+returns a validated typed `PropertyList`. Migrating
+`property_list_resolver.py` means implementing `ResourceResolver`
+rather than maintaining the httpx + custom cache directly — the
+framework owns id-validation and cache plumbing; adopters supply
+the upstream fetch. (v6.0 ships a stub that raises
+`NotImplementedError`; the backing fetcher lands in v6.1, or
+adopters wire their own via `serve(resolver=...)` today.)
+
+#### D. `adagents.json` registry verification
+
+**Before** — `services/property_verification_service.py` wraps the
+adcp library's `fetch_adagents` + `verify_agent_authorization`;
+for each registered publisher domain, it fetches the publisher's
+`adagents.json` and confirms the tenant's agent URL is listed.
+`admin/blueprints/authorized_properties.py:537` exposes the bulk
+"verify all pending" admin route; `:587` syncs properties + tags
+directly from publisher manifests. Property ids are fetched fresh,
+not cached (`models.py:1917-1925`).
+
+**After** — the wire schema treats `adagents.json` as a recognized
+authorization surface. Products and properties carry references
+the framework recognizes (`AuthorizedAgents` discriminated union
+plus `publisher_domain` fields, `types/aliases.py:644-1036`).
+Adopters keep the fetch/verify infrastructure — cadence, caching,
+and re-fetch policy stay deployment-specific — but surface results
+through the typed wire references rather than admin-only reports.
+Buyers can independently re-fetch each publisher's `adagents.json`
+and verify the seller's claims against it; the SDK gives the wire
+shape that makes the verification meaningful end-to-end.
+
+### 3.9 HITL gating → `compose_method` + `ShortCircuit`
 
 **Before** — `salesagent/src/adapters/base.py:226` plumbs the flag into
 every adapter, and each adapter checks it inline. From
@@ -891,7 +986,7 @@ returning a bare value instead of `ShortCircuit(value=...)` raises
 `TypeError` at runtime, so adopters porting middleware between
 languages can't accidentally short-circuit with `None`.
 
-### 3.9 Sandbox toggles → `Account.mode`
+### 3.10 Sandbox toggles → `Account.mode`
 
 **Before** — sandbox is a deployment-level concern in salesagent. A
 config dict carries the flag; each adapter (and the middleware in
@@ -938,7 +1033,7 @@ on `mode='live'` accounts. Resolvers that spread untrusted input into
 the resolved account leak this gate; the docstring on
 `assert_sandbox_account` calls this out explicitly.
 
-### 3.10 Mock fixtures → `Account.mode='mock'`
+### 3.11 Mock fixtures → `Account.mode='mock'`
 
 **Before** — `salesagent/src/adapters/mock_ad_server.py:53` is a
 ~1,800-LOC in-memory ad server. It implements every abstract method of
@@ -985,7 +1080,7 @@ deterministic per-specialism upstream-API responses.
 The `mock_ad_server.py` module deletes wholesale. ~1,800 LOC of
 in-memory state machine becomes a dev-time fixture URL on the account.
 
-### 3.11 Compliance scaffolding → SDK `comply_test_controller` gate
+### 3.12 Compliance scaffolding → SDK `comply_test_controller` gate
 
 **Before** — salesagent's compliance scenarios mix into the adapters
 through environment toggles, seeded state, and per-adapter scenario
@@ -1006,7 +1101,7 @@ The bedrock invariant: deterministic-testing surfaces never fire on
 production traffic, regardless of how the adopter's compliance code
 is wired. The gate is the contract.
 
-### 3.12 Lifecycle state machine
+### 3.13 Lifecycle state machine
 
 **Before** — each adapter encodes the legal state graph itself. Inline
 checks scattered through `update_media_buy` and similar:
@@ -1045,7 +1140,7 @@ state-graph code at all.
 The same module ships `assert_creative_transition` for the creative
 lifecycle.
 
-### 3.13 Webhook emission → F12 auto-emit
+### 3.14 Webhook emission → F12 auto-emit
 
 **Before** — each adapter (or per-tenant middleware) hand-rolls
 webhook delivery: format the payload, sign it, fire the request, retry
@@ -1073,7 +1168,7 @@ pass `auto_emit_completion_webhooks=False` and emit themselves —
 but the auto-emit path is the default, so most adopters delete their
 webhook plumbing entirely.
 
-### 3.14 Per-adapter HTTP client → `UpstreamHttpClient`
+### 3.15 Per-adapter HTTP client → `UpstreamHttpClient`
 
 **Before** — every adapter wires its own httpx client, auth scheme,
 retry policy, JSON parsing, and 404→None handling. From
@@ -1123,7 +1218,7 @@ on `ctx.account.metadata` for per-tenant credentials. The
 platform instance, so multi-tenant credential fan-out scales without
 adapter-level connection management.
 
-### 3.15 Error projection
+### 3.16 Error projection
 
 **Before** — each adapter wraps upstream errors in custom error types,
 then a translation layer maps those onto wire shapes:
@@ -1259,20 +1354,33 @@ step:
     workflow code to wrap. Each adopts independently behind the
     router. The `Account.governance_agents` field stays as
     descriptive metadata. See §3.7.
-12. **Delete `mock_ad_server.py`** once `mode='mock'` is wired and
+12. **Port `core/tools/properties.py` to `PropertyListsPlatform`.**
+    Same tool→platform shape change as signals (step 8).
+    Publisher-domain enumeration and policy-text projection port
+    into the platform method bodies. Migrate
+    `property_list_resolver.py` onto a `ResourceResolver` impl;
+    keep `property_verification_service.py` adopter-side and
+    expose results through wire-level `adagents.json` references.
+    Tenants without property exposure skip the platform. See §3.8.
+13. **(Optional) Add `CollectionListsPlatform`** if the deployment
+    exposes program-level brand-safety bundles. Greenfield —
+    salesagent has no collection-list code today. Minimum-viable
+    is read-only (`list_collection_lists` + `get_collection_list`);
+    mutating CRUD lands when buyers ask. See §3.8.
+14. **Delete `mock_ad_server.py`** once `mode='mock'` is wired and
     the storyboard passes. ~1,800 LOC in one PR.
-13. **Repeat for remaining adapters** (Broadstreet, Triton,
+15. **Repeat for remaining adapters** (Broadstreet, Triton,
     `creative_engine`, GAM). GAM last — it's the largest, and the
     ported infrastructure from earlier adapters lets you focus the
     GAM port on the upstream-translation logic alone.
-14. **Stand up `PlatformRouter`** over all platforms. Wire the
+16. **Stand up `PlatformRouter`** over all platforms. Wire the
     router's `accounts` to your existing `AccountStore`; the
     per-tenant dispatch becomes automatic. This is the last step
     on purpose — each platform validates standalone (single-platform
     mode, `examples/v3_reference_seller/` shape) before you flip
     the router on.
 
-At any point in steps 1–13 you can run the storyboard against the
+At any point in steps 1–15 you can run the storyboard against the
 ported tenants while the rest of the registry still serves the
 unported tenants — there's no flag day.
 
@@ -1331,6 +1439,16 @@ gaps from the migration, not flaws in the SDK:
   is descriptive metadata — it doesn't gate requests today. Each
   governance specialism is an independent build per-tenant; none
   block the sales port.
+* **`CollectionListsPlatform` is greenfield.** §3.8 covers the
+  Protocol shape. Salesagent has no collection-list code; adopters
+  whose business model needs program-level brand-safety bundles
+  build this from scratch.
+* **`adagents.json` fetching stays adopter-side.** §3.8 covers the
+  wire-level reference shape. The SDK formalizes the references but
+  doesn't ship a fetcher — verification cadence, caching, and
+  re-fetch policy are deployment-specific. Salesagent's existing
+  `property_verification_service.py` infrastructure ports across
+  intact; only the schema for surfacing results changes.
 
 ## See also
 
