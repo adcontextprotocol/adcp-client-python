@@ -28,8 +28,10 @@ They become hard-enforced (``AdcpError``) in v6.0 rc.1.
 * :meth:`provide_performance_feedback`
 * :meth:`list_creative_formats`
 * :meth:`list_creatives`
-* :meth:`sync_catalogs` — required when claiming
-  ``sales-catalog-driven`` (already hard-enforced)
+
+Specialism-only required methods (already hard-enforced at boot):
+
+* :meth:`sync_catalogs` — required when claiming ``sales-catalog-driven``
 
 The framework's :func:`validate_platform` walks ``capabilities.specialisms``
 and confirms each specialism's required methods exist on the platform
@@ -182,7 +184,7 @@ class SalesPlatform(Protocol, Generic[TMeta]):
         """Sync delivery read — pacing, spend, impressions per package."""
         ...
 
-    # ---- Optional (gated by specialism — present-or-absent) ----
+    # ---- Warn-if-absent (required in v6.0 rc.1 — hard-enforced at rc.1) ----
 
     def get_media_buys(
         self,

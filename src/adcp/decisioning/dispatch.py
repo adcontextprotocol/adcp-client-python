@@ -136,11 +136,11 @@ SPEC_SPECIALISM_ENUM: frozenset[str] = frozenset(
 REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
     # Five sales-* specialisms share the unified hybrid SalesPlatform
     # surface. Per the SalesPlatform docstring, every sales-* claim
-    # requires the five core methods. The four optional methods
+    # requires the five core methods. The four rc.1-promoted methods
     # (get_media_buys, provide_performance_feedback,
-    # list_creative_formats, list_creatives) are present-or-absent —
-    # not enforced here. The v6.0 rc.1 spec mandates them; v6.0 alpha
-    # tolerates absence so adopters can ship in stages.
+    # list_creative_formats, list_creatives) are warn-if-absent here —
+    # see WARN_IF_MISSING_PER_SPECIALISM. They become hard-enforced
+    # (AdcpError) in v6.0 rc.1.
     "sales-non-guaranteed": frozenset(
         {
             "get_products",
@@ -674,13 +674,14 @@ def validate_platform(platform: DecisioningPlatform) -> None:
                 platform, method_name
             ):
                 warn_missing[method_name] = specialism
+    platform_cls = type(platform).__qualname__
     for method_name, specialism in sorted(warn_missing.items()):
         warnings.warn(
             (
-                f"DecisioningPlatform claims {specialism!r} but is missing "
+                f"{platform_cls} claims {specialism!r} but is missing "
                 f"{method_name!r}, which becomes required in v6.0 rc.1. "
-                f"Buyers calling this method will receive NOT_SUPPORTED until "
-                f"it is implemented on your platform subclass."
+                f"Buyers calling this method will receive AdcpError(NOT_SUPPORTED) "
+                f"until it is implemented on your platform subclass."
             ),
             UserWarning,
             stacklevel=2,
@@ -1201,7 +1202,6 @@ async def _project_workflow_handoff(
 
 __all__ = [
     "REQUIRED_METHODS_PER_SPECIALISM",
-    "WARN_IF_MISSING_PER_SPECIALISM",
     "SPEC_SPECIALISM_ENUM",
     "compose_caller_identity",
     "validate_platform",
