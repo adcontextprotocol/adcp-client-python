@@ -63,6 +63,16 @@ from adcp.decisioning.context import (
     AuthInfo,
     RequestContext,
 )
+from adcp.decisioning.exceptions import (
+    AccountNotFoundError,
+    AuthRequiredError,
+    BillingNotPermittedForAgentError,
+    MediaBuyNotFoundError,
+    PermissionDeniedError,
+    RateLimitedError,
+    RequestValidationError,
+    ServiceUnavailableError,
+)
 from adcp.decisioning.mock_ad_server import (
     InMemoryMockAdServer,
     MockAdServer,
@@ -129,6 +139,13 @@ from adcp.decisioning.task_registry import (
     TaskRegistry,
     TaskState,
 )
+from adcp.decisioning.transitions import (
+    CREATIVE_TRANSITIONS,
+    MEDIA_BUY_TRANSITIONS,
+    ref_account_id,
+    validate_creative_transition,
+    validate_media_buy_transition,
+)
 from adcp.decisioning.types import (
     Account,
     AdcpError,
@@ -174,9 +191,12 @@ except ImportError:  # pragma: no cover — exercised by the [pg] extra tests
 
 __all__ = [
     "Account",
+    "AccountNotFoundError",
     "AccountStore",
     "AdcpError",
+    "AuthRequiredError",
     "ApiKeyCredential",
+    "BillingNotPermittedForAgentError",
     "AudiencePlatform",
     "AuditingBuyerAgentRegistry",
     "AuthInfo",
@@ -186,6 +206,7 @@ __all__ = [
     "BuyerAgentDefaultTerms",
     "BuyerAgentRegistry",
     "BuyerAgentStatus",
+    "CREATIVE_TRANSITIONS",
     "CachingBuyerAgentRegistry",
     "CampaignGovernancePlatform",
     "CollectionList",
@@ -202,12 +223,15 @@ __all__ = [
     "FromAuthAccounts",
     "GOVERNANCE_SPECIALISMS",
     "GovernanceContextJWS",
+    "MEDIA_BUY_TRANSITIONS",
+    "MediaBuyNotFoundError",
     "HttpSigCredential",
     "InMemoryMockAdServer",
     "InMemoryTaskRegistry",
     "MaybeAsync",
     "MockAdServer",
     "OAuthCredential",
+    "PermissionDeniedError",
     "PgTaskRegistry",
     "PostgresTaskRegistry",
     "Proposal",
@@ -215,10 +239,13 @@ __all__ = [
     "PropertyListReference",
     "PropertyListsPlatform",
     "RateLimitedBuyerAgentRegistry",
+    "RateLimitedError",
     "RequestContext",
+    "RequestValidationError",
     "ResourceResolver",
     "SalesPlatform",
     "SalesResult",
+    "ServiceUnavailableError",
     "SignalsPlatform",
     "SingletonAccounts",
     "StateReader",
@@ -234,7 +261,10 @@ __all__ = [
     "mixed_registry",
     "project_account_for_response",
     "project_business_entity_for_response",
+    "ref_account_id",
     "serve",
     "signing_only_registry",
     "validate_billing_for_agent",
+    "validate_creative_transition",
+    "validate_media_buy_transition",
 ]
