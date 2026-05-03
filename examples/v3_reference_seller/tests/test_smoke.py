@@ -97,6 +97,41 @@ async def test_tenant_router_returns_none_without_session_match() -> None:
 
 
 @pytest.mark.asyncio
+async def test_tenant_router_strips_port_and_lowercases_host() -> None:
+    """The middleware passes the raw Host header. RFC 7230 makes it
+    case-insensitive and lets the client include ``:port``; the
+    Protocol docstring is explicit that implementations strip the
+    port suffix as needed. ``ACME.localhost:3001`` and
+    ``acme.localhost`` MUST hit the same DB row."""
+    from src.tenant_router import SqlSubdomainTenantRouter
+
+    captured: list[str] = []
+
+    class _CapturingSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def execute(self, stmt):
+            captured.append(str(stmt.compile(compile_kwargs={"literal_binds": True})))
+
+            class _Result:
+                def scalar_one_or_none(self):
+                    return None
+
+            return _Result()
+
+    router = SqlSubdomainTenantRouter(sessionmaker=lambda: _CapturingSession())  # type: ignore[arg-type]
+    await router.resolve("ACME.localhost:3001")
+    assert captured, "expected a SQL execute"
+    assert (
+        "'acme.localhost'" in captured[-1]
+    ), f"router did not normalize host before query: {captured[-1]!r}"
+
+
+@pytest.mark.asyncio
 async def test_buyer_registry_returns_none_without_tenant() -> None:
     """Without a tenant context (ContextVar unset), the registry
     returns None — the framework dispatch then rejects with
