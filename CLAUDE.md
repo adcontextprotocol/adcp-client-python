@@ -184,6 +184,42 @@ git worktree remove /tmp/claude-issue-<N>-<slug>
 
 **Branch naming:** always follow `claude/issue-<N>-<short-slug>` — branch-protection
 rules enforce this pattern and PRs from non-conforming names may be rejected.
+## Parallel Agent Coordination
+
+When spawning parallel sub-agents, each agent must receive an explicit write-scope
+declaration in its prompt. Without this, agents silently clobber each other's changes —
+the second write wins with no error or warning.
+
+**Prompt template for a parallel sub-agent:**
+
+```
+Task: <what this agent should do>
+
+Read scope (consult freely):
+- <file or glob pattern>
+- <file or glob pattern>
+
+Write scope (the ONLY files this agent may create or modify):
+- <exact file path>
+- <exact file path>
+
+Do not edit files outside your write scope even if you believe the change
+would be an improvement. Leave a note in your final reply if you spotted
+something worth fixing outside your scope.
+```
+
+**Pre-spawn checklist:**
+
+1. Enumerate every file any agent in the group might write.
+2. Partition that set so each file appears in exactly one agent's write scope.
+3. Pass each agent its partition explicitly (see template above).
+4. After all agents complete: `git diff --name-only` — any file written by more than
+   one agent signals a scope-partition error, not a merge conflict.
+
+**Why this matters:** The triage-prompt's concurrent-expert pattern
+(Step 4 / Step 6 pre-PR review) already spawns two experts in parallel. If both
+experts generate edits, only the write-scope contract prevents silent overwrites.
+This pattern was introduced after observed W2/W3 cycle collisions (#425).
 
 ## Additional Important Reminders
 
