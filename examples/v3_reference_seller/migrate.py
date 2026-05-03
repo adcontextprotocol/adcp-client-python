@@ -48,7 +48,10 @@ def main() -> None:
     alembic_cfg = Config(str(ini_path))
     alembic_cfg.set_main_option("sqlalchemy.url", db_url)
 
-    print(f"Running alembic upgrade head against {db_url!r}...")
+    from sqlalchemy.engine.url import make_url
+
+    safe_url = make_url(db_url).render_as_string(hide_password=True)
+    print(f"Running alembic upgrade head against {safe_url!r}...")
     command.upgrade(alembic_cfg, "head")
     print("Migrations complete.")
 

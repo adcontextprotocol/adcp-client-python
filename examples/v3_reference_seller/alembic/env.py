@@ -45,12 +45,13 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # DATABASE_URL comes from the environment; never hardcode it here.
-_db_url = os.environ.get("DATABASE_URL")
-if not _db_url:
+try:
+    _db_url: str = os.environ["DATABASE_URL"]
+except KeyError:
     raise RuntimeError(
         "DATABASE_URL environment variable is not set. "
         "Example: DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp alembic upgrade head"
-    )
+    ) from None
 config.set_main_option("sqlalchemy.url", _db_url)
 
 
