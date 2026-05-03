@@ -17,15 +17,15 @@ import respx
 
 from adcp.decisioning import (
     Account,
+    AccountStore,
     AdcpError,
     AuthInfo,
     DynamicBearer,
-    ResolveContext,
     create_oauth_passthrough_resolver,
     create_upstream_http_client,
 )
-from adcp.types import AccountReference
-from adcp.types.generated_poc.core.account_ref import AccountReference1
+from adcp.decisioning.oauth_passthrough import _default_extract_rows
+from adcp.types import AccountReference, AccountReferenceById
 
 BASE = "https://upstream.example.com"
 
@@ -36,13 +36,13 @@ BASE = "https://upstream.example.com"
 
 
 def _ref_by_id(account_id: str) -> AccountReference:
-    return AccountReference(root=AccountReference1(account_id=account_id))
+    return AccountReference(root=AccountReferenceById(account_id=account_id))
 
 
 def _ref_natural_key() -> dict[str, Any]:
     """Natural-key arm — passed as a raw dict, which ``ref_account_id``
-    accepts. Avoids constructing the typed ``AccountReference2`` model
-    here (test only needs the no-account_id branch)."""
+    accepts. Avoids constructing the typed natural-key model here
+    (test only needs the no-account_id branch)."""
     return {"brand": {"domain": "acme.com"}, "operator": "pinnacle.com"}
 
 
@@ -61,7 +61,7 @@ async def _passthrough_token(ctx: Any) -> str:
     return getattr(token, "token", "") or ""
 
 
-def _to_account(row: dict[str, Any], _ctx: ResolveContext | None) -> Account[Any]:
+def _to_account(row: dict[str, Any], _ctx: Any) -> Account[Any]:
     return Account(
         id=str(row["id"]),
         name=str(row.get("name", "")),
@@ -78,6 +78,22 @@ def _make_client(token_factory: Any = _passthrough_token) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# AccountStore Protocol conformance
+# ---------------------------------------------------------------------------
+
+
+def test_returned_object_satisfies_account_store_protocol() -> None:
+    client = _make_client()
+    store = create_oauth_passthrough_resolver(
+        http_client=client,
+        list_endpoint="/me/adaccounts",
+        to_account=_to_account,
+    )
+    assert isinstance(store, AccountStore)
+    assert store.resolution == "explicit"
+
+
+# ---------------------------------------------------------------------------
 # Ref-shape handling
 # ---------------------------------------------------------------------------
 
@@ -88,13 +104,13 @@ async def test_returns_none_for_natural_key_ref_without_calling_upstream() -> No
         return_value=httpx.Response(200, json={"data": []})
     )
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
-    result = await resolve(_ref_natural_key(), ResolveContext())
+    result = await store.resolve(_ref_natural_key())
     assert result is None
     assert not route.called
     await client.aclose()
@@ -106,13 +122,13 @@ async def test_returns_none_when_ref_is_none_without_calling_upstream() -> None:
         return_value=httpx.Response(200, json={"data": []})
     )
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
-    result = await resolve(None, ResolveContext())
+    result = await store.resolve(None)
     assert result is None
     assert not route.called
     await client.aclose()
@@ -131,25 +147,23 @@ async def test_returns_mapped_account_when_account_id_matches_upstream_row() -> 
             json={
                 "data": [
                     {"id": "acc_1", "name": "Acme"},
-                    {"id": "acc_2", "name": "Nike"},
+                    {"id": "acc_2", "name": "Globex"},
                 ]
             },
         )
     )
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
-    ctx = ResolveContext(
-        auth_info=AuthInfo(kind="oauth", principal="p1"),
-    )
+    auth_info = AuthInfo(kind="oauth", principal="p1")
     # Inject the bearer the DynamicBearer resolver will read.
-    ctx.auth_info.credential = type("_C", (), {"token": "t_buyer_1"})()  # type: ignore[union-attr]
+    auth_info.credential = type("_C", (), {"token": "t_buyer_1"})()  # type: ignore[attr-defined]
 
-    result = await resolve(_ref_by_id("acc_1"), ctx)
+    result = await store.resolve(_ref_by_id("acc_1"), auth_info=auth_info)
     assert result is not None
     assert result.id == "acc_1"
     assert result.name == "Acme"
@@ -166,13 +180,13 @@ async def test_returns_none_when_no_upstream_row_matches() -> None:
         return_value=httpx.Response(200, json={"data": [{"id": "acc_1", "name": "Acme"}]})
     )
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
-    result = await resolve(_ref_by_id("acc_unknown"), ResolveContext())
+    result = await store.resolve(_ref_by_id("acc_unknown"))
     assert result is None
     await client.aclose()
 
@@ -182,13 +196,13 @@ async def test_returns_none_when_upstream_returns_none_body() -> None:
     # 404 → http client returns None (treat_404_as_none=True default).
     respx.get(f"{BASE}/me/adaccounts").mock(return_value=httpx.Response(404))
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
-    result = await resolve(_ref_by_id("acc_1"), ResolveContext())
+    result = await store.resolve(_ref_by_id("acc_1"))
     assert result is None
     await client.aclose()
 
@@ -202,14 +216,14 @@ async def test_returns_none_when_upstream_returns_none_body() -> None:
 async def test_upstream_401_raises_adcp_error() -> None:
     respx.get(f"{BASE}/me/adaccounts").mock(return_value=httpx.Response(401, text="unauthorized"))
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
     with pytest.raises(AdcpError) as exc_info:
-        await resolve(_ref_by_id("acc_1"), ResolveContext())
+        await store.resolve(_ref_by_id("acc_1"))
     assert exc_info.value.code == "AUTH_REQUIRED"
     await client.aclose()
 
@@ -218,14 +232,14 @@ async def test_upstream_401_raises_adcp_error() -> None:
 async def test_upstream_500_raises_service_unavailable() -> None:
     respx.get(f"{BASE}/me/adaccounts").mock(return_value=httpx.Response(500))
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
     with pytest.raises(AdcpError) as exc_info:
-        await resolve(_ref_by_id("acc_1"), ResolveContext())
+        await store.resolve(_ref_by_id("acc_1"))
     assert exc_info.value.code == "SERVICE_UNAVAILABLE"
     await client.aclose()
 
@@ -242,14 +256,14 @@ async def test_custom_id_field() -> None:
             200,
             json={
                 "data": [
-                    {"account_uuid": "snap_act_42", "name": "Acme"},
-                    {"account_uuid": "snap_act_43", "name": "Nike"},
+                    {"account_uuid": "act_42", "name": "Acme"},
+                    {"account_uuid": "act_43", "name": "Globex"},
                 ]
             },
         )
     )
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/v1/adaccounts",
         id_field="account_uuid",
@@ -260,16 +274,16 @@ async def test_custom_id_field() -> None:
         ),
     )
 
-    result = await resolve(_ref_by_id("snap_act_43"), ResolveContext())
+    result = await store.resolve(_ref_by_id("act_43"))
     assert result is not None
-    assert result.id == "snap_act_43"
-    assert result.name == "Nike"
+    assert result.id == "act_43"
+    assert result.name == "Globex"
     await client.aclose()
 
 
 @respx.mock
 async def test_custom_extract_rows_receives_raw_response() -> None:
-    # Some APIs nest deeper than the default unwrap — TikTok-shaped
+    # Some APIs nest deeper than the default unwrap, e.g.
     # ``data.list``. The custom callback gets the raw parsed body.
     respx.get(f"{BASE}/v2/me").mock(
         return_value=httpx.Response(
@@ -284,14 +298,14 @@ async def test_custom_extract_rows_receives_raw_response() -> None:
         return list(body["data"]["list"])
 
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/v2/me",
         extract_rows=extract,
         to_account=_to_account,
     )
 
-    result = await resolve(_ref_by_id("a1"), ResolveContext())
+    result = await store.resolve(_ref_by_id("a1"))
     assert result is not None
     assert result.id == "a1"
     assert seen == [{"data": {"list": [{"id": "a1", "name": "Acme"}]}}]
@@ -305,21 +319,52 @@ async def test_default_extract_rows_handles_flat_list() -> None:
             200,
             json=[
                 {"id": "a1", "name": "Acme"},
-                {"id": "a2", "name": "Nike"},
+                {"id": "a2", "name": "Globex"},
             ],
         )
     )
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/customers",
         to_account=_to_account,
     )
 
-    result = await resolve(_ref_by_id("a2"), ResolveContext())
+    result = await store.resolve(_ref_by_id("a2"))
     assert result is not None
-    assert result.name == "Nike"
+    assert result.name == "Globex"
     await client.aclose()
+
+
+# ---------------------------------------------------------------------------
+# _default_extract_rows edge cases (unit-level)
+# ---------------------------------------------------------------------------
+
+
+def test_default_extract_rows_returns_none_for_none_body() -> None:
+    assert _default_extract_rows(None) is None
+
+
+def test_default_extract_rows_returns_none_for_empty_dict() -> None:
+    assert _default_extract_rows({}) is None
+
+
+def test_default_extract_rows_returns_none_for_data_null() -> None:
+    assert _default_extract_rows({"data": None}) is None
+
+
+def test_default_extract_rows_returns_none_when_data_is_not_a_list() -> None:
+    assert _default_extract_rows({"data": "not_a_list"}) is None
+
+
+def test_default_extract_rows_returns_flat_list() -> None:
+    rows = [{"id": "a1"}]
+    assert _default_extract_rows(rows) is rows
+
+
+def test_default_extract_rows_unwraps_data_envelope() -> None:
+    rows = [{"id": "a1"}]
+    assert _default_extract_rows({"data": rows}) is rows
 
 
 # ---------------------------------------------------------------------------
@@ -333,17 +378,17 @@ async def test_async_to_account_is_awaited() -> None:
         return_value=httpx.Response(200, json={"data": [{"id": "a1", "name": "Acme"}]})
     )
 
-    async def to_account_async(row: dict[str, Any], _ctx: ResolveContext | None) -> Account[Any]:
+    async def to_account_async(row: dict[str, Any], _ctx: Any) -> Account[Any]:
         return Account(id=row["id"], name=row["name"], status="active")
 
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=to_account_async,
     )
 
-    result = await resolve(_ref_by_id("a1"), ResolveContext())
+    result = await store.resolve(_ref_by_id("a1"))
     assert result is not None
     assert result.id == "a1"
     await client.aclose()
@@ -355,17 +400,17 @@ async def test_sync_to_account_returns_account_directly() -> None:
         return_value=httpx.Response(200, json={"data": [{"id": "a1", "name": "Acme"}]})
     )
 
-    def to_account_sync(row: dict[str, Any], _ctx: ResolveContext | None) -> Account[Any]:
+    def to_account_sync(row: dict[str, Any], _ctx: Any) -> Account[Any]:
         return Account(id=row["id"], name=row["name"], status="active")
 
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=to_account_sync,
     )
 
-    result = await resolve(_ref_by_id("a1"), ResolveContext())
+    result = await store.resolve(_ref_by_id("a1"))
     assert result is not None
     assert result.id == "a1"
     await client.aclose()
@@ -389,14 +434,14 @@ async def test_default_get_auth_context_forwards_auth_info_verbatim() -> None:
         return "tok_x"
 
     client = create_upstream_http_client(BASE, auth=DynamicBearer(get_token=capture_token))
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
     auth_info = AuthInfo(kind="oauth", principal="p1")
-    await resolve(_ref_by_id("a1"), ResolveContext(auth_info=auth_info))
+    await store.resolve(_ref_by_id("a1"), auth_info=auth_info)
     assert seen_ctx == [auth_info]
     await client.aclose()
 
@@ -414,7 +459,7 @@ async def test_custom_get_auth_context_threads_through() -> None:
         return "tok_y"
 
     client = create_upstream_http_client(BASE, auth=DynamicBearer(get_token=capture_token))
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         get_auth_context=lambda ctx: {
@@ -424,7 +469,7 @@ async def test_custom_get_auth_context_threads_through() -> None:
     )
 
     auth_info = AuthInfo(kind="oauth", principal="agent-1")
-    await resolve(_ref_by_id("a1"), ResolveContext(auth_info=auth_info))
+    await store.resolve(_ref_by_id("a1"), auth_info=auth_info)
     assert seen_ctx == [{"principal": "agent-1"}]
     await client.aclose()
 
@@ -442,13 +487,13 @@ async def test_resolve_passes_dict_ref_through() -> None:
         return_value=httpx.Response(200, json={"data": [{"id": "a1", "name": "Acme"}]})
     )
     client = _make_client()
-    resolve = create_oauth_passthrough_resolver(
+    store = create_oauth_passthrough_resolver(
         http_client=client,
         list_endpoint="/me/adaccounts",
         to_account=_to_account,
     )
 
-    result = await resolve({"account_id": "a1"}, ResolveContext())
+    result = await store.resolve({"account_id": "a1"})
     assert result is not None
     assert result.id == "a1"
     await client.aclose()
