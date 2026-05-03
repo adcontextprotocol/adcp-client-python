@@ -18,7 +18,8 @@ Question 2 has wire-level consequences — a passthrough-only agent's
 Today the framework can't enforce that and the resulting commercial
 drift is invisible to buyers. With :class:`BuyerAgent.billing_capabilities`
 the framework rejects mismatched ``billing`` values with a structured
-:class:`adcp.decisioning.AdcpError` ``code="INVALID_BILLING_MODEL"``.
+:class:`adcp.decisioning.AdcpError`
+``code="BILLING_NOT_PERMITTED_FOR_AGENT"``.
 
 Per :issue:`adcp-client#1269` and the v3-identity-bundle RFC, the
 registry is *durable* infrastructure — it stays useful even after
@@ -197,8 +198,11 @@ class BuyerAgentRegistry(Protocol):
     * :meth:`resolve_by_credential` for bearer / API-key / OAuth —
       the adopter looks up against their existing key table.
 
-    Returning ``None`` rejects the request with
-    ``REQUEST_AUTH_UNRECOGNIZED_AGENT``. Adopters typically construct
+    Returning ``None`` rejects the request with ``PERMISSION_DENIED``
+    (``details`` omitted — the unrecognized-agent path MUST be
+    indistinguishable on the wire from the recognized-but-denied path
+    to prevent cross-tenant onboarding enumeration). Adopters
+    typically construct
     via the :func:`signing_only_registry` / :func:`bearer_only_registry`
     / :func:`mixed_registry` factories rather than implementing the
     Protocol directly — the factories carry the posture choice in
@@ -286,7 +290,8 @@ def signing_only_registry(
 
     Adopter supplies an async function that maps a verified
     ``agent_url`` to a :class:`BuyerAgent` (or ``None`` to reject).
-    Bearer traffic gets ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` at the
+    Bearer traffic gets ``PERMISSION_DENIED`` (with ``details``
+    omitted — wire-indistinguishable from any other denial) at the
     framework's dispatch layer — the registry deliberately doesn't
     implement bearer lookup.
     """
@@ -301,8 +306,8 @@ def bearer_only_registry(
     Adopter supplies an async function that maps an
     :class:`ApiKeyCredential` or :class:`OAuthCredential` to a
     :class:`BuyerAgent` (or ``None`` to reject). Signed traffic gets
-    ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` — adopt :func:`mixed_registry`
-    once signed onboarding is wired.
+    ``PERMISSION_DENIED`` — adopt :func:`mixed_registry` once signed
+    onboarding is wired.
     """
     return _BearerOnlyRegistry(_resolve_by_credential=resolve_by_credential)
 
@@ -332,13 +337,22 @@ def validate_billing_for_agent(
     requested_billing: BillingMode,
     agent: BuyerAgent,
 ) -> None:
-    """Raise :class:`adcp.decisioning.AdcpError` ``INVALID_BILLING_MODEL``
-    when ``requested_billing`` is not in ``agent.billing_capabilities``.
+    """Raise :class:`adcp.decisioning.AdcpError`
+    ``BILLING_NOT_PERMITTED_FOR_AGENT`` when ``requested_billing`` is
+    not in ``agent.billing_capabilities``.
 
     Called by the framework's ``sync_accounts`` shim before invoking
     the platform method. Adopters needn't call this directly; the
     framework enforces. Re-exported so platform methods that branch
     on billing mode can short-circuit to the same structured error.
+
+    The wire ``details`` payload deliberately carries only
+    ``rejected_billing`` (and an optional ``suggested_billing``) — it
+    MUST NOT carry the agent's full ``permitted_billing`` subset. The
+    full subset is the agent's commercial relationship with the
+    seller; surfacing it on every rejected request would let a
+    misconfigured buyer probe and exfiltrate the matrix one mode at
+    a time.
     """
     if requested_billing in agent.billing_capabilities:
         return
@@ -346,25 +360,30 @@ def validate_billing_for_agent(
     # close on import-load order).
     from adcp.decisioning.types import AdcpError
 
+    # Suggest a single permitted mode (deterministic — the
+    # alphabetically-first permitted mode) when the agent has any
+    # capability at all. We do NOT enumerate the full set; suggesting
+    # one mode is sufficient remediation hint without leaking the
+    # subset shape on every failed request.
+    suggested = sorted(agent.billing_capabilities)[0] if agent.billing_capabilities else None
+    details: dict[str, Any] = {"rejected_billing": requested_billing}
+    if suggested is not None:
+        details["suggested_billing"] = suggested
+
     raise AdcpError(
-        "INVALID_BILLING_MODEL",
+        "BILLING_NOT_PERMITTED_FOR_AGENT",
         message=(
-            f"Buyer agent '{agent.agent_url}' is not authorized for "
-            f"billing={requested_billing!r}; permitted modes are "
-            f"{sorted(agent.billing_capabilities)!r}. Common cause: "
-            "this agent has no payments relationship with the seller "
-            "(passthrough only) — accounts under this agent must be "
-            "operator-billed. Sellers extending the agent's billing "
-            "capabilities update the BuyerAgent.billing_capabilities "
-            "frozenset in their durable store."
+            f"Buyer agent {agent.agent_url!r} is not authorized for "
+            f"billing={requested_billing!r}. Common cause: this agent "
+            "has no payments relationship with the seller (passthrough "
+            "only) — accounts under this agent must be operator-billed. "
+            "Sellers extending the agent's billing capabilities update "
+            "the BuyerAgent.billing_capabilities frozenset in their "
+            "durable store."
         ),
         field="billing",
         recovery="terminal",
-        details={
-            "agent_url": agent.agent_url,
-            "requested_billing": requested_billing,
-            "permitted_billing": sorted(agent.billing_capabilities),
-        },
+        details=details,
     )
 
 

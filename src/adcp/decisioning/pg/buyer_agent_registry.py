@@ -239,7 +239,9 @@ class PgBuyerAgentRegistry:
         The framework has already validated the RFC 9421 signature
         before this point — the registry's only job is the commercial
         lookup. Returns ``None`` when the agent isn't recognized;
-        the framework converts that to ``REQUEST_AUTH_UNRECOGNIZED_AGENT``.
+        the framework converts that to ``PERMISSION_DENIED`` (with
+        ``details`` omitted so the unrecognized-agent path is
+        wire-indistinguishable from recognized-but-denied).
         """
         return await asyncio.to_thread(self._sync_lookup_by_agent_url, agent_url)
 

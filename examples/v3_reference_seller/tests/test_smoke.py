@@ -100,7 +100,9 @@ async def test_tenant_router_returns_none_without_session_match() -> None:
 async def test_buyer_registry_returns_none_without_tenant() -> None:
     """Without a tenant context (ContextVar unset), the registry
     returns None — the framework dispatch then rejects with
-    REQUEST_AUTH_UNRECOGNIZED_AGENT."""
+    PERMISSION_DENIED (with no ``details`` so the unrecognized-agent
+    path is wire-indistinguishable from a recognized-but-denied
+    response)."""
     from src.buyer_registry import TenantScopedBuyerAgentRegistry
 
     from adcp.decisioning import ApiKeyCredential

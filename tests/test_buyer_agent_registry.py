@@ -6,7 +6,9 @@ Behavior under test:
 * Three implementer postures (signing-only / bearer-only / mixed)
   reject the off-posture credential type by returning ``None``.
 * :func:`validate_billing_for_agent` accepts permitted modes and
-  raises ``INVALID_BILLING_MODEL`` on others.
+  raises ``BILLING_NOT_PERMITTED_FOR_AGENT`` on others, with details
+  scoped to ``rejected_billing`` (and optional ``suggested_billing``)
+  — the full ``permitted_billing`` subset is never leaked.
 * ``BuyerAgent`` defaults match the pre-trust beta passthrough-only
   posture (no payments relationship — accounts must be operator-billed).
 * Discriminated :data:`Credential` union pattern-matches cleanly.
@@ -292,13 +294,20 @@ def test_validate_billing_rejects_passthrough_only_with_agent_billing() -> None:
     )
     with pytest.raises(AdcpError) as exc:
         validate_billing_for_agent(requested_billing="agent", agent=agent)
-    assert exc.value.code == "INVALID_BILLING_MODEL"
+    assert exc.value.code == "BILLING_NOT_PERMITTED_FOR_AGENT"
     assert exc.value.field == "billing"
     assert exc.value.recovery == "terminal"
     details = exc.value.details
-    assert details["agent_url"] == "https://passthrough/"
-    assert details["requested_billing"] == "agent"
-    assert details["permitted_billing"] == ["operator"]
+    # ``rejected_billing`` is required.
+    assert details["rejected_billing"] == "agent"
+    # Suggested mode is the alphabetically-first permitted mode.
+    assert details["suggested_billing"] == "operator"
+    # Critical: the full ``permitted_billing`` subset MUST NOT leak —
+    # surfacing it on every rejected request would let a misconfigured
+    # buyer probe and exfiltrate the matrix one mode at a time.
+    assert "permitted_billing" not in details
+    # The agent_url is also a leak vector and is not echoed back.
+    assert "agent_url" not in details
 
 
 def test_validate_billing_rejects_advertiser_when_not_in_capabilities() -> None:
@@ -310,5 +319,7 @@ def test_validate_billing_rejects_advertiser_when_not_in_capabilities() -> None:
     )
     with pytest.raises(AdcpError) as exc:
         validate_billing_for_agent(requested_billing="advertiser", agent=agent)
-    assert exc.value.code == "INVALID_BILLING_MODEL"
+    assert exc.value.code == "BILLING_NOT_PERMITTED_FOR_AGENT"
     assert "advertiser" in str(exc.value)
+    # Sanity: with a non-empty permitted set, suggested_billing is set.
+    assert exc.value.details["suggested_billing"] in {"agent", "operator"}

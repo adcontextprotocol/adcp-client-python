@@ -147,9 +147,12 @@ def create_adcp_server_from_platform(
         identity layer. When wired, the framework calls the registry
         BEFORE :meth:`AccountStore.resolve` to gate every request on
         the seller's commercial allowlist. Suspended / blocked /
-        unknown agents are rejected with structured
-        ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
-        ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` errors. The resolved
+        unrecognized agents are rejected with structured
+        ``PERMISSION_DENIED`` errors (recognized-but-denied paths
+        carry ``details.scope="agent"`` + ``details.status``; the
+        unrecognized-agent path omits ``details`` so the wire shape
+        does not enumerate which ``agent_url``s are onboarded with
+        this seller). The resolved
         :class:`adcp.decisioning.BuyerAgent` is threaded onto
         :attr:`RequestContext.buyer_agent` so platform methods can
         read commercial context (billing capabilities, default terms,
@@ -351,7 +354,11 @@ def serve(
         spec-compliance storyboards) pass ``True``.
     :param serve_kwargs: Forwarded to :func:`adcp.server.serve`. Use
         for ``host``, ``port``, ``transport``, ``test_controller``,
-        ``context_factory``, ``middleware``, etc.
+        ``context_factory``, ``middleware``, ``validation``, etc.
+        Pass ``validation=ValidationHookConfig(requests="strict",
+        responses="strict")`` to enable schema-driven request/response
+        validation against the bundled AdCP JSON schemas — sellers who
+        want their server to enforce wire conformance turn it on here.
     """
     # Local import to avoid a circular at module-load time. Adopter
     # serves never run during foundation imports anyway.

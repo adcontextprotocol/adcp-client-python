@@ -331,14 +331,41 @@ async def _resolve_buyer_agent(
     * :class:`ApiKeyCredential` / :class:`OAuthCredential` →
       :meth:`BuyerAgentRegistry.resolve_by_credential`.
     * No credential at all (unauthenticated dev fixture, ``derived``
-      auth) → ``REQUEST_AUTH_UNRECOGNIZED_AGENT``. Adopters running
-      a registry have implicitly opted out of unauthenticated traffic.
+      auth) → ``PERMISSION_DENIED`` (no ``details.scope``). Adopters
+      running a registry have implicitly opted out of unauthenticated
+      traffic.
 
-    :raises AdcpError: ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` (registry
-        miss / no credential), ``AGENT_SUSPENDED`` (status=suspended),
-        or ``AGENT_BLOCKED`` (status=blocked). All ``recovery=terminal``
-        — the buyer cannot retry their way out of a commercial-state
-        rejection.
+    All four denial paths surface as ``code="PERMISSION_DENIED"`` to
+    match the spec enum and prevent the cross-tenant onboarding-oracle
+    risk: an attacker watching the wire MUST NOT be able to
+    distinguish "this agent_url is unrecognized at this seller" from
+    "this agent_url is recognized but currently denied". The
+    discriminator is in ``details``:
+
+    * recognized + suspended →
+      ``details = {scope: "agent", status: "suspended", agent_url: ...}``
+    * recognized + blocked →
+      ``details = {scope: "agent", status: "blocked", agent_url: ...}``
+    * unrecognized (registry miss / no credential / unknown status) →
+      ``details`` OMITTED — scope MUST NOT be set on the unestablished-
+      identity path (omit-on-unestablished-identity rule).
+
+    Note on parity: the *latency / headers / side-effects* parity
+    contract between the recognized and unrecognized paths is tracked
+    as a follow-up — the eager-raise pattern below still completes the
+    unrecognized path on a different code path than the recognized
+    one. Renaming closes the wire-code mismatch; folding all four
+    paths through a common emit point with deliberate latency padding
+    and identical audit/metric side-effects is the next step.
+
+    :raises AdcpError: ``PERMISSION_DENIED`` (all four denial paths).
+        Recovery is ``terminal`` for the commercial-identity gate —
+        the buyer cannot retry their way out of a commercial-state
+        rejection. Note this overrides the spec's ``enumMetadata``
+        default of ``correctable`` for ``PERMISSION_DENIED``; the
+        framework treats commercial-identity denials as terminal
+        because the resolution path is operator-onboarding, not
+        request-side correction.
     """
     from adcp.decisioning.registry import (
         ApiKeyCredential,
@@ -372,18 +399,28 @@ async def _resolve_buyer_agent(
                 recovery="terminal",
             )
 
+    # Generic message used on every denial path — MUST be identical
+    # across the unrecognized and the recognized-but-denied paths so
+    # the wire-level error.message is not itself a side channel
+    # leaking which agent_urls are onboarded with which sellers. The
+    # discriminator (when present at all) is in details, only on the
+    # recognized-but-denied paths.
+    _denied_message = (
+        "Buyer agent is not authorized for this seller. The seller's "
+        "commercial allowlist did not authorize this credential. "
+        "Resolve out-of-band via the seller's onboarding contact; this "
+        "is not a request-side error the buyer can correct."
+    )
+
     if agent is None:
+        # Registry miss / no credential. ``details`` is OMITTED — the
+        # spec's omit-on-unestablished-identity rule says the
+        # unrecognized-agent path MUST be indistinguishable on the
+        # wire from the recognized-but-denied path, and ``scope``
+        # would itself be the discriminator.
         raise AdcpError(
-            "REQUEST_AUTH_UNRECOGNIZED_AGENT",
-            message=(
-                "BuyerAgentRegistry returned no match for the request's "
-                "credential. The registry is the seller's commercial "
-                "allowlist — adopters reject auth that's cryptographically "
-                "valid but not commercially recognized (no onboarding row, "
-                "revoked, or wrong credential kind for the registry's "
-                "posture). Check that the agent has been onboarded into the "
-                "registry's backing store."
-            ),
+            "PERMISSION_DENIED",
+            message=_denied_message,
             recovery="terminal",
         )
 
@@ -391,43 +428,39 @@ async def _resolve_buyer_agent(
         return agent
     if agent.status == "suspended":
         raise AdcpError(
-            "AGENT_SUSPENDED",
-            message=(
-                f"Buyer agent {agent.agent_url!r} is suspended. Suspension "
-                "is a temporary commercial pause (credit, compliance review, "
-                "ops hold) — the seller restores it via their durable "
-                "store. Retry once the seller restores the agent; escalate "
-                "through the account contact if the pause is unexpected."
-            ),
-            recovery="transient",
-            details={"agent_url": agent.agent_url, "status": agent.status},
+            "PERMISSION_DENIED",
+            message=_denied_message,
+            recovery="terminal",
+            details={
+                "scope": "agent",
+                "status": "suspended",
+                "agent_url": agent.agent_url,
+            },
         )
     if agent.status == "blocked":
         raise AdcpError(
-            "AGENT_BLOCKED",
-            message=(
-                f"Buyer agent {agent.agent_url!r} is blocked. Blocked is "
-                "a hard cutoff (terms violation, fraud, enforcement) — "
-                "no retry path. Buyer must contact the seller directly."
-            ),
+            "PERMISSION_DENIED",
+            message=_denied_message,
             recovery="terminal",
-            details={"agent_url": agent.agent_url, "status": agent.status},
+            details={
+                "scope": "agent",
+                "status": "blocked",
+                "agent_url": agent.agent_url,
+            },
         )
     # Default-reject any non-active status the framework doesn't
     # recognize (typo, future enum value, adopter-custom string). A
     # silent fall-through to "active" would leak commercial state
-    # past the gate.
+    # past the gate. ``details`` is OMITTED for the same reason as
+    # the registry-miss branch — the framework treats unknown statuses
+    # as the unrecognized-identity path (the row is in the registry
+    # but the framework cannot interpret it, which is operationally
+    # equivalent to "not authorized" without a defensible status
+    # claim to project on the wire).
     raise AdcpError(
-        "REQUEST_AUTH_UNRECOGNIZED_AGENT",
-        message=(
-            f"Buyer agent {agent.agent_url!r} has unrecognized status "
-            f"{agent.status!r}. The framework only treats ``active`` as "
-            "live; ``suspended`` / ``blocked`` raise their own structured "
-            "errors. Unknown statuses are rejected by default to prevent "
-            "silent fall-through past the commercial-identity gate."
-        ),
+        "PERMISSION_DENIED",
+        message=_denied_message,
         recovery="terminal",
-        details={"agent_url": agent.agent_url, "status": agent.status},
     )
 
 
@@ -627,10 +660,13 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         BEFORE calling ``AccountStore.resolve`` and stashes the result
         on ``ctx.metadata['adcp.buyer_agent']`` for :meth:`_build_ctx`
         to read into the typed :class:`RequestContext`. Suspended /
-        blocked agents are rejected here with structured error codes
-        — buyers see ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
-        ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` instead of the registry
-        miss leaking into the AccountStore as ``ACCOUNT_NOT_FOUND``.
+        blocked / unrecognized agents are rejected here with
+        ``PERMISSION_DENIED`` (recognized-but-denied paths carry
+        ``details.scope="agent"`` + ``details.status``; the
+        unrecognized-agent path omits ``details`` so the wire shape
+        does not enumerate which ``agent_url``s are onboarded with
+        this seller) instead of the registry miss leaking into the
+        AccountStore as ``ACCOUNT_NOT_FOUND``.
         """
         auth_info = self._extract_auth_info(ctx)
         if self._buyer_agent_registry is not None:

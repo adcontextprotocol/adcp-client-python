@@ -73,8 +73,8 @@ class AuthInfo:
       ``credential=``.
     * **4.5.0** — synthesis is removed; flat-field-only construction
       stops auto-populating ``credential``, and the registry dispatch
-      will reject the request with
-      ``REQUEST_AUTH_UNRECOGNIZED_AGENT``. Adopters must construct
+      will reject the request with ``PERMISSION_DENIED``. Adopters
+      must construct
       the typed credential explicitly:
       ``AuthInfo(credential=ApiKeyCredential(kind="api_key", key_id=...))``
       or use the bundled signed-request verifier middleware.
