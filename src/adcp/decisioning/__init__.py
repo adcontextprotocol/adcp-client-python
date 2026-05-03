@@ -126,6 +126,9 @@ from adcp.decisioning.resolve import (
     PropertyListReference,
     ResourceResolver,
 )
+from adcp.decisioning.roster_store import (
+    create_roster_account_store,
+)
 from adcp.decisioning.serve import (
     create_adcp_server_from_platform,
     serve,
@@ -310,6 +313,7 @@ __all__ = [
     "bearer_only_registry",
     "compose_method",
     "create_adcp_server_from_platform",
+    "create_roster_account_store",
     "create_translation_map",
     "create_upstream_http_client",
     "require_account_match",
