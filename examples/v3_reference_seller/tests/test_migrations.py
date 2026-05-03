@@ -69,7 +69,7 @@ async def _get_table_names(db_url: str) -> set[str]:
 
 @pytest.mark.integration
 def test_upgrade_head_creates_all_tables(db_url: str) -> None:
-    """Running ``alembic upgrade head`` on a clean database creates every table."""
+    """Running ``alembic upgrade head`` on a clean database creates all eight tables."""
     from alembic import command
     from alembic.config import Config
 
@@ -83,9 +83,17 @@ def test_upgrade_head_creates_all_tables(db_url: str) -> None:
     # Run all migrations.
     command.upgrade(alembic_cfg, "head")
 
-    # Spot-check: all five tables must exist.
+    # Spot-check: all eight tables must exist.
     table_names = asyncio.run(_get_table_names(db_url))
-    expected = {"tenants", "buyer_agents", "accounts", "media_buys", "audit_events"}
+    expected = {
+        "tenants",
+        "buyer_agents",
+        "accounts",
+        "media_buys",
+        "audit_events",
+        "creatives",
+        "performance_feedback",
+    }
     assert expected <= table_names, f"Missing tables: {expected - table_names}"
 
 
