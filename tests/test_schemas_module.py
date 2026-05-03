@@ -31,3 +31,31 @@ def test_load_schema_error_message_is_actionable() -> None:
         load_schema("typo-schema.json")
     msg = str(exc_info.value)
     assert "adcp-agents.json" in msg
+
+
+@pytest.mark.parametrize("traversal", [
+    "../../schemas/cache/adagents.json",
+    "../validation/__init__.py",
+    "/etc/passwd",
+    "a\\b.json",
+    "..json",
+])
+def test_load_schema_rejects_path_traversal(traversal: str) -> None:
+    with pytest.raises(FileNotFoundError, match="invalid"):
+        load_schema(traversal)
+
+
+def test_load_schema_corrupted_schema_raises_file_not_found(tmp_path) -> None:
+    """A corrupted bundled file should surface as FileNotFoundError, not JSONDecodeError."""
+    from contextlib import contextmanager
+    from unittest.mock import patch
+
+    @contextmanager  # type: ignore[misc]
+    def _bad_as_file(resource) -> None:  # type: ignore[misc]
+        bad = tmp_path / "bad.json"
+        bad.write_text("not json", encoding="utf-8")
+        yield bad
+
+    with patch("adcp.schemas.as_file", _bad_as_file):
+        with pytest.raises(FileNotFoundError):
+            load_schema(ADCP_AGENTS)
