@@ -6,16 +6,35 @@ Motivated by the drift in ``client.py:381-388``: the docstring claimed
 was. This test prevents that class of documentation drift from re-entering
 silently.
 
-Detection rules (applied per docstring line):
+Detection rules (applied per docstring line, with a ±1-line window for
+Pattern B context keywords):
 
-- **Pattern A** ``VARNAME=value`` — RST backtick-wrapped env-var assignment
+- **Pattern A** ``VARNAME=value`` — RST double-backtick env-var assignment
   syntax, e.g. `` ``ADCP_VALIDATION_MODE=strict|warn|off`` ``.
-- **Pattern B** SCREAMING_CASE_WITH_UNDERSCORE in a line that explicitly
-  names an env-var context (``environ``, ``env var``, ``environment
-  variable``, ``overrides``, ``flips``).
+- **Pattern B** SCREAMING_CASE_WITH_UNDERSCORE inside a double-backtick span
+  on a line whose ±1 neighborhood contains an env-var context keyword
+  (``environ``, ``env var``, ``environment variable``, ``flips``). Restricted
+  to backtick-wrapped tokens to prevent false positives from protocol
+  constants or OOP-override prose (e.g. "this method overrides HTTP_TIMEOUT").
+  "overrides" is intentionally excluded as a standalone keyword for the same
+  reason; legitimate override docs use ``VARNAME=value`` or "VARNAME env var".
 
-Exclusion: lines containing ``ignore``, ``deliberately``, or
-``not honored`` are skipped — the var is explicitly documented as inactive.
+Exclusion: lines containing ``deliberately`` or ``not honored`` are skipped —
+the var is explicitly documented as inactive on that line. Bare "ignored" is
+not an exclusion keyword to avoid suppressing real checks when a docstring
+says "X is ignored when Y is set explicitly."
+
+Known limitations:
+- Single-token env vars without underscores (e.g. ``PORT``) are invisible to
+  both patterns; the regex requires at least one underscore to distinguish env
+  vars from acronyms and other short tokens.
+- ``_env_vars_in_use()`` scans raw source text, so ``os.environ`` calls that
+  appear inside docstring examples are included in the "in use" set. A future
+  docstring embedding a fictional ``os.environ["FAKE_VAR"]`` call would
+  suppress detection of that name. This is an accepted trade-off for
+  simplicity.
+- ``ast.walk`` collects public methods defined inside private classes. This is
+  a known over-approximation; fixing it requires tracking parent scope.
 """
 
 from __future__ import annotations
@@ -26,22 +45,31 @@ from pathlib import Path
 
 SRC_ROOT = Path(__file__).parent.parent / "src" / "adcp"
 
-# SCREAMING_CASE with at least one underscore (e.g. ADCP_ENV, ADCP_HOST).
-# Excludes short acronyms like A2A, HTTP, RFC that never contain an underscore.
+# Pattern A: ``VARNAME=anything`` inside RST double-backtick literals.
+# Captures the var name without the trailing ``=``.
+_ASSIGNMENT_PATTERN = re.compile(r"``([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)=")
+
+# Pattern B — step 1: extract double-backtick span contents.
+_BACKTICK_SPAN = re.compile(r"``([^`]+)``")
+
+# Pattern B — step 2: find SCREAMING_CASE_WITH_UNDERSCORE inside a span.
+# Two-step avoids greedy-match bugs where a single regex would capture a
+# suffix like ``P_ENV`` from ``ADCP_ENV``.
 _SCREAMING_WITH_UNDERSCORE = re.compile(r"\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b")
 
-# Pattern A: ``VARNAME=anything`` inside RST double-backtick literals.
-_ASSIGNMENT_PATTERN = re.compile(r"``([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+=)")
-
-# Context keywords that mark a line as discussing an env var (Pattern B).
+# Context keywords for Pattern B. Present in the line's ±1 neighborhood, they
+# indicate the backtick-wrapped token is an env var. "overrides" is excluded
+# (see module docstring) to prevent OOP-override false positives.
 _ENV_CONTEXT_RE = re.compile(
-    r"\benviron\b|\benv var\b|\benvironment variable\b|\boverride[sd]?\b|\bflips?\b",
+    r"\benviron\b|\benv var\b|\benvironment variable\b|\bflips?\b",
     re.IGNORECASE,
 )
 
-# Words that indicate a var is documented as deliberately not honored.
+# Words that, on the SAME line as a token, explicitly mark it as inactive.
+# Bare "ignored" is excluded: "X is ignored when Y is set" would suppress
+# legitimate checks if we matched it.
 _IGNORE_CONTEXT_RE = re.compile(
-    r"\bignored?\b|\bdeliberately\b|\bnot honored\b",
+    r"\bdeliberately\b|\bnot honored\b",
     re.IGNORECASE,
 )
 
@@ -54,7 +82,11 @@ _ENVIRON_READ_RE = re.compile(
 
 
 def _env_vars_in_use() -> frozenset[str]:
-    """Return all env var names read by any file under src/adcp/."""
+    """Return all env var names read by any file under src/adcp/.
+
+    Scans raw source text; see module docstring for the known limitation about
+    os.environ calls embedded in docstring examples.
+    """
     found: set[str] = set()
     for path in SRC_ROOT.rglob("*.py"):
         src = path.read_text(encoding="utf-8")
@@ -66,7 +98,11 @@ def _env_vars_in_use() -> frozenset[str]:
 
 
 def _collect_docstrings(tree: ast.Module) -> list[tuple[str, int]]:
-    """Return (docstring, lineno) for all public nodes, including dunders."""
+    """Return (docstring, lineno) for all public nodes, including dunders.
+
+    See module docstring for the known limitation about public methods inside
+    private classes.
+    """
     results: list[tuple[str, int]] = []
     for node in ast.walk(tree):
         name: str = getattr(node, "name", "") or ""
@@ -80,29 +116,50 @@ def _collect_docstrings(tree: ast.Module) -> list[tuple[str, int]]:
             continue
         doc = ast.get_docstring(node)
         if doc:
-            lineno = getattr(node, "lineno", 0)
+            # ast.Module has no lineno; use 1 since module docstrings are at
+            # the top of the file.
+            lineno = getattr(node, "lineno", 1)
             results.append((doc, lineno))
     return results
 
 
-def _env_vars_from_line(line: str) -> set[str]:
-    """Extract env var names that are claimed active in this docstring line.
+def _env_vars_from_docstring(doc: str) -> set[str]:
+    """Extract env var names documented as active in this docstring.
 
-    Returns an empty set when the line explicitly marks vars as ignored.
+    Uses a ±1-line window for Pattern B so that a context keyword on the line
+    immediately after the env-var reference is still detected (e.g.
+    ``ADCP_ENV`` on one line, ``flips …`` on the next).
     """
-    if _IGNORE_CONTEXT_RE.search(line):
-        return set()
-
+    lines = doc.splitlines()
     found: set[str] = set()
 
-    # Pattern A: ``VARNAME=...`` assignment syntax.
-    for m in _ASSIGNMENT_PATTERN.finditer(line):
-        found.add(m.group(1).rstrip("="))
+    for i, line in enumerate(lines):
+        # Pattern A: ``VARNAME=...`` assignment syntax — line-local check.
+        if not _IGNORE_CONTEXT_RE.search(line):
+            for m in _ASSIGNMENT_PATTERN.finditer(line):
+                found.add(m.group(1))
 
-    # Pattern B: SCREAMING_CASE in an env-var context sentence.
-    if _ENV_CONTEXT_RE.search(line):
-        for m in _SCREAMING_WITH_UNDERSCORE.finditer(line):
-            found.add(m.group(1))
+        # Pattern B: backtick-wrapped SCREAMING_CASE in env-var context.
+        if _IGNORE_CONTEXT_RE.search(line):
+            continue  # this line explicitly marks var(s) as inactive
+
+        # Collect SCREAMING_CASE tokens from inside each ``...`` span.
+        screaming_vars = [
+            vm.group(1)
+            for sm in _BACKTICK_SPAN.finditer(line)
+            for vm in _SCREAMING_WITH_UNDERSCORE.finditer(sm.group(1))
+        ]
+        if not screaming_vars:
+            continue
+
+        # Context keyword may be on this line or an immediate neighbor (±1).
+        window = [line]
+        if i > 0:
+            window.append(lines[i - 1])
+        if i < len(lines) - 1:
+            window.append(lines[i + 1])
+        if any(_ENV_CONTEXT_RE.search(w) for w in window):
+            found.update(screaming_vars)
 
     return found
 
@@ -126,18 +183,17 @@ def test_docstring_env_var_consistency() -> None:
             source = filepath.read_text(encoding="utf-8")
             tree = ast.parse(source, filename=str(filepath))
         except SyntaxError:
-            continue
+            # Syntax errors are caught by dedicated CI checks; skip here.
+            continue  # pragma: no cover
 
         rel = str(filepath.relative_to(SRC_ROOT.parent.parent))
         for doc, lineno in _collect_docstrings(tree):
-            for line in doc.splitlines():
-                for var in _env_vars_from_line(line):
-                    if var not in in_use:
-                        violations.append(
-                            f"{rel}:{lineno}: docstring references {var!r} "
-                            f"but no os.environ read of {var!r} found in src/adcp/; "
-                            f"line: {line.strip()!r}"
-                        )
+            for var in _env_vars_from_docstring(doc):
+                if var not in in_use:
+                    violations.append(
+                        f"{rel}:{lineno}: docstring references {var!r} "
+                        f"but no os.environ read of {var!r} found in src/adcp/"
+                    )
 
     assert not violations, (
         "Docstring/code env-var drift detected.\n"
