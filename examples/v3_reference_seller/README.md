@@ -16,7 +16,7 @@ salesagent), see [MIGRATION.md](MIGRATION.md).
 
 | Component | Module | Source |
 |---|---|---|
-| Upstream HTTP client (translator seam) | `src/upstream.py` | `httpx.AsyncClient` |
+| Upstream HTTP client (translator seam) | `src/upstream.py` + `DecisioningPlatform.upstream_for` | `adcp.decisioning.UpstreamHttpClient` |
 | Tier 2 commercial-identity gate | `src/buyer_registry.py` | `adcp.decisioning.BuyerAgentRegistry` |
 | Subdomain tenant routing | `src/tenant_router.py` + `src/app.py` | `adcp.server.SubdomainTenantMiddleware` |
 | Account v3 storage (bank-details column) | `src/models.py` | `Account.billing_entity` JSON column |
@@ -115,10 +115,50 @@ data lives upstream.
 
 ### Upstream client (`src/upstream.py`)
 
-`MockUpstreamClient` is an httpx-based client mirroring the JS mock-
-server's openapi.yaml 1:1. Adopters fork this and replace the URL,
-auth, and method bodies with their real ad-server's API. The shape
-of the methods (signatures + return types) is what stays stable.
+`src/upstream.py` is a set of module-level **domain helpers** mirroring
+the JS mock-server's openapi.yaml 1:1 (`list_products`, `create_order`,
+`get_delivery`, etc.). Each helper takes a pooled
+[`UpstreamHttpClient`](../../src/adcp/decisioning/upstream.py)
+(the SDK's httpx wrapper handling auth + 4xx/5xx → `AdcpError`
+projection) plus the per-call `network_code`, and returns the parsed
+upstream JSON. Adopters fork the helpers and replace the URL paths /
+payload shapes with their real ad-server's API; the SDK client handles
+the boilerplate.
+
+Auth and routing flow through `DecisioningPlatform.upstream_for(ctx)`:
+
+```python
+class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
+    # Adopters with a real production upstream replace this URL.
+    upstream_url = "https://sales-guaranteed.example.invalid/v1"
+
+    async def get_products(self, req, ctx):
+        client = self.upstream_for(ctx, auth=self._upstream_auth)
+        payload = await upstream_helpers.list_products(
+            client, network_code=ctx.account.metadata["network_code"]
+        )
+        # ... project to AdCP shapes
+```
+
+The framework picks the URL from `ctx.account.mode`:
+
+| `account.mode` | Upstream URL source |
+|---|---|
+| `live` / `sandbox` | `V3ReferenceSeller.upstream_url` (production) |
+| `mock` | `account.metadata["mock_upstream_url"]` (per-account fixture URL) |
+
+The reference seller is **mock-mode by design** — its only upstream
+is the JS mock-server fixture, so `_make_account_store` stamps every
+resolved account with `mode="mock"` and
+`metadata["mock_upstream_url"]` (sourced from the
+`MOCK_AD_SERVER_URL` env). Adopters with a real production upstream:
+
+* Declare `upstream_url` on their `V3ReferenceSeller` subclass to the
+  production URL.
+* Default new accounts to `mode="live"` in `AccountStore.resolve`.
+* Reserve `mode="mock"` (with `mock_upstream_url`) for conformance /
+  storyboard accounts only — the same adapter code path runs against
+  either URL with no per-call branching.
 
 ### Platform (`src/platform.py`)
 
@@ -283,15 +323,25 @@ DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp_test \
 
 Adopters typically change:
 
-1. **`src/upstream.py`** — replace with your real ad-server's
-   HTTP client.
-2. **`src/platform.py`** — adjust the AdCP ↔ upstream translation
-   (mostly type-mapping). The structure of each method stays
-   identical; you change what it sends and how it projects the
-   response.
-3. **`src/audit.py`** — extend `details` with adopter-specific
+1. **`src/upstream.py`** — fork the per-endpoint domain helpers and
+   replace the paths / payloads with your real ad server's API. Keep
+   the helpers as functions taking `UpstreamHttpClient` + per-call
+   routing kwargs; the SDK client handles pooling, auth injection,
+   and `AdcpError` projection.
+2. **`V3ReferenceSeller.upstream_url`** — replace the placeholder with
+   your production upstream URL once you migrate accounts to
+   `mode="live"`.
+3. **`src/platform.py::_make_account_store`** — branch on the row's
+   lifecycle to set `mode`: `live` for production accounts, `sandbox`
+   for your own test infra, `mock` (with `mock_upstream_url`) for
+   conformance / storyboard accounts only.
+4. **`src/platform.py`** method bodies — adjust the AdCP ↔ upstream
+   translation (mostly type-mapping). The structure of each method
+   stays identical (resolve client via `upstream_for`, call domain
+   helper, project upstream JSON onto AdCP shapes).
+5. **`src/audit.py`** — extend `details` with adopter-specific
    fields (decision flags, fraud scores, A/B variant ids).
-4. **Auth wiring in `src/app.py`** — wire your verifier middleware
+6. **Auth wiring in `src/app.py`** — wire your verifier middleware
    that constructs `AuthInfo`.
 
 Adopters typically *don't* change:

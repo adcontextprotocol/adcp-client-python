@@ -9,6 +9,12 @@ Covers:
 * Translator pattern: the platform calls the upstream over HTTP for
   ad-ops data (products, orders, creatives, delivery, conversions)
   and uses local Postgres only for the commercial-identity layer.
+* Phase 3 wiring: the platform resolves its upstream client via the
+  framework's :meth:`DecisioningPlatform.upstream_for`. Account is
+  ``mode='mock'`` with ``metadata['mock_upstream_url']`` pointing at
+  the respx-intercepted base URL; the SDK's
+  :class:`UpstreamHttpClient` carries the auth header and projects
+  upstream non-2xx onto :class:`AdcpError` codes.
 
 Tests deliberately avoid spinning up a real Postgres or the JS mock-
 server — Postgres I/O is mocked via SQLAlchemy session mocks, and
@@ -78,6 +84,19 @@ def test_capabilities_claim_both_sales_specialisms() -> None:
     assert {"sales-non-guaranteed", "sales-guaranteed"} == specialisms
 
 
+def test_platform_declares_upstream_url() -> None:
+    """Phase 3 — the platform declares ``upstream_url`` so the
+    framework's ``upstream_for`` can route ``mode='live'`` /
+    ``'sandbox'`` accounts. The reference seller is mock-mode by
+    design, so the value is a placeholder adopters replace; what
+    matters is that the attribute exists for the migration template."""
+    from src.platform import V3ReferenceSeller
+
+    assert V3ReferenceSeller.upstream_url is not None
+    assert isinstance(V3ReferenceSeller.upstream_url, str)
+    assert V3ReferenceSeller.upstream_url.startswith(("http://", "https://"))
+
+
 # ---------------------------------------------------------------------------
 # list_accounts projection — bank details stripped on response
 # ---------------------------------------------------------------------------
@@ -128,7 +147,6 @@ async def test_list_accounts_runs_projection_on_every_row(
     from src.models import Account as AccountRow
     from src.models import BuyerAgent as BuyerAgentRow
     from src.platform import V3ReferenceSeller
-    from src.upstream import MockUpstreamClient
 
     from adcp.decisioning import RequestContext
     from adcp.decisioning.registry import BuyerAgent
@@ -185,8 +203,10 @@ async def test_list_accounts_runs_projection_on_every_row(
 
     monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
 
-    upstream = MockUpstreamClient(base_url="http://up", api_key="k")
-    platform = V3ReferenceSeller(sessionmaker=sessionmaker, upstream=upstream)
+    platform = V3ReferenceSeller(
+        sessionmaker=sessionmaker,
+        upstream_api_key="test-key",
+    )
 
     ctx = RequestContext(
         buyer_agent=BuyerAgent(
@@ -212,8 +232,11 @@ async def test_list_accounts_runs_projection_on_every_row(
 
 
 # ---------------------------------------------------------------------------
-# Translator-pattern HTTP plumbing — upstream is called over httpx
+# Translator-pattern HTTP plumbing — upstream is called via upstream_for()
 # ---------------------------------------------------------------------------
+
+
+_RESPX_BASE_URL = "http://up.test"
 
 
 def _build_account_metadata(network_code: str = "net_premium_us") -> dict[str, Any]:
@@ -225,12 +248,21 @@ def _build_account_metadata(network_code: str = "net_premium_us") -> dict[str, A
         "sandbox": False,
         "network_code": network_code,
         "advertiser_id": "adv_volta_motors",
+        # Phase 2 framework-reserved key — read by ``upstream_for`` to
+        # point the pooled UpstreamHttpClient at the respx fixture.
+        "mock_upstream_url": _RESPX_BASE_URL,
     }
 
 
 def _build_ctx() -> Any:
-    """Build a RequestContext with an Account that carries upstream
-    routing in metadata. Used by every translator-pattern test."""
+    """Build a RequestContext with a ``mode='mock'`` Account whose
+    metadata carries the upstream routing (``network_code`` /
+    ``advertiser_id``) and the framework-reserved ``mock_upstream_url``.
+
+    The framework's ``upstream_for(ctx)`` reads ``mock_upstream_url``
+    to build a pooled :class:`UpstreamHttpClient` pointed at the
+    respx-intercepted fixture URL.
+    """
     from adcp.decisioning import Account, RequestContext
     from adcp.decisioning.registry import BuyerAgent
 
@@ -245,27 +277,29 @@ def _build_ctx() -> Any:
             id="a_acme_1",
             name="Signed Buyer — Main",
             status="active",
+            mode="mock",
             metadata=_build_account_metadata(),
         ),
     )
 
 
-def _platform_with_upstream(
-    base_url: str = "http://up.test",
-) -> Any:
-    """Construct a V3ReferenceSeller with a fresh httpx-based upstream
-    client. The respx fixture (per-test) intercepts all outbound calls.
+def _platform_with_upstream() -> Any:
+    """Construct a :class:`V3ReferenceSeller` for translator-pattern
+    tests. The platform builds its :class:`UpstreamHttpClient` lazily
+    via :meth:`upstream_for`; the per-test respx fixture intercepts
+    every outbound HTTP call against ``http://up.test``.
     """
     from src.platform import V3ReferenceSeller
-    from src.upstream import MockUpstreamClient
 
-    upstream = MockUpstreamClient(base_url=base_url, api_key="test-key")
     sessionmaker = MagicMock()
-    return V3ReferenceSeller(sessionmaker=sessionmaker, upstream=upstream)
+    return V3ReferenceSeller(
+        sessionmaker=sessionmaker,
+        upstream_api_key="test-key",
+    )
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_products_translates_upstream_to_adcp(respx_mock: Any) -> None:
     """The platform calls ``GET /v1/products`` and projects the
     upstream's ``pricing.cpm`` + ``min_spend`` onto an AdCP
@@ -314,26 +348,24 @@ async def test_get_products_translates_upstream_to_adcp(respx_mock: Any) -> None
     assert cpm.fixed_price == 35.0
     assert cpm.currency == "USD"
     assert cpm.min_spend_per_package == 25_000.0
-    # Upstream call carried the X-Network-Code header.
+    # The SDK's UpstreamHttpClient carried StaticBearer for auth;
+    # the upstream helper added the X-Network-Code per-call header.
     sent_request = respx_mock.calls.last.request
     assert sent_request.headers.get("X-Network-Code") == "net_premium_us"
     assert sent_request.headers.get("Authorization") == "Bearer test-key"
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_create_media_buy_returns_task_handoff_on_pending_approval(
     respx_mock: Any,
 ) -> None:
     """When the upstream returns ``pending_approval`` + ``approval_task_id``,
     the platform returns a :class:`TaskHandoff` so the framework
     surfaces the wire ``Submitted`` envelope to the buyer."""
-    from src.upstream import MockUpstreamClient
-
     from adcp.decisioning.types import TaskHandoff
     from adcp.types import CreateMediaBuyRequest
 
-    del MockUpstreamClient  # imported for side-effect docs
     respx_mock.post("/v1/orders").mock(
         return_value=httpx.Response(
             201,
@@ -387,7 +419,7 @@ async def test_create_media_buy_returns_task_handoff_on_pending_approval(
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_create_media_buy_sync_fast_path_when_upstream_already_approved(
     respx_mock: Any,
 ) -> None:
@@ -464,7 +496,7 @@ async def test_update_media_buy_raises_unsupported_feature() -> None:
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_sync_creatives_uploads_each_creative_to_upstream(
     respx_mock: Any,
 ) -> None:
@@ -515,7 +547,7 @@ async def test_sync_creatives_uploads_each_creative_to_upstream(
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_media_buys_filters_by_advertiser_id(respx_mock: Any) -> None:
     """The upstream's ``GET /v1/orders`` is per-network; we filter to
     this AdCP account's ``advertiser_id`` so a misrouted buyer can't
@@ -563,7 +595,7 @@ async def test_get_media_buys_filters_by_advertiser_id(respx_mock: Any) -> None:
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_media_buy_delivery_translates_upstream_report(
     respx_mock: Any,
 ) -> None:
@@ -619,7 +651,7 @@ async def test_get_media_buy_delivery_translates_upstream_report(
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_provide_performance_feedback_posts_capi_conversion(
     respx_mock: Any,
 ) -> None:
@@ -666,7 +698,7 @@ async def test_provide_performance_feedback_rejects_non_conversion_rate_metric()
     from adcp.decisioning import AdcpError
     from adcp.types import ProvidePerformanceFeedbackRequest
 
-    with respx.mock(base_url="http://up.test") as respx_mock:
+    with respx.mock(base_url=_RESPX_BASE_URL) as respx_mock:
         platform = _platform_with_upstream()
         ctx = _build_ctx()
         req = ProvidePerformanceFeedbackRequest.model_validate(
@@ -689,12 +721,14 @@ async def test_provide_performance_feedback_rejects_non_conversion_rate_metric()
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_provide_performance_feedback_404_translates_to_media_buy_not_found(
     respx_mock: Any,
 ) -> None:
     """Upstream 404 on the order routes to the spec-conformant
-    ``MEDIA_BUY_NOT_FOUND`` AdCP error code, not a generic 500."""
+    ``MEDIA_BUY_NOT_FOUND`` AdCP error code, not a generic 500. The
+    SDK's :class:`UpstreamHttpClient` projects POST 404 → the
+    default ``not_found_code`` (``MEDIA_BUY_NOT_FOUND``)."""
     from adcp.decisioning import AdcpError
     from adcp.types import ProvidePerformanceFeedbackRequest
 
@@ -721,7 +755,7 @@ async def test_provide_performance_feedback_404_translates_to_media_buy_not_foun
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_list_creatives_filters_to_account_advertiser(respx_mock: Any) -> None:
     """``GET /v1/creatives`` returns the upstream catalog; we project
     onto AdCP shape and filter to this AdCP account's advertiser_id."""
@@ -766,7 +800,7 @@ async def test_list_creative_formats_is_static_no_upstream_call() -> None:
     static catalog. The test asserts no upstream call is made."""
     from adcp.types import ListCreativeFormatsRequest
 
-    with respx.mock(base_url="http://up.test") as respx_mock:
+    with respx.mock(base_url=_RESPX_BASE_URL) as respx_mock:
         platform = _platform_with_upstream()
         ctx = _build_ctx()
         resp = await platform.list_creative_formats(ListCreativeFormatsRequest(), ctx)
@@ -813,103 +847,58 @@ async def test_account_loader_rejects_account_missing_upstream_routing(
 
     monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
 
-    store = _make_account_store(sessionmaker)
+    store = _make_account_store(sessionmaker, mock_upstream_url="http://up.test")
     with pytest.raises(AdcpError) as excinfo:
         await store.resolve({"account_id": "bad-acct"})
     assert excinfo.value.code == "SERVICE_UNAVAILABLE"
     assert excinfo.value.recovery == "transient"
 
 
-# ---------------------------------------------------------------------------
-# _translate_upstream — HTTP status → spec error code projection
-# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_account_loader_returns_mock_mode_with_upstream_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase 3 wiring: the AccountStore stamps every Account it
+    resolves with ``mode='mock'`` and ``metadata['mock_upstream_url']``
+    so the framework's ``upstream_for(ctx)`` routes the adapter at the
+    mock-server fixture URL.
+    """
+    import src.platform as platform_module
+    from src.models import Account as AccountRow
+    from src.platform import _make_account_store
 
-
-def test_translate_upstream_400_projects_to_invalid_request() -> None:
-    """The mock returns 400 for malformed payloads; surface as terminal
-    ``INVALID_REQUEST`` (the canonical spec code) so buyers know to fix
-    the request rather than retry transiently."""
-    from src.platform import V3ReferenceSeller
-    from src.upstream import UpstreamError
-
-    err = V3ReferenceSeller._translate_upstream(
-        UpstreamError(400, {"code": "invalid_request", "message": "bad budget"}),
-        default_code="SERVICE_UNAVAILABLE",
+    good_row = AccountRow(
+        id="a_good",
+        tenant_id="t_acme",
+        buyer_agent_id="ba_x",
+        account_id="good-acct",
+        name="Good Account",
+        status="active",
+        billing="operator",
+        sandbox=False,
+        ext={"network_code": "net_premium_us", "advertiser_id": "adv_volta_motors"},
     )
-    assert err.code == "INVALID_REQUEST"
-    assert err.recovery == "terminal"
-    assert err.details["upstream_code"] == "invalid_request"
-    assert err.details["upstream_message"] == "bad budget"
+    result = MagicMock()
+    result.scalar_one_or_none = MagicMock(return_value=good_row)
+    session = MagicMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=None)
+    session.execute = AsyncMock(return_value=result)
+    sessionmaker = MagicMock(return_value=session)
 
+    class _Tenant:
+        id = "t_acme"
 
-def test_translate_upstream_401_projects_to_auth_required() -> None:
-    """Upstream 401 surfaces as the canonical spec code ``AUTH_REQUIRED``."""
-    from src.platform import V3ReferenceSeller
-    from src.upstream import UpstreamError
+    monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
 
-    err = V3ReferenceSeller._translate_upstream(
-        UpstreamError(401, {"message": "bad bearer"}),
-        default_code="SERVICE_UNAVAILABLE",
-    )
-    assert err.code == "AUTH_REQUIRED"
-    assert err.recovery == "terminal"
-
-
-def test_translate_upstream_500_projects_to_default_code_transient() -> None:
-    """Unknown upstream statuses fall through to the caller's
-    ``default_code`` with ``recovery='transient'`` — never the legacy
-    ``recovery='retry'`` string (which isn't in the AdCP enum)."""
-    from src.platform import V3ReferenceSeller
-    from src.upstream import UpstreamError
-
-    err = V3ReferenceSeller._translate_upstream(
-        UpstreamError(500, {"message": "boom"}),
-        default_code="SERVICE_UNAVAILABLE",
-    )
-    assert err.code == "SERVICE_UNAVAILABLE"
-    assert err.recovery == "transient"
-
-
-def test_translate_upstream_429_projects_to_rate_limited() -> None:
-    """Upstream 429 surfaces as the canonical spec code ``RATE_LIMITED``."""
-    from src.platform import V3ReferenceSeller
-    from src.upstream import UpstreamError
-
-    err = V3ReferenceSeller._translate_upstream(
-        UpstreamError(429, {"message": "slow down"}),
-        default_code="SERVICE_UNAVAILABLE",
-    )
-    assert err.code == "RATE_LIMITED"
-    assert err.recovery == "transient"
-
-
-def test_translate_upstream_404_default_is_media_buy_not_found() -> None:
-    """Default 404 mapping surfaces ``MEDIA_BUY_NOT_FOUND`` — used by
-    get_order / get_delivery / post_conversions callsites where 404
-    genuinely means the media buy is gone."""
-    from src.platform import V3ReferenceSeller
-    from src.upstream import UpstreamError
-
-    err = V3ReferenceSeller._translate_upstream(
-        UpstreamError(404, {"message": "no order"}),
-        default_code="SERVICE_UNAVAILABLE",
-    )
-    assert err.code == "MEDIA_BUY_NOT_FOUND"
-
-
-def test_translate_upstream_404_account_callsite_overrides_to_account_not_found() -> None:
-    """get_products / list_creatives 404s mean the network/account is
-    unknown — pass ``not_found_code='ACCOUNT_NOT_FOUND'`` so buyers
-    don't see a misleading ``MEDIA_BUY_NOT_FOUND``."""
-    from src.platform import V3ReferenceSeller
-    from src.upstream import UpstreamError
-
-    err = V3ReferenceSeller._translate_upstream(
-        UpstreamError(404, {"message": "no network"}),
-        default_code="SERVICE_UNAVAILABLE",
-        not_found_code="ACCOUNT_NOT_FOUND",
-    )
-    assert err.code == "ACCOUNT_NOT_FOUND"
+    store = _make_account_store(sessionmaker, mock_upstream_url="http://127.0.0.1:4503")
+    account = await store.resolve({"account_id": "good-acct"})
+    assert account.mode == "mock"
+    assert account.metadata["mock_upstream_url"] == "http://127.0.0.1:4503"
+    # Routing data still flows through metadata so platform methods
+    # pluck network_code / advertiser_id directly.
+    assert account.metadata["network_code"] == "net_premium_us"
+    assert account.metadata["advertiser_id"] == "adv_volta_motors"
 
 
 # ---------------------------------------------------------------------------
@@ -919,10 +908,10 @@ def test_translate_upstream_404_account_callsite_overrides_to_account_not_found(
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_products_401_translates_to_auth_required(respx_mock: Any) -> None:
     """A 401 from the upstream surfaces as the spec code
-    ``AUTH_REQUIRED`` (post-fix-pack-1; was ``AUTH_INVALID``)."""
+    ``AUTH_REQUIRED`` via the SDK's UpstreamHttpClient projection."""
     from adcp.decisioning import AdcpError
     from adcp.types import GetProductsRequest
 
@@ -940,7 +929,7 @@ async def test_get_products_401_translates_to_auth_required(respx_mock: Any) -> 
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_products_500_translates_to_service_unavailable(respx_mock: Any) -> None:
     """A 500 surfaces as ``SERVICE_UNAVAILABLE`` with
     ``recovery='transient'`` so buyers retry."""
@@ -959,7 +948,7 @@ async def test_get_products_500_translates_to_service_unavailable(respx_mock: An
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_products_429_translates_to_rate_limited(respx_mock: Any) -> None:
     """A 429 surfaces as ``RATE_LIMITED`` (transient)."""
     from adcp.decisioning import AdcpError
@@ -978,10 +967,12 @@ async def test_get_products_429_translates_to_rate_limited(respx_mock: Any) -> N
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_products_404_translates_to_account_not_found(respx_mock: Any) -> None:
     """A 404 from get_products means an unknown network/account, not a
-    missing media buy — verify the per-callsite override."""
+    missing media buy. The :mod:`upstream` helper passes
+    ``not_found_code='ACCOUNT_NOT_FOUND'`` to the SDK client so the
+    spec-correct AdCP code surfaces on the wire."""
     from adcp.decisioning import AdcpError
     from adcp.types import GetProductsRequest
 
@@ -998,7 +989,7 @@ async def test_get_products_404_translates_to_account_not_found(respx_mock: Any)
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_upstream_malformed_json_raises_clean_error(respx_mock: Any) -> None:
     """A non-JSON response body on a 5xx upstream still produces a
     structured ``AdcpError`` rather than leaking a ``ValueError``."""
@@ -1014,8 +1005,6 @@ async def test_upstream_malformed_json_raises_clean_error(respx_mock: Any) -> No
         await platform.get_products(
             GetProductsRequest.model_validate({"buying_mode": "wholesale"}), ctx
         )
-    # Falls through to default_code on the 5xx path — payload is empty
-    # because JSON decode failed.
     assert excinfo.value.code == "SERVICE_UNAVAILABLE"
 
 
@@ -1026,7 +1015,7 @@ async def test_upstream_malformed_json_raises_clean_error(respx_mock: Any) -> No
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_create_media_buy_no_task_id_path_refetches_and_projects(
     respx_mock: Any,
 ) -> None:
@@ -1097,7 +1086,7 @@ async def test_create_media_buy_no_task_id_path_refetches_and_projects(
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_create_media_buy_no_task_id_path_raises_on_pending(
     respx_mock: Any,
 ) -> None:
@@ -1166,7 +1155,7 @@ async def test_create_media_buy_no_task_id_path_raises_on_pending(
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_create_media_buy_raises_when_polling_times_out(
     respx_mock: Any,
 ) -> None:
@@ -1175,7 +1164,6 @@ async def test_create_media_buy_raises_when_polling_times_out(
     (transient). The framework projects this as a wire-shaped task
     failure — never a fabricated success."""
     from src.platform import V3ReferenceSeller
-    from src.upstream import MockUpstreamClient
 
     from adcp.decisioning import AdcpError
     from adcp.types import CreateMediaBuyRequest
@@ -1209,12 +1197,11 @@ async def test_create_media_buy_raises_when_polling_times_out(
             },
         )
     )
-    upstream = MockUpstreamClient(base_url="http://up.test", api_key="test-key")
     sessionmaker = MagicMock()
     # Tighten polling so the test finishes fast — 2 iterations × 0.001s.
     platform = V3ReferenceSeller(
         sessionmaker=sessionmaker,
-        upstream=upstream,
+        upstream_api_key="test-key",
         approval_poll_interval_s=0.001,
         approval_poll_max_iterations=2,
     )
@@ -1250,7 +1237,7 @@ async def test_create_media_buy_raises_when_polling_times_out(
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_create_media_buy_raises_when_task_rejected(respx_mock: Any) -> None:
     """When the upstream approval task completes with
     ``outcome='rejected'``, the polling coroutine raises
@@ -1327,7 +1314,7 @@ async def test_create_media_buy_raises_when_task_rejected(respx_mock: Any) -> No
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_media_buy_delivery_projects_completed_status(
     respx_mock: Any,
 ) -> None:
@@ -1375,7 +1362,7 @@ async def test_get_media_buy_delivery_projects_completed_status(
 
 
 @pytest.mark.asyncio
-@respx.mock(base_url="http://up.test")
+@respx.mock(base_url=_RESPX_BASE_URL)
 async def test_get_media_buy_delivery_projects_canceled_status(
     respx_mock: Any,
 ) -> None:

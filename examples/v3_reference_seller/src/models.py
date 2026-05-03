@@ -276,9 +276,10 @@ class Account(Base):
     sandbox: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     #: Translator-pattern routing — ``{"network_code": "...",
-    #: "advertiser_id": "..."}``. Read by
-    #: :class:`upstream.MockUpstreamClient` to scope upstream calls
-    #: to the right tenant on the JS mock-server.
+    #: "advertiser_id": "..."}``. Read onto ``ctx.account.metadata``
+    #: by :func:`platform._make_account_store` so platform method
+    #: bodies pass ``network_code`` to :mod:`upstream` helpers without
+    #: a second query.
     ext: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(

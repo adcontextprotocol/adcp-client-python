@@ -35,8 +35,26 @@ Account ops (3.1-readiness anchor — local Postgres):
   :func:`adcp.decisioning.project_account_for_response` so bank
   details never leak on response.
 
-Adopters fork this file and replace :class:`upstream.MockUpstreamClient`
-with their real ad server's HTTP client. Method bodies stay
+Upstream HTTP routing — adopter migration template
+--------------------------------------------------
+
+Every sales-* method body resolves the upstream client via
+:meth:`DecisioningPlatform.upstream_for`. The framework picks the URL
+based on the resolved account's ``mode``:
+
+* ``mode='live'`` / ``mode='sandbox'`` → :attr:`upstream_url` (the
+  adopter's production URL declared on the platform class).
+* ``mode='mock'`` → ``account.metadata['mock_upstream_url']``.
+
+The reference seller's only upstream is the JS mock-server fixture, so
+every account it ships is ``mode='mock'`` (see :func:`_make_account_store`
+which sets ``mock_upstream_url`` from the ``MOCK_AD_SERVER_URL`` env on
+every Account it returns). Adopters with a real production upstream
+declare :attr:`upstream_url` to that production URL and mark only their
+test/conformance accounts ``mode='mock'``.
+
+Adopters fork this file and replace the upstream payload helpers
+(:mod:`upstream`) with their real ad server's API. Method bodies stay
 shape-compatible — only the upstream URL / auth / payload mapping
 changes.
 """
@@ -58,6 +76,8 @@ from adcp.decisioning import (
     DecisioningPlatform,
     ExplicitAccounts,
     MockAdServer,
+    StaticBearer,
+    UpstreamHttpClient,
     project_account_for_response,
     project_business_entity_for_response,
 )
@@ -103,7 +123,7 @@ from adcp.types import (
     UpdateMediaBuySuccessResponse,
 )
 
-from .upstream import MockUpstreamClient, UpstreamError
+from . import upstream as upstream_helpers
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -121,13 +141,32 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
-    """Adopter ``AccountStore`` — resolves
-    ``request.account.account_id`` against the ``accounts`` table.
+def _make_account_store(
+    sessionmaker: async_sessionmaker,
+    *,
+    mock_upstream_url: str,
+) -> ExplicitAccounts:
+    """Adopter ``AccountStore`` — resolves ``request.account.account_id``
+    against the ``accounts`` table.
 
     Reads ``ext`` (the upstream routing payload, ``{"network_code":
     ..., "advertiser_id": ...}``) onto :attr:`Account.metadata` so
     platform methods can pluck them out without a second query.
+
+    Every account the reference seller resolves runs in ``mode='mock'``
+    — the seller's only upstream is the per-specialism mock-server
+    fixture (see module docstring). ``mock_upstream_url`` is sourced
+    from the ``MOCK_AD_SERVER_URL`` env var (set in :func:`app.main`)
+    and stamped onto every Account; the framework's
+    :meth:`DecisioningPlatform.upstream_for` reads it to point the
+    :class:`UpstreamHttpClient` at the fixture.
+
+    Adopters with a real production upstream:
+
+    * Declare :attr:`V3ReferenceSeller.upstream_url` to their production URL.
+    * Default new accounts to ``mode='live'`` here.
+    * Reserve ``mode='mock'`` (with ``mock_upstream_url``) for
+      conformance / storyboard accounts only.
     """
 
     async def loader(account_id: str) -> Account[dict[str, Any]]:
@@ -174,10 +213,17 @@ def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
                 ),
                 recovery="transient",
             )
+        # Reference seller is mock-mode by design — its only upstream
+        # is the per-specialism mock-server fixture. Adopters with a
+        # real production upstream branch on the row's lifecycle to
+        # decide ``mode``: live for production accounts, sandbox for
+        # the adopter's own test infra, mock only for conformance /
+        # storyboard accounts.
         return Account(
             id=row.id,
             name=row.name,
             status=row.status,
+            mode="mock",
             metadata={
                 "tenant_id": row.tenant_id,
                 "buyer_agent_id": row.buyer_agent_id,
@@ -186,7 +232,13 @@ def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
                 "sandbox": row.sandbox,
                 "network_code": network_code,
                 "advertiser_id": advertiser_id,
+                # Framework-reserved key — read by ``upstream_for`` to
+                # route the UpstreamHttpClient at the mock-server.
+                "mock_upstream_url": mock_upstream_url,
             },
+            # Mark the mode as deliberately set so the framework's
+            # observed-modes tracker counts the account correctly.
+            _mode_explicit=True,
         )
 
     return ExplicitAccounts(loader=loader)
@@ -213,11 +265,27 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     """Translator-pattern seller against the JS mock-server upstream.
 
     Every method body reads :attr:`RequestContext.account` for the
-    upstream routing (``network_code`` + ``advertiser_id``) and calls
-    :class:`upstream.MockUpstreamClient` over HTTP. The local
+    upstream routing (``network_code`` + ``advertiser_id``) and resolves
+    an :class:`UpstreamHttpClient` via :meth:`upstream_for`. The local
     Postgres is consulted only for the commercial-identity layer
     (account resolution + ``sync_accounts`` / ``list_accounts``).
+
+    The reference seller's only upstream is a mock-server fixture, so
+    every account it serves is ``mode='mock'`` and the upstream URL
+    comes from ``account.metadata['mock_upstream_url']`` (sourced from
+    the ``MOCK_AD_SERVER_URL`` env). :attr:`upstream_url` carries a
+    placeholder URL that adopters forking this template replace with
+    their real production URL when they migrate accounts to
+    ``mode='live'``.
     """
+
+    #: Production upstream URL placeholder. The reference seller is
+    #: mock-mode by design, so this URL is never resolved at runtime —
+    #: every account is ``mode='mock'`` and the upstream URL comes from
+    #: ``account.metadata['mock_upstream_url']``. Adopters forking this
+    #: template replace this value with their real production ad-server
+    #: URL when migrating accounts to ``mode='live'``.
+    upstream_url = "https://sales-guaranteed.example.invalid/v1"
 
     capabilities = DecisioningCapabilities(
         # Real GAM-shaped publishers sell BOTH guaranteed (IO-driven)
@@ -244,17 +312,76 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         self,
         *,
         sessionmaker: async_sessionmaker,
-        upstream: MockUpstreamClient,
+        upstream_api_key: str,
+        mock_upstream_url: str | None = None,
         mock_ad_server: MockAdServer | None = None,
         approval_poll_interval_s: float = 1.0,
         approval_poll_max_iterations: int = 60,
     ) -> None:
+        """Construct the reference seller.
+
+        :param sessionmaker: Async SQLAlchemy sessionmaker for the
+            commercial-identity tables (tenants / buyer_agents /
+            accounts).
+        :param upstream_api_key: API key the upstream expects in the
+            ``Authorization: Bearer ...`` header. Wired into a
+            :class:`adcp.decisioning.StaticBearer` and threaded through
+            every :meth:`upstream_for` call.
+        :param mock_upstream_url: Where the JS mock-server is listening.
+            When set, every Account this platform resolves is
+            ``mode='mock'`` and carries this URL in
+            ``account.metadata['mock_upstream_url']``. When ``None``,
+            accounts are still ``mode='mock'`` (the reference seller has
+            no real production upstream) but the URL is not stamped —
+            tests construct Accounts directly with their own
+            ``mock_upstream_url``. :func:`app.main` always sets this
+            from the ``MOCK_AD_SERVER_URL`` env.
+        :param mock_ad_server: Optional anti-façade traffic recorder.
+        :param approval_poll_interval_s: Base sleep between polls of
+            ``/v1/tasks/{id}`` during async order approval.
+        :param approval_poll_max_iterations: Maximum polls before
+            raising ``SERVICE_UNAVAILABLE`` (transient).
+        """
         self._sessionmaker = sessionmaker
-        self._upstream = upstream
+        # Single auth instance shared across every upstream_for() call.
+        # The framework's client cache keys on (base_url, id(auth)),
+        # so a stable instance means one pooled httpx client per URL.
+        self._upstream_auth = StaticBearer(token=upstream_api_key)
         self._mock_ad_server = mock_ad_server
         self._approval_poll_interval_s = approval_poll_interval_s
         self._approval_poll_max_iterations = approval_poll_max_iterations
-        self.accounts = _make_account_store(sessionmaker)
+        # AccountStore is always wired. ``app.main`` passes the
+        # MOCK_AD_SERVER_URL env so resolved accounts route at the JS
+        # mock-server fixture. Tests that bypass the AccountStore (by
+        # passing ``Account`` objects directly into ``RequestContext``)
+        # still need a non-None ``accounts`` attribute for
+        # ``validate_platform`` — they pass ``mock_upstream_url=None``
+        # and the store is built with a placeholder; the loader is
+        # never invoked in those tests.
+        self.accounts = _make_account_store(
+            sessionmaker,
+            mock_upstream_url=mock_upstream_url or "http://mock-upstream-not-configured.invalid",
+        )
+
+    def _client(self, ctx: RequestContext) -> UpstreamHttpClient:
+        """Resolve the pooled :class:`UpstreamHttpClient` for this
+        request via the framework's :meth:`upstream_for`.
+
+        The framework picks the URL from ``ctx.account.mode``:
+
+        * ``mode='mock'`` → ``account.metadata['mock_upstream_url']``
+          (the JS mock-server fixture for this specialism).
+        * ``mode='live'`` / ``mode='sandbox'`` → :attr:`upstream_url`.
+
+        ``treat_404_as_none=False`` — the reference seller wants 404s
+        to surface as :class:`AdcpError` (with per-callsite override of
+        the AdCP error code) rather than be papered over to ``None``.
+        """
+        return self.upstream_for(
+            ctx,
+            auth=self._upstream_auth,
+            treat_404_as_none=False,
+        )
 
     def _record(self, method: str, args: dict[str, Any]) -> None:
         """Record an outbound upstream call on the wired
@@ -292,19 +419,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # into upstream targeting json here. The reference seller keeps
         # it minimal — pass the targeting as a JSON string when
         # provided so the upstream can perturb supply.
-        try:
-            payload = await self._upstream.list_products(network_code=network_code)
-        except UpstreamError as exc:
-            raise self._translate_upstream(
-                exc,
-                default_code="SERVICE_UNAVAILABLE",
-                not_found_code="ACCOUNT_NOT_FOUND",
-            ) from exc
+        client = self._client(ctx)
+        payload = await upstream_helpers.list_products(client, network_code=network_code)
         self._record("products.list", {"network_code": network_code})
         agent_url = "https://reference.adcp.org"
         products: list[Product] = []
-        for upstream in payload.get("products", []):
-            pricing = upstream.get("pricing", {})
+        for upstream_row in payload.get("products", []):
+            pricing = upstream_row.get("pricing", {})
             pricing_model = pricing.get("model", "cpm")
             # The seller's ``pricing_models`` capability declares ``cpm``
             # only; skip upstream rows that price on any other model
@@ -315,7 +436,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             if pricing_model != "cpm":
                 logger.debug(
                     "Skipping product %r — pricing model %r not in seller's capability set",
-                    upstream.get("product_id"),
+                    upstream_row.get("product_id"),
                     pricing_model,
                 )
                 continue
@@ -323,7 +444,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             cpm = pricing.get("cpm")
             min_spend = pricing.get("min_spend")
             pricing_option: dict[str, Any] = {
-                "pricing_option_id": f"{upstream['product_id']}-{pricing_model}",
+                "pricing_option_id": f"{upstream_row['product_id']}-{pricing_model}",
                 "pricing_model": "cpm",
                 "currency": currency,
             }
@@ -336,22 +457,22 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             # at ``reference.adcp.org`` — adopters whose upstream uses a
             # different format namespace (their own publisher domain)
             # rewrite ``agent_url`` here.
-            upstream_formats = upstream.get("format_ids") or []
+            upstream_formats = upstream_row.get("format_ids") or []
             format_ids = [{"agent_url": agent_url, "id": fid} for fid in upstream_formats]
             if not format_ids:
                 # Spec requires at least one format on the response.
                 # Fall back to the channel-default — adopters with
                 # richer per-product format tables wire the lookup here.
-                channel = upstream.get("channel", "display")
+                channel = upstream_row.get("channel", "display")
                 fallback_id = "display_300x250" if channel == "display" else "video_16x9_30s"
                 format_ids = [{"agent_url": agent_url, "id": fallback_id}]
             products.append(
                 Product.model_validate(
                     {
-                        "product_id": upstream["product_id"],
-                        "name": upstream["name"],
-                        "description": upstream.get("name", ""),
-                        "delivery_type": upstream.get("delivery_type", "non_guaranteed"),
+                        "product_id": upstream_row["product_id"],
+                        "name": upstream_row["name"],
+                        "description": upstream_row.get("name", ""),
+                        "delivery_type": upstream_row.get("delivery_type", "non_guaranteed"),
                         "publisher_properties": [
                             # The reference seller is a single-publisher
                             # demo; ``selection_type='all'`` matches the
@@ -416,13 +537,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             "budget": float(budget_amount),
             "client_request_id": req.idempotency_key,
         }
-        try:
-            order = await self._upstream.create_order(
-                network_code=network_code,
-                payload=order_payload,
-            )
-        except UpstreamError as exc:
-            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+        client = self._client(ctx)
+        order = await upstream_helpers.create_order(
+            client, network_code=network_code, payload=order_payload
+        )
         self._record(
             "media_buy.create",
             {
@@ -444,7 +562,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # still pending. Refetch once and project from current status;
         # don't enter a polling loop we have no signal to drive.
         if approval_task_id is None:
-            current = await self._upstream.get_order(network_code=network_code, order_id=order_id)
+            current = await upstream_helpers.get_order(
+                client, network_code=network_code, order_id=order_id
+            )
             self._record(
                 "media_buy.confirm",
                 {"order_id": order_id, "status": current.get("status")},
@@ -466,8 +586,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         async def _poll_until_approved(task_handoff_ctx: Any) -> CreateMediaBuySuccessResponse:
             del task_handoff_ctx
             for _ in range(self._approval_poll_max_iterations):
-                task = await self._upstream.get_task(
-                    network_code=network_code, task_id=bound_task_id
+                task = await upstream_helpers.get_task(
+                    client, network_code=network_code, task_id=bound_task_id
                 )
                 self._record(
                     "task.poll",
@@ -491,7 +611,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 # Jitter the poll interval so concurrent buys don't
                 # synchronize their upstream calls. Honoring an upstream
                 # ``Retry-After`` is a follow-up — it requires plumbing
-                # the response headers through ``UpstreamError``.
+                # the response headers through the SDK client.
                 jitter = random.uniform(0.5, 1.5)
                 await asyncio.sleep(self._approval_poll_interval_s * jitter)
             else:
@@ -510,8 +630,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 )
             # Refetch the order; project from the actual current status
             # rather than assume the broken-out loop saw a green light.
-            approved_order = await self._upstream.get_order(
-                network_code=network_code, order_id=order_id
+            approved_order = await upstream_helpers.get_order(
+                client, network_code=network_code, order_id=order_id
             )
             self._record(
                 "media_buy.confirm",
@@ -635,6 +755,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         network_code = ctx.account.metadata["network_code"]
         advertiser_id = ctx.account.metadata["advertiser_id"]
         results: list[SyncCreativeResult] = []
+        client = self._client(ctx)
         for creative in req.creatives:
             # The upstream's ``format_id`` is a string; the AdCP
             # ``format_id`` is a structured ``{agent_url, id}`` object.
@@ -651,10 +772,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             snippet = getattr(creative, "snippet", None)
             if snippet is not None:
                 payload["snippet"] = str(snippet)
-            try:
-                await self._upstream.upload_creative(network_code=network_code, payload=payload)
-            except UpstreamError as exc:
-                raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+            await upstream_helpers.upload_creative(
+                client, network_code=network_code, payload=payload
+            )
             results.append(
                 SyncCreativeResult.model_validate(
                     {
@@ -695,38 +815,41 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         report_currency = "USD"
         report_period: dict[str, Any] | None = None
         delivery_rows: list[dict[str, Any]] = []
+        client = self._client(ctx)
         for order_id in media_buy_ids:
             try:
-                upstream = await self._upstream.get_delivery(
-                    network_code=network_code, order_id=order_id
+                upstream_row = await upstream_helpers.get_delivery(
+                    client, network_code=network_code, order_id=order_id
                 )
-            except UpstreamError as exc:
-                if exc.status_code == 404:
+            except AdcpError as exc:
+                # 404 on delivery → skip this buy (the spec allows
+                # partial responses). Other errors propagate.
+                if exc.code == "MEDIA_BUY_NOT_FOUND":
                     continue
-                raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+                raise
             # The mock's DeliveryReport schema doesn't carry order
             # status (see openapi.yaml § DeliveryReport). Double-fetch
             # the order so we project the correct AdCP MediaBuyStatus
             # — completed / canceled / rejected buys would otherwise
             # all surface as 'active' to the buyer.
             try:
-                order_meta = await self._upstream.get_order(
-                    network_code=network_code, order_id=order_id
+                order_meta = await upstream_helpers.get_order(
+                    client, network_code=network_code, order_id=order_id
                 )
                 upstream_status = order_meta.get("status", "")
-            except UpstreamError as exc:
-                if exc.status_code == 404:
+            except AdcpError as exc:
+                if exc.code == "MEDIA_BUY_NOT_FOUND":
                     # Delivery row exists but order is gone — odd,
                     # surface as 'active' so the row is at least
                     # well-formed; the operator's audit log will catch it.
                     upstream_status = ""
                 else:
-                    raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+                    raise
             wire_status = _DELIVERY_STATUS_MAP.get(upstream_status, "active")
-            totals = upstream.get("totals", {})
-            report_currency = upstream.get("currency", report_currency)
-            if report_period is None and upstream.get("reporting_period"):
-                report_period = upstream["reporting_period"]
+            totals = upstream_row.get("totals", {})
+            report_currency = upstream_row.get("currency", report_currency)
+            if report_period is None and upstream_row.get("reporting_period"):
+                report_period = upstream_row["reporting_period"]
             delivery_rows.append(
                 {
                     "media_buy_id": order_id,
@@ -785,10 +908,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         if req.pagination is not None:
             limit = getattr(req.pagination, "limit", None) or 50
             offset = getattr(req.pagination, "offset", None) or 0
-        try:
-            payload = await self._upstream.list_orders(network_code=network_code)
-        except UpstreamError as exc:
-            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+        client = self._client(ctx)
+        payload = await upstream_helpers.list_orders(client, network_code=network_code)
         # Filter to this advertiser_id (the upstream is per-network,
         # but a single network can host multiple advertisers under the
         # same network_code — our AdCP account maps to one of them).
@@ -886,21 +1007,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 }
             ],
         }
-        try:
-            await self._upstream.post_conversions(
-                network_code=network_code,
-                order_id=req.media_buy_id,
-                payload=payload,
-            )
-        except UpstreamError as exc:
-            if exc.status_code == 404:
-                raise AdcpError(
-                    "MEDIA_BUY_NOT_FOUND",
-                    message=f"No media buy {req.media_buy_id!r} on the upstream.",
-                    recovery="terminal",
-                    field="media_buy_id",
-                ) from exc
-            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
+        client = self._client(ctx)
+        await upstream_helpers.post_conversions(
+            client,
+            network_code=network_code,
+            order_id=req.media_buy_id,
+            payload=payload,
+        )
         self._record(
             "performance.feedback",
             {"media_buy_id": req.media_buy_id, "metric_type": metric_type},
@@ -968,14 +1081,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         if req.pagination is not None:
             limit = getattr(req.pagination, "limit", None) or 50
             offset = getattr(req.pagination, "offset", None) or 0
-        try:
-            payload = await self._upstream.list_creatives(network_code=network_code)
-        except UpstreamError as exc:
-            raise self._translate_upstream(
-                exc,
-                default_code="SERVICE_UNAVAILABLE",
-                not_found_code="ACCOUNT_NOT_FOUND",
-            ) from exc
+        client = self._client(ctx)
+        payload = await upstream_helpers.list_creatives(client, network_code=network_code)
         upstream_creatives = [
             c for c in payload.get("creatives", []) if c.get("advertiser_id") == advertiser_id
         ]
@@ -1199,74 +1306,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "accounts": projected_accounts,
                 "pagination": {"has_more": has_more, "total_count": total_count},
             }
-        )
-
-    # ----- helpers ---------------------------------------------------------
-
-    @staticmethod
-    def _translate_upstream(
-        exc: UpstreamError,
-        default_code: str,
-        *,
-        not_found_code: str = "MEDIA_BUY_NOT_FOUND",
-    ) -> AdcpError:
-        """Project an upstream error onto an AdCP wire error.
-
-        Maps common HTTP statuses to spec-conformant codes from the
-        canonical ``ErrorCode`` enum; unknown statuses fall through to
-        ``default_code`` (typically ``SERVICE_UNAVAILABLE``) so the
-        dispatcher gets a structured error envelope rather than a 500.
-
-        ``not_found_code`` lets callsites override the 404 mapping —
-        ``get_products`` / ``list_creatives`` / ``list_accounts`` 404s
-        mean an unknown network / account, not a missing media buy.
-        """
-        upstream_code = exc.payload.get("code")
-        upstream_message = exc.payload.get("message", "")
-        if exc.status_code == 400:
-            # The mock returns 400 ``invalid_request`` for malformed
-            # payloads — surface as terminal ``INVALID_REQUEST`` so
-            # buyers know to fix the request rather than retry.
-            return AdcpError(
-                "INVALID_REQUEST",
-                message=f"Upstream rejected the translated payload: {upstream_message}",
-                recovery="terminal",
-                details={"upstream_code": upstream_code, "upstream_message": upstream_message},
-            )
-        if exc.status_code == 401:
-            return AdcpError(
-                "AUTH_REQUIRED",
-                message=f"Upstream rejected credentials: {upstream_message}",
-                recovery="terminal",
-            )
-        if exc.status_code == 403:
-            return AdcpError(
-                "PERMISSION_DENIED",
-                message=f"Upstream forbade request: {upstream_message}",
-                recovery="terminal",
-            )
-        if exc.status_code == 404:
-            return AdcpError(
-                not_found_code,
-                message=f"Upstream resource not found: {upstream_message}",
-                recovery="terminal",
-            )
-        if exc.status_code == 409:
-            return AdcpError(
-                "CONFLICT",
-                message=f"Upstream conflict: {upstream_message}",
-                recovery="terminal",
-            )
-        if exc.status_code == 429:
-            return AdcpError(
-                "RATE_LIMITED",
-                message=f"Upstream rate-limited: {upstream_message}",
-                recovery="transient",
-            )
-        return AdcpError(
-            default_code,
-            message=f"Upstream error {exc.status_code}: {upstream_message}",
-            recovery="transient",
         )
 
 

@@ -259,9 +259,12 @@ def test_v3_reference_seller_passes_with_no_warnings(
     UserWarnings. If this test fails, PR #408 has regressed.
 
     The seller's ``__init__`` requires a SQLAlchemy ``async_sessionmaker``
-    and an optional ``MockAdServer``; we build the instance with a sentinel
-    sessionmaker because ``validate_platform`` only walks attributes —
-    it never executes the methods, so the sessionmaker is never touched.
+    plus the upstream API key (Phase 3 of the lifecycle-state-and-
+    sandbox-authority work — the platform builds its
+    :class:`UpstreamHttpClient` lazily via :meth:`upstream_for`). We
+    build the instance with a sentinel sessionmaker because
+    ``validate_platform`` only walks attributes — it never executes
+    the methods, so the sessionmaker is never touched.
     """
 
     v3_platform = pytest.importorskip("examples.v3_reference_seller.src.platform")
@@ -272,7 +275,10 @@ def test_v3_reference_seller_passes_with_no_warnings(
         def __call__(self, *args, **kwargs):
             raise RuntimeError("validate_platform must not open a session")
 
-    seller = seller_cls(sessionmaker=_StubSessionmaker())
+    seller = seller_cls(
+        sessionmaker=_StubSessionmaker(),
+        upstream_api_key="test-key",
+    )
 
     monkeypatch.delenv("ADCP_DECISIONING_STRICT_VALIDATE_PLATFORM", raising=False)
     with warnings.catch_warnings(record=True) as caught:

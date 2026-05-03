@@ -7,7 +7,12 @@ Boot sequence:
 
 1. Connect SQLAlchemy async engine + sessionmaker.
 2. Create schema (idempotent ``Base.metadata.create_all``).
-3. Connect the upstream HTTP client (:class:`MockUpstreamClient`).
+3. Wire the upstream HTTP client. The platform calls
+   :meth:`adcp.decisioning.DecisioningPlatform.upstream_for` per
+   request, which builds a pooled :class:`UpstreamHttpClient` from the
+   resolved account's ``mode`` (``mock`` here) +
+   ``metadata['mock_upstream_url']`` (sourced from
+   ``MOCK_AD_SERVER_URL``).
 4. Build the framework wiring:
 
    * :class:`SqlSubdomainTenantRouter` for ``Host`` → tenant
@@ -19,8 +24,12 @@ Boot sequence:
    — single binary serving MCP at ``/mcp`` and A2A at ``/`` with
    :class:`SubdomainTenantMiddleware` layered on the outer HTTP app.
 
-Adopters fork this file and replace :class:`MockUpstreamClient` with
-their own ad-server HTTP client. Everything else stays.
+Adopters fork this file and replace the per-specialism mock-server
+boot with their own ad-server URL: declare ``upstream_url`` on the
+:class:`V3ReferenceSeller` subclass and have ``AccountStore.resolve``
+return ``mode='live'`` (or ``'sandbox'``) accounts. Everything else
+stays — the framework's ``upstream_for`` routes the same adapter
+code path against either URL.
 
 ::
 
@@ -59,7 +68,6 @@ from .buyer_registry import make_registry as make_buyer_registry
 from .models import Base
 from .platform import V3ReferenceSeller
 from .tenant_router import SqlSubdomainTenantRouter
-from .upstream import MockUpstreamClient
 
 if TYPE_CHECKING:
     from adcp.server import RequestMetadata
@@ -123,11 +131,6 @@ def main() -> None:
 
     asyncio.run(_bootstrap_schema(engine))
 
-    upstream = MockUpstreamClient(
-        base_url=upstream_url,
-        api_key=upstream_api_key,
-    )
-
     router = SqlSubdomainTenantRouter(sessionmaker=sessionmaker)
     audit_sink = make_audit_sink(sessionmaker)
     # The buyer registry composes cache + rate-limit + audit around
@@ -142,9 +145,18 @@ def main() -> None:
     # ``GET /_debug/traffic``. Production adopters omit both kwargs;
     # the endpoint stays closed and the recorder is a no-op.
     mock_ad_server = InMemoryMockAdServer()
+    # The reference seller is mock-mode by design: every Account its
+    # ``AccountStore.resolve`` returns is ``mode='mock'`` and carries
+    # ``MOCK_AD_SERVER_URL`` in ``account.metadata['mock_upstream_url']``.
+    # The framework's ``upstream_for(ctx)`` reads that URL to point
+    # the pooled :class:`UpstreamHttpClient` at the JS mock-server.
+    # Adopters with a real production upstream replace ``mode='mock'``
+    # with ``mode='live'`` in their ``AccountStore.resolve`` and declare
+    # :attr:`V3ReferenceSeller.upstream_url` to their production URL.
     platform = V3ReferenceSeller(
         sessionmaker=sessionmaker,
-        upstream=upstream,
+        upstream_api_key=upstream_api_key,
+        mock_upstream_url=upstream_url,
         mock_ad_server=mock_ad_server,
     )
 
@@ -152,7 +164,7 @@ def main() -> None:
         "v3 reference seller booting on port=%d (transport=both, MCP at /mcp, A2A at /)",
         port,
     )
-    logger.info("Translator upstream: %s (api_key=%s...)", upstream_url, upstream_api_key[:4])
+    logger.info("Mock-mode upstream: %s (api_key=%s...)", upstream_url, upstream_api_key[:4])
     logger.info("Audit sink wired: %s. Tenant router cache: 256 hosts.", type(audit_sink).__name__)
 
     serve(

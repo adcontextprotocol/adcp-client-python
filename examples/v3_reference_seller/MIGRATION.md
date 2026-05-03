@@ -201,30 +201,101 @@ The other modules (`models.py`, `tenant_router.py`, `buyer_registry.py`,
 `audit.py`, `app.py`) are reusable scaffolding — change them only if
 your tenant / RBAC / audit story differs.
 
-### 2. Replace `MockUpstreamClient` with your real upstream client
+### 2. Replace the upstream domain helpers with your real ad-server's API
 
-`src/upstream.py` is a thin httpx-based client over the JS mock-server.
-Replace it with your existing ad-server client:
+`src/upstream.py` is a set of module-level domain helpers mirroring
+the JS mock-server's openapi.yaml. Each helper takes a pooled
+`UpstreamHttpClient` (the SDK's httpx wrapper) plus per-call routing
+kwargs and returns the parsed upstream JSON:
 
 ```python
-# src/upstream.py — your version
-class MyAdServerClient:
-    def __init__(self, *, base_url: str, oauth_token: str) -> None:
-        ...
+# src/upstream.py — reference seller shape
+from adcp.decisioning import UpstreamHttpClient
 
-    async def list_orders(self, *, advertiser_id: str) -> list[Order]:
-        ...
 
-    async def create_order(self, *, payload: CreateOrderPayload) -> Order:
-        ...
+async def list_products(
+    client: UpstreamHttpClient,
+    *,
+    network_code: str,
+    not_found_code: str = "ACCOUNT_NOT_FOUND",
+) -> dict[str, Any]:
+    return await client.get(
+        "/v1/products",
+        headers={"X-Network-Code": network_code},
+        not_found_code=not_found_code,
+    )
 
-    # ... mirrors of your existing API surface
+
+async def create_order(
+    client: UpstreamHttpClient,
+    *,
+    network_code: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    return await client.post(
+        "/v1/orders",
+        json=payload,
+        headers={"X-Network-Code": network_code},
+    )
 ```
 
-The shape doesn't have to match the JS mock's HTTP API — it has to
-match your real upstream. The shape that matters is what comes *out*
-of these methods (the data the platform translates into AdCP wire
-shapes).
+Adopters fork the helpers and replace the paths / payloads with their
+real upstream's API. The shape that matters is what comes *out* of
+these helpers (the data the platform translates onto AdCP wire shapes).
+
+The SDK's [`UpstreamHttpClient`](../../src/adcp/decisioning/upstream.py)
+handles:
+
+* **Connection pooling** — one `httpx.AsyncClient` per
+  `(base_url, auth)`; reused across calls.
+* **Auth injection** — `StaticBearer` (`Authorization: Bearer ...`),
+  `DynamicBearer` (per-call OAuth refresh), `ApiKey`
+  (custom header like `X-Api-Key: ...`), or `NoAuth`.
+* **Error projection** — non-2xx responses raise spec-conformant
+  `AdcpError` codes (401 → `AUTH_REQUIRED`, 403 → `PERMISSION_DENIED`,
+  404 → `not_found_code` (configurable per-call), 429 →
+  `RATE_LIMITED`, 5xx → `SERVICE_UNAVAILABLE`, other 4xx →
+  `INVALID_REQUEST`). Adopters who need richer 404 semantics
+  (e.g. `ACCOUNT_NOT_FOUND` for product lookups) override per-call.
+* **204 / empty body handling** — returns `{}` instead of crashing
+  on empty responses.
+
+### 2a. Wire `upstream_url` and `upstream_for(ctx)`
+
+Declare your production upstream URL on the platform class:
+
+```python
+class MyAdServerSeller(DecisioningPlatform, SalesPlatform):
+    upstream_url = "https://my-real-adserver.example.com/v1"
+
+    def __init__(self, *, sessionmaker, upstream_api_key: str) -> None:
+        self._sessionmaker = sessionmaker
+        # Single auth instance shared across upstream_for() calls;
+        # the framework's client cache keys on (base_url, id(auth)).
+        self._upstream_auth = StaticBearer(token=upstream_api_key)
+        self.accounts = _make_account_store(...)
+
+    async def get_products(self, req, ctx):
+        client = self.upstream_for(ctx, auth=self._upstream_auth)
+        payload = await upstream_helpers.list_products(
+            client, network_code=ctx.account.metadata["network_code"]
+        )
+        # ... project to AdCP shapes
+```
+
+The framework's `upstream_for(ctx)` picks the URL based on
+`ctx.account.mode`:
+
+| `account.mode` | Upstream URL |
+|---|---|
+| `live` | `MyAdServerSeller.upstream_url` (production) |
+| `sandbox` | `MyAdServerSeller.upstream_url` (your test infra at the same URL with different credentials) |
+| `mock` | `account.metadata["mock_upstream_url"]` (per-account fixture URL — the SDK routes to your mock-server) |
+
+The same adapter code path runs against all three modes. Sellers
+running this code today serve `live` traffic; the same code serves
+conformance / storyboard buyers when their account is marked
+`mock` — no per-call branching.
 
 ### 3. Reseed the BuyerAgent / Account tables with your tenant config
 
@@ -250,7 +321,36 @@ Account(
 ```
 
 The platform's `_make_account_store` reads `ext` onto
-`ctx.account.metadata`, where every translator method picks it up.
+`ctx.account.metadata`, where every translator method picks it up. It
+also stamps each resolved account with `mode` so `upstream_for(ctx)`
+knows where to route:
+
+```python
+return Account(
+    id=row.id,
+    name=row.name,
+    status=row.status,
+    # Branch on the row's lifecycle. Production accounts: 'live'.
+    # Your own test infra: 'sandbox'. Conformance / storyboard
+    # accounts: 'mock' (with mock_upstream_url populated).
+    mode="live",
+    metadata={
+        "network_code": row.ext["network_code"],
+        "advertiser_id": row.ext["advertiser_id"],
+        # Only populated for mode='mock' accounts; framework reads
+        # this in upstream_for() to route at the fixture URL.
+        # "mock_upstream_url": "http://127.0.0.1:4503",
+    },
+    _mode_explicit=True,
+)
+```
+
+**Resolver discipline.** The mode is a security-relevant flag — it
+gates the sandbox-authority enforcement on test-only surfaces
+(comply controller, `force_*`, `simulate_*`). Source `mode` from a
+trusted store keyed by the authenticated principal; never from
+request data. A buyer who can self-promote to `mode='sandbox'` can
+unlock test-only surfaces on a live principal.
 
 ### 4. Translate your upstream onto the `SalesPlatform` Protocol
 
@@ -258,16 +358,28 @@ The platform's `_make_account_store` reads `ext` onto
 
 ```python
 class MyAdServerSeller(DecisioningPlatform, SalesPlatform):
+    upstream_url = "https://my-real-adserver.example.com/v1"
+
     async def get_products(self, req, ctx):
-        upstream_payload = await self._upstream.list_products(
-            advertiser_id=ctx.account.metadata["advertiser_id"],
+        # Resolve the pooled UpstreamHttpClient via the framework.
+        # Routes at upstream_url for live/sandbox accounts, at
+        # account.metadata['mock_upstream_url'] for mock accounts.
+        client = self.upstream_for(ctx, auth=self._upstream_auth)
+        upstream_payload = await upstream_helpers.list_products(
+            client,
+            network_code=ctx.account.metadata["network_code"],
         )
         # translate to AdCP Product[]
         return GetProductsResponse(products=[...])
 
     async def create_media_buy(self, req, ctx):
-        order = await self._upstream.create_order(...)
-        if order.status == "pending_approval":
+        client = self.upstream_for(ctx, auth=self._upstream_auth)
+        order = await upstream_helpers.create_order(
+            client,
+            network_code=ctx.account.metadata["network_code"],
+            payload=...,
+        )
+        if order["status"] == "pending_approval":
             # async approval path — return a Submitted envelope
             # and poll the upstream in the background
             return ctx.handoff_to_task(self._poll_until_approved)
