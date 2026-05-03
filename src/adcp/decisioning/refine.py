@@ -156,7 +156,7 @@ def build_refinement_applied(
 
     :param refines: ``request.refine`` (length N).
     :param outcomes: Adopter's per-entry outcomes (must also be length N).
-    :returns: Wire-shape ``RefinementApplied4`` instances (one per entry).
+    :returns: Wire-shape ``RefinementApplied`` (RootModel) instances (one per entry).
     :raises ValueError: ``len(outcomes) != len(refines)``.  Developer-facing,
         not buyer-facing — adopter-side bug.
     """
@@ -169,47 +169,53 @@ def build_refinement_applied(
             "echo contract."
         )
 
-    from adcp.types.generated_poc.bundled.media_buy.get_products_response import (
+    from adcp.types import (
         RefinementApplied,
-        RefinementApplied4,
-        RefinementApplied6,
-        RefinementApplied7,
-        Status17,
+        RefinementApplied1,
+        RefinementApplied2,
+        RefinementApplied3,
     )
+
+    # The wire enum on RefinementApplied{1,2,3}.status is the discriminated
+    # ``Status`` enum (``applied``/``partial``/``unable``).  Pydantic accepts
+    # the matching string at runtime; the model_validate path coerces.
+    status_field = {"applied": "applied", "partial": "partial", "unable": "unable"}
 
     out: list[Any] = []
     for entry, outcome in zip(refines, outcomes, strict=True):
-        # Refine4 is a RootModel discriminated on `scope`; unwrap to the
-        # variant.  Refine6 = product, Refine7 = proposal, Refine = request.
+        # Refine is a RootModel discriminated on `scope`; unwrap to the
+        # variant.
         inner = getattr(entry, "root", entry)
         scope = getattr(inner, "scope", None)
-        status_enum = Status17(outcome.status)
+        status_str = status_field[outcome.status]
 
         if scope == "request":
-            applied: Any = RefinementApplied(
-                scope="request",
-                status=status_enum,
-                notes=outcome.notes,
+            applied: Any = RefinementApplied1.model_validate(
+                {"scope": "request", "status": status_str, "notes": outcome.notes}
             )
         elif scope == "product":
-            applied = RefinementApplied6(
-                scope="product",
-                product_id=str(getattr(inner, "product_id")),
-                status=status_enum,
-                notes=outcome.notes,
+            applied = RefinementApplied2.model_validate(
+                {
+                    "scope": "product",
+                    "product_id": str(getattr(inner, "product_id")),
+                    "status": status_str,
+                    "notes": outcome.notes,
+                }
             )
         elif scope == "proposal":
-            applied = RefinementApplied7(
-                scope="proposal",
-                proposal_id=str(getattr(inner, "proposal_id")),
-                status=status_enum,
-                notes=outcome.notes,
+            applied = RefinementApplied3.model_validate(
+                {
+                    "scope": "proposal",
+                    "proposal_id": str(getattr(inner, "proposal_id")),
+                    "status": status_str,
+                    "notes": outcome.notes,
+                }
             )
         else:
             raise ValueError(
                 f"Unknown refine scope {scope!r}; expected " "'request' | 'product' | 'proposal'."
             )
-        out.append(RefinementApplied4(root=applied))
+        out.append(RefinementApplied(root=applied))
     return out
 
 
