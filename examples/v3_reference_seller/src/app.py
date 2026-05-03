@@ -43,6 +43,7 @@ from adcp.server import (
     ToolContext,
     current_tenant,
 )
+from adcp.validation import ValidationHookConfig
 
 from .audit import make_sink as make_audit_sink
 from .buyer_registry import make_registry as make_buyer_registry
@@ -132,6 +133,17 @@ def main() -> None:
         asgi_middleware=[
             (SubdomainTenantMiddleware, {"router": router}),
         ],
+        # Schema-driven validation in strict mode on both sides:
+        # the dispatcher validates every request against the bundled
+        # AdCP JSON schemas before the platform method runs, and
+        # validates every response after it returns. Bugs like the
+        # ``pricing_options`` shape regression that shipped in the
+        # initial v3 ref seller are caught at boot / first call
+        # rather than during a buyer's storyboard run. Adopters
+        # forking this entrypoint inherit the strict default — drop
+        # to ``responses="warn"`` only when you have a deliberate
+        # reason to ship spec-divergent responses.
+        validation=ValidationHookConfig(requests="strict", responses="strict"),
     )
 
 

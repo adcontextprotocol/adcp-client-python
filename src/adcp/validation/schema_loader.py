@@ -156,13 +156,21 @@ def _load_core_registry(state: _LoaderState) -> None:
     state._core_loaded = True
 
 
-def _make_ref_resolver(state: _LoaderState, base_file: Path) -> Any:
+def _make_ref_resolver(state: _LoaderState, base_file: Path, schema: dict[str, Any]) -> Any:
     """Build a jsonschema ``RefResolver`` rooted at the file's directory.
 
     Async variant schemas use relative refs like ``../core/context.json``;
     giving the resolver a ``file://`` base URI lets those resolve against
     disk. Also seeds the core ``$id``-keyed registry so bundled schemas
     that reference a core type by canonical id still resolve.
+
+    Sets ``referrer=schema`` (not ``{}``) so fragment-only refs like
+    ``#/$defs/MediaChannel`` inside the bundled per-tool schema resolve
+    against the schema being validated. Without this, the resolver
+    walks the empty-dict referrer and raises
+    ``Unresolvable JSON pointer: '$defs/MediaChannel'`` on any
+    bundled schema that uses internal ``$defs`` (every bundled
+    capabilities-style schema does).
 
     ``RefResolver`` is deprecated in jsonschema 4.18+ (to be replaced by
     the ``referencing`` library). Suppress the warning locally so
@@ -181,7 +189,7 @@ def _make_ref_resolver(state: _LoaderState, base_file: Path) -> Any:
 
         _load_core_registry(state)
         base_uri = base_file.resolve().parent.as_uri() + "/"
-        return RefResolver(base_uri=base_uri, referrer={}, store=dict(state.registry))
+        return RefResolver(base_uri=base_uri, referrer=schema, store=dict(state.registry))
 
 
 def get_validator(tool_name: str, direction: Direction) -> Any | None:
@@ -223,7 +231,7 @@ def get_validator(tool_name: str, direction: Direction) -> Any | None:
         if cached is not None:
             return cached
         try:
-            resolver = _make_ref_resolver(state, file)
+            resolver = _make_ref_resolver(state, file, schema)
             validator = Draft7Validator(schema, resolver=resolver)
         except SchemaError as exc:
             logger.warning("Invalid schema %s for %s: %s", file, key, exc)

@@ -145,6 +145,16 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         specialisms=("sales-non-guaranteed",),
         channels=("display", "video"),
         pricing_models=("cpm",),
+        # Required by the spec whenever ``media_buy`` is in
+        # ``supported_protocols`` (per
+        # ``protocol/get-adcp-capabilities-response.json``,
+        # ``account.supported_billing`` ``minItems: 1``). The
+        # framework projects this into ``account.supported_billing``
+        # on the auto-generated ``get_adcp_capabilities`` response.
+        # This reference seller invoices the operator (agency / brand
+        # buying direct) and supports agent-consolidated billing for
+        # platforms acting on behalf of multiple advertisers.
+        supported_billing=("operator", "agent"),
     )
 
     def __init__(self, *, sessionmaker: async_sessionmaker) -> None:

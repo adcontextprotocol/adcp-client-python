@@ -311,6 +311,54 @@ SPECIALISM_TO_ADVERTISED_TOOLS: dict[str, frozenset[str]] = {
 }
 
 
+#: Map each spec specialism slug to the wire-protocol values it
+#: contributes to ``supported_protocols`` on the
+#: ``get_adcp_capabilities`` response. Source of truth is the
+#: ``supported_protocols`` enum in
+#: ``schemas/cache/protocol/get-adcp-capabilities-response.json``
+#: (``media_buy | signals | governance | sponsored_intelligence |
+#: creative | brand``). Composes with
+#: :data:`SPECIALISM_TO_ADVERTISED_TOOLS` — a specialism whose tools
+#: cross protocol boundaries (e.g. ``audience-sync`` exposes
+#: ``sync_audiences``, a media_buy tool) declares the relevant set
+#: explicitly here.
+#:
+#: Specialisms that are pure meta-claims (``governance-aware-seller``,
+#: ``signed-requests``) contribute no protocol — they compose with a
+#: non-meta specialism that does.
+SPECIALISM_TO_PROTOCOLS: dict[str, frozenset[str]] = {
+    # Sales-* archetypes — all live under the media_buy protocol.
+    "sales-non-guaranteed": frozenset({"media_buy"}),
+    "sales-guaranteed": frozenset({"media_buy"}),
+    "sales-broadcast-tv": frozenset({"media_buy"}),
+    "sales-social": frozenset({"media_buy"}),
+    "sales-catalog-driven": frozenset({"media_buy"}),
+    "sales-proposal-mode": frozenset({"media_buy"}),
+    # Creative — generative / template / ad-server all expose creative
+    # tools; the ad-server variant additionally exposes
+    # ``get_creative_delivery`` which is a media_buy companion read,
+    # but the wire protocol is still ``creative``.
+    "creative-generative": frozenset({"creative"}),
+    "creative-template": frozenset({"creative"}),
+    "creative-ad-server": frozenset({"creative"}),
+    # Signals.
+    "signal-marketplace": frozenset({"signals"}),
+    "signal-owned": frozenset({"signals"}),
+    # Audience-sync's ``sync_audiences`` is a media_buy tool.
+    "audience-sync": frozenset({"media_buy"}),
+    # Governance.
+    "governance-spend-authority": frozenset({"governance"}),
+    "governance-delivery-monitor": frozenset({"governance"}),
+    # Brand-rights → brand protocol.
+    "brand-rights": frozenset({"brand"}),
+    # Content-standards / lists are governance-protocol tools per
+    # ``HANDLER_TO_DOMAIN`` in ``adcp.server.builder``.
+    "content-standards": frozenset({"governance"}),
+    "property-lists": frozenset({"governance"}),
+    "collection-lists": frozenset({"governance"}),
+}
+
+
 async def _resolve_buyer_agent(
     registry: BuyerAgentRegistry,
     auth_info: AuthInfo | None,
@@ -751,6 +799,94 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             resource_resolver=self._resource_resolver,
             buyer_agent=buyer_agent,
         )
+
+    # ----- Protocol discovery -----
+
+    async def get_adcp_capabilities(
+        self,
+        params: Any = None,
+        context: ToolContext | None = None,
+    ) -> dict[str, Any]:
+        """Project the platform's :class:`DecisioningCapabilities` into a
+        spec-conformant ``get_adcp_capabilities`` response.
+
+        Auto-derives:
+
+        * ``supported_protocols`` from the union of
+          :data:`SPECIALISM_TO_PROTOCOLS` over the platform's claimed
+          specialisms.
+        * ``account.supported_billing`` from
+          :attr:`DecisioningCapabilities.supported_billing`. Required by
+          spec (``protocol/get-adcp-capabilities-response.json`` lines
+          129-131) whenever ``media_buy`` is in ``supported_protocols``;
+          missing here surfaces as a wire-validation failure when the
+          server is wired with ``ValidationHookConfig(responses="strict")``.
+        * ``media_buy.supported_pricing_models`` from
+          :attr:`DecisioningCapabilities.pricing_models`.
+        * ``media_buy.portfolio.primary_channels`` from
+          :attr:`DecisioningCapabilities.channels`.
+
+        Adopters who need to override this projection (custom
+        capability blocks, vendor-specific feature flags) override
+        ``get_adcp_capabilities`` on a :class:`PlatformHandler`
+        subclass — the base shim is intentionally minimal so the
+        projection is auditable.
+        """
+        del params, context  # Discovery; no auth or input required.
+        caps = self._platform.capabilities
+
+        protocols: set[str] = set()
+        for slug in caps.specialisms:
+            protocols.update(SPECIALISM_TO_PROTOCOLS.get(slug, frozenset()))
+        # ``supported_protocols`` is required + minItems: 1. When a
+        # platform declares only meta specialisms (governance-aware-seller
+        # alone, signed-requests alone), we have no protocol to claim
+        # — fall through to ``media_buy`` as the most common default
+        # so the capabilities response stays spec-valid. Adopters who
+        # disagree subclass and override.
+        supported_protocols = sorted(protocols) if protocols else ["media_buy"]
+
+        from adcp.server.responses import capabilities_response
+
+        # Default to ``idempotency: {supported: false}`` when the
+        # platform doesn't declare one. The spec requires
+        # ``adcp.idempotency`` (``required: ["major_versions",
+        # "idempotency"]`` on the ``adcp`` block); a base shim that
+        # claims media_buy without it ships an invalid response.
+        # Adopters who wire :class:`adcp.server.idempotency.IdempotencyStore`
+        # override this shim and pass ``store.capability()``.
+        response = capabilities_response(
+            supported_protocols,
+            idempotency={"supported": False},
+        )
+
+        # account.supported_billing is REQUIRED on the wire whenever
+        # media_buy is claimed (spec invariant). We always emit the
+        # account block when supported_billing is declared so adopters
+        # claiming non-media-buy protocols still get a valid response.
+        if caps.supported_billing:
+            response["account"] = {
+                "supported_billing": list(caps.supported_billing),
+            }
+
+        # media_buy block: ``supported_pricing_models`` is the single
+        # field the framework can project from ``DecisioningCapabilities``
+        # without crossing a spec required-property gate. ``portfolio``
+        # would be the natural home for ``channels``, but the spec
+        # requires ``portfolio.publisher_domains`` when ``portfolio`` is
+        # present and ``DecisioningCapabilities`` doesn't carry that
+        # data — emitting ``portfolio`` from channels alone would ship
+        # an invalid response. Adopters who want ``portfolio`` override
+        # ``get_adcp_capabilities`` on a :class:`PlatformHandler`
+        # subclass and supply ``publisher_domains`` themselves.
+        if "media_buy" in supported_protocols and caps.pricing_models:
+            # Spec requires uniqueItems on supported_pricing_models;
+            # dedupe via dict.fromkeys to preserve declaration order.
+            response["media_buy"] = {
+                "supported_pricing_models": list(dict.fromkeys(caps.pricing_models)),
+            }
+
+        return response
 
     # ----- Sales tools -----
 
