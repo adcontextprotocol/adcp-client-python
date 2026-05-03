@@ -20,6 +20,7 @@ import pytest
 
 from adcp.decisioning import (
     Account,
+    AccountStore,
     AuthInfo,
     ResolveContext,
     SyncAccountsResultRow,
@@ -108,6 +109,15 @@ def _ctx(principal: str | None) -> ResolveContext:
     return ResolveContext(auth_info=AuthInfo(kind="api_key", principal=principal))
 
 
+def _auth(principal: str | None) -> AuthInfo | None:
+    """Construct an AuthInfo with the given principal — mirrors the
+    dispatcher's ``accounts.resolve(ref_dict, auth_info=auth_info)``
+    call shape (the Protocol takes ``auth_info``, not ``ctx``)."""
+    if principal is None:
+        return None
+    return AuthInfo(kind="api_key", principal=principal)
+
+
 def _ref(operator: str, brand: str = "acme.example") -> dict[str, Any]:
     """Build an operator-arm AccountReference as a dict (the wire shape)."""
     return {"brand": {"domain": brand}, "operator": operator}
@@ -127,6 +137,34 @@ def _run(coro: Any) -> Any:
 
 
 class TestResolve:
+    def test_protocol_conformance(self) -> None:
+        """``_TenantStore`` must satisfy the runtime-checkable
+        :class:`AccountStore` Protocol — the dispatcher relies on
+        ``isinstance(store, AccountStore)`` and calls
+        ``accounts.resolve(ref_dict, auth_info=auth_info)`` as a
+        keyword argument."""
+        store = create_tenant_store(
+            resolve_by_ref=_resolve_by_ref,
+            resolve_from_auth=_resolve_from_auth,
+            tenant_id=_account_tenant_id,
+            tenant_to_account=_tenant_to_account,
+        )
+        assert isinstance(store, AccountStore)
+
+    def test_resolve_called_with_auth_info_kwarg(self) -> None:
+        """Mirrors the dispatcher call shape exactly — ``auth_info``
+        as a keyword. This is the call that breaks if ``resolve``
+        keeps the old ``ctx=`` signature."""
+        store = create_tenant_store(
+            resolve_by_ref=_resolve_by_ref,
+            resolve_from_auth=_resolve_from_auth,
+            tenant_id=_account_tenant_id,
+            tenant_to_account=_tenant_to_account,
+        )
+        acc = _run(store.resolve(_ref("pinnacle.example"), auth_info=_auth("buyer@pinnacle")))
+        assert acc is not None
+        assert acc.id == "acc_pinnacle"
+
     def test_same_tenant_ref_returns_account(self) -> None:
         store = create_tenant_store(
             resolve_by_ref=_resolve_by_ref,
@@ -134,7 +172,7 @@ class TestResolve:
             tenant_id=_account_tenant_id,
             tenant_to_account=_tenant_to_account,
         )
-        acc = _run(store.resolve(_ref("pinnacle.example"), _ctx("buyer@pinnacle")))
+        acc = _run(store.resolve(_ref("pinnacle.example"), _auth("buyer@pinnacle")))
         assert acc is not None
         assert acc.id == "acc_pinnacle"
 
@@ -147,7 +185,7 @@ class TestResolve:
             tenant_id=_account_tenant_id,
             tenant_to_account=_tenant_to_account,
         )
-        acc = _run(store.resolve(_ref("meridian.example"), _ctx("buyer@pinnacle")))
+        acc = _run(store.resolve(_ref("meridian.example"), _auth("buyer@pinnacle")))
         assert acc is None
 
     def test_unknown_ref_returns_none(self) -> None:
@@ -157,7 +195,7 @@ class TestResolve:
             tenant_id=_account_tenant_id,
             tenant_to_account=_tenant_to_account,
         )
-        acc = _run(store.resolve(_ref("unknown.example"), _ctx("buyer@pinnacle")))
+        acc = _run(store.resolve(_ref("unknown.example"), _auth("buyer@pinnacle")))
         assert acc is None
 
     def test_auth_has_no_tenant_with_ref_returns_none(self) -> None:
@@ -169,7 +207,7 @@ class TestResolve:
             tenant_id=_account_tenant_id,
             tenant_to_account=_tenant_to_account,
         )
-        acc = _run(store.resolve(_ref("pinnacle.example"), _ctx("not-registered")))
+        acc = _run(store.resolve(_ref("pinnacle.example"), _auth("not-registered")))
         assert acc is None
 
     def test_no_ref_path2_returns_auth_tenant_account(self) -> None:
@@ -180,7 +218,7 @@ class TestResolve:
             tenant_id=_account_tenant_id,
             tenant_to_account=_tenant_to_account,
         )
-        acc = _run(store.resolve(None, _ctx("buyer@pinnacle")))
+        acc = _run(store.resolve(None, _auth("buyer@pinnacle")))
         assert acc is not None
         assert acc.id == "acc_pinnacle"
 
@@ -191,7 +229,27 @@ class TestResolve:
             tenant_id=_account_tenant_id,
             tenant_to_account=_tenant_to_account,
         )
-        acc = _run(store.resolve(None, _ctx(None)))
+        acc = _run(store.resolve(None, _auth(None)))
+        assert acc is None
+
+    def test_resolve_by_ref_raises_returns_none(self) -> None:
+        """Per-request log-and-deny: an exception in adopter
+        ``resolve_by_ref`` must surface as ``None``, not propagate
+        out and 500 the calling tool."""
+
+        def raising_resolve_by_ref(
+            ref: AccountReference | dict[str, Any], ctx: ResolveContext
+        ) -> Account | None:
+            del ref, ctx
+            raise RuntimeError("simulated DB outage")
+
+        store = create_tenant_store(
+            resolve_by_ref=raising_resolve_by_ref,
+            resolve_from_auth=_resolve_from_auth,
+            tenant_id=_account_tenant_id,
+            tenant_to_account=_tenant_to_account,
+        )
+        acc = _run(store.resolve(_ref("pinnacle.example"), _auth("buyer@pinnacle")))
         assert acc is None
 
 
@@ -300,6 +358,102 @@ class TestUpsert:
         assert rows[2].errors is not None
         assert rows[2].errors[0]["code"] == "ACCOUNT_NOT_FOUND"
 
+    def test_resolve_by_ref_raises_isolates_to_single_entry(self) -> None:
+        """One bad row must not poison the batch. When
+        ``resolve_by_ref`` raises for one entry, that entry surfaces
+        as PERMISSION_DENIED while sibling entries pass through."""
+        writes: list[dict[str, Any]] = []
+
+        def upsert_row(row: dict[str, Any], ctx: ResolveContext) -> SyncAccountsResultRow:
+            del ctx
+            writes.append(row)
+            return SyncAccountsResultRow(
+                brand=row["brand"],
+                operator=row["operator"],
+                action="created",
+                status="active",
+            )
+
+        def flaky_resolve_by_ref(
+            ref: AccountReference | dict[str, Any], ctx: ResolveContext
+        ) -> Account | None:
+            operator = (
+                ref.get("operator") if isinstance(ref, dict) else getattr(ref, "operator", None)
+            )
+            if operator == "boom.example":
+                raise RuntimeError("simulated adopter failure")
+            return _resolve_by_ref(ref, ctx)
+
+        store = create_tenant_store(
+            resolve_by_ref=flaky_resolve_by_ref,
+            resolve_from_auth=_resolve_from_auth,
+            tenant_id=_account_tenant_id,
+            tenant_to_account=_tenant_to_account,
+            upsert_row=upsert_row,
+        )
+        rows = _run(
+            store.upsert(
+                [
+                    _ref("pinnacle.example"),
+                    _ref("boom.example"),
+                    _ref("pinnacle.example", "other.example"),
+                ],
+                _ctx("buyer@pinnacle"),
+            )
+        )
+        assert len(rows) == 3
+        assert rows[0].action == "created"
+        assert rows[1].action == "failed"
+        assert rows[1].errors is not None
+        assert rows[1].errors[0]["code"] == "PERMISSION_DENIED"
+        assert rows[2].action == "created"
+        # Two passing entries reached upsert_row; the raising one was
+        # filtered upstream — adopter exception detail did not leak.
+        assert len(writes) == 2
+
+    def test_tenant_id_raises_isolates_to_single_entry(self) -> None:
+        """``tenant_id(account)`` raising for one entry must not abort
+        the batch — same per-entry isolation as ``resolve_by_ref``."""
+        writes: list[dict[str, Any]] = []
+
+        def upsert_row(row: dict[str, Any], ctx: ResolveContext) -> SyncAccountsResultRow:
+            del ctx
+            writes.append(row)
+            return SyncAccountsResultRow(
+                brand=row["brand"],
+                operator=row["operator"],
+                action="created",
+                status="active",
+            )
+
+        def flaky_tenant_id(account: Account) -> str:
+            if account.id == "acc_meridian":
+                raise RuntimeError("simulated tenant lookup failure")
+            return _account_tenant_id(account)
+
+        store = create_tenant_store(
+            resolve_by_ref=_resolve_by_ref,
+            resolve_from_auth=_resolve_from_auth,
+            tenant_id=flaky_tenant_id,
+            tenant_to_account=_tenant_to_account,
+            upsert_row=upsert_row,
+        )
+        rows = _run(
+            store.upsert(
+                [_ref("pinnacle.example"), _ref("meridian.example")],
+                _ctx("buyer@pinnacle"),
+            )
+        )
+        assert len(rows) == 2
+        # In-tenant entry passes (and reaches adopter code).
+        assert rows[0].action == "created"
+        # Cross-tenant ref where tenant_id raised — surfaces as
+        # PERMISSION_DENIED (the raise is treated as "we cannot
+        # confirm the entry's tenant" → fail-closed deny).
+        assert rows[1].errors is not None
+        assert rows[1].errors[0]["code"] == "PERMISSION_DENIED"
+        assert len(writes) == 1
+
     def test_no_upsert_row_hook_is_noop(self) -> None:
         """Without an adopter upsert_row, authorized rows still
         receive a wire-shaped success result; the helper provides a
@@ -353,6 +507,24 @@ class TestList:
             tenant_to_account=_tenant_to_account,
         )
         accounts = _run(store.list(ctx=_ctx(None)))
+        assert accounts == []
+
+    def test_tenant_to_account_raises_returns_empty(self) -> None:
+        """``list`` MUST NOT raise on a per-spec valid request — an
+        adopter ``tenant_to_account`` exception must surface as ``[]``,
+        not propagate. Same outcome as auth-None (fail-closed quiet)."""
+
+        def raising_tenant_to_account(tenant_id: str) -> Account | None:
+            del tenant_id
+            raise RuntimeError("simulated DB outage")
+
+        store = create_tenant_store(
+            resolve_by_ref=_resolve_by_ref,
+            resolve_from_auth=_resolve_from_auth,
+            tenant_id=_account_tenant_id,
+            tenant_to_account=raising_tenant_to_account,
+        )
+        accounts = _run(store.list(ctx=_ctx("buyer@pinnacle")))
         assert accounts == []
 
 

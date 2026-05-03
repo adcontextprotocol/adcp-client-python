@@ -32,17 +32,25 @@ writes ``store.upsert = custom_handler`` after construction gets an
 :class:`AttributeError` instead of silently bypassing the gate. Adopters
 with genuine custom needs compose at the method level (wrap the returned
 store) or write a plain :class:`AccountStore` and own the gate.
+
+``_TenantStore`` is intentionally not exported from
+``adcp.decisioning.__init__``; only the :func:`create_tenant_store`
+factory is public. Class-level monkey-patching is possible in pure
+Python (no language-level final), but the leading-underscore +
+non-export keep it out of adopter code paths.
 """
 
 from __future__ import annotations
 
 import inspect
+import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any, Generic, cast
 
 from typing_extensions import TypeVar
 
 from adcp.decisioning.accounts import ResolveContext
+from adcp.decisioning.context import AuthInfo
 from adcp.decisioning.types import (
     Account,
     SyncAccountsResultRow,
@@ -52,6 +60,8 @@ from adcp.decisioning.types import (
 
 if TYPE_CHECKING:
     from adcp.types import AccountReference
+
+logger = logging.getLogger(__name__)
 
 # Alias for the builtin ``list`` so annotations on the
 # :meth:`_TenantStore.list` method (which shadows ``list`` inside the
@@ -244,9 +254,17 @@ class _TenantStore(Generic[TMeta]):
     async def resolve(
         self,
         ref: AccountReference | dict[str, Any] | None,
-        ctx: ResolveContext | None = None,
+        auth_info: AuthInfo | None = None,
     ) -> Account[TMeta] | None:
         """Resolve a wire reference to the tenant-scoped Account.
+
+        Signature matches the :class:`AccountStore` Protocol
+        (``resolve(ref, auth_info=None)``); the dispatcher calls this
+        as ``accounts.resolve(ref_dict, auth_info=auth_info)``. We
+        synthesize a :class:`ResolveContext` internally so the adopter's
+        ``resolve_by_ref`` callback continues to take ``(ref, ctx)`` —
+        that keeps the adopter API uniform with ``upsert_row`` /
+        ``sync_governance_row``.
 
         Two paths:
 
@@ -263,7 +281,7 @@ class _TenantStore(Generic[TMeta]):
         treats ``None`` as ``ACCOUNT_NOT_FOUND`` for tools that require
         an account.
         """
-        resolve_ctx = ctx if ctx is not None else ResolveContext()
+        resolve_ctx = ResolveContext(auth_info=auth_info, tool_name="resolve")
         auth_tid = await self._auth_tenant(resolve_ctx)
         if auth_tid is None:
             return None
@@ -274,10 +292,21 @@ class _TenantStore(Generic[TMeta]):
                 await _await_maybe(self._tenant_to_account(auth_tid)),
             )
 
-        account = cast(
-            "Account[TMeta] | None",
-            await _await_maybe(self._resolve_by_ref(ref, resolve_ctx)),
-        )
+        try:
+            account = cast(
+                "Account[TMeta] | None",
+                await _await_maybe(self._resolve_by_ref(ref, resolve_ctx)),
+            )
+        except Exception:
+            # Per-request consistency with the per-entry isolation in
+            # ``upsert`` / ``sync_governance``: log-and-deny rather
+            # than 500-ing the calling tool. Adopter exception details
+            # stay server-side (could carry stack/DB info).
+            logger.warning(
+                "tenant_store.resolve: resolve_by_ref raised; treating as ACCOUNT_NOT_FOUND",
+                exc_info=True,
+            )
+            return None
         if account is None:
             return None
         if self._tenant_id(account) != auth_tid:
@@ -313,7 +342,24 @@ class _TenantStore(Generic[TMeta]):
 
         rows: _BuiltinList[SyncAccountsResultRow] = []
         for ref in refs:
-            entry_account = await _await_maybe(self._resolve_by_ref(ref, resolve_ctx))
+            try:
+                entry_account = await _await_maybe(self._resolve_by_ref(ref, resolve_ctx))
+            except Exception:
+                # Per-entry isolation: one bad row must not poison the
+                # batch. Log server-side; emit PERMISSION_DENIED on the
+                # wire (don't leak adopter exception detail — could
+                # carry stack/DB info).
+                logger.warning(
+                    "tenant_store.upsert: resolve_by_ref raised for entry; "
+                    "rejecting with PERMISSION_DENIED",
+                    exc_info=True,
+                )
+                rows.append(
+                    _build_failed_sync_accounts_row(
+                        ref, "PERMISSION_DENIED", _permission_denied_message(ref)
+                    )
+                )
+                continue
             if entry_account is None:
                 rows.append(
                     _build_failed_sync_accounts_row(
@@ -321,7 +367,20 @@ class _TenantStore(Generic[TMeta]):
                     )
                 )
                 continue
-            entry_tid = self._tenant_id(entry_account)
+            try:
+                entry_tid = self._tenant_id(entry_account)
+            except Exception:
+                logger.warning(
+                    "tenant_store.upsert: tenant_id raised for entry; "
+                    "rejecting with PERMISSION_DENIED",
+                    exc_info=True,
+                )
+                rows.append(
+                    _build_failed_sync_accounts_row(
+                        ref, "PERMISSION_DENIED", _permission_denied_message(ref)
+                    )
+                )
+                continue
             if auth_tid is None or auth_tid != entry_tid:
                 rows.append(
                     _build_failed_sync_accounts_row(
@@ -356,7 +415,17 @@ class _TenantStore(Generic[TMeta]):
         auth_tid = await self._auth_tenant(resolve_ctx)
         if auth_tid is None:
             return []
-        account = await _await_maybe(self._tenant_to_account(auth_tid))
+        try:
+            account = await _await_maybe(self._tenant_to_account(auth_tid))
+        except Exception:
+            # ``list`` MUST NOT raise on a per-spec valid request
+            # (docstring contract). Fail-closed quiet — same outcome
+            # as auth-None: the caller sees an empty list.
+            logger.warning(
+                "tenant_store.list: tenant_to_account raised; returning []",
+                exc_info=True,
+            )
+            return []
         if account is None:
             return []
         return [account]
@@ -374,7 +443,22 @@ class _TenantStore(Generic[TMeta]):
 
         rows: _BuiltinList[SyncGovernanceResultRow] = []
         for entry in entries:
-            entry_account = await _await_maybe(self._resolve_by_ref(entry.account, resolve_ctx))
+            try:
+                entry_account = await _await_maybe(self._resolve_by_ref(entry.account, resolve_ctx))
+            except Exception:
+                logger.warning(
+                    "tenant_store.sync_governance: resolve_by_ref raised for entry; "
+                    "rejecting with PERMISSION_DENIED",
+                    exc_info=True,
+                )
+                rows.append(
+                    _build_failed_sync_governance_row(
+                        entry,
+                        "PERMISSION_DENIED",
+                        _permission_denied_message(entry.account),
+                    )
+                )
+                continue
             if entry_account is None:
                 rows.append(
                     _build_failed_sync_governance_row(
@@ -384,7 +468,22 @@ class _TenantStore(Generic[TMeta]):
                     )
                 )
                 continue
-            entry_tid = self._tenant_id(entry_account)
+            try:
+                entry_tid = self._tenant_id(entry_account)
+            except Exception:
+                logger.warning(
+                    "tenant_store.sync_governance: tenant_id raised for entry; "
+                    "rejecting with PERMISSION_DENIED",
+                    exc_info=True,
+                )
+                rows.append(
+                    _build_failed_sync_governance_row(
+                        entry,
+                        "PERMISSION_DENIED",
+                        _permission_denied_message(entry.account),
+                    )
+                )
+                continue
             if auth_tid is None or auth_tid != entry_tid:
                 rows.append(
                     _build_failed_sync_governance_row(
