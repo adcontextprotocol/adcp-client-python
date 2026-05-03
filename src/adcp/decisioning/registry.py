@@ -346,24 +346,27 @@ def validate_billing_for_agent(
     # close on import-load order).
     from adcp.decisioning.types import AdcpError
 
+    # The spec's billing-not-permitted-for-agent details schema forbids
+    # carrying the agent's full permitted-billing subset on the wire —
+    # `details` MUST NOT enumerate the permitted modes. The human
+    # message similarly drops the permitted set; the requested mode is
+    # the only safe-to-echo value.
     raise AdcpError(
         "INVALID_BILLING_MODEL",
         message=(
             f"Buyer agent '{agent.agent_url}' is not authorized for "
-            f"billing={requested_billing!r}; permitted modes are "
-            f"{sorted(agent.billing_capabilities)!r}. Common cause: "
-            "this agent has no payments relationship with the seller "
-            "(passthrough only) — accounts under this agent must be "
-            "operator-billed. Sellers extending the agent's billing "
-            "capabilities update the BuyerAgent.billing_capabilities "
-            "frozenset in their durable store."
+            f"billing={requested_billing!r}. Common cause: this agent "
+            "has no payments relationship with the seller (passthrough "
+            "only) — accounts under this agent must be operator-billed. "
+            "Sellers extending the agent's billing capabilities update "
+            "the BuyerAgent.billing_capabilities frozenset in their "
+            "durable store."
         ),
         field="billing",
         recovery="terminal",
         details={
             "agent_url": agent.agent_url,
             "requested_billing": requested_billing,
-            "permitted_billing": sorted(agent.billing_capabilities),
         },
     )
 

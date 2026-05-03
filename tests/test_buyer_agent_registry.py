@@ -298,7 +298,16 @@ def test_validate_billing_rejects_passthrough_only_with_agent_billing() -> None:
     details = exc.value.details
     assert details["agent_url"] == "https://passthrough/"
     assert details["requested_billing"] == "agent"
-    assert details["permitted_billing"] == ["operator"]
+    # Spec forbids leaking the permitted-billing subset on the wire
+    # (billing-not-permitted-for-agent details schema). The recognized
+    # caller already knows its own capabilities; structured echo would
+    # be redundant and is non-conformant.
+    assert "permitted_billing" not in details
+    # Human message must not enumerate the permitted set either —
+    # check no list-like rendering leaks (the message may still
+    # reference billing modes contextually, e.g. "operator-billed").
+    assert "['operator']" not in str(exc.value)
+    assert "permitted modes" not in str(exc.value)
 
 
 def test_validate_billing_rejects_advertiser_when_not_in_capabilities() -> None:
