@@ -357,21 +357,29 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             result = await session.execute(stmt)
             rows = result.scalars().all()
 
-        wire_buys = [
-            {
-                "media_buy_id": row.media_buy_id,
-                "status": row.status,
-                "currency": row.currency,
-                "total_budget": row.total_budget,
-                "packages": [],
-                "start_time": row.start_time,
-                "end_time": row.end_time,
-                "created_at": row.created_at,
-                "updated_at": row.updated_at,
-            }
-            for row in rows
-            if row.total_budget is not None and row.currency is not None
-        ]
+        wire_buys = []
+        for row in rows:
+            if row.total_budget is None or row.currency is None:
+                logger.warning(
+                    "Skipping media_buy_id=%s from get_media_buys: "
+                    "missing total_budget or currency. Enforce budget at "
+                    "create_media_buy time to avoid silent exclusion.",
+                    row.media_buy_id,
+                )
+                continue
+            wire_buys.append(
+                {
+                    "media_buy_id": row.media_buy_id,
+                    "status": row.status,
+                    "currency": row.currency,
+                    "total_budget": row.total_budget,
+                    "packages": [],
+                    "start_time": row.start_time,
+                    "end_time": row.end_time,
+                    "created_at": row.created_at,
+                    "updated_at": row.updated_at,
+                }
+            )
         return GetMediaBuysResponse(media_buys=wire_buys)
 
     # ----- provide_performance_feedback ------------------------------------
