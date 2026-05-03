@@ -241,3 +241,117 @@ class TestResolveValidationModes:
             ValidationHookConfig(requests="strict", responses="off")
         )
         assert (req, resp) == ("strict", "off")
+
+
+class TestOneOfNearMissHints:
+    """pricing_options regression class: 'type' submitted instead of 'pricing_model'."""
+
+    def _pricing_options_payload_with_wrong_key(self) -> dict:
+        return {
+            "products": [
+                {
+                    "product_id": "prod_1",
+                    "name": "Banner",
+                    "buying_mode": "programmatic",
+                    "pricing_options": [
+                        {
+                            "pricing_option_id": "po_1",
+                            "type": "cpm",  # wrong discriminator key
+                            "currency": "USD",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    def test_hint_present_on_oneof_failure(self) -> None:
+        outcome = validate_response("get_products", self._pricing_options_payload_with_wrong_key())
+        oneof_issues = [i for i in outcome.issues if i.keyword == "oneOf"]
+        assert oneof_issues, "expected at least one oneOf issue"
+        first = oneof_issues[0]
+        assert first.hint is not None, "expected a hint on oneOf failure"
+
+    def test_hint_names_closest_variant(self) -> None:
+        outcome = validate_response("get_products", self._pricing_options_payload_with_wrong_key())
+        oneof_issues = [i for i in outcome.issues if i.keyword == "oneOf"]
+        hint = oneof_issues[0].hint
+        assert hint is not None
+        # CPM variant is the closest match (pricing_option_id + currency present)
+        assert "cpm" in hint.lower() or "CPM" in hint
+
+    def test_hint_names_discriminator_field(self) -> None:
+        outcome = validate_response("get_products", self._pricing_options_payload_with_wrong_key())
+        oneof_issues = [i for i in outcome.issues if i.keyword == "oneOf"]
+        hint = oneof_issues[0].hint
+        assert hint is not None
+        assert "pricing_model" in hint
+
+    def test_hint_does_not_echo_user_supplied_value(self) -> None:
+        """The hint must never echo user-controlled content (values or key names)."""
+        secret = "Bearer sk-should-never-appear"
+        outcome = validate_response(
+            "get_products",
+            {
+                "products": [
+                    {
+                        "product_id": "prod_1",
+                        "name": "Banner",
+                        "buying_mode": "programmatic",
+                        "pricing_options": [
+                            {
+                                "pricing_option_id": "po_1",
+                                secret: "cpm",  # hostile key name
+                                "currency": "USD",
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+        for issue in outcome.issues:
+            if issue.hint:
+                assert secret not in issue.hint
+
+    def test_no_hint_on_non_oneof_failure(self) -> None:
+        outcome = validate_response("get_products", {"products": "not-an-array"})
+        for issue in outcome.issues:
+            assert issue.hint is None, f"unexpected hint on {issue.keyword!r} issue"
+
+    def test_hint_serialized_in_schema_validation_error_details(self) -> None:
+        from adcp.validation.schema_validator import validate_response as vr
+        from adcp.validation.schema_errors import build_adcp_validation_error_payload
+
+        outcome = vr("get_products", self._pricing_options_payload_with_wrong_key())
+        oneof_issues = [i for i in outcome.issues if i.keyword == "oneOf"]
+        assert oneof_issues
+        payload = build_adcp_validation_error_payload("get_products", "response", oneof_issues)
+        wire_issue = payload["details"]["issues"][0]
+        assert "hint" in wire_issue, "hint must appear in wire payload"
+        assert wire_issue["hint"] is not None
+
+    def test_hint_serialized_in_schema_validation_error_exception(self) -> None:
+        from adcp.validation.schema_errors import build_validation_error
+        from adcp.validation.schema_validator import validate_response as vr
+
+        outcome = vr("get_products", self._pricing_options_payload_with_wrong_key())
+        oneof_issues = [i for i in outcome.issues if i.keyword == "oneOf"]
+        assert oneof_issues
+        exc = build_validation_error("get_products", "response", oneof_issues)
+        wire_issue = exc.details["issues"][0]
+        assert "hint" in wire_issue
+
+    def test_hint_absent_from_wire_when_none(self) -> None:
+        """Issues without hints must not emit a 'hint': null key on the wire."""
+        from adcp.validation.schema_errors import build_adcp_validation_error_payload
+
+        issues = [
+            ValidationIssue(
+                pointer="/foo",
+                message="required",
+                keyword="required",
+                schema_path="#/required",
+            )
+        ]
+        payload = build_adcp_validation_error_payload("get_products", "request", issues)
+        wire_issue = payload["details"]["issues"][0]
+        assert "hint" not in wire_issue

@@ -48,12 +48,17 @@ class ValidationIssue:
         keyword: jsonschema keyword that rejected the payload
             (``required``, ``type``, ``enum``, etc.).
         schema_path: Path inside the schema that rejected the payload.
+        hint: Optional near-miss suggestion for oneOf/discriminated-union
+            failures. Contains only schema-declared strings (variant titles,
+            discriminator field names, const values) — never user-supplied
+            keys or values. Safe to return over the wire.
     """
 
     pointer: str
     message: str
     keyword: str
     schema_path: str
+    hint: str | None = None
 
 
 @dataclass(frozen=True)
@@ -98,18 +103,21 @@ class SchemaValidationError(Exception):
         self.side = side
         self.issues = issues
         self.code = "VALIDATION_ERROR"
+        def _issue_dict(i: ValidationIssue) -> dict[str, Any]:
+            d: dict[str, Any] = {
+                "pointer": i.pointer,
+                "message": i.message,
+                "keyword": i.keyword,
+                "schema_path": i.schema_path,
+            }
+            if i.hint is not None:
+                d["hint"] = i.hint
+            return d
+
         self.details = {
             "tool": tool,
             "side": side,
-            "issues": [
-                {
-                    "pointer": i.pointer,
-                    "message": i.message,
-                    "keyword": i.keyword,
-                    "schema_path": i.schema_path,
-                }
-                for i in issues
-            ],
+            "issues": [_issue_dict(i) for i in issues],
         }
         if message is None:
             first = issues[0] if issues else None
@@ -208,6 +216,71 @@ def _missing_required_key(err: Any) -> str | None:
     return None
 
 
+_MAX_ONEOF_BRANCHES = 20
+
+
+def _infer_oneof_hint(err: Any) -> str | None:
+    """Find the closest oneOf variant and return a schema-declared hint.
+
+    Scoring uses field presence in the instance (internal only) to pick the
+    branch with the most required fields already satisfied. Hint text is
+    built exclusively from schema-declared strings — never user-supplied keys
+    or values — so it is safe to surface on the wire and in LLM contexts.
+    """
+    branches = (err.schema or {}).get("oneOf")
+    if not branches:
+        return None
+
+    instance = err.instance if isinstance(err.instance, dict) else {}
+
+    best_branch: dict[str, Any] | None = None
+    best_score = -1
+
+    for branch in branches[:_MAX_ONEOF_BRANCHES]:
+        if not isinstance(branch, dict):
+            continue
+        required = branch.get("required", [])
+        if not isinstance(required, list):
+            continue
+        score = sum(1 for f in required if f in instance)
+        if score > best_score:
+            best_score = score
+            best_branch = branch
+
+    if best_branch is None:
+        return None
+
+    # Locate the discriminator: a *required* property whose schema has a 'const'.
+    # Restrict to required fields so a non-required property with a 'const'
+    # default annotation doesn't shadow the real discriminator.
+    # These are schema-declared strings only — safe for wire emission.
+    props = best_branch.get("properties", {})
+    required_set = set(best_branch.get("required", []))
+    discriminator_field: str | None = None
+    discriminator_value: str | None = None
+    for field_name, field_schema in props.items():
+        if field_name not in required_set:
+            continue
+        if not isinstance(field_schema, dict):
+            continue
+        const_val = field_schema.get("const")
+        if const_val is not None and isinstance(const_val, str):
+            discriminator_field = field_name
+            discriminator_value = const_val
+            break
+
+    title = best_branch.get("title") or discriminator_value or "a known variant"
+    if not isinstance(title, str):
+        title = str(title)
+
+    if discriminator_field is not None and discriminator_value is not None:
+        return (
+            f"Closest match: '{title}' variant. "
+            f"Field '{discriminator_field}' is required with value '{discriminator_value}'."
+        )
+    return f"Closest match: '{title}' variant."
+
+
 def _format_error(err: Any) -> ValidationIssue:
     """Turn a ``jsonschema.exceptions.ValidationError`` into a ``ValidationIssue``."""
     pointer = _path_to_pointer(list(err.absolute_path))
@@ -220,11 +293,14 @@ def _format_error(err: Any) -> ValidationIssue:
 
     schema_path = "#/" + "/".join(str(seg) for seg in err.absolute_schema_path)
 
+    hint = _infer_oneof_hint(err) if keyword == "oneOf" else None
+
     return ValidationIssue(
         pointer=pointer,
         message=_safe_message(err, keyword),
         keyword=keyword,
         schema_path=schema_path,
+        hint=hint,
     )
 
 

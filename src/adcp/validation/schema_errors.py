@@ -66,21 +66,24 @@ def build_adcp_validation_error_payload(
     else:
         message = f"{tool} {side} failed schema validation"
 
+    def _issue_dict(i: ValidationIssue) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            "pointer": i.pointer,
+            "message": i.message,
+            "keyword": i.keyword,
+            "schema_path": i.schema_path,
+        }
+        if i.hint is not None:
+            d["hint"] = i.hint
+        return d
+
     payload: dict[str, Any] = {
         "code": "VALIDATION_ERROR",
         "message": message,
         "details": {
             "tool": tool,
             "side": side,
-            "issues": [
-                {
-                    "pointer": i.pointer,
-                    "message": i.message,
-                    "keyword": i.keyword,
-                    "schema_path": i.schema_path,
-                }
-                for i in issues
-            ],
+            "issues": [_issue_dict(i) for i in issues],
         },
     }
     if first is not None and first.pointer:
