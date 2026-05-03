@@ -406,6 +406,19 @@ Example using ``contextvars`` (recommended — middleware-agnostic)::
     mcp = create_mcp_server(MyAgent(), context_factory=build_context)
 """
 
+ASGIMiddlewareEntry = tuple[Callable[..., Any], dict[str, Any]] | Callable[..., Any]
+"""A single ASGI middleware entry for :func:`serve`'s ``asgi_middleware`` param.
+
+Each entry is either:
+
+- A ``(callable, kwargs)`` tuple — invoked as ``callable(app, **kwargs)``.
+  Both plain class constructors and :func:`functools.partial` instances work
+  as the first element.
+- A bare callable factory ``f(app) -> app`` — invoked as ``factory(app)``.
+
+Both forms can be mixed in the same list.
+"""
+
 
 def serve(
     handler: ADCPHandler[Any] | Any,
@@ -420,7 +433,7 @@ def serve(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
@@ -745,7 +758,7 @@ def _prepend_debug_endpoint(
 
 def _apply_asgi_middleware(
     app: Any,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None,
 ) -> Any:
     """Wrap ``app`` with operator-supplied Starlette-style ASGI middleware.
 
@@ -975,7 +988,7 @@ def _serve_mcp(
     test_controller: TestControllerStore | None,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
@@ -1017,6 +1030,11 @@ def _serve_mcp(
         )
     else:
         # stdio — no listening socket, nothing to configure.
+        if asgi_middleware:
+            logger.warning(
+                "asgi_middleware is ignored on transport='stdio'; "
+                "ASGI middleware will not run"
+            )
         mcp.run(transport=transport)
 
 
@@ -1024,7 +1042,7 @@ def _run_mcp_http(
     mcp: Any,
     *,
     transport: str,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     max_request_size: int | None = None,
     discovery_name: str = "adcp-agent",
     discovery_base_url: str | None = None,
@@ -1103,7 +1121,7 @@ def _serve_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
