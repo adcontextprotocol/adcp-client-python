@@ -390,11 +390,13 @@ jobs:
 
       - name: Run storyboard suite
         timeout-minutes: 5
-        # @adcp/client@latest is intentionally unpinned — this is AdCP's own CI
+        # @adcp/sdk@latest is intentionally unpinned — this is AdCP's own CI
         # running AdCP's own canonical runner. Tracking latest surfaces protocol
         # drift as soon as it ships, which is the point of this job.
+        # (@adcp/client was renamed to @adcp/sdk at v6.0; the old name is
+        # deprecated and still resolves to 5.25.1.)
         run: |
-          npx -y -p @adcp/client@latest adcp storyboard run \
+          npx -y -p @adcp/sdk@latest adcp storyboard run \
             http://127.0.0.1:3001/mcp media_buy_seller \
             --json --allow-http \
             > storyboard-result.json
@@ -494,7 +496,10 @@ jobs:
 
       - name: Start JS mock-server upstream
         run: |
-          npx -y -p @adcp/client@latest \
+          # ``adcp mock-server <specialism>`` ships in @adcp/sdk 6.7.0+.
+          # Pin the floor so an unrelated SDK rebuild doesn't silently
+          # land us on a version where the subcommand is gone.
+          npx -y -p '@adcp/sdk@>=6.7.0' \
             adcp mock-server sales-guaranteed --port 4503 --api-key test-key &
           MOCK_PID=$!
           echo "MOCK_PID=$MOCK_PID" >> "$GITHUB_ENV"
@@ -577,7 +582,7 @@ jobs:
           # /etc/hosts override so the buyer can reach acme.localhost
           # (the seeded tenant subdomain).
           echo "127.0.0.1 acme.localhost" | sudo tee -a /etc/hosts
-          npx -y -p @adcp/client@latest adcp storyboard run \
+          npx -y -p @adcp/sdk@latest adcp storyboard run \
             http://acme.localhost:3001/mcp media_buy_seller \
             --json --allow-http \
             > v3-storyboard-result.json || true
