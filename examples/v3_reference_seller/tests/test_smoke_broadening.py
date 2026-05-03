@@ -616,7 +616,7 @@ async def test_provide_performance_feedback_posts_capi_conversion(
         {
             "idempotency_key": "k_" + "p" * 18,
             "media_buy_id": "ord_1",
-            "metric_type": "overall_performance",
+            "metric_type": "conversion_rate",
             "performance_index": 0.87,
             "measurement_period": {
                 "start": "2026-04-01T00:00:00Z",
@@ -628,8 +628,40 @@ async def test_provide_performance_feedback_posts_capi_conversion(
     assert route.called
     assert resp.success is True
     body = respx_mock.calls.last.request.read().decode("utf-8")
-    assert "overall_performance" in body
+    assert "conversion_rate" in body
     assert "0.87" in body
+
+
+@pytest.mark.asyncio
+async def test_provide_performance_feedback_rejects_non_conversion_rate_metric() -> None:
+    """The CAPI mapping only round-trips ``conversion_rate`` cleanly.
+    Other AdCP metric_types raise ``INVALID_REQUEST`` rather than
+    fabricating a synthetic event upstream. No upstream call is made
+    (respx not wired — any HTTP attempt would surface as a different
+    failure)."""
+    from adcp.decisioning import AdcpError
+    from adcp.types import ProvidePerformanceFeedbackRequest
+
+    with respx.mock(base_url="http://up.test") as respx_mock:
+        platform = _platform_with_upstream()
+        ctx = _build_ctx()
+        req = ProvidePerformanceFeedbackRequest.model_validate(
+            {
+                "idempotency_key": "k_" + "r" * 18,
+                "media_buy_id": "ord_1",
+                "metric_type": "overall_performance",
+                "performance_index": 0.87,
+                "measurement_period": {
+                    "start": "2026-04-01T00:00:00Z",
+                    "end": "2026-04-30T23:59:59Z",
+                },
+            }
+        )
+        with pytest.raises(AdcpError) as excinfo:
+            await platform.provide_performance_feedback(req, ctx)
+        assert excinfo.value.code == "INVALID_REQUEST"
+        assert excinfo.value.field == "metric_type"
+        assert respx_mock.calls.call_count == 0
 
 
 @pytest.mark.asyncio
@@ -651,7 +683,7 @@ async def test_provide_performance_feedback_404_translates_to_media_buy_not_foun
         {
             "idempotency_key": "k_" + "q" * 18,
             "media_buy_id": "ord_missing",
-            "metric_type": "overall_performance",
+            "metric_type": "conversion_rate",
             "performance_index": 0.5,
             "measurement_period": {
                 "start": "2026-04-01T00:00:00Z",
@@ -724,8 +756,9 @@ async def test_account_loader_rejects_account_missing_upstream_routing(
 ) -> None:
     """An account whose ``ext`` lacks ``network_code`` or
     ``advertiser_id`` is unusable for the translator pattern. The
-    AccountStore rejects with ``INTERNAL_ERROR`` rather than dispatching
-    to a method that would 500 on upstream call."""
+    AccountStore rejects with ``SERVICE_UNAVAILABLE`` (transient — the
+    fix is upstream onboarding) rather than dispatching to a method
+    that would 500 on upstream call."""
     import src.platform as platform_module
     from src.models import Account as AccountRow
     from src.platform import _make_account_store
@@ -759,4 +792,68 @@ async def test_account_loader_rejects_account_missing_upstream_routing(
     store = _make_account_store(sessionmaker)
     with pytest.raises(AdcpError) as excinfo:
         await store.resolve({"account_id": "bad-acct"})
-    assert excinfo.value.code == "INTERNAL_ERROR"
+    assert excinfo.value.code == "SERVICE_UNAVAILABLE"
+    assert excinfo.value.recovery == "transient"
+
+
+# ---------------------------------------------------------------------------
+# _translate_upstream — HTTP status → spec error code projection
+# ---------------------------------------------------------------------------
+
+
+def test_translate_upstream_400_projects_to_invalid_request() -> None:
+    """The mock returns 400 for malformed payloads; surface as terminal
+    ``INVALID_REQUEST`` (the canonical spec code) so buyers know to fix
+    the request rather than retry transiently."""
+    from src.platform import V3ReferenceSeller
+    from src.upstream import UpstreamError
+
+    err = V3ReferenceSeller._translate_upstream(
+        UpstreamError(400, {"code": "invalid_request", "message": "bad budget"}),
+        default_code="SERVICE_UNAVAILABLE",
+    )
+    assert err.code == "INVALID_REQUEST"
+    assert err.recovery == "terminal"
+    assert err.details["upstream_code"] == "invalid_request"
+    assert err.details["upstream_message"] == "bad budget"
+
+
+def test_translate_upstream_401_projects_to_auth_required() -> None:
+    """Upstream 401 surfaces as the canonical spec code ``AUTH_REQUIRED``."""
+    from src.platform import V3ReferenceSeller
+    from src.upstream import UpstreamError
+
+    err = V3ReferenceSeller._translate_upstream(
+        UpstreamError(401, {"message": "bad bearer"}),
+        default_code="SERVICE_UNAVAILABLE",
+    )
+    assert err.code == "AUTH_REQUIRED"
+    assert err.recovery == "terminal"
+
+
+def test_translate_upstream_500_projects_to_default_code_transient() -> None:
+    """Unknown upstream statuses fall through to the caller's
+    ``default_code`` with ``recovery='transient'`` — never the legacy
+    ``recovery='retry'`` string (which isn't in the AdCP enum)."""
+    from src.platform import V3ReferenceSeller
+    from src.upstream import UpstreamError
+
+    err = V3ReferenceSeller._translate_upstream(
+        UpstreamError(500, {"message": "boom"}),
+        default_code="SERVICE_UNAVAILABLE",
+    )
+    assert err.code == "SERVICE_UNAVAILABLE"
+    assert err.recovery == "transient"
+
+
+def test_translate_upstream_429_projects_to_rate_limited() -> None:
+    """Upstream 429 surfaces as the canonical spec code ``RATE_LIMITED``."""
+    from src.platform import V3ReferenceSeller
+    from src.upstream import UpstreamError
+
+    err = V3ReferenceSeller._translate_upstream(
+        UpstreamError(429, {"message": "slow down"}),
+        default_code="SERVICE_UNAVAILABLE",
+    )
+    assert err.code == "RATE_LIMITED"
+    assert err.recovery == "transient"

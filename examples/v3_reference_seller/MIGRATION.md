@@ -240,3 +240,80 @@ approves after ~2 seconds (so a single coroutine polling a few times
 is fine). Real human-in-the-loop trafficker review can take hours —
 use `handoff_to_workflow` for that, where your trafficker UI calls
 `registry.complete(task_id, result)` when the human signs off.
+
+## Spec error codes — what to use
+
+Adopters MUST emit only codes from the canonical
+[error-code enum](https://adcontextprotocol.org/schemas/v1/enums/error-code.json)
+on the wire. With strict response validation (the framework default),
+non-enum codes fail validation and never reach buyers.
+
+Two legacy SDK-internal codes used to leak through `AdcpError(...)`
+calls in older translator code:
+
+* `INTERNAL_ERROR` — **not in the spec enum**. The framework's
+  dispatcher uses it internally to wrap unhandled exceptions, but
+  platform code MUST NOT emit it directly. Replace with:
+
+  * `SERVICE_UNAVAILABLE` (`recovery='transient'`) for upstream
+    transient failures (5xx, network timeout, mock unreachable,
+    JSON decode errors) and for server-side onboarding issues the
+    buyer can't fix themselves (e.g. account is missing
+    `ext.network_code`).
+  * `INVALID_REQUEST` (`recovery='terminal'`) when the upstream
+    rejects the translated payload (400) — the buyer needs to fix
+    the request.
+
+* `AUTH_INVALID` — **not in the spec enum**. Replace with
+  `AUTH_REQUIRED` (`recovery='terminal'`) for missing or rejected
+  bearer / `X-Network-Code` credentials.
+
+The canonical codes the reference seller emits today:
+`AUTH_REQUIRED`, `INVALID_REQUEST`, `PERMISSION_DENIED`,
+`MEDIA_BUY_NOT_FOUND`, `CONFLICT`, `RATE_LIMITED`,
+`SERVICE_UNAVAILABLE`, `POLICY_VIOLATION`, `UNSUPPORTED_FEATURE`,
+`ACCOUNT_NOT_FOUND`. Anything outside the enum is a bug.
+
+The valid `recovery` values are `'retry_with_changes'`,
+`'correctable'` (legacy alias), `'transient'`, and `'terminal'`. The
+string `'retry'` is **not** valid and will fail type-checking.
+
+## CAPI semantic mismatch — perf feedback aggregates vs CAPI per-event ingest
+
+AdCP `provide_performance_feedback` carries an aggregate over a
+measurement window: `(media_buy_id, metric_type, value)` where
+`metric_type` is one of `overall_performance`, `conversion_rate`,
+`brand_lift`, `click_through_rate`, `completion_rate`, `viewability`,
+`brand_safety`, `cost_efficiency`. CAPI (Google's Conversion API, the
+GAM-flavored equivalent) ingests **per-event records**, not
+aggregates.
+
+The two shapes don't round-trip cleanly. The reference seller's
+mapping accepts `metric_type='conversion_rate'` only — that's the
+single AdCP metric whose semantics map even loosely onto CAPI
+(a measured rate that can be projected as a single dedup'd event).
+Other metric_types raise `INVALID_REQUEST` with a pointer to this
+section rather than fabricating a synthetic event.
+
+Adopters whose ad server has a richer feedback surface (Amazon's
+`ProvidePerformanceFeedback`, FreeWheel's pacing-feedback API, or
+in-house ML-feedback ingest) replace the projection with one that
+preserves the aggregate semantics.
+
+## What this seller doesn't yet support upstream
+
+The JS mock-server is a deliberately minimal upstream. Some methods
+on the `SalesPlatform` Protocol have no corresponding upstream
+endpoint and the reference seller raises `UNSUPPORTED_FEATURE`
+rather than fake the call:
+
+* **`update_media_buy`** — the mock has no order-update endpoint.
+  Real GAM has `LineItemService.performLineItemAction` (pause /
+  resume / archive) plus per-line-item budget / flight updates;
+  FreeWheel has `updateOrder` + `updatePlacement`. Wire your
+  upstream's update flow into `update_media_buy` and remove the
+  `UNSUPPORTED_FEATURE` shim.
+
+Buyers calling these methods get a structured `UNSUPPORTED_FEATURE`
+error with `recovery='terminal'`, so retries don't loop. Don't
+ship the shim in production — wire your real upstream.

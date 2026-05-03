@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -124,7 +125,7 @@ def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
         tenant = current_tenant()
         if tenant is None:
             raise AdcpError(
-                "AUTH_INVALID",
+                "AUTH_REQUIRED",
                 message=(
                     "AccountStore.resolve called without a tenant context. "
                     "Wire the SubdomainTenantMiddleware before serve()."
@@ -150,14 +151,19 @@ def _make_account_store(sessionmaker: async_sessionmaker) -> ExplicitAccounts:
         network_code = ext_payload.get("network_code")
         advertiser_id = ext_payload.get("advertiser_id")
         if not network_code or not advertiser_id:
+            # Server-side onboarding misconfig from the buyer's POV: the
+            # account exists but is unusable until ``ext`` is reseeded.
+            # SERVICE_UNAVAILABLE + ``recovery='transient'`` lets the
+            # buyer surface a "contact your seller" error and retry once
+            # onboarding fixes the row.
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message=(
                     f"Account {account_id!r} is missing upstream routing "
                     "(ext.network_code / ext.advertiser_id). Reseed the "
                     "account with translator-pattern routing."
                 ),
-                recovery="terminal",
+                recovery="transient",
             )
         return Account(
             id=row.id,
@@ -262,9 +268,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """
         if ctx.account is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated account.",
-                recovery="terminal",
+                recovery="transient",
             )
         network_code = ctx.account.metadata["network_code"]
         # Forward optional filtering hints to the upstream.
@@ -276,17 +282,31 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         try:
             payload = await self._upstream.list_products(network_code=network_code)
         except UpstreamError as exc:
-            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
         self._record("products.list", {"network_code": network_code})
         agent_url = "https://reference.adcp.org"
         products: list[Product] = []
         for upstream in payload.get("products", []):
             pricing = upstream.get("pricing", {})
+            pricing_model = pricing.get("model", "cpm")
+            # The seller's ``pricing_models`` capability declares ``cpm``
+            # only; skip upstream rows that price on any other model
+            # (e.g. ``cpv``) rather than projecting them onto a CPM
+            # pricing option and silently lying on the wire. Adopters
+            # whose upstream supports ``cpv`` add an explicit branch
+            # here that emits AdCP ``CpvPricingOption`` instead.
+            if pricing_model != "cpm":
+                logger.debug(
+                    "Skipping product %r — pricing model %r not in seller's capability set",
+                    upstream.get("product_id"),
+                    pricing_model,
+                )
+                continue
             currency = pricing.get("currency", "USD")
             cpm = pricing.get("cpm")
             min_spend = pricing.get("min_spend")
             pricing_option: dict[str, Any] = {
-                "pricing_option_id": f"{upstream['product_id']}-{pricing.get('model', 'cpm')}",
+                "pricing_option_id": f"{upstream['product_id']}-{pricing_model}",
                 "pricing_model": "cpm",
                 "currency": currency,
             }
@@ -360,9 +380,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """
         if ctx.buyer_agent is None or ctx.account is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated buyer_agent and account.",
-                recovery="terminal",
+                recovery="transient",
             )
         network_code = ctx.account.metadata["network_code"]
         advertiser_id = ctx.account.metadata["advertiser_id"]
@@ -385,7 +405,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 payload=order_payload,
             )
         except UpstreamError as exc:
-            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
         self._record(
             "media_buy.create",
             {
@@ -436,7 +456,12 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                             message="Upstream rejected the order.",
                             recovery="terminal",
                         )
-                await asyncio.sleep(self._approval_poll_interval_s)
+                # Jitter the poll interval so concurrent buys don't
+                # synchronize their upstream calls. Honoring an upstream
+                # ``Retry-After`` is a follow-up — it requires plumbing
+                # the response headers through ``UpstreamError``.
+                jitter = random.uniform(0.5, 1.5)
+                await asyncio.sleep(self._approval_poll_interval_s * jitter)
             # Re-fetch the order in approved state.
             approved_order = await self._upstream.get_order(
                 network_code=network_code, order_id=order_id
@@ -482,9 +507,14 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     async def update_media_buy(
         self, media_buy_id: str, patch: UpdateMediaBuyRequest, ctx: RequestContext
     ) -> UpdateMediaBuySuccessResponse:
-        """The mock upstream has no order-update endpoint. Real
-        adopters with a GAM-style upstream wire ``PATCH /v1/orders/{id}``
-        or per-line-item updates here.
+        """The mock upstream has no order-update endpoint.
+
+        Real GAM-fronting adopters wire this to
+        ``LineItemService.performLineItemAction`` (pause / resume /
+        archive) and to per-line-item budget / flight updates. The
+        mock has neither, so the buyer-facing posture is
+        ``UNSUPPORTED_FEATURE`` (terminal). See MIGRATION.md →
+        "What this seller doesn't yet support upstream".
         """
         del media_buy_id, patch, ctx
         raise AdcpError(
@@ -493,7 +523,8 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 "update_media_buy is not implemented against the JS "
                 "mock-server upstream — the mock has no order-update "
                 "endpoint. Adopters with a real upstream wire their "
-                "PATCH /orders / line-item update flow here."
+                "PATCH /orders / line-item update flow here (e.g. GAM's "
+                "LineItemService.performLineItemAction)."
             ),
             recovery="terminal",
         )
@@ -511,9 +542,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """
         if ctx.account is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated account.",
-                recovery="terminal",
+                recovery="transient",
             )
         network_code = ctx.account.metadata["network_code"]
         advertiser_id = ctx.account.metadata["advertiser_id"]
@@ -537,7 +568,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             try:
                 await self._upstream.upload_creative(network_code=network_code, payload=payload)
             except UpstreamError as exc:
-                raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+                raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
             results.append(
                 SyncCreativeResult.model_validate(
                     {
@@ -566,9 +597,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """
         if ctx.account is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated account.",
-                recovery="terminal",
+                recovery="transient",
             )
         network_code = ctx.account.metadata["network_code"]
         media_buy_ids: list[str] = list(getattr(req, "media_buy_ids", None) or [])
@@ -586,7 +617,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             except UpstreamError as exc:
                 if exc.status_code == 404:
                     continue
-                raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+                raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
             totals = upstream.get("totals", {})
             report_currency = upstream.get("currency", report_currency)
             if report_period is None and upstream.get("reporting_period"):
@@ -638,9 +669,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """
         if ctx.account is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated account.",
-                recovery="terminal",
+                recovery="transient",
             )
         network_code = ctx.account.metadata["network_code"]
         advertiser_id = ctx.account.metadata["advertiser_id"]
@@ -652,7 +683,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         try:
             payload = await self._upstream.list_orders(network_code=network_code)
         except UpstreamError as exc:
-            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
         # Filter to this advertiser_id (the upstream is per-network,
         # but a single network can host multiple advertisers under the
         # same network_code — our AdCP account maps to one of them).
@@ -693,24 +724,40 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """``POST /v1/orders/{id}/conversions`` (CAPI).
 
         CAPI is the GAM-flavored equivalent of buyer-supplied
-        performance feedback. We project the spec's
-        :class:`MetricType` onto a single conversion event:
-        ``event_name = metric_type``, ``value = performance_index``.
-        Adopters whose upstream supports richer feedback shapes
-        replace this projection.
+        performance feedback, but the shapes don't line up cleanly:
+        AdCP perf feedback is an aggregate ``(media_buy_id,
+        metric_type, value)`` over a measurement window; CAPI ingests
+        per-event records. The only AdCP metric whose semantics map
+        even loosely is ``conversion_rate`` (a measured rate that we
+        project as a single dedup'd CAPI event). For every other
+        AdCP metric_type we raise ``INVALID_REQUEST`` rather than
+        fabricate a synthetic event upstream. See MIGRATION.md →
+        "CAPI semantic mismatch".
         """
         if ctx.account is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated account.",
-                recovery="terminal",
+                recovery="transient",
             )
         network_code = ctx.account.metadata["network_code"]
         metric_type = (
             (req.metric_type.value if hasattr(req.metric_type, "value") else str(req.metric_type))
             if req.metric_type is not None
-            else "overall_performance"
+            else None
         )
+        if metric_type != "conversion_rate":
+            raise AdcpError(
+                "INVALID_REQUEST",
+                message=(
+                    f"This seller only ingests metric_type='conversion_rate' via CAPI; "
+                    f"got {metric_type!r}. AdCP aggregate metrics don't round-trip to "
+                    "CAPI's per-event ingest — see MIGRATION.md "
+                    "(CAPI semantic mismatch)."
+                ),
+                recovery="terminal",
+                field="metric_type",
+            )
         # Use measurement_period.end (or now) as the event_time.
         period = getattr(req, "measurement_period", None)
         period_end = getattr(period, "end", None) if period is not None else None
@@ -748,7 +795,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                     recovery="terminal",
                     field="media_buy_id",
                 ) from exc
-            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
         self._record(
             "performance.feedback",
             {"media_buy_id": req.media_buy_id, "metric_type": metric_type},
@@ -804,9 +851,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """
         if ctx.account is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated account.",
-                recovery="terminal",
+                recovery="transient",
             )
         network_code = ctx.account.metadata["network_code"]
         advertiser_id = ctx.account.metadata["advertiser_id"]
@@ -819,7 +866,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         try:
             payload = await self._upstream.list_creatives(network_code=network_code)
         except UpstreamError as exc:
-            raise self._translate_upstream(exc, default_code="INTERNAL_ERROR") from exc
+            raise self._translate_upstream(exc, default_code="SERVICE_UNAVAILABLE") from exc
         upstream_creatives = [
             c for c in payload.get("creatives", []) if c.get("advertiser_id") == advertiser_id
         ]
@@ -863,14 +910,14 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """
         if ctx.buyer_agent is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated buyer_agent.",
-                recovery="terminal",
+                recovery="transient",
             )
         tenant = current_tenant()
         if tenant is None:
             raise AdcpError(
-                "AUTH_INVALID",
+                "AUTH_REQUIRED",
                 message="sync_accounts requires a tenant context.",
                 recovery="terminal",
             )
@@ -885,11 +932,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             buyer_agent_row = ba_q.scalar_one_or_none()
             if buyer_agent_row is None:
                 raise AdcpError(
-                    "INTERNAL_ERROR",
+                    "SERVICE_UNAVAILABLE",
                     message=(
                         "Authenticated buyer_agent has no matching row — registry / table drift."
                     ),
-                    recovery="terminal",
+                    recovery="transient",
                 )
             for incoming in req.accounts:
                 brand_domain = incoming.brand.domain
@@ -968,14 +1015,14 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         """
         if ctx.buyer_agent is None:
             raise AdcpError(
-                "INTERNAL_ERROR",
+                "SERVICE_UNAVAILABLE",
                 message="Dispatch should have populated buyer_agent.",
-                recovery="terminal",
+                recovery="transient",
             )
         tenant = current_tenant()
         if tenant is None:
             raise AdcpError(
-                "AUTH_INVALID",
+                "AUTH_REQUIRED",
                 message="list_accounts requires a tenant context.",
                 recovery="terminal",
             )
@@ -1043,38 +1090,57 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
     def _translate_upstream(exc: UpstreamError, default_code: str) -> AdcpError:
         """Project an upstream error onto an AdCP wire error.
 
-        Maps common HTTP statuses to spec-conformant codes; unknown
-        statuses fall through to ``default_code`` so the dispatcher
-        gets a structured error envelope rather than a 500.
+        Maps common HTTP statuses to spec-conformant codes from the
+        canonical ``ErrorCode`` enum; unknown statuses fall through to
+        ``default_code`` (typically ``SERVICE_UNAVAILABLE``) so the
+        dispatcher gets a structured error envelope rather than a 500.
         """
+        upstream_code = exc.payload.get("code")
+        upstream_message = exc.payload.get("message", "")
+        if exc.status_code == 400:
+            # The mock returns 400 ``invalid_request`` for malformed
+            # payloads — surface as terminal ``INVALID_REQUEST`` so
+            # buyers know to fix the request rather than retry.
+            return AdcpError(
+                "INVALID_REQUEST",
+                message=f"Upstream rejected the translated payload: {upstream_message}",
+                recovery="terminal",
+                details={"upstream_code": upstream_code, "upstream_message": upstream_message},
+            )
         if exc.status_code == 401:
             return AdcpError(
-                "AUTH_INVALID",
-                message=f"Upstream rejected credentials: {exc.payload.get('message', '')}",
+                "AUTH_REQUIRED",
+                message=f"Upstream rejected credentials: {upstream_message}",
                 recovery="terminal",
             )
         if exc.status_code == 403:
             return AdcpError(
                 "PERMISSION_DENIED",
-                message=f"Upstream forbade request: {exc.payload.get('message', '')}",
+                message=f"Upstream forbade request: {upstream_message}",
                 recovery="terminal",
             )
         if exc.status_code == 404:
             return AdcpError(
                 "MEDIA_BUY_NOT_FOUND",
-                message=f"Upstream resource not found: {exc.payload.get('message', '')}",
+                message=f"Upstream resource not found: {upstream_message}",
                 recovery="terminal",
             )
         if exc.status_code == 409:
             return AdcpError(
                 "CONFLICT",
-                message=f"Upstream conflict: {exc.payload.get('message', '')}",
+                message=f"Upstream conflict: {upstream_message}",
                 recovery="terminal",
+            )
+        if exc.status_code == 429:
+            return AdcpError(
+                "RATE_LIMITED",
+                message=f"Upstream rate-limited: {upstream_message}",
+                recovery="transient",
             )
         return AdcpError(
             default_code,
-            message=f"Upstream error {exc.status_code}: {exc.payload.get('message', '')}",
-            recovery="retry",
+            message=f"Upstream error {exc.status_code}: {upstream_message}",
+            recovery="transient",
         )
 
 
@@ -1089,7 +1155,10 @@ def _project_creative_status(upstream_status: str) -> str:
     if upstream_status == "archived":
         return "archived"
     if upstream_status == "paused":
-        return "approved"
+        # ``paused`` upstream means an operator has held the creative
+        # back from serving — surface as ``pending_review`` so the
+        # buyer knows it's not currently approved-and-eligible.
+        return "pending_review"
     return "approved"
 
 
