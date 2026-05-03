@@ -292,8 +292,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 row.status = "paused"
             elif patch.paused is False and row.status == "paused":
                 row.status = "active"
-            if patch.invoice_recipient is not None:
-                row.invoice_recipient = patch.invoice_recipient.model_dump(mode="json")
+            if "invoice_recipient" in patch.model_fields_set:
+                # Allow explicit null to clear an existing override.
+                row.invoice_recipient = (
+                    patch.invoice_recipient.model_dump(mode="json")
+                    if patch.invoice_recipient is not None
+                    else None
+                )
             row.updated_at = datetime.now(timezone.utc)
         ir_response = _project_invoice_recipient(row.invoice_recipient)
         return UpdateMediaBuySuccessResponse(
@@ -331,34 +336,40 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             if status_filter is None:
                 stmt = stmt.where(MediaBuyRow.status == "active")
             elif hasattr(status_filter, "root"):
-                # StatusFilter RootModel wrapping a list
-                stmt = stmt.where(MediaBuyRow.status.in_(list(status_filter.root)))
+                # StatusFilter is a RootModel wrapping list[MediaBuyStatus].
+                stmt = stmt.where(
+                    MediaBuyRow.status.in_([s.value for s in status_filter.root])
+                )
             else:
-                stmt = stmt.where(MediaBuyRow.status == str(status_filter))
+                # Single MediaBuyStatus enum value — use .value to get "paused" not repr.
+                stmt = stmt.where(MediaBuyRow.status == status_filter.value)
         async with self._sessionmaker() as session:
             result = await session.execute(stmt)
             rows = list(result.scalars())
 
-        from adcp.types.generated_poc.media_buy.get_media_buys_response import (
-            MediaBuy as MediaBuyItem,
-        )
-
-        items = []
+        # Build items as plain dicts so GetMediaBuysResponse.model_validate handles
+        # inner type construction — avoids importing generated_poc classes directly.
+        items: list[dict[str, Any]] = []
         for row in rows:
+            if row.currency is None or row.total_budget is None:
+                # Skip rows where required response fields were not captured at
+                # create time. Adopters who always supply total_budget will never
+                # hit this; reference seller stores NULL when buyer omits it.
+                continue
             ir = _project_invoice_recipient(row.invoice_recipient)
-            items.append(
-                MediaBuyItem(
-                    media_buy_id=row.media_buy_id,
-                    status=row.status,  # type: ignore[arg-type]
-                    currency=row.currency or "USD",
-                    total_budget=row.total_budget or 0.0,
-                    packages=[],
-                    invoice_recipient=ir,
-                    created_at=row.created_at,
-                    updated_at=row.updated_at,
-                )
-            )
-        return GetMediaBuysResponse(media_buys=items)
+            item: dict[str, Any] = {
+                "media_buy_id": row.media_buy_id,
+                "status": row.status,
+                "currency": row.currency,
+                "total_budget": row.total_budget,
+                "packages": [],
+                "created_at": row.created_at,
+                "updated_at": row.updated_at,
+            }
+            if ir is not None:
+                item["invoice_recipient"] = ir.model_dump(mode="json")
+            items.append(item)
+        return GetMediaBuysResponse.model_validate({"media_buys": items})
 
     # ----- sync_creatives --------------------------------------------------
 
