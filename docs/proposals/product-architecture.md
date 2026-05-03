@@ -111,6 +111,29 @@ This layer is settled. No new framework concerns here.
 The opaque-to-buyer JSON blob that threads from product setup through
 proposal → product → media_buy → package → adapter at request time.
 
+**The recipe is never on the wire.** It is not part of any AdCP
+request or response visible to the buyer. The framework manages its
+lifecycle:
+
+1. **Negotiation**: while buyer and seller iterate
+   (`get_products` → `refine` → `finalize`), the recipe lives in the
+   framework's session cache against the proposal_id.
+2. **Acceptance**: when a proposal is finalized (see § Proposal
+   lifecycle below), the framework persists the recipe alongside the
+   committed proposal.
+3. **Execution**: at `create_media_buy`, the framework hydrates the
+   recipe from the persisted proposal and threads it to the
+   DecisioningPlatform — purely backend-internal.
+4. **Lifecycle**: the recipe persists for the duration of the media
+   buy. Subsequent `update_media_buy` / `get_delivery` /
+   `pause_media_buy` calls hydrate the same recipe; the framework
+   guarantees the adapter sees a stable view of the assembled config
+   throughout the buy's life.
+
+This is critical to internalize: adopters do NOT store recipes
+themselves. The SDK is the system of record. Adopter code reads
+recipes from `ctx`; never writes them, never persists them.
+
 Brian's framing: *"there's just some blob of json — which ideally is
 typed per adapter — that then the adapter can use to set targeting."*
 
@@ -442,19 +465,23 @@ class ProposalCapabilities:
     multi_decisioning: bool = False       # emits >1 recipe_kind
 ```
 
-Two recognized flavors, naming matches the spec specialisms:
+**Don't lock the formal taxonomy yet.** The two extremes that fit
+today:
 
-* **Guaranteed-mode proposal manager** — sophisticated assembly. Reads
-  rate cards, reserves availability, supports refine, may assemble
-  dynamic products from signals. The Prebid salesagent shape.
-* **Non-guaranteed-mode proposal manager** — simple product
-  enumeration. Returns products from a catalog with stub recipes;
-  adapter does the upstream work. The naive on-ramp shape.
+* **Simple catalog** — ProposalManager enumerates products from a
+  fixed catalog with stub recipes; adapter does the upstream work.
+  This is what the mock seller backend already does, and what the
+  v1 `MockProposalManager` forwarder gives adopters for free.
+* **Complex proposal** — sophisticated assembly. Reads rate cards,
+  reserves availability via `finalize`, supports refine multi-turn,
+  may assemble dynamic products from signals. The Prebid salesagent
+  shape.
 
-Adopters declare which they implement via `sales_specialism`. The
-SDK's v1 reference impl is `MockProposalManager` (forwards to
-`bin/adcp.js mock-server`); adopters opting into guaranteed proposal
-flow implement their own ProposalManager.
+Useful variants will emerge between these poles as adopters land:
+catalog-with-rate-cards, proposal-without-availability-reservation,
+etc. The SDK shouldn't pre-enumerate. `sales_specialism` plus the
+capability flags above let adopters declare their actual shape;
+naming the variants is future-state work.
 
 (Other AdCP specialisms — creative, signals, governance — don't have
 a proposal-shaped lifecycle; they don't need a ProposalManager.)
@@ -462,7 +489,8 @@ a proposal-shaped lifecycle; they don't need a ProposalManager.)
 ### What `DecisioningPlatform` keeps
 
 Mostly unchanged from today. The methods that consume the recipe gain
-a typed parameter:
+a typed parameter, and the framework does **upstream proposal
+hydration + capability validation** before adapter code runs:
 
 ```python
 class DecisioningPlatform(...):
@@ -472,21 +500,67 @@ class DecisioningPlatform(...):
     recipe_type: ClassVar[type[Recipe] | None] = None  # NEW
 
     async def create_media_buy(self, req, ctx) -> CreateMediaBuySuccess:
-        # Per package: framework has already looked up the recipe by
-        # package.product_id and validated it against self.recipe_type.
+        # Framework has already:
+        #   1. Hydrated the proposal (or product, if no proposal_id)
+        #      from the session cache / persisted store
+        #   2. Validated the buyer's request against the proposal's
+        #      capability_overlap — buyer can't ask for geo-metro
+        #      targeting if the seller didn't enable it on this
+        #      product, etc. Rejects upstream of adapter code.
+        #   3. Looked up + typed the recipe per package
         # Adapter consumes the typed recipe directly:
         for package in req.packages:
             recipe: GAMRecipe = ctx.recipes[package.product_id]
             # adapter executes against upstream using recipe.line_item_template_id, etc.
 ```
 
+#### Buyer references: proposal_id OR product_id
+
+The buyer's `create_media_buy_request` may reference packages by
+either:
+
+* **`proposal_id`** — points at a finalized proposal (typical for
+  guaranteed-mode flows, where `finalize` produced a committed
+  proposal with locked pricing + inventory hold). Framework hydrates
+  the full proposal from the persisted store; recipes flow from
+  there.
+* **`product_id`** alone — direct buy without a proposal lifecycle
+  (typical for non-guaranteed / simple-catalog flows). Framework
+  looks up the product's recipe by id; no proposal indirection.
+
+Both paths land in the same place: `ctx.recipes` populated, framework
+has already validated capability overlap. Adapter doesn't need to
+know which path the buyer used.
+
+#### Capability-overlap validation (the seam Layer 3 names)
+
+This is the high-leverage seam. Today every adopter writes the same
+intersection logic: *"the buyer asked for geo-metro targeting; does
+this product expose that capability?"* The framework should own this.
+
+When the framework hydrates the proposal/product, it reads the
+recipe's `capability_overlap` declaration and validates the buyer's
+request against it before calling the adapter. Buyers asking for
+capabilities the product doesn't expose get a structured
+`UNSUPPORTED_FEATURE` (or `INVALID_REQUEST`) with the offending
+field — without adapter code participating.
+
+This means:
+- Adopters declare capability overlap once on the recipe
+- Framework validates per request
+- Adapter code stays focused on upstream translation; never writes
+  capability gating
+
 Framework responsibilities at the seam:
 
-* Look up `recipe = product.implementation_config` by `product_id`
-* Validate against `recipe_type`
-* Inject into `ctx.recipes` for adapter consumption
-* If `recipe_type` is None, treat the recipe as opaque
-  `dict[str, Any]` (back-compat for adopters who haven't migrated)
+* Hydrate proposal (by proposal_id) or product (by product_id) from
+  the session cache or persisted store
+* Read the recipe's `capability_overlap` declaration
+* Validate the buyer's request against it; reject upstream of adapter
+* Type-check the recipe against `recipe_type` (if declared)
+* Inject `ctx.recipes` keyed by package
+* If `recipe_type` is None, treat recipes as opaque `dict[str, Any]`
+  (back-compat for adopters who haven't migrated)
 
 ## The proposal workflow
 
@@ -536,17 +610,63 @@ framework primitives — `RateCardStore`, `AvailabilityStore`,
 `InventoryStore`, etc. — which Layer 4 of the model names but does
 not yet design.
 
-### What about `accept_proposal`?
+### Proposal lifecycle: `finalize` is the acceptance handshake
 
-Open question. AdCP wire today has `get_products` (with refine) and
-`create_media_buy`. There's no explicit "accept proposal" handshake;
-the buyer's `create_media_buy` referencing the proposal's product
-IDs implicitly accepts.
+The spec has the proposal lifecycle. I missed it in the first draft;
+correcting here.
 
-A future SDK primitive could surface proposal acceptance as its own
-state transition (lock pricing, reserve availability, etc.) — but
-that requires a wire-level proposal lifecycle which the spec doesn't
-have today. **Out of scope for this doc.**
+The `refine` array in `get_products_request` lets each entry declare
+an `action`: `'include'` (default), `'omit'`, or `'finalize'`. Per
+the schema:
+
+> `'finalize'`: request firm pricing and inventory hold —
+> transitions a draft proposal to committed with an
+> `expires_at` hold window. May trigger seller-side approval (HITL).
+
+So the wire-level lifecycle is:
+
+```
+1. buyer: get_products(buying_mode='brief', brief)
+2. seller: returns draft proposals with assembled products + recipes
+           (recipes stay in framework session cache, never on wire)
+3. buyer: get_products(buying_mode='refine', refine=[...])
+   — iterate; seller narrows; recipes update in cache
+4. buyer: get_products(buying_mode='refine',
+                       refine=[{action='finalize', proposal_id=X}])
+   — request firm pricing + inventory hold
+5. seller: returns committed proposal with locked pricing,
+           expires_at, optionally HITL-pending status
+   — recipe persists alongside the committed proposal
+6. buyer: create_media_buy(proposal_id=X) before expires_at
+   — framework hydrates the persisted recipe; adapter executes
+```
+
+What the SDK provides at this seam:
+
+* **Session cache for in-flight proposals.** Recipes for draft
+  proposals live in framework state keyed by proposal_id.
+* **`finalize` transition handling.** Locks pricing, sets expires_at,
+  routes to the ProposalManager's finalize handler if HITL approval
+  is required, persists the committed proposal + recipe.
+* **`expires_at` enforcement.** create_media_buy after the hold
+  window expired returns a structured error; framework handles this
+  without adapter participation.
+* **Recipe persistence through the buy lifecycle.** Once accepted,
+  the recipe persists. update_media_buy / get_delivery / pause /
+  cancel all hydrate the same recipe from storage.
+
+What's still framework-level open work:
+
+* The finalize handler shape on `ProposalManager` (sync vs HITL-async
+  flavor)
+* Whether the persistent proposal store is a separate primitive or
+  fits inside `TaskRegistry`
+* How HITL approval state propagates back to the buyer
+  (likely the existing `TaskHandoff` mechanism)
+
+These are implementation issues, not architecture decisions. The
+shape of the wire-level lifecycle is settled; the SDK needs to wire
+it.
 
 ## Concrete examples — publisher-side and social-side
 
