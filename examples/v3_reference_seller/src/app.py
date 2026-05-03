@@ -37,12 +37,13 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from adcp.decisioning import serve
+from adcp.decisioning import InMemoryMockAdServer, serve
 from adcp.server import (
     SubdomainTenantMiddleware,
     ToolContext,
     current_tenant,
 )
+from adcp.validation import ValidationHookConfig
 
 from .audit import make_sink as make_audit_sink
 from .buyer_registry import make_registry as make_buyer_registry
@@ -107,7 +108,16 @@ def main() -> None:
     router = SqlSubdomainTenantRouter(sessionmaker=sessionmaker)
     buyer_registry = make_buyer_registry(sessionmaker)
     audit_sink = make_audit_sink(sessionmaker)
-    platform = V3ReferenceSeller(sessionmaker=sessionmaker)
+    # Anti-façade traffic recorder. The reference seller is a dev /
+    # storyboard target, so we wire the in-memory recorder and flip
+    # ``enable_debug_endpoints=True`` below to expose
+    # ``GET /_debug/traffic``. Production adopters omit both kwargs;
+    # the endpoint stays closed and the recorder is a no-op.
+    mock_ad_server = InMemoryMockAdServer()
+    platform = V3ReferenceSeller(
+        sessionmaker=sessionmaker,
+        mock_ad_server=mock_ad_server,
+    )
 
     logger.info(
         "v3 reference seller booting on port=%d (transport=both, MCP at /mcp, A2A at /)",
@@ -132,6 +142,23 @@ def main() -> None:
         asgi_middleware=[
             (SubdomainTenantMiddleware, {"router": router}),
         ],
+        # Schema-driven validation in strict mode on both sides:
+        # the dispatcher validates every request against the bundled
+        # AdCP JSON schemas before the platform method runs, and
+        # validates every response after it returns. Bugs like the
+        # ``pricing_options`` shape regression that shipped in the
+        # initial v3 ref seller are caught at boot / first call
+        # rather than during a buyer's storyboard run. Adopters
+        # forking this entrypoint inherit the strict default — drop
+        # to ``responses="warn"`` only when you have a deliberate
+        # reason to ship spec-divergent responses.
+        validation=ValidationHookConfig(requests="strict", responses="strict"),
+        # Wire the anti-façade traffic counters. Storyboard runners
+        # poll ``GET /_debug/traffic`` to assert the platform actually
+        # called its upstream ad server. Reference seller stays open
+        # for runners; production sellers leave both kwargs unset.
+        mock_ad_server=mock_ad_server,
+        enable_debug_endpoints=True,
     )
 
 

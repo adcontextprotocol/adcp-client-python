@@ -59,6 +59,17 @@ class DecisioningCapabilities:
         ship. The flag itself is the contract that lands now; the
         enforcement lands in Stage 3. See
         ``docs/proposals/decisioning-platform-dispatch-design.md#d15``.
+    :param supported_billing: Billing parties this seller invoices —
+        any subset of ``{"operator", "agent", "advertiser"}``. Required
+        on the wire whenever the seller claims ``media_buy`` (per
+        ``protocol/get-adcp-capabilities-response.json`` —
+        ``account.supported_billing`` ``minItems: 1``). Surfaced on
+        the auto-projected ``get_adcp_capabilities`` response under
+        ``account.supported_billing``. ``operator`` = seller invoices
+        the operator (agency / brand buying direct); ``agent`` = agent
+        consolidates billing across brands; ``advertiser`` = seller
+        invoices the advertiser directly. Buyers MUST pass one of
+        these in ``sync_accounts``.
     """
 
     specialisms: list[str] = field(default_factory=list)
@@ -67,6 +78,7 @@ class DecisioningCapabilities:
     creative_agents: list[Any] = field(default_factory=list)
     config: dict[str, Any] = field(default_factory=dict)
     governance_aware: bool = False
+    supported_billing: list[str] = field(default_factory=list)
 
 
 #: Specialisms that depend on framework-supplied

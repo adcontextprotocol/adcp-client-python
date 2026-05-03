@@ -377,10 +377,13 @@ class ADCPClient:
                 JSON schemas. Defaults (matching the TS port): requests
                 in ``warn`` mode (drift logged but not blocked — partial
                 payloads in error-path tests still work) and responses
-                in ``strict`` mode (agent drift fails the task). The
-                response mode flips to ``warn`` when any of ``ADCP_ENV``
-                / ``PYTHON_ENV`` / ``ENV`` / ``ENVIRONMENT`` is set to
-                ``production`` / ``prod``. Storyboards and compliance
+                in ``strict`` mode (agent drift fails the task).
+                ``ADCP_VALIDATION_MODE=strict|warn|off`` overrides both
+                sides at call time (matches the TS port); ``ADCP_ENV``
+                set to ``production`` / ``prod`` flips only the response
+                default to ``warn``. Generic ``ENV`` / ``ENVIRONMENT`` /
+                ``PYTHON_ENV`` are deliberately ignored — they collide
+                with unrelated tooling. Storyboards and compliance
                 runners that want hard-stop enforcement everywhere pass
                 ``validation=ValidationHookConfig(requests="strict",
                 responses="strict")``; high-throughput callers can set

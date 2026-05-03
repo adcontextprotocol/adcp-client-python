@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 
     from adcp.server.a2a_server import MessageParser
     from adcp.server.test_controller import TestControllerStore
+    from adcp.validation.client_hooks import ValidationHookConfig
 
 
 @dataclass(frozen=True)
@@ -412,6 +413,9 @@ def serve(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
+    enable_debug_endpoints: bool = False,
+    debug_traffic_source: Callable[[], dict[str, int]] | None = None,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -509,6 +513,28 @@ def serve(
             (MCP transports only). Note: the legacy ``transport="sse"``
             is a separate (deprecated) MCP transport, unrelated to this
             flag.
+        enable_debug_endpoints: When ``True``, mount ``GET /_debug/traffic``
+            on the outer HTTP app. Returns the JSON dict from
+            ``debug_traffic_source()`` — typically wired to the
+            seller's :class:`adcp.decisioning.MockAdServer.get_traffic`.
+            Defaults to ``False`` so production deployments stay
+            closed; reference / dev sellers turn it on. Ignored on
+            stdio. The endpoint exposes per-method outbound call
+            counts for storyboard runners' anti-façade assertions.
+        debug_traffic_source: Zero-arg callable returning the
+            per-method count snapshot for ``/_debug/traffic``. Required
+            when ``enable_debug_endpoints=True``; otherwise ignored.
+            Typically ``mock_ad_server.get_traffic``.
+        validation: Optional :class:`ValidationHookConfig` enabling
+            schema validation of every request and response against the
+            bundled AdCP JSON schemas. ``requests="strict"`` raises
+            ``VALIDATION_ERROR`` before the handler runs on a malformed
+            payload; ``responses="strict"`` raises after the handler
+            returns when the response shape drifts from spec. Sellers
+            who want their server to enforce wire conformance pass
+            ``ValidationHookConfig(requests="strict", responses="strict")``;
+            the default ``None`` keeps validation off (zero overhead).
+            Applies to both MCP and A2A transports.
 
     Security:
         This function does NOT configure authentication. In production,
@@ -547,6 +573,18 @@ def serve(
             name = handler.name
         handler = handler.build_handler()
 
+    # Compose the debug-traffic endpoint as the outermost ASGI
+    # middleware. Mounting it ahead of any seller-provided
+    # ``asgi_middleware`` means a runner's ``GET /_debug/traffic``
+    # short-circuits before tenant-resolution / auth middleware runs —
+    # the endpoint is for storyboard runners, not authenticated
+    # buyers, and should not require buyer credentials to reach.
+    asgi_middleware = _prepend_debug_endpoint(
+        asgi_middleware,
+        enable_debug_endpoints=enable_debug_endpoints,
+        debug_traffic_source=debug_traffic_source,
+    )
+
     if transport == "a2a":
         _serve_a2a(
             handler,
@@ -561,6 +599,7 @@ def serve(
             message_parser=message_parser,
             advertise_all=advertise_all,
             max_request_size=max_request_size,
+            validation=validation,
         )
     elif transport in ("streamable-http", "sse", "stdio"):
         _serve_mcp(
@@ -577,6 +616,7 @@ def serve(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
+            validation=validation,
         )
     elif transport == "both":
         _serve_mcp_and_a2a(
@@ -595,10 +635,48 @@ def serve(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
+            validation=validation,
         )
     else:
         valid = ", ".join(sorted(("a2a", "both", "streamable-http", "sse", "stdio")))
         raise ValueError(f"Unknown transport {transport!r}. Valid: {valid}")
+
+
+def _prepend_debug_endpoint(
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None,
+    *,
+    enable_debug_endpoints: bool,
+    debug_traffic_source: Callable[[], dict[str, int]] | None,
+) -> Sequence[tuple[type, dict[str, Any]]] | None:
+    """Prepend :class:`DebugTrafficMiddleware` to the asgi_middleware
+    sequence when debug endpoints are enabled.
+
+    No-op when ``enable_debug_endpoints=False`` — the middleware isn't
+    mounted, ``/_debug/traffic`` falls through to the inner app, and
+    the inner app returns 404. Production-default closed posture.
+
+    Raises ``ValueError`` when debug endpoints are enabled but no
+    traffic source is supplied — silently mounting an endpoint that
+    would error on every request is worse than a clear configuration
+    error at boot.
+    """
+    if not enable_debug_endpoints:
+        return asgi_middleware
+    if debug_traffic_source is None:
+        raise ValueError(
+            "enable_debug_endpoints=True requires debug_traffic_source= "
+            "(typically mock_ad_server.get_traffic). Without a source the "
+            "/_debug/traffic endpoint has nothing to return."
+        )
+    from adcp.server.debug_endpoints import DebugTrafficMiddleware
+
+    debug_entry = (
+        DebugTrafficMiddleware,
+        {"traffic_source": debug_traffic_source},
+    )
+    if asgi_middleware is None:
+        return [debug_entry]
+    return [debug_entry, *asgi_middleware]
 
 
 def _apply_asgi_middleware(
@@ -782,6 +860,7 @@ def _serve_mcp(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Start an MCP server."""
     mcp = create_mcp_server(
@@ -795,6 +874,7 @@ def _serve_mcp(
         middleware=middleware,
         advertise_all=advertise_all,
         streaming_responses=streaming_responses,
+        validation=validation,
     )
 
     if test_controller is not None:
@@ -885,6 +965,7 @@ def _serve_a2a(
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Start an A2A server using uvicorn."""
     import uvicorn
@@ -904,6 +985,7 @@ def _serve_a2a(
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
+        validation=validation,
     )
     app = _wrap_with_size_limit(app, max_request_size)
     app = _apply_asgi_middleware(app, asgi_middleware)
@@ -941,6 +1023,7 @@ def _build_mcp_and_a2a_app(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -974,6 +1057,7 @@ def _build_mcp_and_a2a_app(
         middleware=middleware,
         advertise_all=advertise_all,
         streaming_responses=streaming_responses,
+        validation=validation,
     )
     if test_controller is not None:
         from adcp.server.test_controller import register_test_controller
@@ -1000,6 +1084,7 @@ def _build_mcp_and_a2a_app(
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
+        validation=validation,
     )
 
     # Lifespan composition: FastMCP's session manager initializes a
@@ -1061,6 +1146,7 @@ def _serve_mcp_and_a2a(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Serve MCP and A2A on a single port via path dispatch.
 
@@ -1098,6 +1184,7 @@ def _serve_mcp_and_a2a(
         advertise_all=advertise_all,
         max_request_size=max_request_size,
         streaming_responses=streaming_responses,
+        validation=validation,
     )
     app = _apply_asgi_middleware(app, asgi_middleware)
 
@@ -1131,6 +1218,7 @@ def create_mcp_server(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> Any:
     """Create a FastMCP server from an ADCP handler without starting it.
 
@@ -1253,6 +1341,7 @@ def create_mcp_server(
         context_factory=context_factory,
         middleware=middleware,
         advertise_all=advertise_all,
+        validation=validation,
     )
     return mcp
 
@@ -1265,6 +1354,7 @@ def _register_handler_tools(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Register all ADCP tools from a handler onto a FastMCP server."""
     # Freeze middleware ordering at registration time. Tuple both guards
@@ -1283,7 +1373,8 @@ def _register_handler_tools(
             continue
         description = tool_def.get("description", "")
         input_schema = tool_def.get("inputSchema", {"type": "object", "properties": {}})
-        caller = create_tool_caller(handler, tool_name)
+        output_schema = tool_def.get("outputSchema")
+        caller = create_tool_caller(handler, tool_name, validation=validation)
         _register_tool(
             mcp,
             tool_name,
@@ -1292,6 +1383,7 @@ def _register_handler_tools(
             caller,
             context_factory=context_factory,
             middleware=middleware_tuple,
+            output_schema=output_schema,
         )
         registered.append(tool_name)
 
@@ -1312,6 +1404,7 @@ def _register_tool(
     *,
     context_factory: ContextFactory | None = None,
     middleware: tuple[SkillMiddleware, ...] = (),
+    output_schema: dict[str, Any] | None = None,
 ) -> None:
     """Register a single ADCP tool on a FastMCP server.
 
@@ -1422,9 +1515,18 @@ def _register_tool(
                 result.update(self.model_extra)
             return result
 
+    # Advertise the spec response schema on ``tools/list`` when one is
+    # available. FastMCP serializes ``Tool.output_schema`` (which reads
+    # ``fn_metadata.output_schema``) into the ``outputSchema`` field of
+    # the ``tools/list`` response — matches the TS port. Falls back to
+    # the auto-derived shape from the ``fn`` return annotation when no
+    # spec schema is mapped (e.g. handler-only custom tools).
+    effective_output_schema = (
+        output_schema if output_schema is not None else tool.fn_metadata.output_schema
+    )
     tool.fn_metadata = FuncMetadata(
         arg_model=_AdcpArgs,
-        output_schema=tool.fn_metadata.output_schema,
+        output_schema=effective_output_schema,
         output_model=tool.fn_metadata.output_model,
         wrap_output=False,
     )

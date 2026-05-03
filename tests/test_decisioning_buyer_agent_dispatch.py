@@ -14,10 +14,13 @@ new commercial-identity registry layer:
 * :class:`PlatformHandler` calls the registry BEFORE
   :meth:`AccountStore.resolve` when one is wired; the resolved
   :class:`BuyerAgent` is threaded onto :attr:`RequestContext.buyer_agent`.
-* Suspended / blocked / unknown-status agents reject with structured
-  error codes (``AGENT_SUSPENDED`` transient, ``AGENT_BLOCKED``
-  terminal, ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` for missing /
-  unknown-status) instead of leaking into ``ACCOUNT_NOT_FOUND``.
+* Suspended / blocked / unknown-status agents reject with the
+  spec-conformant ``PERMISSION_DENIED`` code instead of leaking into
+  ``ACCOUNT_NOT_FOUND``. Recognized-but-denied paths carry
+  ``details.scope="agent"`` + ``details.status``; the unrecognized
+  paths (registry miss, no credential, unknown status) omit
+  ``details`` so the wire shape is indistinguishable per the
+  cross-tenant onboarding-oracle clamp.
 * No registry wired → existing dispatch path runs unchanged
   (back-compat for pre-trust beta adopters).
 """
@@ -614,7 +617,7 @@ async def test_signed_kind_without_explicit_credential_is_rejected(
     ``kind="signed_request"`` but no explicit ``credential`` cannot
     reach the signed-traffic registry path. Synthesis is disabled
     for this kind, so ``_resolve_buyer_agent`` sees ``credential is
-    None`` and rejects with ``REQUEST_AUTH_UNRECOGNIZED_AGENT``.
+    None`` and rejects with ``PERMISSION_DENIED`` (no ``details``).
     Without this, an upstream middleware that wrote
     ``kind="signed_request"`` without doing RFC 9421 verification
     would silently escalate to the verified path."""
@@ -647,16 +650,21 @@ async def test_signed_kind_without_explicit_credential_is_rejected(
             GetProductsRequest(buying_mode="brief", brief="any"),
             tool_ctx,
         )
-    assert exc_info.value.code == "REQUEST_AUTH_UNRECOGNIZED_AGENT"
+    assert exc_info.value.code == "PERMISSION_DENIED"
+    # Unrecognized-agent path MUST NOT carry details — the spec's
+    # omit-on-unestablished-identity rule.
+    assert exc_info.value.details == {}
 
 
 @pytest.mark.asyncio
-async def test_registry_miss_raises_request_auth_unrecognized_agent(
+async def test_registry_miss_raises_permission_denied_no_details(
     executor,
 ) -> None:
-    """Registry returns None → ``REQUEST_AUTH_UNRECOGNIZED_AGENT``,
+    """Registry returns None → ``PERMISSION_DENIED`` (no ``details``),
     NOT ``ACCOUNT_NOT_FOUND`` (which would mask the commercial-allowlist
-    miss as an account-resolution problem)."""
+    miss as an account-resolution problem). ``details`` is OMITTED so
+    the wire shape is indistinguishable from the recognized-but-denied
+    paths per the cross-tenant onboarding-oracle clamp."""
     from adcp.types import GetProductsRequest
 
     async def lookup(_url: str) -> BuyerAgent | None:
@@ -680,16 +688,19 @@ async def test_registry_miss_raises_request_auth_unrecognized_agent(
             GetProductsRequest(buying_mode="brief", brief="any"),
             tool_ctx,
         )
-    assert exc_info.value.code == "REQUEST_AUTH_UNRECOGNIZED_AGENT"
-    assert exc_info.value.recovery == "terminal"
+    assert exc_info.value.code == "PERMISSION_DENIED"
+    assert exc_info.value.recovery == "correctable"
+    assert exc_info.value.details == {}
 
 
 @pytest.mark.asyncio
-async def test_suspended_agent_raises_agent_suspended_transient(executor) -> None:
-    """Status=suspended is a *retryable* commercial pause
-    (``recovery="transient"``). Buyer agents can retry once the
-    seller restores the agent — distinct from blocked, which is
-    terminal."""
+async def test_suspended_agent_raises_permission_denied_terminal(executor) -> None:
+    """Status=suspended is rejected as ``PERMISSION_DENIED`` with
+    ``details.scope="agent"`` + ``details.status="suspended"``.
+    Wire-level ``recovery`` is ``correctable`` per the spec's
+    ``enumMetadata`` for ``PERMISSION_DENIED``; the
+    ``details.scope == "agent"`` discriminator is the signal callers
+    surface to a human operator rather than auto-retry."""
     from adcp.types import GetProductsRequest
 
     suspended = BuyerAgent(
@@ -719,16 +730,21 @@ async def test_suspended_agent_raises_agent_suspended_transient(executor) -> Non
             GetProductsRequest(buying_mode="brief", brief="any"),
             tool_ctx,
         )
-    assert exc_info.value.code == "AGENT_SUSPENDED"
-    assert exc_info.value.recovery == "transient"
+    assert exc_info.value.code == "PERMISSION_DENIED"
+    assert exc_info.value.recovery == "correctable"
+    assert exc_info.value.details["scope"] == "agent"
+    assert exc_info.value.details["status"] == "suspended"
     assert exc_info.value.details["agent_url"] == "https://suspended/"
 
 
 @pytest.mark.asyncio
-async def test_blocked_agent_raises_agent_blocked_terminal(executor) -> None:
-    """Status=blocked is a hard cutoff
-    (``recovery="terminal"``) — buyer cannot retry their way out,
-    must contact seller directly."""
+async def test_blocked_agent_raises_permission_denied_terminal(executor) -> None:
+    """Status=blocked is rejected as ``PERMISSION_DENIED`` with
+    ``details.scope="agent"`` + ``details.status="blocked"``.
+    Wire-level ``recovery`` is ``correctable`` per the spec's
+    ``enumMetadata``; the ``details.scope == "agent"`` discriminator
+    signals callers to surface to a human operator rather than
+    auto-retry."""
     from adcp.types import GetProductsRequest
 
     blocked = BuyerAgent(
@@ -758,8 +774,10 @@ async def test_blocked_agent_raises_agent_blocked_terminal(executor) -> None:
             GetProductsRequest(buying_mode="brief", brief="any"),
             tool_ctx,
         )
-    assert exc_info.value.code == "AGENT_BLOCKED"
-    assert exc_info.value.recovery == "terminal"
+    assert exc_info.value.code == "PERMISSION_DENIED"
+    assert exc_info.value.recovery == "correctable"
+    assert exc_info.value.details["scope"] == "agent"
+    assert exc_info.value.details["status"] == "blocked"
 
 
 @pytest.mark.asyncio
@@ -767,7 +785,11 @@ async def test_unknown_agent_status_default_rejects(executor) -> None:
     """Defense-in-depth: a row with a typo'd or future-enum-value
     status must not silently fall through to ``active`` past the
     commercial-identity gate. Anything not in ``{active, suspended,
-    blocked}`` raises ``REQUEST_AUTH_UNRECOGNIZED_AGENT``."""
+    blocked}`` raises ``PERMISSION_DENIED`` with NO ``details`` —
+    the framework cannot project an unknown status as a defensible
+    discriminator on the wire, so it routes the unknown-status case
+    through the same omit-on-unestablished-identity path as the
+    registry-miss branch."""
     from adcp.types import GetProductsRequest
 
     weird = BuyerAgent.__new__(BuyerAgent)
@@ -803,8 +825,10 @@ async def test_unknown_agent_status_default_rejects(executor) -> None:
             GetProductsRequest(buying_mode="brief", brief="any"),
             tool_ctx,
         )
-    assert exc_info.value.code == "REQUEST_AUTH_UNRECOGNIZED_AGENT"
-    assert exc_info.value.details["status"] == "deleted"
+    assert exc_info.value.code == "PERMISSION_DENIED"
+    # Unknown-status path MUST omit details — same wire shape as
+    # registry miss / no credential. The status is not surfaced.
+    assert exc_info.value.details == {}
 
 
 @pytest.mark.asyncio
@@ -863,7 +887,7 @@ async def test_unauthenticated_request_with_registry_rejects(executor) -> None:
             GetProductsRequest(buying_mode="brief", brief="any"),
             ToolContext(),
         )
-    assert exc_info.value.code == "REQUEST_AUTH_UNRECOGNIZED_AGENT"
+    assert exc_info.value.code == "PERMISSION_DENIED"
 
 
 @pytest.mark.asyncio
@@ -939,7 +963,7 @@ async def test_mixed_registry_routes_signed_and_bearer_correctly(executor) -> No
 @pytest.mark.asyncio
 async def test_mixed_registry_signed_miss_rejects(executor) -> None:
     """Mixed-registry posture, signed traffic, agent_url not in the
-    seller's allowlist → REQUEST_AUTH_UNRECOGNIZED_AGENT. The bearer
+    seller's allowlist → PERMISSION_DENIED. The bearer
     path is never consulted (signed credentials don't fall through
     to bearer lookup)."""
     from adcp.types import GetProductsRequest
@@ -975,5 +999,5 @@ async def test_mixed_registry_signed_miss_rejects(executor) -> None:
             GetProductsRequest(buying_mode="brief", brief="any"),
             ToolContext(metadata={"adcp.auth_info": _signed_auth_info("https://unknown/")}),
         )
-    assert exc_info.value.code == "REQUEST_AUTH_UNRECOGNIZED_AGENT"
+    assert exc_info.value.code == "PERMISSION_DENIED"
     assert bearer_consulted == []

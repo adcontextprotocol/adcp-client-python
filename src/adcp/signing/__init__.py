@@ -94,6 +94,7 @@ from adcp.signing.agent_resolver import (
     TraceEntry,
     async_resolve_agent,
     resolve_agent,
+    verify_from_agent_url,
 )
 from adcp.signing.autosign import (
     SigningConfig,
@@ -393,6 +394,7 @@ __all__ = [
     "validate_jwks_uri",
     "verify_detached_jws",
     "verify_flask_request",
+    "verify_from_agent_url",
     "verify_jws_document",
     "verify_request_signature",
     "verify_signature",

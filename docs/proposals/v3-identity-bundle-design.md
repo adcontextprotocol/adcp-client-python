@@ -21,6 +21,12 @@ These compose. (1) proves an agent's *cryptographic identity*; (2)
 asserts the *commercial relationship*; (3) verifies *per-brand
 authorization*. All three checks gate a request.
 
+**Status note:** code names below (`AGENT_SUSPENDED`, `AGENT_BLOCKED`,
+`REQUEST_AUTH_UNRECOGNIZED_AGENT`, `INVALID_BILLING_MODEL`) were
+superseded in PR #393 by the spec-conformant `PERMISSION_DENIED` /
+`BILLING_NOT_PERMITTED_FOR_AGENT` shapes. See the test suite in
+`tests/test_tier2_spec_conformance.py` for current behavior.
+
 **Status:** RFC, awaiting review.
 **Companions:**
 - JS `BuyerAgentRegistry` design — [adcp-client#1269](https://github.com/adcontextprotocol/adcp-client/issues/1269)

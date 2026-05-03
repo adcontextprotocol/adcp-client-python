@@ -45,8 +45,9 @@ class TenantScopedBuyerAgentRegistry:
     Resolves to ``None`` when the request has no tenant context
     (i.e., :func:`current_tenant` returns ``None`` because the
     middleware bypassed routing or the host wasn't registered) — the
-    framework's dispatch then rejects with
-    ``REQUEST_AUTH_UNRECOGNIZED_AGENT``.
+    framework's dispatch then rejects with ``PERMISSION_DENIED``
+    (with ``details`` omitted so the unrecognized-agent path is
+    wire-indistinguishable from a recognized-but-denied response).
 
     Implements both methods of the
     :class:`adcp.decisioning.BuyerAgentRegistry` Protocol so the

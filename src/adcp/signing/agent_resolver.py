@@ -509,6 +509,115 @@ def resolve_agent(
     )
 
 
+# ---- verify factory ----
+
+
+async def verify_from_agent_url(
+    request: Any,
+    agent_url: str,
+    *,
+    agent_type: BrandAgentType,
+    operation: str,
+    agent_id: str | None = None,
+    brand_id: str | None = None,
+    capability: Any = None,
+    now: float | None = None,
+    replay_store: Any = None,
+    revocation_checker: Any = None,
+    revocation_list: Any = None,
+    allow_private_destinations: bool = False,
+) -> Any:
+    """Single-call factory: resolve ``agent_url`` and verify the
+    request signature against the resolved JWKS.
+
+    Composes :func:`async_resolve_agent` (3-hop walk to the JWK set)
+    with the existing :func:`verify_starlette_request` verifier. Use
+    this when the verifier is handed an agent URL and needs to
+    bootstrap to that agent's signing keys without out-of-band
+    knowledge of the operator domain — the common path for buyer-side
+    request verification on AdCP 3.x sellers.
+
+    ``request`` is a Starlette / FastAPI ``Request``-shaped object
+    (matches :func:`verify_starlette_request`'s duck type — needs
+    ``method``, ``url``, ``headers``, and ``await body()``). Body is
+    consumed once; downstream handlers calling ``await request.body()``
+    again get the same cached bytes (Starlette behavior).
+
+    Resolver-side failures (capabilities unreachable, brand.json
+    walk failed, JWKS fetch failed) are mapped to
+    :class:`SignatureVerificationError` with
+    ``REQUEST_SIGNATURE_JWKS_UNAVAILABLE`` so callers handle
+    resolution and verification failures through one ``except`` clause.
+    The exception to that rule is ``invalid_agent_url`` — that's a
+    trust-boundary rejection, so it maps to
+    ``REQUEST_SIGNATURE_JWKS_UNTRUSTED``.
+
+    Adopters needing finer-grain dispatch on the resolver-side cause
+    can read ``exc.__cause__`` and check the
+    :class:`AgentResolverError.code` directly — both exception
+    hierarchies are preserved.
+
+    Returns
+    -------
+    VerifiedSigner
+        On success — carries the verified ``key_id`` and metadata.
+
+    Raises
+    ------
+    SignatureVerificationError
+        Either from the resolver (mapped per above) or from the
+        verifier (passes through with the spec ``code`` already set).
+    """
+    import time as _time
+
+    from adcp.signing.errors import (
+        REQUEST_SIGNATURE_JWKS_UNAVAILABLE,
+        REQUEST_SIGNATURE_JWKS_UNTRUSTED,
+        SignatureVerificationError,
+    )
+    from adcp.signing.jwks import StaticJwksResolver
+    from adcp.signing.middleware import verify_starlette_request
+    from adcp.signing.verifier import VerifierCapability, VerifyOptions
+
+    try:
+        resolution = await async_resolve_agent(
+            agent_url,
+            agent_type=agent_type,
+            agent_id=agent_id,
+            brand_id=brand_id,
+            allow_private_destinations=allow_private_destinations,
+        )
+    except AgentResolverError as exc:
+        # invalid_agent_url is a trust-boundary rejection (URL wouldn't
+        # canonicalize / scheme / SSRF-banned host). Everything else
+        # (capabilities_unreachable, brand_json_resolution_failed,
+        # jwks_fetch_failed) is a discovery-time failure even when
+        # underlying cause was SSRF — verifiers map those to
+        # JWKS_UNAVAILABLE per the spec's "couldn't get keys" reading.
+        mapped = (
+            REQUEST_SIGNATURE_JWKS_UNTRUSTED
+            if exc.code == "invalid_agent_url"
+            else REQUEST_SIGNATURE_JWKS_UNAVAILABLE
+        )
+        raise SignatureVerificationError(
+            mapped,
+            step="resolve",
+            message=f"agent-url resolution failed ({exc.code}): {exc.message}",
+        ) from exc
+
+    options = VerifyOptions(
+        now=now if now is not None else _time.time(),
+        capability=capability if capability is not None else VerifierCapability(supported=True),
+        operation=operation,
+        jwks_resolver=StaticJwksResolver(resolution.jwks),
+        replay_store=replay_store,
+        revocation_checker=revocation_checker,
+        revocation_list=revocation_list,
+        agent_url=resolution.agent_entry.get("url"),
+    )
+    return await verify_starlette_request(request, options=options)
+
+
 # ---- helpers ----
 
 
@@ -539,4 +648,5 @@ __all__ = [
     "TraceEntry",
     "async_resolve_agent",
     "resolve_agent",
+    "verify_from_agent_url",
 ]

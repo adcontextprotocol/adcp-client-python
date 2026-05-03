@@ -38,9 +38,20 @@ class ValidationHookConfig:
       makes the SDK a compliance harness: drift from an agent fails the
       task on the first call, not the Nth storyboard run.
 
-    Only ``ADCP_ENV`` is consulted — generic ``ENV`` / ``ENVIRONMENT``
-    would collide with unrelated tooling (rails, postgres, 12-factor)
-    and silently flip the SDK's default.
+    Resolution order for both sides at call time:
+
+    1. Explicit value on this config (``requests=`` / ``responses=``).
+    2. ``ADCP_VALIDATION_MODE`` env var (``strict`` / ``warn`` / ``off``)
+       — applies to both sides unless overridden by an explicit value.
+       Matches the TS port (adcontextprotocol/adcp-client).
+    3. ``ADCP_ENV=prod|production`` flips the response default to
+       ``warn``; requests fall back to the type default.
+    4. Defaults: ``requests="warn"``, ``responses="strict"``.
+
+    Only ``ADCP_ENV`` and ``ADCP_VALIDATION_MODE`` are consulted —
+    generic ``ENV`` / ``ENVIRONMENT`` would collide with unrelated
+    tooling (rails, postgres, 12-factor) and silently flip the SDK's
+    default.
     """
 
     requests: ValidationMode | None = None
@@ -59,6 +70,28 @@ class DebugLogEntry(TypedDict, total=False):
     issues: list[dict[str, Any]]
 
 
+_VALID_MODES: frozenset[str] = frozenset({"strict", "warn", "off"})
+
+
+def _env_validation_mode() -> ValidationMode | None:
+    """Read ``ADCP_VALIDATION_MODE`` at call time.
+
+    Returns ``None`` when the env var is unset, empty, or holds a value
+    that isn't one of the three valid modes. Unrecognized values are
+    ignored rather than raising — keeps the SDK robust against typos in
+    deploy environments where misreads would silently change validation
+    posture (better to fall back to the documented defaults than blow
+    up on the next request).
+    """
+    val = os.environ.get("ADCP_VALIDATION_MODE")
+    if not val:
+        return None
+    normalized = val.strip().lower()
+    if normalized in _VALID_MODES:
+        return normalized  # type: ignore[return-value]
+    return None
+
+
 def _default_response_mode() -> ValidationMode:
     """Response default: ``strict`` unless ``ADCP_ENV`` declares production.
 
@@ -74,11 +107,25 @@ def _default_response_mode() -> ValidationMode:
 def resolve_validation_modes(
     config: ValidationHookConfig | None = None,
 ) -> tuple[ValidationMode, ValidationMode]:
-    """Return the effective ``(requests, responses)`` modes."""
-    req: ValidationMode = (config.requests if config is not None else None) or "warn"
-    resp: ValidationMode = (
-        config.responses if config is not None else None
-    ) or _default_response_mode()
+    """Return the effective ``(requests, responses)`` modes.
+
+    Resolution order (per side):
+
+    1. Explicit ``config.requests`` / ``config.responses`` (when set).
+    2. ``ADCP_VALIDATION_MODE`` env var — applies to both sides.
+    3. ``ADCP_ENV=prod|production`` flips the response default to
+       ``warn``; requests fall back to ``warn`` (the type default).
+    4. Hard defaults: ``requests="warn"``, ``responses="strict"``.
+
+    Read at call time (not import time) so tests that mutate env vars
+    via ``patch.dict`` work without a module-level reset hook.
+    """
+    explicit_req = config.requests if config is not None else None
+    explicit_resp = config.responses if config is not None else None
+    env_mode = _env_validation_mode()
+
+    req: ValidationMode = explicit_req or env_mode or "warn"
+    resp: ValidationMode = explicit_resp or env_mode or _default_response_mode()
     return req, resp
 
 

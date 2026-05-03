@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from a2a.server.tasks.task_store import TaskStore
 
     from adcp.server.serve import ContextFactory, SkillMiddleware
+    from adcp.validation.client_hooks import ValidationHookConfig
 
 from collections.abc import Callable  # noqa: E402
 
@@ -124,6 +125,7 @@ class ADCPAgentExecutor(AgentExecutor):
         middleware: Sequence[SkillMiddleware] | None = None,
         message_parser: MessageParser | None = None,
         advertise_all: bool = False,
+        validation: ValidationHookConfig | None = None,
     ) -> None:
         self._handler = handler
         self._context_factory = context_factory
@@ -148,7 +150,7 @@ class ADCPAgentExecutor(AgentExecutor):
             name = tool_def["name"]
             if name == "comply_test_controller" and test_controller is None:
                 continue
-            self._tool_callers[name] = create_tool_caller(handler, name)
+            self._tool_callers[name] = create_tool_caller(handler, name, validation=validation)
 
         if test_controller is not None:
             self._register_test_controller(test_controller)
@@ -598,6 +600,7 @@ def create_a2a_server(
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> Any:
     """Create an A2A Starlette application from an ADCP handler.
 
@@ -688,6 +691,7 @@ def create_a2a_server(
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
+        validation=validation,
     )
 
     agent_card = _build_agent_card(

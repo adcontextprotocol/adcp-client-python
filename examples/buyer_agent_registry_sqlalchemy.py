@@ -368,7 +368,11 @@ async def _demo() -> None:
     print("\n== suspended agent ==")
     suspended = await signing.resolve_by_agent_url("https://suspended-buyer.example/")
     print(f"  status: {suspended.status!r}")
-    print("  → framework dispatch raises AdcpError(code='AGENT_SUSPENDED')")
+    print(
+        "  → framework dispatch raises "
+        "AdcpError(code='PERMISSION_DENIED', "
+        "details={'scope': 'agent', 'status': 'suspended', ...})"
+    )
 
 
 if __name__ == "__main__":

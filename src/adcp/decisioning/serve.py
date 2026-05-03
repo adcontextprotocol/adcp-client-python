@@ -147,9 +147,12 @@ def create_adcp_server_from_platform(
         identity layer. When wired, the framework calls the registry
         BEFORE :meth:`AccountStore.resolve` to gate every request on
         the seller's commercial allowlist. Suspended / blocked /
-        unknown agents are rejected with structured
-        ``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
-        ``REQUEST_AUTH_UNRECOGNIZED_AGENT`` errors. The resolved
+        unrecognized agents are rejected with structured
+        ``PERMISSION_DENIED`` errors (recognized-but-denied paths
+        carry ``details.scope="agent"`` + ``details.status``; the
+        unrecognized-agent path omits ``details`` so the wire shape
+        does not enumerate which ``agent_url``s are onboarded with
+        this seller). The resolved
         :class:`adcp.decisioning.BuyerAgent` is threaded onto
         :attr:`RequestContext.buyer_agent` so platform methods can
         read commercial context (billing capabilities, default terms,
@@ -308,6 +311,8 @@ def serve(
     auto_emit_completion_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
     advertise_all: bool = False,
+    mock_ad_server: Any | None = None,
+    enable_debug_endpoints: bool = False,
     **serve_kwargs: Any,
 ) -> None:
     """One-call wrapper — build the handler and serve over MCP.
@@ -343,6 +348,16 @@ def serve(
         request supplied ``push_notification_config.url``. Default
         ``True``. Set ``False`` for adopters who emit webhooks
         manually inside their handlers.
+    :param mock_ad_server: Optional :class:`adcp.decisioning.MockAdServer`
+        whose ``get_traffic()`` is wired into ``GET /_debug/traffic``
+        when ``enable_debug_endpoints=True``. Default ``None`` —
+        adopters with no anti-façade recorder leave this off.
+    :param enable_debug_endpoints: When ``True``, mount
+        ``GET /_debug/traffic`` exposing the JSON dict returned by
+        ``mock_ad_server.get_traffic()``. Defaults to ``False``;
+        production deployments stay closed. Reference / dev sellers
+        flip on so storyboard runners can poll outbound call counts.
+        Forwarded to :func:`adcp.server.serve`.
     :param advertise_all: Forwarded to :func:`adcp.server.serve`. When
         ``True``, ``tools/list`` advertises every method on the
         handler regardless of override status. Default ``False`` —
@@ -351,7 +366,11 @@ def serve(
         spec-compliance storyboards) pass ``True``.
     :param serve_kwargs: Forwarded to :func:`adcp.server.serve`. Use
         for ``host``, ``port``, ``transport``, ``test_controller``,
-        ``context_factory``, ``middleware``, etc.
+        ``context_factory``, ``middleware``, ``validation``, etc.
+        Pass ``validation=ValidationHookConfig(requests="strict",
+        responses="strict")`` to enable schema-driven request/response
+        validation against the bundled AdCP JSON schemas — sellers who
+        want their server to enforce wire conformance turn it on here.
     """
     # Local import to avoid a circular at module-load time. Adopter
     # serves never run during foundation imports anyway.
@@ -371,10 +390,13 @@ def serve(
     )
 
     server_name = name or type(platform).__name__
+    debug_traffic_source = mock_ad_server.get_traffic if mock_ad_server is not None else None
     _adcp_serve(
         handler,
         name=server_name,
         advertise_all=advertise_all,
+        enable_debug_endpoints=enable_debug_endpoints,
+        debug_traffic_source=debug_traffic_source,
         **serve_kwargs,
     )
 
