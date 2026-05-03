@@ -1099,8 +1099,10 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             interval = tb.interval if tb is not None else 0
             unit_raw = tb.unit if tb is not None else None
             unit = (
-                unit_raw.value if hasattr(unit_raw, "value") else str(unit_raw)
-            ) if unit_raw is not None else "unknown"
+                (unit_raw.value if hasattr(unit_raw, "value") else str(unit_raw))
+                if unit_raw is not None
+                else "unknown"
+            )
             logger.warning(
                 "[adcp.decisioning] get_products timed out after %ds "
                 "(time_budget=%d %s); returning incomplete response. "
@@ -1110,7 +1112,9 @@ class PlatformHandler(ADCPHandler[ToolContext]):
                 interval,
                 unit,
             )
-            return project_incomplete_response(interval=interval, unit=unit)
+            return GetProductsResponse.model_validate(
+                project_incomplete_response(interval=interval, unit=unit)
+            )
         response = cast("GetProductsResponse", result)
         # Post-adapter: capability-gated property-list filter.
         response = cast(
