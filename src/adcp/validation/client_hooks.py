@@ -8,7 +8,7 @@ import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, TypedDict, cast
 
 from adcp.validation.schema_errors import build_validation_error
 from adcp.validation.schema_validator import (
@@ -21,6 +21,8 @@ from adcp.validation.schema_validator import (
 logger = logging.getLogger(__name__)
 
 ValidationMode = Literal["strict", "warn", "off"]
+
+_VALID_MODES: frozenset[str] = frozenset({"strict", "warn", "off"})
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,28 @@ class DebugLogEntry(TypedDict, total=False):
     issues: list[dict[str, Any]]
 
 
+def _read_validation_mode_env() -> ValidationMode | None:
+    """Read ``ADCP_VALIDATION_MODE``; raise ``ValueError`` on invalid values; ``None`` if unset.
+
+    Read at call time (not import time) so tests that ``patch.dict`` the
+    environment work without a module-level reset hook.
+
+    Raises ``ValueError`` immediately at client-construction time (when
+    ``resolve_validation_modes`` is called) so misconfigured deployments
+    fail loudly rather than silently using the wrong mode.
+    """
+    val = os.environ.get("ADCP_VALIDATION_MODE")
+    if val is None:
+        return None
+    normalized = val.lower()
+    if normalized not in _VALID_MODES:
+        raise ValueError(
+            f"ADCP_VALIDATION_MODE={val!r} is not valid. "
+            "Accepted values: strict, warn, off."
+        )
+    return cast(ValidationMode, normalized)
+
+
 def _default_response_mode() -> ValidationMode:
     """Response default: ``strict`` unless ``ADCP_ENV`` declares production.
 
@@ -74,11 +98,21 @@ def _default_response_mode() -> ValidationMode:
 def resolve_validation_modes(
     config: ValidationHookConfig | None = None,
 ) -> tuple[ValidationMode, ValidationMode]:
-    """Return the effective ``(requests, responses)`` modes."""
-    req: ValidationMode = (config.requests if config is not None else None) or "warn"
+    """Return the effective ``(requests, responses)`` modes.
+
+    Precedence (highest to lowest):
+    1. Explicit config field (``ValidationHookConfig.requests`` / ``.responses``)
+    2. ``ADCP_VALIDATION_MODE`` env var — applies to both sides when set
+    3. ``ADCP_ENV`` legacy fallback — response side only (``production`` → ``warn``)
+    4. Hard defaults: requests ``"warn"``, responses ``"strict"``
+    """
+    env_mode = _read_validation_mode_env()
+    # The `or` chain is safe here: none of the three valid mode strings
+    # ("strict", "warn", "off") are falsy, so `or` acts as null-coalescing.
+    req: ValidationMode = (config.requests if config is not None else None) or env_mode or "warn"
     resp: ValidationMode = (
         config.responses if config is not None else None
-    ) or _default_response_mode()
+    ) or env_mode or _default_response_mode()
     return req, resp
 
 

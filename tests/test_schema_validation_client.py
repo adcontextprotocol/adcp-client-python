@@ -15,6 +15,7 @@ import pytest
 
 from adcp import ADCPClient, ValidationHookConfig
 from adcp.types import AgentConfig, Protocol
+from adcp.validation.client_hooks import _read_validation_mode_env, resolve_validation_modes
 
 
 def _agent_config() -> AgentConfig:
@@ -116,3 +117,56 @@ class TestMCPAdapterHooks:
 
         assert result.success is True
         assert result.data == {"products": "oops"}
+
+
+class TestAdcpValidationModeEnvVar:
+    """Tests for ADCP_VALIDATION_MODE env var (issue #385)."""
+
+    @pytest.mark.parametrize("mode", ["strict", "warn", "off"])
+    def test_env_var_applies_to_both_sides(self, mode: str) -> None:
+        with patch.dict(os.environ, {"ADCP_VALIDATION_MODE": mode}, clear=True):
+            req, resp = resolve_validation_modes()
+        assert req == mode
+        assert resp == mode
+
+    def test_env_var_case_insensitive(self) -> None:
+        with patch.dict(os.environ, {"ADCP_VALIDATION_MODE": "STRICT"}, clear=True):
+            req, resp = resolve_validation_modes()
+        assert req == "strict"
+        assert resp == "strict"
+
+    def test_invalid_env_var_raises_value_error(self) -> None:
+        with patch.dict(os.environ, {"ADCP_VALIDATION_MODE": "verbose"}, clear=True):
+            with pytest.raises(ValueError, match="ADCP_VALIDATION_MODE"):
+                _read_validation_mode_env()
+
+    def test_explicit_config_field_wins_over_env_var(self) -> None:
+        with patch.dict(os.environ, {"ADCP_VALIDATION_MODE": "off"}, clear=True):
+            req, resp = resolve_validation_modes(
+                ValidationHookConfig(requests="strict", responses="warn")
+            )
+        assert req == "strict"
+        assert resp == "warn"
+
+    def test_adcp_validation_mode_wins_over_adcp_env(self) -> None:
+        # ADCP_VALIDATION_MODE=strict should override the ADCP_ENV→warn fallback
+        # on the response side.
+        with patch.dict(
+            os.environ,
+            {"ADCP_VALIDATION_MODE": "strict", "ADCP_ENV": "production"},
+            clear=True,
+        ):
+            _, resp = resolve_validation_modes()
+        assert resp == "strict"
+
+    def test_unset_env_var_keeps_defaults(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            req, resp = resolve_validation_modes()
+        assert req == "warn"
+        assert resp == "strict"
+
+    def test_adcp_validation_mode_env_var_on_client(self) -> None:
+        with patch.dict(os.environ, {"ADCP_VALIDATION_MODE": "off"}, clear=True):
+            client = ADCPClient(_agent_config())
+        assert client.adapter.request_validation_mode == "off"
+        assert client.adapter.response_validation_mode == "off"
