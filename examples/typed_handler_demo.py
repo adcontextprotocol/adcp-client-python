@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from adcp.server import ADCPHandler, ToolContext, serve
+from adcp.server import ADCPHandler, ServeConfig, ToolContext, serve
 from adcp.types import (
     GetAdcpCapabilitiesResponse,
     GetProductsRequest,
@@ -87,4 +87,8 @@ if __name__ == "__main__":
     # For production, wrap with an auth middleware (see
     # ``examples/mcp_with_auth_middleware.py``) and restrict the host
     # via reverse-proxy config or the ``port=`` / bind-host hooks.
-    serve(TypedSeller(), name="typed-demo-seller", transport="streamable-http")
+
+    # ServeConfig bundles all options — IDE autocomplete shows each field
+    # with its doc.  The legacy kwargs form still works unchanged.
+    config = ServeConfig(name="typed-demo-seller", transport="streamable-http")
+    serve(TypedSeller(), config=config)

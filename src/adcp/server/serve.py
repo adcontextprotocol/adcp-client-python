@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -48,8 +48,6 @@ from adcp.validation.client_hooks import (
 # import via this module.
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from a2a.server.tasks.push_notification_config_store import (
         PushNotificationConfigStore,
     )
@@ -84,6 +82,94 @@ class RequestMetadata:
     tool_name: str
     transport: Literal["mcp", "a2a"]
     request_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ServeConfig:
+    """Configuration bundle for :func:`serve`.
+
+    Consolidates the 22 keyword arguments of :func:`serve` into a single
+    named, IDE-friendly object.  Use either the bundled form or individual
+    kwargs — not both::
+
+        # Bundled (cleaner IDE signature, easy to share / reuse)
+        serve(MyAgent(), config=ServeConfig(name="my-agent", transport="a2a"))
+
+        # Individual kwargs (backwards-compatible, unchanged)
+        serve(MyAgent(), name="my-agent", transport="a2a")
+
+    When *config* is supplied, all field values come from it; any individual
+    kwargs passed alongside are ignored.  To vary a single field from a
+    shared base config use :func:`dataclasses.replace`::
+
+        base = ServeConfig(name="my-agent", validation=strict)
+        serve(handler, config=dataclasses.replace(base, transport="a2a"))
+
+    **Transport-specific fields** — fields marked *(A2A only)* or
+    *(MCP only)* are silently ignored by the other transport.  Setting
+    cross-transport fields triggers a ``UserWarning`` at boot.
+    """
+
+    # --- Identity / networking ---
+    name: str = "adcp-agent"
+    port: int | None = None
+    host: str | None = None
+    transport: str = "streamable-http"
+
+    # --- MCP only ---
+    instructions: str | None = None
+    streaming_responses: bool = False
+
+    # --- A2A only ---
+    task_store: TaskStore | None = None
+    push_config_store: PushNotificationConfigStore | None = None
+    message_parser: MessageParser | None = None
+
+    # --- Shared infrastructure ---
+    test_controller: TestControllerStore | None = None
+    context_factory: ContextFactory | None = None
+    middleware: Sequence[SkillMiddleware] | None = None
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None
+    advertise_all: bool = False
+    max_request_size: int | None = None
+    validation: ValidationHookConfig | None = None
+
+    # --- Discovery manifest ---
+    base_url: str | None = None
+    specialisms: list[str] | None = None
+    description: str | None = None
+
+    # --- Debug endpoints ---
+    enable_debug_endpoints: bool = False
+    debug_traffic_source: Callable[[], dict[str, int]] | None = None
+
+    def __post_init__(self) -> None:
+        _a2a_only = ("task_store", "push_config_store", "message_parser")
+        _mcp_only = ("instructions", "streaming_responses")
+        if self.transport == "a2a":
+            mcp_set = sorted(
+                f for f in _mcp_only if getattr(self, f) not in (None, False)
+            )
+            if mcp_set:
+                warnings.warn(
+                    f"ServeConfig sets MCP-only fields {mcp_set} but "
+                    f"transport='a2a'. These fields will be ignored.",
+                    UserWarning,
+                    stacklevel=3,
+                )
+        elif self.transport not in ("both", "streamable-http", "sse", "stdio"):
+            pass  # unknown transport — let serve() raise a clear error
+        elif self.transport not in ("a2a", "both"):
+            a2a_set = sorted(
+                f for f in _a2a_only if getattr(self, f) is not None
+            )
+            if a2a_set:
+                warnings.warn(
+                    f"ServeConfig sets A2A-only fields {a2a_set} but "
+                    f"transport={self.transport!r}. These fields will be ignored.",
+                    UserWarning,
+                    stacklevel=3,
+                )
 
 
 SkillMiddleware = Callable[
@@ -424,6 +510,7 @@ Both forms can be mixed in the same list.
 def serve(
     handler: ADCPHandler[Any] | Any,
     *,
+    config: ServeConfig | None = None,
     name: str = "adcp-agent",
     port: int | None = None,
     host: str | None = None,
@@ -463,6 +550,10 @@ def serve(
 
     Args:
         handler: An ADCPHandler subclass instance with your tool implementations.
+        config: Optional :class:`ServeConfig` bundle.  When supplied, all
+            field values come from it and any individual kwargs passed
+            alongside are ignored.  Use ``dataclasses.replace(config, ...)``
+            to vary a single field from a shared base config.
         name: Server name shown to clients / in the A2A agent card.
         port: Port to listen on. Defaults to PORT env var, then 3001.
         transport: ``"streamable-http"`` (default, MCP), ``"a2a"``, or
@@ -650,6 +741,33 @@ def serve(
 
         serve(MyAgent(), name="my-agent", test_controller=MyStore())
     """
+    # When a ServeConfig bundle is provided, extract all fields from it.
+    # Individual kwargs are ignored so that config= is the single source of
+    # truth.  Callers who need to vary one field should use
+    # dataclasses.replace(config, field=value) rather than mixing styles.
+    if config is not None:
+        name = config.name
+        port = config.port
+        host = config.host
+        transport = config.transport
+        instructions = config.instructions
+        test_controller = config.test_controller
+        context_factory = config.context_factory
+        task_store = config.task_store
+        push_config_store = config.push_config_store
+        middleware = config.middleware
+        asgi_middleware = config.asgi_middleware
+        message_parser = config.message_parser
+        advertise_all = config.advertise_all
+        max_request_size = config.max_request_size
+        streaming_responses = config.streaming_responses
+        validation = config.validation
+        enable_debug_endpoints = config.enable_debug_endpoints
+        debug_traffic_source = config.debug_traffic_source
+        base_url = config.base_url
+        specialisms = config.specialisms
+        description = config.description
+
     # Accept ADCPServerBuilder from adcp_server() decorator pattern
     from adcp.server.builder import ADCPServerBuilder
 
