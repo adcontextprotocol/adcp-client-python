@@ -97,6 +97,197 @@ async def test_tenant_router_returns_none_without_session_match() -> None:
 
 
 @pytest.mark.asyncio
+async def test_sync_accounts_strips_bank_details() -> None:
+    """sync_accounts must NOT echo bank details in its response (write-only guard)
+    and MUST preserve non-write-only fields such as legal_name."""
+    from unittest.mock import MagicMock, patch
+
+    from src.platform import V3ReferenceSeller
+
+    from adcp.decisioning import BuyerAgent, RequestContext
+    from adcp.types import SyncAccountsRequest
+
+    # --- stub DB session ---------------------------------------------------
+    mock_ba_row = MagicMock()
+    mock_ba_row.id = "ba_stub123"
+
+    class _StubSession:
+        """Returns BuyerAgent row on first execute, no existing account on second."""
+
+        def __init__(self) -> None:
+            self._calls = 0
+
+        async def __aenter__(self) -> _StubSession:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            pass
+
+        def begin(self) -> _BeginCM:
+            return _BeginCM()
+
+        async def execute(self, _stmt: object) -> MagicMock:
+            self._calls += 1
+            result = MagicMock()
+            if self._calls == 1:
+                result.scalar_one_or_none.return_value = mock_ba_row
+            else:
+                result.scalar_one_or_none.return_value = None  # new account
+            return result
+
+        def add(self, _row: object) -> None:
+            pass
+
+    class _BeginCM:
+        async def __aenter__(self) -> _BeginCM:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            pass
+
+    sessionmaker = MagicMock(return_value=_StubSession())
+
+    seller = V3ReferenceSeller(sessionmaker=sessionmaker)
+
+    req = SyncAccountsRequest.model_validate(
+        {
+            "idempotency_key": "smoke-test-sync-key-abc1234567",
+            "accounts": [
+                {
+                    "brand": {"domain": "acme.com"},
+                    "operator": "agency.com",
+                    "billing": "operator",
+                    "billing_entity": {
+                        "legal_name": "Acme Corp",
+                        "address": {
+                            "street": "123 Main St",
+                            "city": "Springfield",
+                            "postal_code": "62701",
+                            "country": "US",
+                        },
+                        "bank": {
+                            "account_holder": "Acme Corp",
+                            "iban": "GB29NWBK60161331926819",
+                            "bic": "NWBKGB2LXXX",
+                        },
+                    },
+                }
+            ],
+        }
+    )
+
+    fake_tenant = MagicMock()
+    fake_tenant.id = "t_smoke123"
+    buyer_agent = BuyerAgent(
+        agent_url="https://buyer.example.com/",
+        display_name="Test Buyer",
+        status="active",
+        billing_capabilities=frozenset(["operator"]),
+    )
+    ctx = RequestContext(buyer_agent=buyer_agent)
+
+    with patch("src.platform.current_tenant", return_value=fake_tenant):
+        response = await seller.sync_accounts(req, ctx)
+
+    payload = response.model_dump(mode="json", exclude_none=True)
+    assert payload["accounts"], "Expected at least one account result"
+    for acct_result in payload["accounts"]:
+        be = acct_result.get("billing_entity")
+        assert be is not None, "billing_entity must be echoed in response"
+        assert "bank" not in be, "bank details (write-only) must not appear in response"
+        assert be.get("legal_name") == "Acme Corp", "legal_name must be preserved"
+
+
+@pytest.mark.asyncio
+async def test_list_accounts_strips_bank_details() -> None:
+    """list_accounts must project billing_entity through the write-only guard —
+    bank absent, other fields preserved."""
+    from unittest.mock import MagicMock, patch
+
+    from src.platform import V3ReferenceSeller
+
+    from adcp.decisioning import BuyerAgent, RequestContext
+    from adcp.types import ListAccountsRequest
+
+    mock_ba_row = MagicMock()
+    mock_ba_row.id = "ba_stub456"
+
+    # Synthetic AccountRow with bank details stored in billing_entity
+    mock_acct_row = MagicMock()
+    mock_acct_row.account_id = "acme.com:agency.com"
+    mock_acct_row.name = "Acme Corp"
+    mock_acct_row.status = "active"
+    mock_acct_row.billing = "operator"
+    mock_acct_row.billing_entity = {
+        "legal_name": "Acme Corp",
+        "address": {
+            "street": "123 Main St",
+            "city": "Springfield",
+            "postal_code": "62701",
+            "country": "US",
+        },
+        "bank": {
+            "account_holder": "Acme Corp",
+            "iban": "GB29NWBK60161331926819",
+            "bic": "NWBKGB2LXXX",
+        },
+    }
+    mock_acct_row.rate_card = None
+    mock_acct_row.payment_terms = None
+    mock_acct_row.credit_limit = None
+    mock_acct_row.sandbox = False
+    mock_acct_row.ext = None
+    mock_acct_row.reporting_bucket = None
+
+    class _StubSession:
+        def __init__(self) -> None:
+            self._calls = 0
+
+        async def __aenter__(self) -> _StubSession:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            pass
+
+        async def execute(self, _stmt: object) -> MagicMock:
+            self._calls += 1
+            result = MagicMock()
+            if self._calls == 1:
+                result.scalar_one_or_none.return_value = mock_ba_row
+            else:
+                scalars_mock = MagicMock()
+                scalars_mock.all.return_value = [mock_acct_row]
+                result.scalars.return_value = scalars_mock
+            return result
+
+    sessionmaker = MagicMock(return_value=_StubSession())
+
+    seller = V3ReferenceSeller(sessionmaker=sessionmaker)
+    req = ListAccountsRequest.model_validate({})
+
+    fake_tenant = MagicMock()
+    fake_tenant.id = "t_smoke456"
+    buyer_agent = BuyerAgent(
+        agent_url="https://buyer.example.com/",
+        display_name="Test Buyer",
+        status="active",
+        billing_capabilities=frozenset(["operator"]),
+    )
+    ctx = RequestContext(buyer_agent=buyer_agent)
+
+    with patch("src.platform.current_tenant", return_value=fake_tenant):
+        response = await seller.list_accounts(req, ctx)
+
+    payload = response.model_dump(mode="json", exclude_none=True)
+    assert payload["accounts"], "Expected at least one account"
+    for acct in payload["accounts"]:
+        be = acct.get("billing_entity")
+        assert be is not None, "billing_entity must be present"
+        assert "bank" not in be, "bank details (write-only) must not appear in response"
+        assert be.get("legal_name") == "Acme Corp", "legal_name must be preserved"
+
+
+@pytest.mark.asyncio
 async def test_buyer_registry_returns_none_without_tenant() -> None:
     """Without a tenant context (ContextVar unset), the registry
     returns None — the framework dispatch then rejects with
