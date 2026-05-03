@@ -104,11 +104,20 @@ async def resolve_property_list(
         ids = await fetcher.fetch(agent_url, list_id, auth_token=auth_token)
         return set(ids)
     except Exception as exc:
+        # Log the raw exception server-side; never include it in the wire
+        # error message — the exception repr may carry auth_token or other
+        # credential-shaped values from the upstream HTTP response.
+        logger.warning(
+            "[adcp.property_list] fetch failed for list_id=%r agent_url=%r: %s",
+            list_id,
+            agent_url,
+            exc,
+        )
         raise AdcpError(
             "SERVICE_UNAVAILABLE",
             message=(
                 f"Property list fetch failed for list_id={list_id!r} "
-                f"from agent_url={agent_url!r}: {exc}"
+                f"from agent_url={agent_url!r}"
             ),
             recovery="transient",
             details={"list_id": list_id, "agent_url": agent_url},
@@ -295,10 +304,22 @@ def validate_property_list_config(
     )
 
 
+def property_list_capability_enabled(platform: Any) -> bool:
+    """Return True if ``platform.capabilities.media_buy.features.property_list_filtering`` is set.
+
+    Centralises the three-level ``getattr`` chain used in both ``handler.py``
+    and ``serve.py`` so they can't drift apart.
+    """
+    media_buy = getattr(getattr(platform, "capabilities", None), "media_buy", None)
+    features = getattr(media_buy, "features", None)
+    return bool(getattr(features, "property_list_filtering", False))
+
+
 __all__ = [
     "PropertyListFetcher",
     "filter_products_by_property_list",
     "maybe_apply_property_list_filter",
+    "property_list_capability_enabled",
     "resolve_property_list",
     "validate_property_list_config",
 ]

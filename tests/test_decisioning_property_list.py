@@ -228,6 +228,35 @@ class TestFilterProductsByPropertyList:
         product = _make_product("p1", [_make_pp_by_id(["home"])])
         assert filter_products_by_property_list([product], set()) == []
 
+    def test_by_id_empty_property_ids_excluded_strict(self) -> None:
+        """by_id with an empty property_ids list is excluded in strict mode.
+
+        An empty product_ids set is a mathematical subset of any set; the
+        ``if product_ids and …`` guard prevents this vacuous truth from
+        accidentally including the product.
+        """
+        product = _make_product(
+            "p1",
+            [_make_pp_by_id([])],  # no IDs — empty list
+            property_targeting_allowed=False,
+        )
+        result = filter_products_by_property_list(
+            [product], allowed_property_ids={"home", "sports", "anything"}
+        )
+        assert result == []
+
+    def test_by_id_empty_property_ids_excluded_permissive(self) -> None:
+        """by_id with an empty property_ids list is excluded in permissive mode."""
+        product = _make_product(
+            "p1",
+            [_make_pp_by_id([])],
+            property_targeting_allowed=True,
+        )
+        result = filter_products_by_property_list(
+            [product], allowed_property_ids={"home"}
+        )
+        assert result == []
+
     def test_property_targeting_allowed_none_treated_as_false(self) -> None:
         """property_targeting_allowed=None is treated as False (strict)."""
         product = _make_product(
