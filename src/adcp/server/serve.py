@@ -420,7 +420,7 @@ def serve(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
@@ -472,23 +472,40 @@ def serve(
             rate limiting, tracing. Composes outermost-first. See
             :data:`SkillMiddleware` for the signature and composition
             semantics.
-        asgi_middleware: Optional sequence of ``(MiddlewareClass, kwargs)``
-            tuples — Starlette-shape ASGI middleware applied to the
-            outer HTTP app before uvicorn binds. Use for cross-cutting
-            HTTP concerns the SDK does not own: tenant resolution
-            (:class:`adcp.server.SubdomainTenantMiddleware`), CORS,
-            request-id propagation, IP allowlists, custom auth.
-            Composes outermost-first — the first entry sees every
-            request before later entries. Each class is invoked as
-            ``cls(app, **kwargs)``. Applied on every HTTP transport
-            (``streamable-http``, ``a2a``, ``both``); ignored on
-            ``stdio``.
+        asgi_middleware: Optional sequence of ASGI middleware entries
+            applied to the outer HTTP app before uvicorn binds. Use for
+            cross-cutting HTTP concerns the SDK does not own: tenant
+            resolution (:class:`adcp.server.SubdomainTenantMiddleware`),
+            CORS, request-id propagation, IP allowlists, custom auth.
+            Composes outermost-first — the first entry sees every request
+            before later entries. Applied on every HTTP transport
+            (``streamable-http``, ``sse``, ``a2a``, ``both``); ignored
+            on ``stdio``.
+
+            Each entry is either a ``(MiddlewareClass, kwargs)`` tuple
+            invoked as ``cls(app, **kwargs)``, or a callable factory
+            ``f(app) -> app``. Both forms can appear in the same list.
 
             Middleware sees ``lifespan`` and ``websocket`` scopes in
             addition to ``http`` — guard non-HTTP scopes by passing
             them through unchanged (``if scope['type'] != 'http':
             await self.app(scope, receive, send); return``) so the
             framework's lifespan composition still runs.
+
+            Example (tuple form)::
+
+                from starlette.middleware.cors import CORSMiddleware
+                serve(handler, asgi_middleware=[
+                    (CORSMiddleware, {"allow_origins": ["*"]}),
+                ])
+
+            Example (callable factory form, e.g. with ``functools.partial``)::
+
+                import functools
+                from starlette.middleware.cors import CORSMiddleware
+                serve(handler, asgi_middleware=[
+                    functools.partial(CORSMiddleware, allow_origins=["*"]),
+                ])
         message_parser: Optional
             :data:`~adcp.server.a2a_server.MessageParser` callable for
             alternative A2A wire shapes (A2A transport only). The
@@ -690,11 +707,11 @@ def serve(
 
 
 def _prepend_debug_endpoint(
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None,
     *,
     enable_debug_endpoints: bool,
     debug_traffic_source: Callable[[], dict[str, int]] | None,
-) -> Sequence[tuple[type, dict[str, Any]]] | None:
+) -> Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None:
     """Prepend :class:`DebugTrafficMiddleware` to the asgi_middleware
     sequence when debug endpoints are enabled.
 
@@ -728,21 +745,27 @@ def _prepend_debug_endpoint(
 
 def _apply_asgi_middleware(
     app: Any,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None,
 ) -> Any:
     """Wrap ``app`` with operator-supplied Starlette-style ASGI middleware.
 
-    Each entry is ``(MiddlewareClass, kwargs)`` and is invoked as
-    ``cls(app, **kwargs)``. Composition is outermost-first — the first
-    entry sees every request before later entries — so we wrap in
-    reverse, matching :meth:`Starlette.add_middleware` semantics.
+    Each entry is either ``(MiddlewareClass, kwargs)`` invoked as
+    ``cls(app, **kwargs)``, or a callable factory ``f(app) -> app`` invoked
+    as ``factory(app)``. Both forms can appear in the same list. Composition
+    is outermost-first — the first entry sees every request before later
+    entries — so we wrap in reverse, matching :meth:`Starlette.add_middleware`
+    semantics.
 
     No-op when the sequence is empty or ``None``.
     """
     if not asgi_middleware:
         return app
-    for cls, kwargs in reversed(list(asgi_middleware)):
-        app = cls(app, **kwargs)
+    for entry in reversed(list(asgi_middleware)):
+        if isinstance(entry, tuple):
+            cls, kwargs = entry
+            app = cls(app, **kwargs)
+        else:
+            app = entry(app)
     return app
 
 
@@ -952,7 +975,7 @@ def _serve_mcp(
     test_controller: TestControllerStore | None,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
@@ -985,8 +1008,8 @@ def _serve_mcp(
         _run_mcp_http(
             mcp,
             transport=transport,
-            max_request_size=max_request_size,
             asgi_middleware=asgi_middleware,
+            max_request_size=max_request_size,
             discovery_name=name,
             discovery_base_url=base_url,
             discovery_specialisms=specialisms,
@@ -1001,8 +1024,8 @@ def _run_mcp_http(
     mcp: Any,
     *,
     transport: str,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
     max_request_size: int | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
     discovery_name: str = "adcp-agent",
     discovery_base_url: str | None = None,
     discovery_specialisms: list[str] | None = None,
@@ -1080,7 +1103,7 @@ def _serve_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
@@ -1287,7 +1310,7 @@ def _serve_mcp_and_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,

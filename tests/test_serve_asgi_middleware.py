@@ -3,11 +3,13 @@
 Operators wiring tenant routing, CORS, request-id propagation, and
 custom auth use this kwarg to layer Starlette-style ASGI middleware
 on the outer HTTP app before uvicorn binds. The kwarg accepts a
-sequence of ``(MiddlewareClass, kwargs)`` tuples and composes
-outermost-first.
+sequence of ``(MiddlewareClass, kwargs)`` tuples, callable factories,
+or a mix of both, and composes outermost-first.
 """
 
 from __future__ import annotations
+
+import functools
 
 from adcp.server.serve import _apply_asgi_middleware
 
@@ -65,3 +67,55 @@ def test_apply_asgi_middleware_passes_kwargs_through():
     assert isinstance(wrapped, _TaggingMiddleware)
     assert wrapped.name == "audit"
     assert wrapped.app is app
+
+
+def test_apply_asgi_middleware_callable_factory():
+    """Callable factory form ``f(app) -> app`` is accepted."""
+    app = _NoOpAsgi()
+
+    def cors_factory(inner):
+        return _TaggingMiddleware(inner, name="cors")
+
+    wrapped = _apply_asgi_middleware(app, [cors_factory])
+    assert isinstance(wrapped, _TaggingMiddleware)
+    assert wrapped.name == "cors"
+    assert wrapped.app is app
+
+
+def test_apply_asgi_middleware_callable_factory_with_partial():
+    """``functools.partial`` is a valid callable factory."""
+    app = _NoOpAsgi()
+    factory = functools.partial(_TaggingMiddleware, name="partial-cors")
+    wrapped = _apply_asgi_middleware(app, [factory])
+    assert isinstance(wrapped, _TaggingMiddleware)
+    assert wrapped.name == "partial-cors"
+    assert wrapped.app is app
+
+
+def test_apply_asgi_middleware_mixed_tuple_and_callable_preserves_order():
+    """Mixed list composes outermost-first regardless of entry type.
+
+    Given ``[tuple_entry("outer"), callable("middle"), tuple_entry("inner")]``,
+    the result must be outer → middle → inner → app, verified by walking
+    the ``.app`` chain.
+    """
+    app = _NoOpAsgi()
+
+    def middle_factory(inner):
+        return _TaggingMiddleware(inner, name="middle")
+
+    wrapped = _apply_asgi_middleware(
+        app,
+        [
+            (_TaggingMiddleware, {"name": "outer"}),
+            middle_factory,
+            (_TaggingMiddleware, {"name": "inner"}),
+        ],
+    )
+    assert isinstance(wrapped, _TaggingMiddleware)
+    assert wrapped.name == "outer"
+    assert isinstance(wrapped.app, _TaggingMiddleware)
+    assert wrapped.app.name == "middle"
+    assert isinstance(wrapped.app.app, _TaggingMiddleware)
+    assert wrapped.app.app.name == "inner"
+    assert wrapped.app.app.app is app
