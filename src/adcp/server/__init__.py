@@ -130,6 +130,7 @@ from adcp.server.responses import (
     update_media_buy_response,
 )
 from adcp.server.serve import (
+    ASGIMiddlewareEntry,
     ContextFactory,
     RequestMetadata,
     SkillMiddleware,
@@ -186,6 +187,7 @@ __all__ = [
     # A2A integration
     "ADCPAgentExecutor",
     "MessageParser",
+    "ASGIMiddlewareEntry",
     "SkillMiddleware",
     "create_a2a_server",
     # Bearer-token auth middleware (seller-facing recipe)

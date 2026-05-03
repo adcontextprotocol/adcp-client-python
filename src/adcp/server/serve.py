@@ -720,11 +720,11 @@ def serve(
 
 
 def _prepend_debug_endpoint(
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None,
     *,
     enable_debug_endpoints: bool,
     debug_traffic_source: Callable[[], dict[str, int]] | None,
-) -> Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None:
+) -> Sequence[ASGIMiddlewareEntry] | None:
     """Prepend :class:`DebugTrafficMiddleware` to the asgi_middleware
     sequence when debug endpoints are enabled.
 
@@ -1032,8 +1032,7 @@ def _serve_mcp(
         # stdio — no listening socket, nothing to configure.
         if asgi_middleware:
             logger.warning(
-                "asgi_middleware is ignored on transport='stdio'; "
-                "ASGI middleware will not run"
+                "asgi_middleware is ignored on transport='stdio'; " "ASGI middleware will not run"
             )
         mcp.run(transport=transport)
 
@@ -1328,7 +1327,7 @@ def _serve_mcp_and_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
-    asgi_middleware: Sequence[tuple[type, dict[str, Any]] | Callable[..., Any]] | None = None,
+    asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
