@@ -1160,6 +1160,10 @@ from adcp.webhook_sender import (  # noqa: E402
 from adcp.webhook_supervisor_pg import (  # noqa: E402
     PgWebhookDeliverySupervisor,
 )
+from adcp.webhook_transport_hooks import (  # noqa: E402
+    DockerLocalhostRewrite,
+    TransportHook,
+)
 
 __all__ = [
     # Sender — payload builders
@@ -1174,6 +1178,9 @@ __all__ = [
     "deliver",
     "WebhookDeliveryResult",
     "WebhookSender",
+    # Sender — transport hooks (URL rewrite before SSRF)
+    "DockerLocalhostRewrite",
+    "TransportHook",
     # Receiver — 9421 verification (low-level)
     "VerifiedWebhookSender",
     "WebhookVerifyOptions",

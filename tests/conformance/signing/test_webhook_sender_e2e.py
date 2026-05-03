@@ -155,7 +155,7 @@ async def test_extra_headers_cannot_override_signature_bindings() -> None:
     an error at send time."""
     app, _ = _build_receiver_app()
     async with _build_sender(app) as sender:
-        with pytest.raises(ValueError, match="signature-binding"):
+        with pytest.raises(ValueError, match="auth-binding"):
             await sender.send_mcp(
                 url="http://test/webhooks/adcp",
                 task_id="t",
@@ -163,7 +163,7 @@ async def test_extra_headers_cannot_override_signature_bindings() -> None:
                 status="completed",
                 extra_headers={"Signature": "attacker-controlled"},
             )
-        with pytest.raises(ValueError, match="signature-binding"):
+        with pytest.raises(ValueError, match="auth-binding"):
             await sender.send_mcp(
                 url="http://test/webhooks/adcp",
                 task_id="t",
@@ -365,7 +365,7 @@ async def test_extra_header_case_insensitive_rejection() -> None:
     )
     async with _build_sender(app) as sender:
         for bad in bad_headers:
-            with pytest.raises(ValueError, match="signature-binding|content-type"):
+            with pytest.raises(ValueError, match="auth-binding|content-type"):
                 await sender.send_mcp(
                     url="http://test/webhooks/adcp",
                     task_id="t",
@@ -663,30 +663,41 @@ async def test_owned_client_ignores_https_proxy_env() -> None:
 async def test_owned_client_rejects_hostile_url_before_signing() -> None:
     """Validate-before-sign defense in depth: a hostile URL raises
     SSRFValidationError synchronously inside ``build_async_ip_pinned_transport``,
-    BEFORE ``sign_webhook`` is called. No Ed25519/ES256 signature ever
-    materializes in process memory for a URL that fails the SSRF guard —
-    anything that snapshots locals on exception (faulthandler, custom
-    logging) cannot capture a signature that wasn't generated.
+    BEFORE the auth strategy's ``build_auth_headers`` is called. No
+    Ed25519/ES256 signature ever materializes in process memory for a
+    URL that fails the SSRF guard — anything that snapshots locals on
+    exception (faulthandler, custom logging) cannot capture a signature
+    that wasn't generated.
 
     Regression guard for the validate-before-sign reorder in _send_bytes."""
-    from unittest.mock import patch
-
     from adcp.signing import SSRFValidationError
 
     sender = WebhookSender.from_jwk(
         {**WEBHOOK_JWK, "d": WEBHOOK_JWK["_private_d_for_test_only"]},
     )
-    with patch("adcp.webhook_sender.sign_webhook") as mock_sign:
-        async with sender:
-            with pytest.raises(SSRFValidationError):
-                await sender.send_mcp(
-                    url="https://127.0.0.1/webhooks/adcp",
-                    task_id="task_no_sign",
-                    task_type="create_media_buy",
-                    status="completed",
-                )
-    assert mock_sign.called is False, (
-        "sign_webhook was called even though SSRF validation rejected the URL — "
-        "the signature would sit in process memory until the rejection. "
-        "Validate-before-sign ordering is broken; check _send_bytes."
+
+    class _RecordingStrategy:
+        called = False
+
+        def build_auth_headers(self, **_: object) -> dict[str, str]:
+            type(self).called = True
+            return {}
+
+        def reserved_headers(self) -> frozenset[str]:
+            return frozenset()
+
+    spy = _RecordingStrategy()
+    sender._auth = spy  # type: ignore[assignment]
+    async with sender:
+        with pytest.raises(SSRFValidationError):
+            await sender.send_mcp(
+                url="https://127.0.0.1/webhooks/adcp",
+                task_id="task_no_sign",
+                task_type="create_media_buy",
+                status="completed",
+            )
+    assert _RecordingStrategy.called is False, (
+        "build_auth_headers was called even though SSRF validation rejected "
+        "the URL — the signature would sit in process memory until the "
+        "rejection. Validate-before-sign ordering is broken; check _send_bytes."
     )

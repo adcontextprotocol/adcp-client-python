@@ -28,6 +28,7 @@ and remember to reuse ``idempotency_key`` on retry. Each step is a footgun.
 from __future__ import annotations
 
 import json
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -48,9 +49,22 @@ from adcp.signing.ip_pinned_transport import (
     AsyncIpPinnedTransport,
     build_async_ip_pinned_transport,
 )
-from adcp.signing.webhook_signer import sign_webhook
+from adcp.signing.standard_webhooks import decode_secret as _decode_sw_secret
 from adcp.types import GeneratedTaskStatus
 from adcp.types.generated_poc.core.async_response_data import AdcpAsyncResponseData
+from adcp.webhook_auth import (
+    AdcpLegacyHmacStrategy,
+    BearerTokenStrategy,
+    JwkSignerStrategy,
+    StandardWebhooksHmacStrategy,
+    WebhookAuthStrategy,
+    merge_extra_headers,
+)
+from adcp.webhook_transport_hooks import (
+    DockerLocalhostRewrite,
+    TransportHook,
+    apply_hooks,
+)
 from adcp.webhooks import (
     create_mcp_webhook_payload,
     generate_webhook_idempotency_key,
@@ -66,6 +80,44 @@ _DEFAULT_TIMEOUT_SECONDS = 10.0
 # an adversarial payload: json.dumps holds dict + str concurrently, and
 # .encode() transiently triples memory, so a 1GB body is multiple GB RSS.
 _MAX_BODY_BYTES = 10 * 1024 * 1024
+
+
+_legacy_hmac_warned = False
+
+
+def _warn_legacy_hmac_once() -> None:
+    """Emit a one-shot DeprecationWarning when an operator builds a
+    legacy-HMAC sender. Mirrors the receiver-side warn-once in
+    :mod:`adcp.signing.webhook_hmac` so sender-only deployments see the
+    AdCP 4.0 cutover signal at runtime, not only in the docstring."""
+    global _legacy_hmac_warned
+    if _legacy_hmac_warned:
+        return
+    _legacy_hmac_warned = True
+    warnings.warn(
+        "AdCP-legacy HMAC-SHA256 webhook signing is the AdCP 3.x fallback "
+        "and will be removed in AdCP 4.0. Migrate to RFC 9421 JWK signing "
+        "via WebhookSender.from_jwk / from_pem. See "
+        "docs/webhooks/migration-from-fragmented-senders.md. This warning "
+        "fires once per process.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
+def _validate_hooks(hooks: tuple[TransportHook, ...], allow_private_destinations: bool) -> None:
+    """Run each hook's optional ``validate_for_sender`` self-check.
+
+    Hooks that depend on sender configuration (e.g.,
+    :class:`DockerLocalhostRewrite` requiring private destinations)
+    expose a ``validate_for_sender`` method that raises on
+    misconfiguration. Hooks without it are unconstrained — the
+    Protocol only mandates ``rewrite_url``.
+    """
+    for hook in hooks:
+        validate = getattr(hook, "validate_for_sender", None)
+        if callable(validate):
+            validate(allow_private_destinations=allow_private_destinations)
 
 
 @dataclass(frozen=True)
@@ -118,15 +170,62 @@ class WebhookSender:
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
         allow_private_destinations: bool = False,
         allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
     ) -> None:
-        self._private_key = private_key
+        """Construct a sender wired to RFC 9421 JWK signing.
+
+        The HMAC and bearer modes are reached via :meth:`from_bearer_token`,
+        :meth:`from_adcp_legacy_hmac`, and :meth:`from_standard_webhooks_secret`
+        — those classmethods bypass this initializer through
+        :meth:`_from_strategy` because their key material has different
+        types (``bytes`` / ``str`` rather than ``PrivateKey``).
+
+        ``transport_hooks`` runs URL rewrites before SSRF validation —
+        see :class:`adcp.webhook_transport_hooks.DockerLocalhostRewrite`
+        for the canonical use case. SSRF remains authoritative on the
+        rewritten URL; hooks cannot punch through the range check.
+        """
+        self._auth: WebhookAuthStrategy = JwkSignerStrategy(
+            private_key=private_key, key_id=key_id, alg=alg
+        )
         self._key_id = key_id
-        self._alg = alg
         self._timeout = timeout_seconds
         self._client = client
         self._owns_client = client is None
         self._allow_private_destinations = allow_private_destinations
         self._allowed_destination_ports = allowed_destination_ports
+        self._transport_hooks = tuple(transport_hooks)
+        _validate_hooks(self._transport_hooks, allow_private_destinations)
+
+    @classmethod
+    def _from_strategy(
+        cls,
+        auth: WebhookAuthStrategy,
+        *,
+        key_id: str,
+        client: httpx.AsyncClient | None,
+        timeout_seconds: float,
+        allow_private_destinations: bool,
+        allowed_destination_ports: frozenset[int] | None,
+        transport_hooks: tuple[TransportHook, ...] = (),
+    ) -> WebhookSender:
+        """Build a sender around a pre-constructed auth strategy.
+
+        Internal constructor for the HMAC/bearer paths. The public
+        ``__init__`` is locked to the JWK signature for back-compat;
+        new modes don't fit that signature, so they bypass it here.
+        """
+        sender = cls.__new__(cls)
+        sender._auth = auth
+        sender._key_id = key_id
+        sender._timeout = timeout_seconds
+        sender._client = client
+        sender._owns_client = client is None
+        sender._allow_private_destinations = allow_private_destinations
+        sender._allowed_destination_ports = allowed_destination_ports
+        sender._transport_hooks = tuple(transport_hooks)
+        _validate_hooks(sender._transport_hooks, allow_private_destinations)
+        return sender
 
     @classmethod
     def from_jwk(
@@ -138,6 +237,7 @@ class WebhookSender:
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
         allow_private_destinations: bool = False,
         allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
     ) -> WebhookSender:
         """Construct from a JWK that includes the private scalar.
 
@@ -178,6 +278,7 @@ class WebhookSender:
             timeout_seconds=timeout_seconds,
             allow_private_destinations=allow_private_destinations,
             allowed_destination_ports=allowed_destination_ports,
+            transport_hooks=transport_hooks,
         )
 
     @classmethod
@@ -192,6 +293,7 @@ class WebhookSender:
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
         allow_private_destinations: bool = False,
         allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
     ) -> WebhookSender:
         """Load a private key from a PEM file and bind it as a webhook sender.
 
@@ -260,12 +362,139 @@ class WebhookSender:
             timeout_seconds=timeout_seconds,
             allow_private_destinations=allow_private_destinations,
             allowed_destination_ports=allowed_destination_ports,
+            transport_hooks=transport_hooks,
+        )
+
+    @classmethod
+    def from_bearer_token(
+        cls,
+        token: str,
+        *,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        allow_private_destinations: bool = False,
+        allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
+    ) -> WebhookSender:
+        """Build a sender that POSTs with ``Authorization: Bearer <token>``.
+
+        For buyers who authenticate the sender at the gateway and don't
+        verify body signatures. The sender's marshaling guarantees still
+        apply (byte-exact JSON, idempotency_key in body); body signing
+        is skipped.
+
+        A buyer treating bearer tokens as the sole authenticity signal
+        SHOULD also enforce TLS/mTLS at the transport layer — a stolen
+        token is a complete forgery. Prefer JWK signing (:meth:`from_jwk`)
+        for AdCP-conformant deliveries.
+        """
+        if not isinstance(token, str) or not token:
+            raise ValueError("bearer token must be a non-empty string")
+        return cls._from_strategy(
+            BearerTokenStrategy(token=token),
+            key_id="bearer",
+            client=client,
+            timeout_seconds=timeout_seconds,
+            allow_private_destinations=allow_private_destinations,
+            allowed_destination_ports=allowed_destination_ports,
+            transport_hooks=transport_hooks,
+        )
+
+    @classmethod
+    def from_adcp_legacy_hmac(
+        cls,
+        secret: bytes,
+        *,
+        key_id: str,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        allow_private_destinations: bool = False,
+        allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
+    ) -> WebhookSender:
+        """Build a sender wired to AdCP-legacy HMAC-SHA256.
+
+        Wire format matches :func:`adcp.signing.webhook_hmac.verify_webhook_hmac`:
+        ``X-AdCP-Signature: sha256=<hex>`` over ``f"{timestamp}.{body}"``,
+        with ``X-AdCP-Timestamp`` set fresh per delivery (resends produce
+        a new signature over the same body).
+
+        ``secret`` is the raw HMAC key — the AdCP-legacy scheme has no
+        canonical encoding, so callers pass bytes directly. ``key_id``
+        is echoed in ``X-AdCP-Key-Id`` for receiver-side multi-key
+        rotation; it is not used in the signature itself.
+
+        AdCP-legacy HMAC will be removed in AdCP 4.0 — operators SHOULD
+        migrate to JWK signing (:meth:`from_jwk`) ahead of that boundary.
+        """
+        if not isinstance(secret, bytes) or not secret:
+            raise ValueError("hmac secret must be non-empty bytes")
+        if not isinstance(key_id, str) or not key_id:
+            raise ValueError("key_id must be a non-empty string")
+        # Mirror the receiver-side _warn_once() in webhook_hmac so a
+        # sender-only operator (no receiver in this process) still sees
+        # the AdCP 4.0 deprecation signal at runtime, not just in the
+        # docstring.
+        _warn_legacy_hmac_once()
+        return cls._from_strategy(
+            AdcpLegacyHmacStrategy(secret=secret, key_id=key_id),
+            key_id=key_id,
+            client=client,
+            timeout_seconds=timeout_seconds,
+            allow_private_destinations=allow_private_destinations,
+            allowed_destination_ports=allowed_destination_ports,
+            transport_hooks=transport_hooks,
+        )
+
+    @classmethod
+    def from_standard_webhooks_secret(
+        cls,
+        secret: str,
+        *,
+        key_id: str,
+        client: httpx.AsyncClient | None = None,
+        timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
+        allow_private_destinations: bool = False,
+        allowed_destination_ports: frozenset[int] | None = None,
+        transport_hooks: tuple[TransportHook, ...] = (),
+    ) -> WebhookSender:
+        """Build a sender wired to standardwebhooks.com v1 (Svix/Resend interop).
+
+        ``secret`` is the canonical ``whsec_<base64>`` form distributed
+        by buyers running Svix, Resend, or any other Standard Webhooks
+        verifier. The constructor base64-decodes the prefix-stripped
+        payload internally — passing the literal ``whsec_...`` to
+        :meth:`from_adcp_legacy_hmac` would silently produce signatures
+        Svix rejects, which is exactly the footgun this typed split
+        prevents.
+
+        Wire format per spec: ``webhook-id`` / ``webhook-timestamp`` /
+        ``webhook-signature: v1,<base64>`` over
+        ``f"{webhook_id}.{webhook_timestamp}.{body}"``. Each delivery
+        gets a fresh ``webhook-id`` so a receiver using webhook-id for
+        its own replay cache doesn't false-positive on a legitimate
+        retry — :meth:`resend` re-signs and gets a new id.
+        """
+        if not isinstance(secret, str) or not secret:
+            raise ValueError("secret must be a non-empty string (whsec_<base64>)")
+        if not isinstance(key_id, str) or not key_id:
+            raise ValueError("key_id must be a non-empty string")
+        decoded = _decode_sw_secret(secret)
+        return cls._from_strategy(
+            StandardWebhooksHmacStrategy(secret=decoded, key_id=key_id),
+            key_id=key_id,
+            client=client,
+            timeout_seconds=timeout_seconds,
+            allow_private_destinations=allow_private_destinations,
+            allowed_destination_ports=allowed_destination_ports,
+            transport_hooks=transport_hooks,
         )
 
     def __repr__(self) -> str:
         # Explicit repr so no future debug helper or error traceback auto-
-        # renders self.__dict__ and pulls the private key into logs.
-        return f"WebhookSender(key_id={self._key_id!r}, alg={self._alg!r})"
+        # renders self.__dict__ and pulls the private key (or HMAC secret /
+        # bearer token) into logs.
+        return f"WebhookSender(auth={type(self._auth).__name__}, " f"key_id={self._key_id!r})"
 
     async def aclose(self) -> None:
         """Close the internal httpx client if we own it."""
@@ -525,41 +754,38 @@ class WebhookSender:
         otherwise sit in process memory until the SSRF rejection —
         anything that snapshots locals on exception (faulthandler,
         custom logging) could capture it. Validate first, sign second.
+
+        Transport hooks run before SSRF; the rewritten URL is what gets
+        validated, signed, and POSTed. The signature covers the URL the
+        request actually lands at, not the URL the caller typed —
+        otherwise a receiver computing ``@target-uri`` from its observed
+        Host header would see a different value and verification would
+        fail. The hook output is bounded (hostname-only rewrite, scheme
+        and port preserved), so this can't widen the destination space.
         """
+        effective_url = apply_hooks(url, self._transport_hooks)
+
         # Build the pinned transport up-front for the owned-client path.
-        # This runs SSRF + port validation against the URL before any
-        # signing happens; a hostile URL raises SSRFValidationError here
-        # and the body never gets signed.
+        # SSRF + port validation runs against the *post-hook* URL — the
+        # one we'll actually connect to. A hostile URL raises
+        # SSRFValidationError here and the body never gets signed (no
+        # signature material to leak via faulthandler / custom logging
+        # on exception).
         transport: AsyncIpPinnedTransport | None = None
         if self._owns_client:
             transport = build_async_ip_pinned_transport(
-                url,
+                effective_url,
                 allow_private=self._allow_private_destinations,
                 allowed_ports=self._allowed_destination_ports,
             )
 
         base_headers = {"Content-Type": "application/json"}
-        signed = sign_webhook(
-            method="POST",
-            url=url,
-            headers=base_headers,
-            body=body,
-            private_key=self._private_key,
-            key_id=self._key_id,
-            alg=self._alg,
+        auth_headers = self._auth.build_auth_headers(method="POST", url=effective_url, body=body)
+        headers = merge_extra_headers(
+            base={**base_headers, **auth_headers},
+            extra=extra_headers,
+            reserved=self._auth.reserved_headers(),
         )
-        headers: dict[str, str] = {**base_headers, **signed.as_dict()}
-        if extra_headers:
-            # Pre-scan so a bad extra_header doesn't leave half-merged state.
-            reserved = {"signature", "signature-input", "content-digest", "content-type"}
-            for k in extra_headers:
-                if str(k).lower() in reserved:
-                    raise ValueError(
-                        f"extra_headers may not override signature-binding or "
-                        f"content-type header {k!r}"
-                    )
-            for k, v in extra_headers.items():
-                headers[k] = v
 
         if transport is not None:
             # Owned-client path. ``trust_env=False`` prevents httpx from
@@ -575,7 +801,7 @@ class WebhookSender:
                 follow_redirects=False,
                 trust_env=False,
             ) as client:
-                response = await client.post(url, content=body, headers=headers)
+                response = await client.post(effective_url, content=body, headers=headers)
         else:
             # Operator-supplied client — they own the SSRF guarantees on
             # their transport (proxy allowlist, mTLS, etc.). Reachable as
@@ -586,12 +812,12 @@ class WebhookSender:
                     "WebhookSender's operator-supplied client was already "
                     "closed. Construct a new sender or pass a fresh client."
                 )
-            response = await self._client.post(url, content=body, headers=headers)
+            response = await self._client.post(effective_url, content=body, headers=headers)
 
         return WebhookDeliveryResult(
             status_code=response.status_code,
             idempotency_key=idempotency_key,
-            url=url,
+            url=effective_url,
             response_headers=dict(response.headers),
             response_body=response.content,
             sent_body=body,
@@ -599,4 +825,9 @@ class WebhookSender:
         )
 
 
-__all__ = ["WebhookDeliveryResult", "WebhookSender"]
+__all__ = [
+    "DockerLocalhostRewrite",
+    "TransportHook",
+    "WebhookDeliveryResult",
+    "WebhookSender",
+]

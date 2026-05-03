@@ -239,6 +239,14 @@ from adcp.signing.signer import (
     async_sign_request,
     sign_request,
 )
+from adcp.signing.standard_webhooks import (
+    StandardWebhookError,
+    sign_standard_webhook,
+    verify_standard_webhook,
+)
+from adcp.signing.standard_webhooks import (
+    decode_secret as decode_standard_webhook_secret,
+)
 from adcp.signing.verifier import (
     VerifiedSigner,
     VerifierCapability,
@@ -343,6 +351,7 @@ __all__ = [
     "SignatureInputLabel",
     "SignatureVerificationError",
     "SignedHeaders",
+    "StandardWebhookError",
     "SigningAlgorithm",
     "SigningConfig",
     "SigningDecision",
@@ -371,6 +380,7 @@ __all__ = [
     "canonicalize_target_uri",
     "compute_content_digest_sha256",
     "content_digest_matches",
+    "decode_standard_webhook_secret",
     "default_capability_cache",
     "default_jwks_fetcher",
     "default_revocation_list_fetcher",
@@ -389,6 +399,7 @@ __all__ = [
     "resolve_and_validate_host",
     "sign_request",
     "sign_signature_base",
+    "sign_standard_webhook",
     "signing_operation",
     "unauthorized_response_headers",
     "validate_jwks_uri",
@@ -398,5 +409,6 @@ __all__ = [
     "verify_jws_document",
     "verify_request_signature",
     "verify_signature",
+    "verify_standard_webhook",
     "verify_starlette_request",
 ]
