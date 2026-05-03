@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Generic, Literal
+from typing import TYPE_CHECKING, Any, Generic, Literal
 
 # PEP 696 TypeVar defaults + PEP 695 / PEP 718 generic TypeAlias both
 # need ``typing_extensions`` backports for Python 3.10-3.12 (the package
@@ -33,6 +33,27 @@ from typing import Any, Generic, Literal
 # ``typing_extensions`` keeps the same source compatible across the
 # supported range.
 from typing_extensions import TypeAliasType, TypeVar
+
+# Wire-aligned optional Account fields use the codegen'd wire models so
+# adopters set the same shapes that land on the wire. Imported under
+# TYPE_CHECKING because the generated types pull in the heavy
+# adcp.types dependency tree; the framework runs without forcing that
+# import at decisioning module load time. Imports go through the public
+# adcp.types surface (not adcp.types.generated_poc) per the type-import
+# layering rule documented in CLAUDE.md.
+if TYPE_CHECKING:
+    from adcp.types import (
+        AccountReference,
+        AccountScope,
+        BusinessEntity,
+        CreditLimit,
+        GovernanceAgent,
+        PaymentTerms,
+        ReportingBucket,
+    )
+    from adcp.types import (
+        Setup as AccountSetup,
+    )
 
 
 class AdcpError(Exception):
@@ -376,6 +397,40 @@ class Account(Generic[TMeta]):
     :param auth_info: The verified principal that authenticated this
         request, if any. Distinct from ``id`` because one principal
         can act on multiple accounts in 'explicit' resolution mode.
+
+    Wire-aligned optional fields (all default ``None``) carry the AdCP
+    v3 commercial / lifecycle / reporting shape. Adopters who don't
+    populate these see no behavior change; populated fields project
+    through :func:`to_wire_account` onto the wire ``Account`` shape on
+    every emit path that surfaces an :class:`Account`. The projection
+    strips :attr:`BusinessEntity.bank` (write-only per spec) and
+    :attr:`GovernanceAgent.authentication.credentials` (defense-in-depth
+    — Python type hints aren't enforced at runtime, so the strip runs
+    even if an adopter returns a loosely-typed governance-agent record
+    that smuggles credentials through ``cast`` / ``Any``).
+
+    :param billing_entity: Business entity invoiced on this account.
+        Carries legal name, tax IDs, address, contacts, and (write-only)
+        bank details. The framework's :func:`to_wire_account` strips
+        ``bank`` on emit; adopters who load and return a full entity
+        from their store no longer leak bank coordinates to buyers.
+    :param setup: Setup payload for accounts in ``pending_approval``.
+        Carries ``url`` / ``message`` / ``expires_at`` driving the
+        ``pending_approval → active`` lifecycle.
+    :param governance_agents: Governance agent endpoints registered on
+        this account. The wire schema marks ``authentication.credentials``
+        write-only — the framework strips ``authentication`` on emit
+        regardless of what the adopter populates.
+    :param account_scope: ``operator`` / ``brand`` / ``operator_brand``
+        / ``agent``.
+    :param payment_terms: ``net_15`` / ``net_30`` / ``net_45`` /
+        ``net_60`` / ``net_90`` / ``prepay``.
+    :param credit_limit: Maximum outstanding balance allowed
+        (``{amount, currency}``).
+    :param rate_card: Identifier for the rate card applied. Opaque
+        seller-side string; emitted unchanged.
+    :param reporting_bucket: Cloud storage bucket where the seller
+        delivers offline reporting files for this account.
     """
 
     id: str
@@ -383,3 +438,145 @@ class Account(Generic[TMeta]):
     status: str = "active"
     metadata: TMeta = field(default_factory=lambda: {})  # type: ignore[assignment]
     auth_info: dict[str, Any] | None = None
+
+    # Wire-aligned optional fields. All default to ``None``; adopters
+    # populate as their commercial / lifecycle / reporting model
+    # requires. The framework projects through ``to_wire_account`` on
+    # every emit path that surfaces an Account, applying the
+    # write-only strips for ``billing_entity.bank`` and
+    # ``governance_agents[].authentication``.
+    billing_entity: BusinessEntity | None = None
+    setup: AccountSetup | None = None
+    governance_agents: list[GovernanceAgent] | None = None
+    account_scope: AccountScope | None = None
+    payment_terms: PaymentTerms | None = None
+    credit_limit: CreditLimit | None = None
+    rate_card: str | None = None
+    reporting_bucket: ReportingBucket | None = None
+
+
+# ---------------------------------------------------------------------------
+# Sync_accounts / sync_governance row shapes
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SyncAccountsResultRow:
+    """Per-account result row returned by an adopter's ``accounts.upsert``
+    implementation. Maps to one element of the wire ``sync_accounts``
+    response's ``accounts[]`` array.
+
+    Carries the same optional commercial / lifecycle fields as the wire
+    shape so adopters can echo ``setup`` (for ``pending_approval``
+    accounts), ``billing_entity``, ``payment_terms``, etc. on creation.
+    The framework projects through :func:`to_wire_sync_accounts_row`
+    before emit, applying the same ``billing_entity.bank`` strip as
+    :func:`to_wire_account` (write-only contract).
+
+    **MUST NOT carry auth-derived fields.** This shape is emitted on
+    the ``sync_accounts`` response wire. Adopters MUST NOT add an
+    ``auth_info`` key on returned rows — same MUST-NOT-LEAK rule the
+    framework enforces on :attr:`Account.auth_info`.
+
+    :param brand: Required. Echoed from the request's ``account.brand``.
+    :param operator: Required. Echoed from the request's
+        ``account.operator``.
+    :param action: Required. ``created`` / ``updated`` / ``unchanged``
+        / ``failed``.
+    :param status: Required. AdCP account-status enum value.
+    :param account_id: Seller-assigned account identifier (when
+        ``action`` is ``created``).
+    :param name: Human-readable account name assigned by the seller.
+    :param billing: Invoiced-to party
+        (``operator`` / ``agent`` / ``advertiser``).
+    :param billing_entity: Business entity invoiced.
+        ``bank`` is stripped on emit (write-only).
+    :param setup: Setup payload for ``pending_approval`` accounts.
+    :param account_scope: Account scope.
+    :param rate_card: Rate card applied to this account.
+    :param payment_terms: Payment terms.
+    :param credit_limit: Credit limit.
+    :param errors: Per-account errors (only when action is ``failed``).
+    :param warnings: Non-fatal warnings about this account.
+    :param sandbox: Sandbox-account marker, echoed from the request.
+    """
+
+    brand: dict[str, Any]
+    operator: str
+    # The wire schema uses an Enum on the response side; adopters can
+    # pass either the Enum value or the literal string. Typed as the
+    # literal union (Pydantic enum-or-string coercion handles the
+    # rest); the framework projects via ``_enum_value`` on emit.
+    action: Literal["created", "updated", "unchanged", "failed"] | str
+    status: str
+    account_id: str | None = None
+    name: str | None = None
+    billing: Literal["operator", "agent", "advertiser"] | None = None
+    billing_entity: BusinessEntity | None = None
+    setup: AccountSetup | None = None
+    account_scope: AccountScope | None = None
+    rate_card: str | None = None
+    payment_terms: PaymentTerms | None = None
+    credit_limit: CreditLimit | None = None
+    errors: list[dict[str, Any]] | None = None
+    warnings: list[str] | None = None
+    sandbox: bool | None = None
+
+
+@dataclass
+class SyncGovernanceEntry:
+    """One entry from the wire ``sync_governance`` request's ``accounts[]``.
+
+    The framework strips wire metadata (``idempotency_key``,
+    ``adcp_major_version``, ``context``, ``ext``) before invoking
+    :meth:`AccountStore.sync_governance`. Each entry pairs an
+    :class:`AccountReference` with its ``governance_agents[]``.
+
+    The ``governance_agents`` list carries ``authentication.credentials``
+    on the input — adopters persist these for outbound
+    ``check_governance`` calls. The framework strips ``authentication``
+    on emit (see :func:`to_wire_sync_governance_row`); the input shape
+    here keeps credentials present for the adopter's persistence step.
+
+    :param account: AccountReference for the account being synced.
+    :param governance_agents: Wire ``governance_agents[]``, including
+        ``authentication`` (which carries the write-only credentials).
+        Pass-through from the request — the framework does not strip
+        credentials before this point so adopters can persist them.
+    """
+
+    account: AccountReference
+    governance_agents: list[dict[str, Any]]
+
+
+@dataclass
+class SyncGovernanceResultRow:
+    """Per-entry result row returned by ``AccountStore.sync_governance``.
+
+    Maps to one element of the wire ``sync_governance`` response's
+    ``accounts[]`` array. The framework projects through
+    :func:`to_wire_sync_governance_row` before emit, stripping
+    ``authentication`` (write-only) from every governance agent.
+
+    **Replace semantics, per spec.** Each ``sync_governance`` call
+    REPLACES the previously synced governance agents for the
+    referenced account. An entry whose ``governance_agents`` is empty
+    clears the binding for that account.
+
+    Per-entry rejection (vs. operation-level throw) so a single bad
+    entry doesn't fail the whole batch — return a row with
+    ``status='failed'`` and ``errors=[{code: 'PERMISSION_DENIED', ...}]``
+    for the rejected entry.
+
+    :param account: AccountReference, echoed from the request.
+    :param status: ``synced`` (governance agents persisted) or
+        ``failed`` (could not complete; see ``errors``).
+    :param governance_agents: Governance agents now synced on this
+        account. Reflects the persisted state after sync.
+    :param errors: Per-account errors (only when status is ``failed``).
+    """
+
+    account: AccountReference
+    status: Literal["synced", "failed"] | str
+    governance_agents: list[dict[str, Any]] | None = None
+    errors: list[dict[str, Any]] | None = None

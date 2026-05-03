@@ -46,16 +46,99 @@ Spec-agent vs auth-layer principal:
 
 from __future__ import annotations
 
+import inspect
 from collections.abc import Awaitable, Callable
-from typing import Any, Generic, Literal, Protocol, runtime_checkable
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, runtime_checkable
 
 from typing_extensions import TypeVar
 
 from adcp.decisioning.context import AuthInfo
-from adcp.decisioning.types import Account
+from adcp.decisioning.types import (
+    Account,
+    SyncAccountsResultRow,
+    SyncGovernanceEntry,
+    SyncGovernanceResultRow,
+)
+
+if TYPE_CHECKING:
+    from adcp.decisioning.registry import BuyerAgent
+    from adcp.types import AccountReference
 
 #: Per-platform metadata generic.
 TMeta = TypeVar("TMeta", default=dict[str, Any])
+
+
+@dataclass(frozen=True)
+class ResolveContext:
+    """Per-request context threaded into :class:`AccountStore` methods
+    that need the caller's principal but don't get a full
+    :class:`RequestContext` (because the resolved account isn't yet
+    available, or the surface operates on multiple accounts at once).
+
+    Mirrors the JS-side ``ResolveContext`` shape: ``auth_info``,
+    ``tool_name``, ``agent``. Adopters read these to implement
+    principal-keyed gates on ``sync_accounts`` / ``list_accounts`` /
+    ``sync_governance`` (e.g., the spec's
+    ``BILLING_NOT_PERMITTED_FOR_AGENT`` per-buyer-agent gate from
+    adcontextprotocol/adcp#3851) without re-deriving identity from
+    the request.
+
+    **Prefer ``agent`` over ``auth_info`` for commercial-relationship
+    decisions.** ``agent`` is the registry-resolved durable identity
+    (status, billing capabilities, default account terms);
+    ``auth_info`` is the raw transport-level credential. For billing
+    gates the registry-resolved identity is canonical.
+
+    :param auth_info: Verified principal info. ``None`` for
+        unauthenticated requests (dev / ``'derived'`` fixtures).
+    :param tool_name: Wire verb that triggered the call
+        (e.g. ``'sync_accounts'``, ``'list_accounts'``,
+        ``'sync_governance'``). Adopters use it for audit logs; the
+        framework doesn't dispatch on it.
+    :param agent: Resolved :class:`BuyerAgent` when a
+        :class:`BuyerAgentRegistry` is wired. ``None`` otherwise.
+    """
+
+    auth_info: AuthInfo | None = None
+    tool_name: str | None = None
+    agent: BuyerAgent | None = None
+    #: Adopter passthrough for additional context the framework
+    #: doesn't model. Reserved for forward compatibility.
+    extra: dict[str, Any] = field(default_factory=dict)
+
+
+def _call_with_optional_ctx(
+    fn: Callable[..., Any],
+    *args: Any,
+    ctx: ResolveContext | None,
+) -> Any:
+    """Call ``fn`` with ``ctx`` as a trailing keyword arg when its
+    signature accepts one; fall back to positional-only invocation
+    when it doesn't.
+
+    The framework probes via :func:`inspect.signature` so adopter
+    impls written against the pre-ctx Protocol (no ``ctx`` parameter)
+    keep working unchanged. Same posture as the JS-side optional-
+    parameter pattern.
+
+    Used by the framework's dispatch shims for
+    :meth:`AccountStore.upsert`, :meth:`AccountStore.list`, and
+    :meth:`AccountStore.sync_governance`.
+    """
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):
+        # Built-in / C-extension callables don't expose a signature;
+        # call positionally and let the adopter's surface handle the
+        # mismatch.
+        return fn(*args)
+    params = sig.parameters
+    if "ctx" in params:
+        return fn(*args, ctx=ctx)
+    # No ctx parameter — pre-ctx adopter impl. Drop ctx silently
+    # (it's optional on every method that takes it).
+    return fn(*args)
 
 
 @runtime_checkable
@@ -100,6 +183,169 @@ class AccountStore(Protocol, Generic[TMeta]):
 
         Implementations may be sync or async; the dispatch adapter
         detects via :func:`inspect.iscoroutine` at call time.
+        """
+        ...
+
+    # ----- Optional v6 surfaces -----
+    #
+    # The methods below are documented on the Protocol class for
+    # discoverability but live on the SEPARATE :class:`AccountStoreUpsert`,
+    # :class:`AccountStoreList`, and :class:`AccountStoreSyncGovernance`
+    # Protocols below — keeping them off the runtime-checkable
+    # :class:`AccountStore` Protocol so an adopter who only implements
+    # ``resolve`` (the minimum viable AccountStore) still passes
+    # ``isinstance(store, AccountStore)``. The framework's dispatch
+    # shim probes via :func:`hasattr` for the optional methods at
+    # call time and surfaces ``UNSUPPORTED_FEATURE`` when absent.
+    #
+    # See:
+    #   * :meth:`AccountStoreUpsert.upsert` — ``sync_accounts``
+    #   * :meth:`AccountStoreList.list` — ``list_accounts``
+    #   * :meth:`AccountStoreSyncGovernance.sync_governance`
+
+
+@runtime_checkable
+class AccountStoreUpsert(Protocol):
+    """``sync_accounts`` API surface. Optional adopter-side feature
+    that complements :class:`AccountStore.resolve`.
+
+    Not parameterized over ``TMeta`` — :meth:`upsert` returns
+    :class:`SyncAccountsResultRow` (a wire-shaped row, no per-platform
+    metadata) rather than ``Account[TMeta]``, so the type variable
+    isn't needed here.
+
+    Adopters implement this on the same object as :class:`AccountStore`
+    (Protocols are structural — Python doesn't require explicit
+    inheritance) and the framework's dispatch shim picks it up via
+    :func:`hasattr`.
+
+    **Backwards-compatible.** ``ctx`` is optional on the platform
+    side, so adopter impls written before ctx threading landed (no
+    ``ctx`` parameter) keep working — the framework's
+    :func:`_call_with_optional_ctx` shim probes via
+    :func:`inspect.signature` and drops ``ctx`` for pre-ctx impls.
+    """
+
+    def upsert(
+        self,
+        refs: list[AccountReference],
+        ctx: ResolveContext | None = None,
+    ) -> Awaitable[list[SyncAccountsResultRow]] | list[SyncAccountsResultRow]:
+        """``sync_accounts`` API surface. Framework normalizes the
+        wire request; platform upserts and returns per-account result
+        rows. Raise :class:`adcp.decisioning.AdcpError` for
+        buyer-facing rejection.
+
+        ``ctx.auth_info`` carries the caller's authenticated
+        principal; ``ctx.agent`` carries the resolved
+        :class:`BuyerAgent` record (when a registry is configured).
+        Adopters implementing principal-keyed gates (e.g.,
+        per-buyer-agent ``BILLING_NOT_PERMITTED_FOR_AGENT`` on the
+        spec's billing surfaces) read the principal here — same
+        threading as :meth:`AccountStore.resolve`.
+
+        **Prefer ``ctx.agent`` over ``ctx.auth_info`` for
+        commercial-relationship decisions.** ``ctx.agent`` is the
+        registry-resolved durable identity (status, billing
+        capabilities, default account terms); ``ctx.auth_info``
+        carries the raw transport-level credential. For billing gates
+        the registry-resolved identity is canonical.
+        """
+        ...
+
+
+@runtime_checkable
+class AccountStoreList(Protocol, Generic[TMeta]):
+    """``list_accounts`` API surface. Optional adopter-side feature.
+
+    Framework wraps the returned account list with the cursor
+    envelope and projects each account through
+    :func:`to_wire_account` (stripping framework-internal fields and
+    applying the write-only strips for ``billing_entity.bank`` and
+    ``governance_agents[].authentication``).
+
+    **Security migration note.** Pre-this-release, adopters had no
+    way to scope ``list_accounts`` per-principal — impls either
+    returned all accounts (over-disclosure) or rejected the
+    operation. Post-this-release, scoping becomes possible via
+    ``ctx.agent``. **This is opt-in, not automatic.** Multi-tenant
+    adopters MUST add principal scoping in their impl; without it,
+    every authenticated caller sees every account.
+    """
+
+    def list(
+        self,
+        filter: dict[str, Any] | None = None,
+        ctx: ResolveContext | None = None,
+    ) -> Awaitable[list[Account[TMeta]]] | list[Account[TMeta]]:
+        """Return the accounts visible to the calling principal.
+
+        :param filter: Wire-shape filter object — ``status`` /
+            ``sandbox`` / pagination. Pass-through from the parsed
+            wire request.
+        :param ctx: Per-request context. ``ctx.auth_info`` and
+            ``ctx.agent`` carry the caller's principal — adopters
+            scope the listing per-principal (e.g., return only
+            accounts visible to the calling buyer agent) without
+            re-deriving identity from the request.
+        """
+        ...
+
+
+@runtime_checkable
+class AccountStoreSyncGovernance(Protocol):
+    """``sync_governance`` API surface. Optional adopter-side feature.
+
+    Buyers register governance agent endpoints per-account; the
+    seller persists the binding and consults the agents during media
+    buy lifecycle events via ``check_governance``. Adopters that
+    don't model buyer-supplied governance agents (most direct
+    sellers) leave this unimplemented and the framework returns
+    ``UNSUPPORTED_FEATURE``.
+    """
+
+    def sync_governance(
+        self,
+        entries: list[SyncGovernanceEntry],
+        ctx: ResolveContext | None = None,
+    ) -> Awaitable[list[SyncGovernanceResultRow]] | list[SyncGovernanceResultRow]:
+        """Persist the per-entry governance-agent bindings.
+
+        ``entries`` is the wire request's ``accounts[]`` — each entry
+        pairs an :class:`AccountReference` with its
+        ``governance_agents[]``. The framework has already deduped on
+        ``idempotency_key`` and stripped wire metadata
+        (``adcp_major_version``, ``context``, ``ext``) before
+        invoking this method.
+
+        **Replace semantics, per spec.** Each call REPLACES the
+        previously synced governance agents for the referenced
+        account. An entry whose ``governance_agents`` is empty clears
+        the binding for that account.
+
+        **Write-only credentials.** Each
+        ``governance_agents[i].authentication.credentials`` is the
+        bearer the seller presents to that governance agent on
+        outbound ``check_governance`` calls. Persist them — silently
+        dropping ships unauthenticated requests once cross-agent
+        calls are wired. The framework strips ``authentication`` from
+        each ``governance_agents[i]`` of every row before
+        serialization (:func:`to_wire_sync_governance_row`), so
+        credentials never reach the response wire OR the idempotency
+        replay cache, even if an adopter returns a loosely-typed row
+        that spreads the input. Do not rely on Python type hints
+        alone — the strip is enforced at the dispatcher.
+
+        ``ctx.auth_info`` and ``ctx.agent`` carry the caller's
+        principal. Adopters MUST gate per-entry persistence by the
+        caller's tenant: each entry's ``account.operator`` (or
+        ``account_id``) must map to the same tenant the auth
+        principal authorizes; otherwise return a row with
+        ``status='failed'`` carrying
+        ``errors=[{code: 'PERMISSION_DENIED', ...}]`` for that entry.
+        Operation-level rejection (``raise AdcpError(...)``) fails
+        the whole batch, which is the wrong shape when a single
+        entry fails the gate.
         """
         ...
 

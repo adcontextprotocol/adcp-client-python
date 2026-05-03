@@ -52,11 +52,18 @@ from __future__ import annotations
 from adcp.decisioning.account_projection import (
     project_account_for_response,
     project_business_entity_for_response,
+    to_wire_account,
+    to_wire_sync_accounts_row,
+    to_wire_sync_governance_row,
 )
 from adcp.decisioning.accounts import (
     AccountStore,
+    AccountStoreList,
+    AccountStoreSyncGovernance,
+    AccountStoreUpsert,
     ExplicitAccounts,
     FromAuthAccounts,
+    ResolveContext,
     SingletonAccounts,
 )
 from adcp.decisioning.compose import (
@@ -163,6 +170,9 @@ from adcp.decisioning.types import (
     AdcpError,
     MaybeAsync,
     SalesResult,
+    SyncAccountsResultRow,
+    SyncGovernanceEntry,
+    SyncGovernanceResultRow,
     TaskHandoff,
     WorkflowHandoff,
 )
@@ -215,6 +225,9 @@ __all__ = [
     "Account",
     "AccountNotFoundError",
     "AccountStore",
+    "AccountStoreList",
+    "AccountStoreSyncGovernance",
+    "AccountStoreUpsert",
     "AdcpError",
     "ApiKey",
     "ApiKeyCredential",
@@ -267,6 +280,7 @@ __all__ = [
     "RateLimitedBuyerAgentRegistry",
     "RateLimitedError",
     "RequestContext",
+    "ResolveContext",
     "ResourceResolver",
     "SalesPlatform",
     "SalesResult",
@@ -275,6 +289,9 @@ __all__ = [
     "SingletonAccounts",
     "StateReader",
     "StaticBearer",
+    "SyncAccountsResultRow",
+    "SyncGovernanceEntry",
+    "SyncGovernanceResultRow",
     "TaskHandoff",
     "TaskHandoffContext",
     "TaskRegistry",
@@ -304,5 +321,8 @@ __all__ = [
     "ref_account_id",
     "serve",
     "signing_only_registry",
+    "to_wire_account",
+    "to_wire_sync_accounts_row",
+    "to_wire_sync_governance_row",
     "validate_billing_for_agent",
 ]

@@ -1,23 +1,46 @@
-"""Response-side projection helpers for v3 :class:`Account` payloads.
+"""Wire-emit projections for AdCP v3 :class:`Account` payloads.
 
-The AdCP v3 spec marks :attr:`adcp.types.BusinessEntity.bank` as
-write-only — adopters accept it on inbound ``sync_accounts`` requests
-but MUST omit it from any response payload that surfaces an
-``Account``. The schema *describes* this rule in a docstring, but
-doesn't structurally enforce it; Pydantic round-trips ``bank`` on
-``model_dump()`` like any other field.
+This module ships two layers of projection:
 
-This module ships the structural guard. Adopters call
-:func:`project_account_for_response` (or
-:func:`project_business_entity_for_response`) on the way out and the
-helper returns a fresh model with ``bank`` cleared.
+1. **Pydantic-model helpers** — :func:`project_account_for_response`
+   and :func:`project_business_entity_for_response` operate on the
+   codegen'd wire :class:`adcp.types.Account` / :class:`BusinessEntity`
+   models. Adopters that already hold a wire-shaped Pydantic model
+   (e.g. echoing through a translator) call these to strip the
+   write-only :attr:`BusinessEntity.bank` before serializing.
+
+2. **Framework dataclass helpers** — :func:`to_wire_account`,
+   :func:`to_wire_sync_accounts_row`, and
+   :func:`to_wire_sync_governance_row` project the framework's
+   internal :class:`adcp.decisioning.Account[TMeta]` /
+   :class:`SyncAccountsResultRow` / :class:`SyncGovernanceResultRow`
+   shapes to plain dicts ready for JSON serialization. These run on
+   every emit path the framework controls; adopters typically don't
+   call them directly.
+
+The AdCP v3 spec marks two write-only paths that the framework MUST
+strip on every response:
+
+* :attr:`BusinessEntity.bank` — bank coordinates flow buyer→seller in
+  ``sync_accounts`` requests but MUST NOT appear in any response
+  payload.
+* :attr:`GovernanceAgent.authentication.credentials` — bearer
+  credentials the seller persists for outbound ``check_governance``
+  calls but MUST NOT echo to the buyer or land in the idempotency
+  replay cache.
+
+The schemas describe both rules in docstrings; neither is structurally
+enforced by Pydantic. The helpers here ARE the structural enforcement.
+Defense-in-depth: even when an adopter returns a loosely-typed row
+that smuggles a ``credentials`` field through ``cast`` / ``Any``, the
+projection drops it.
 
 Why a separate function instead of a Pydantic ``field_serializer``?
-The framework's typed :class:`Account` model is auto-generated from
-the spec schema — patching it in-place would drift on every regen.
-Keeping projection in adopter-callable helpers means the wire shape
-stays exactly what the spec defines while adopters get a one-line
-guard against the leak.
+The framework's typed wire models are auto-generated from the spec
+schema — patching them in-place would drift on every regen. Keeping
+projection in adopter-callable / framework-internal helpers means the
+wire shape stays exactly what the spec defines while the strips run
+at the emit boundary.
 
 Quickstart::
 
@@ -34,9 +57,16 @@ Quickstart::
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from adcp.decisioning.types import (
+        Account as DecisioningAccount,
+    )
+    from adcp.decisioning.types import (
+        SyncAccountsResultRow,
+        SyncGovernanceResultRow,
+    )
     from adcp.types import Account, BusinessEntity
 
 
@@ -77,7 +107,226 @@ def project_business_entity_for_response(entity: BusinessEntity) -> BusinessEnti
     return entity.model_copy(update={"bank": None})
 
 
+# ---------------------------------------------------------------------------
+# Framework-dataclass → wire-dict projections
+# ---------------------------------------------------------------------------
+
+
+def _project_billing_entity(entity: Any) -> dict[str, Any] | None:
+    """Project a :class:`BusinessEntity` to a wire dict, stripping
+    ``bank`` per the schema's write-only constraint.
+
+    Returns ``None`` when the entity carries only ``bank`` (no other
+    fields). The wire schema requires ``legal_name`` on every emitted
+    entity; a bank-only input would project to an empty dict that
+    fails downstream validation, so the caller skips emission entirely
+    in that case.
+
+    Accepts any object with ``model_dump`` (Pydantic) OR a plain dict
+    so adopters returning either shape on
+    :class:`SyncAccountsResultRow` work without coercion.
+    """
+    if entity is None:
+        return None
+    if hasattr(entity, "model_dump"):
+        dumped = entity.model_dump(mode="json", exclude_none=True)
+    elif isinstance(entity, dict):
+        dumped = {k: v for k, v in entity.items() if v is not None}
+    else:
+        return None
+    dumped.pop("bank", None)
+    return dumped if dumped else None
+
+
+def _project_governance_agent(agent: Any) -> dict[str, Any]:
+    """Project one ``governance_agents[i]`` to a wire dict carrying
+    only the buyer-visible fields.
+
+    The wire schema for response payloads exposes ``url`` and
+    ``categories`` only — :attr:`GovernanceAgent.authentication`
+    (bearing the write-only credentials) is stripped.
+
+    Defense-in-depth: even if an adopter returns a loosely-typed
+    record with an ``authentication`` key (Python type hints aren't
+    enforced at runtime), the projection drops it. Same posture as
+    the JS-side ``projectGovernanceAgent``.
+    """
+    if hasattr(agent, "model_dump"):
+        dumped = agent.model_dump(mode="json", exclude_none=True)
+    elif isinstance(agent, dict):
+        dumped = {k: v for k, v in agent.items() if v is not None}
+    else:
+        # Unknown shape — emit a minimal dict and let downstream
+        # validation catch it. Return an empty mapping rather than
+        # raising; the framework's response validation will surface
+        # the error at the wire boundary.
+        return {}
+    out: dict[str, Any] = {}
+    if "url" in dumped:
+        out["url"] = dumped["url"]
+    if "categories" in dumped and dumped["categories"] is not None:
+        out["categories"] = dumped["categories"]
+    return out
+
+
+def _maybe_dump(value: Any) -> Any:
+    """Dump a Pydantic model to JSON-mode dict; pass through dicts /
+    primitives unchanged. Used by the wire-emit projections to handle
+    adopters that return either typed Pydantic models or plain
+    dicts."""
+    if value is None:
+        return None
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json", exclude_none=True)
+    return value
+
+
+def _enum_value(value: Any) -> Any:
+    """Return ``value.value`` for Enum-like inputs, else the value
+    unchanged. Used to project codegen'd enum types AND adopter-supplied
+    string literals to the same wire string shape."""
+    if hasattr(value, "value"):
+        return value.value
+    return value
+
+
+def to_wire_account(account: DecisioningAccount[Any]) -> dict[str, Any]:
+    """Project a framework :class:`Account[TMeta]` to the wire
+    ``Account`` shape.
+
+    Strips ``metadata`` and ``auth_info`` (framework-internal — never
+    on the wire); renames ``id`` → ``account_id``; passes through
+    wire-shaped optional fields. Strips ``billing_entity.bank``
+    per the schema's write-only constraint.
+
+    For ``governance_agents``, strips ``authentication`` from every
+    element (defense-in-depth — TypeScript erasure means Python type
+    hints can't enforce credentials-out at runtime, so the projection
+    is explicit at every emit boundary).
+
+    Used by the framework when emitting any response that surfaces an
+    :class:`Account`. Adopters never call this directly — they return
+    :class:`Account[TMeta]` from :meth:`AccountStore.resolve` /
+    :meth:`AccountStore.list` and the framework projects.
+    """
+    wire: dict[str, Any] = {
+        "account_id": account.id,
+        "name": account.name,
+        "status": account.status,
+    }
+    projected_entity = _project_billing_entity(account.billing_entity)
+    if projected_entity is not None:
+        wire["billing_entity"] = projected_entity
+    if account.setup is not None:
+        wire["setup"] = _maybe_dump(account.setup)
+    if account.governance_agents is not None:
+        wire["governance_agents"] = [
+            _project_governance_agent(a) for a in account.governance_agents
+        ]
+    if account.account_scope is not None:
+        scope = account.account_scope
+        wire["account_scope"] = _enum_value(scope)
+    if account.payment_terms is not None:
+        terms = account.payment_terms
+        wire["payment_terms"] = _enum_value(terms)
+    if account.credit_limit is not None:
+        wire["credit_limit"] = _maybe_dump(account.credit_limit)
+    if account.rate_card is not None:
+        wire["rate_card"] = account.rate_card
+    if account.reporting_bucket is not None:
+        wire["reporting_bucket"] = _maybe_dump(account.reporting_bucket)
+    return wire
+
+
+def to_wire_sync_accounts_row(row: SyncAccountsResultRow) -> dict[str, Any]:
+    """Project a :class:`SyncAccountsResultRow` to the wire shape
+    returned by ``sync_accounts``.
+
+    Applies the same ``billing_entity.bank`` strip as
+    :func:`to_wire_account` — the wire schema marks bank coordinates
+    write-only on EVERY response, not just ``list_accounts``.
+    Adopters returning a row that spreads a DB record carrying
+    ``bank`` (e.g., ``{**db.findByBrand(r.brand), 'action':
+    'updated'}``) have it stripped before emit.
+
+    Used by the framework when emitting ``sync_accounts`` responses.
+    Adopters never call this directly — they return
+    ``list[SyncAccountsResultRow]`` from
+    :meth:`AccountStore.upsert` and the framework projects.
+    """
+    action = row.action
+    status = row.status
+    wire: dict[str, Any] = {
+        "brand": _maybe_dump(row.brand),
+        "operator": row.operator,
+        "action": _enum_value(action),
+        "status": _enum_value(status),
+    }
+    if row.account_id is not None:
+        wire["account_id"] = row.account_id
+    if row.name is not None:
+        wire["name"] = row.name
+    if row.billing is not None:
+        wire["billing"] = row.billing
+    projected_entity = _project_billing_entity(row.billing_entity)
+    if projected_entity is not None:
+        wire["billing_entity"] = projected_entity
+    if row.account_scope is not None:
+        scope = row.account_scope
+        wire["account_scope"] = _enum_value(scope)
+    if row.setup is not None:
+        wire["setup"] = _maybe_dump(row.setup)
+    if row.rate_card is not None:
+        wire["rate_card"] = row.rate_card
+    if row.payment_terms is not None:
+        terms = row.payment_terms
+        wire["payment_terms"] = _enum_value(terms)
+    if row.credit_limit is not None:
+        wire["credit_limit"] = _maybe_dump(row.credit_limit)
+    if row.errors is not None:
+        wire["errors"] = list(row.errors)
+    if row.warnings is not None:
+        wire["warnings"] = list(row.warnings)
+    if row.sandbox is not None:
+        wire["sandbox"] = row.sandbox
+    return wire
+
+
+def to_wire_sync_governance_row(row: SyncGovernanceResultRow) -> dict[str, Any]:
+    """Project a :class:`SyncGovernanceResultRow` to the wire shape
+    returned by ``sync_governance``.
+
+    Critically: each ``governance_agents[i]`` is reduced to
+    ``{url, categories?}`` only — the spec marks
+    ``authentication.credentials`` write-only (the buyer sends the
+    bearer; the seller persists it for outbound ``check_governance``
+    calls but MUST NOT echo it back). The natural ``{**entry_agent}``
+    echo idiom would compile silently against a loose return type
+    and ship credentials over the wire AND into the idempotency
+    replay cache, arming the buyer (and any subsequent caller hitting
+    the same key) to impersonate the seller against the governance
+    agent.
+
+    Defense-in-depth: this dispatcher-level strip runs even when an
+    adopter returns a loosely-typed row that spreads the input
+    governance-agent record verbatim. Same posture as the JS-side
+    ``toWireSyncGovernanceRow``.
+    """
+    wire: dict[str, Any] = {
+        "account": _maybe_dump(row.account),
+        "status": _enum_value(row.status),
+    }
+    if row.governance_agents is not None:
+        wire["governance_agents"] = [_project_governance_agent(a) for a in row.governance_agents]
+    if row.errors is not None:
+        wire["errors"] = list(row.errors)
+    return wire
+
+
 __all__ = [
     "project_account_for_response",
     "project_business_entity_for_response",
+    "to_wire_account",
+    "to_wire_sync_accounts_row",
+    "to_wire_sync_governance_row",
 ]
