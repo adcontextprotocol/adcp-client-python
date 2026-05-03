@@ -595,6 +595,8 @@ __all__ = [
     "ValidationResult",
     # Capability validation
     "FeatureResolver",
+    "build_synthetic_capabilities",
+    "is_v3_capabilities_shape",
     "validate_capabilities",
     # Core types
     "AgentConfig",

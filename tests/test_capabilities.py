@@ -884,6 +884,17 @@ class TestIsV3CapabilitiesShape:
         }
         assert is_v3_capabilities_shape(data) is True
 
+    def test_malformed_supported_protocols_list_of_dicts_does_not_raise(self) -> None:
+        # A broken seller might return supported_protocols as a list of objects.
+        # The isinstance(p, str) guard must prevent TypeError on dict iteration.
+        from adcp.capabilities import is_v3_capabilities_shape
+
+        data = {
+            "adcp": {"major_versions": [2]},
+            "supported_protocols": [{"name": "governance"}],
+        }
+        assert is_v3_capabilities_shape(data) is False
+
     def test_importable_from_top_level(self) -> None:
         from adcp import is_v3_capabilities_shape
 
@@ -947,8 +958,9 @@ class TestRefreshCapabilitiesV3Shape:
             with pytest.raises(ADCPError) as exc_info:
                 await client.refresh_capabilities()
 
-        # Pydantic field path should appear in the raised exception string
-        assert "supported_billing" in str(exc_info.value)
+        # Pydantic field path should appear in the suggestion field directly
+        assert exc_info.value.suggestion is not None
+        assert "supported_billing" in exc_info.value.suggestion
 
     @pytest.mark.asyncio
     async def test_genuine_v2_failure_raises_generic_error(self) -> None:

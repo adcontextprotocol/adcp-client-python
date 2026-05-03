@@ -111,17 +111,24 @@ def is_v3_capabilities_shape(data: Any) -> bool:
     """
     if not isinstance(data, dict):
         return False
-    # Primary: adcp.major_versions contains 3
+    # Primary: adcp.major_versions contains integer 3. The AdCP schema defines
+    # major_versions as a list of integers; string "3" would be a non-conformant
+    # seller and falls through to the secondary/tertiary checks below.
     adcp = data.get("adcp")
     if isinstance(adcp, dict):
         if 3 in adcp.get("major_versions", []):
             return True
-    # Secondary: v3-only protocol name in supported_protocols list
+    # Secondary: v3-only protocol name in supported_protocols list.
+    # Guard isinstance(p, str) so a malformed seller response with a list of
+    # objects (e.g. [{"name": "governance"}]) doesn't raise TypeError.
     protocols = data.get("supported_protocols")
     if isinstance(protocols, list):
-        if any(p in _V3_PROTOCOL_NAMES for p in protocols):
+        if any(p in _V3_PROTOCOL_NAMES for p in protocols if isinstance(p, str)):
             return True
-    # Tertiary: v3-only capability block present as a top-level key
+    # Tertiary: v3-only capability block present as a top-level key.
+    # Note: Trusted Match Protocol (TMP) is negotiated inside media_buy.execution
+    # and does not appear as a supported_protocols value or top-level key, so
+    # a media_buy-only v3 seller using TMP is caught only by the primary check.
     if _V3_PROTOCOL_NAMES & set(data.keys()):
         return True
     return False
