@@ -245,6 +245,36 @@ def test_to_wire_account_strips_governance_agent_authentication() -> None:
     assert wire["governance_agents"][0]["categories"] == ["budget_authority"]
 
 
+def test_to_wire_account_drops_unknown_governance_agent_shape() -> None:
+    """Unknown / unprojectable governance_agents entries (neither
+    Pydantic models nor dicts) get dropped instead of emitting ``{}``
+    onto the wire — silent corruption avoided."""
+    account = Account(
+        id="acct_1",
+        name="Acme",
+        status="active",
+        # Sentinel non-dict, non-Pydantic shape.
+        governance_agents=["not a dict"],  # type: ignore[list-item]
+    )
+    wire = to_wire_account(account)
+    assert wire["governance_agents"] == []
+
+
+def test_to_wire_account_drops_governance_agent_with_no_visible_fields() -> None:
+    """Dict that carries only stripped fields (e.g. just
+    ``authentication``) projects to nothing, so the entry is dropped
+    rather than emitted as ``{}``."""
+    only_auth = {"authentication": {"schemes": ["Bearer"], "credentials": "x"}}
+    account = Account(
+        id="acct_1",
+        name="Acme",
+        status="active",
+        governance_agents=[only_auth],  # type: ignore[list-item]
+    )
+    wire = to_wire_account(account)
+    assert wire["governance_agents"] == []
+
+
 def test_to_wire_account_omits_billing_entity_when_only_bank() -> None:
     """When billing_entity carries only bank (no other fields), the
     projection omits the entire entity rather than emitting an empty

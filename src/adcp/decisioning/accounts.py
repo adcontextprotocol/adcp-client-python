@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 TMeta = TypeVar("TMeta", default=dict[str, Any])
 
 
-@dataclass(frozen=True)
+@dataclass
 class ResolveContext:
     """Per-request context threaded into :class:`AccountStore` methods
     that need the caller's principal but don't get a full

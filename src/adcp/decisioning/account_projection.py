@@ -138,7 +138,7 @@ def _project_billing_entity(entity: Any) -> dict[str, Any] | None:
     return dumped if dumped else None
 
 
-def _project_governance_agent(agent: Any) -> dict[str, Any]:
+def _project_governance_agent(agent: Any) -> dict[str, Any] | None:
     """Project one ``governance_agents[i]`` to a wire dict carrying
     only the buyer-visible fields.
 
@@ -150,23 +150,22 @@ def _project_governance_agent(agent: Any) -> dict[str, Any]:
     record with an ``authentication`` key (Python type hints aren't
     enforced at runtime), the projection drops it. Same posture as
     the JS-side ``projectGovernanceAgent``.
+
+    Returns ``None`` for unknown shapes so callers can drop the entry
+    rather than emit ``{}`` onto the wire (silent corruption).
     """
     if hasattr(agent, "model_dump"):
         dumped = agent.model_dump(mode="json", exclude_none=True)
     elif isinstance(agent, dict):
         dumped = {k: v for k, v in agent.items() if v is not None}
     else:
-        # Unknown shape — emit a minimal dict and let downstream
-        # validation catch it. Return an empty mapping rather than
-        # raising; the framework's response validation will surface
-        # the error at the wire boundary.
-        return {}
+        return None
     out: dict[str, Any] = {}
     if "url" in dumped:
         out["url"] = dumped["url"]
     if "categories" in dumped and dumped["categories"] is not None:
         out["categories"] = dumped["categories"]
-    return out
+    return out if out else None
 
 
 def _maybe_dump(value: Any) -> Any:
@@ -220,9 +219,12 @@ def to_wire_account(account: DecisioningAccount[Any]) -> dict[str, Any]:
     if account.setup is not None:
         wire["setup"] = _maybe_dump(account.setup)
     if account.governance_agents is not None:
-        wire["governance_agents"] = [
-            _project_governance_agent(a) for a in account.governance_agents
+        projected_agents = [
+            p
+            for p in (_project_governance_agent(a) for a in account.governance_agents)
+            if p is not None
         ]
+        wire["governance_agents"] = projected_agents
     if account.account_scope is not None:
         scope = account.account_scope
         wire["account_scope"] = _enum_value(scope)
@@ -317,7 +319,11 @@ def to_wire_sync_governance_row(row: SyncGovernanceResultRow) -> dict[str, Any]:
         "status": _enum_value(row.status),
     }
     if row.governance_agents is not None:
-        wire["governance_agents"] = [_project_governance_agent(a) for a in row.governance_agents]
+        wire["governance_agents"] = [
+            p
+            for p in (_project_governance_agent(a) for a in row.governance_agents)
+            if p is not None
+        ]
     if row.errors is not None:
         wire["errors"] = list(row.errors)
     return wire
