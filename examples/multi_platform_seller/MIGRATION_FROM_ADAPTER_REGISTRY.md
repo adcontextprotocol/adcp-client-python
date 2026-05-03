@@ -96,7 +96,12 @@ different shapes onto two different boundaries — agent-resolution at
 auth time, account-resolution at tool-dispatch time.
 
 You don't need a schema migration to do this — both lookups can be
-small wrappers over your existing principals table.
+small wrappers over your existing principals table. That's the
+migration path. Long-term, splitting `Principal` into separate
+`BuyerAgent` and `Account` tables is healthier — credential rotation
+and account lifecycle stop sharing a row, and the two halves can
+evolve at different cadences. Wrap today; consider the schema split
+when it's convenient.
 
 ## What this migration adds, not just translates
 
@@ -122,25 +127,23 @@ yet and become greenfield work during the port.
   `google_ad_manager.py:998`) → `SalesPlatform.get_media_buy_delivery`.
   See §3.6.
 
-**Salesagent has a partial implementation (port AND extend):**
+**Salesagent has a slightly different shape (port today, expect spec churn):**
 
-* **Creative.** `CreativeEngineAdapter`
-  (`src/adapters/creative_engine.py`) exposes one method,
-  `process_creatives`, returning approval status. AdCP 3.0 splits
-  creative across two Platform Protocols: `CreativeAdServerPlatform`
-  (associate creatives with line items, host them, generate tags,
-  per-creative delivery) and `CreativeBuilderPlatform` (build/refine
-  creative assets per brief, including refinement via
-  `build_creative` with a referencing `creative_id`). Salesagent's
-  shape maps onto a slice of `CreativeAdServerPlatform`;
-  `CreativeBuilderPlatform` is greenfield. See §3.4.
-* **Signals.** `src/core/tools/signals.py` is a global tool
-  implementation — one function dispatches across all tenants,
-  with `signals_agent_registry` providing per-tenant agent lookup
-  but the surface itself is tool-level. AdCP 3.0 expects
-  `SignalsPlatform` to be per-tenant, sitting behind the
-  `PlatformRouter` like every other specialism. The business
-  logic translates; the dispatch model changes. See §3.5.
+* **Creative.** Salesagent's `CreativeEngineAdapter`
+  (`src/adapters/creative_engine.py`) is fine for AdCP 3.0. The wire
+  shape for creative is muddy at 3.0 — the spec hasn't decided whether
+  creative agents are a separate role, how hosting semantics firm up,
+  etc. As 3.0 → 3.1 lands, the SDK absorbs that translation;
+  adopters who keep their existing creative code AND adopt the SDK
+  get the spec-revision diff for free. See §3.4.
+* **Signals.** `src/core/tools/signals.py` is a slightly different
+  implementation — a global tool with `signals_agent_registry`
+  cross-tenant lookup, including dynamic-product assembly from
+  signal-agent inputs. The SDK has `SignalsPlatform` per-tenant
+  behind the router; the bigger open question is whether the SDK
+  should grow first-class `inventory_store` / `signal_store`
+  primitives so `get_products` can assemble dynamically the way
+  salesagent does today. See §3.5.
 * **Properties.** `src/core/tools/properties.py` is a global tool
   too. AdCP 3.0 lifts list publishing onto `PropertyListsPlatform`
   per-tenant; same tool→platform shape change as signals.
@@ -148,12 +151,15 @@ yet and become greenfield work during the port.
   `property_verification_service.py`) stays adopter-side; the SDK
   formalizes the wire reference so buyers can re-verify
   independently. See §3.8.
-* **Governance metadata.** `Account.governance_agents`
-  (`models.py:826`) is a JSON list that round-trips through the
-  accounts tool — descriptive metadata only, with no enforcement
-  surface. AdCP 3.0 expects active governance enforcement via
-  three Platform Protocols. The field stays as buyer-facing
-  metadata; the enforcement is greenfield. See §3.7.
+* **Governance configuration.** `Account.governance_agents`
+  (`models.py:826`) is a JSON list declaring which governance
+  agents this account is wired to — that's configuration, not
+  decorative metadata. When configured, the seller MUST consult
+  those agents via `check_governance` before approving operations
+  (the `governance-aware-seller` lifecycle). Today both salesagent
+  and the SDK have unfinished surfaces here: salesagent has the
+  field but no enforcement, and the SDK's seller-side `check_governance`
+  call wiring is "spec-recognized but unenforced." See §3.7.
 
 **Salesagent is missing entirely (greenfield work during migration):**
 
@@ -173,11 +179,12 @@ yet and become greenfield work during the port.
   bucket (per-account `reporting_bucket`). Salesagent has neither
   surface today — polling at the media-buy level is the only
   reporting path. See §3.6.
-* **Governance specialisms** — `BrandRightsPlatform`,
-  `ContentStandardsPlatform`, `CampaignGovernancePlatform`. Each
+* **Governance-agent specialisms** — `BrandRightsPlatform`,
+  `ContentStandardsPlatform`, `CampaignGovernancePlatform`. These
+  are the protocols for adopters BUILDING governance agents. Each
   is independently claimable; tenants declare zero, one, or all
-  three. Salesagent has the descriptive `governance_agents` field
-  but no enforcement code. See §3.7.
+  three. Distinct from the `governance-aware-seller` enforcement
+  lifecycle covered in §3.7.
 * **`CollectionListsPlatform`.** Program-level brand-safety
   lists (shows, series, podcasts, keyed by IMDb / Gracenote /
   EIDR ids). Salesagent has no collection-list code today.
@@ -505,155 +512,97 @@ This is genuinely new work in salesagent. There's no existing code
 path to translate; the migration is to add a refine handler beside
 the existing brief handler.
 
-### 3.4 Creative specialisms — `CreativeEngineAdapter` → two Protocols
+### 3.4 Creative: keep what you have, the SDK absorbs spec churn
 
-Salesagent has a single creative ABC with one method:
+Salesagent's current creative shape — `CreativeEngineAdapter` with
+`process_creatives` plus the GAM adapter's inline
+`add_creative_assets` / `associate_creatives` at
+`google_ad_manager.py:853` and `:921` — is fine for AdCP 3.0. This
+section isn't a "port and extend" instruction; it's the opposite.
 
-**Before** — `src/adapters/creative_engine.py`:
+AdCP creative is muddy at 3.0. The spec is in flux around creative
+agents (whether they're a separate role from sales agents),
+hosting semantics, and how delegation patterns settle. The
+underbuilt feel is real and acknowledged — the wire shape hasn't
+decided what it wants to be yet. The SDK reflects that: it ships
+`CreativeAdServerPlatform` and `CreativeBuilderPlatform` as
+Protocols, but `CreativeAdServerPlatform` is fully *upstream* of
+sales agents in practice — the typical sales agent doesn't ship its
+own ad server, and salesagent isn't an exception.
 
-```python
-class CreativeEngineAdapter(ABC):
-    """Abstract base class for creative engine adapters."""
+**The headline value here:** as 3.0 → 3.1 lands and the wire shape
+firms up (likely around hosting + creative-agent delegation
+patterns), the SDK provides translation across spec revisions.
+Adopters who keep their existing creative code AND adopt the SDK
+get that translation for free. Adopters maintaining their own AdCP
+integration would have to rev the wire shape themselves on each
+spec revision.
 
-    @abstractmethod
-    def process_creatives(
-        self, creatives: list[Creative]
-    ) -> list[CreativeApprovalStatus]:
-        """Processes creative assets, returning their status."""
-        pass
-```
-
-That's the entire creative surface — approval status only. The GAM
-adapter does its own creative association inline; from
-`src/adapters/google_ad_manager.py:853` (`add_creative_assets`) and
-`:921` (`associate_creatives`), creating creatives upstream and
-binding them to line items happens directly inside the
-`AdServerAdapter`, not behind a separate creative interface.
-
-**After** — AdCP 3.0 splits creative across two Platform Protocols
-that target different vendor archetypes:
+For reference:
 
 * **`CreativeAdServerPlatform`**
   (`adcp.decisioning.specialisms.creative_ad_server`) covers the
   `creative-ad-server` specialism — Innovid, Flashtalking,
-  GAM-creative, CMP-style platforms. Stateful library, per-creative
-  pricing, ad-server tag generation, per-creative delivery
-  reporting. Required methods: `build_creative`,
+  GAM-creative, CMP-style platforms. Most sales agents won't
+  implement this themselves; it's the protocol an upstream
+  creative ad server speaks. Required methods: `build_creative`,
   `preview_creative`, `list_creatives`, `get_creative_delivery`.
-  Optional: `sync_creatives`.
 * **`CreativeBuilderPlatform`**
   (`adcp.decisioning.specialisms.creative`) covers
-  `creative-template` (stateless transform — Bannerflow, Celtra) and
-  `creative-generative` (brief-to-creative AI — Pencil, Omneky,
-  AdCreative.ai). Single required method: `build_creative`.
-  **Refinement is via `build_creative` itself**, called with a
-  `creative_id` referencing the prior build — there is no separate
-  `refine_creative` method (the `creative.py:24-30` docstring is
-  explicit: an earlier port of a `refine_creative` method was
-  caught as a hallucinated wire surface and dropped).
+  `creative-template` (stateless transform) and
+  `creative-generative` (brief-to-creative AI). Single required
+  method: `build_creative`. Refinement is via `build_creative`
+  itself, called with a `creative_id` referencing the prior build.
 
-Salesagent's `process_creatives` maps onto a slice of
-`CreativeAdServerPlatform.sync_creatives` — the approval-status
-return shape is the closest analogue. The GAM-side inline
-association code at `google_ad_manager.py:853` becomes the body of
-`CreativeAdServerPlatform.build_creative` (or
-`sync_creatives`, depending on whether the platform builds tags or
-just persists pre-built assets).
+These are available if a sales agent wants to claim them, but
+neither is required for the salesagent migration. Keep the
+existing creative engine as it is; let the SDK carry the spec
+revision when the wire shape firms up.
 
-A sketch of the port:
+### 3.5 Signals: a slightly different shape, plus an open architectural question
 
-```python
-from adcp.decisioning.specialisms import CreativeAdServerPlatform
+Salesagent's signals surface
+(`src/core/tools/signals.py` + `src/core/signals_agent_registry.py`)
+is a slightly different implementation from the SDK's
+`SignalsPlatform`, not a wrong-shape one. The salesagent code can
+already call an internal publisher signals agent and assemble
+dynamic products from signal-agent inputs — that's real cross-tenant
+logic the SDK doesn't model directly today.
 
-class GAMPlatform(
-    DecisioningPlatform,
-    SalesPlatform,
-    CreativeAdServerPlatform,
-):
-    capabilities = DecisioningCapabilities(
-        specialisms=[
-            "sales-guaranteed",
-            "sales-non-guaranteed",
-            "creative-ad-server",
-        ],
-        # ...
-    )
+The framing isn't tool-shaped → platform-shaped. The framing is:
+the existing logic ports across, and there's an open architectural
+question about how far the SDK should grow into the territory
+salesagent currently owns.
 
-    async def sync_creatives(self, req, ctx):
-        # The body of process_creatives + associate_creatives ports here.
-        # Approval status, line-item association, tag generation —
-        # all on one typed surface.
-        ...
+**The open question.** Salesagent today has dynamic products from
+the signals agent — `get_products` can assemble pieces using
+signal-agent inputs and the resulting products can carry
+key-value targeting that threads through to `create_media_buy`.
+The SDK doesn't have first-class primitives for that assembly. A
+plausible direction is for the SDK to grow `inventory_store` and
+`signal_store` concepts so `get_products` can compose products
+dynamically without each adopter rebuilding the assembly logic.
+That hasn't happened yet.
 
-    async def build_creative(self, req, ctx):
-        # Library lookup OR upload + tag generation, depending on req shape.
-        ...
+**The threading concern.** When `get_products` returns assembled
+products with key-value targeting, that targeting needs to flow
+through to `create_media_buy`. This is real work. Today it lives
+adopter-side; long-term it might move into the SDK alongside the
+inventory/signal-store concepts. Either way, one side has to own
+it — naming the seam matters more than where it lands first.
 
-    async def list_creatives(self, req, ctx):
-        ...
-
-    async def get_creative_delivery(self, req, ctx):
-        # Per-creative pacing data — new surface for salesagent.
-        ...
-```
-
-`CreativeBuilderPlatform` is greenfield for salesagent — there's no
-existing brief-to-creative or template-transform code path to port.
-A salesagent tenant that wants to claim
-`creative-template` / `creative-generative` adds a new platform that
-implements `build_creative` against an upstream creative-gen
-service; it doesn't translate from existing code.
-
-The minimal first pass: claim `creative-ad-server` only, port
-`process_creatives` + `associate_creatives` into the four required
-methods, leave `CreativeBuilderPlatform` for later.
-
-### 3.5 Signals: tool-shaped → platform-shaped
-
-Salesagent's signals surface is structurally different from AdCP 3.0
-in a way the other migrations aren't. Today it's a **tool**;
-tomorrow it's a **per-tenant platform** behind the router.
-
-**Before** — `src/core/tools/signals.py` (`_get_signals_impl`):
-
-```python
-async def _get_signals_impl(
-    req: GetSignalsRequest,
-    identity: ResolvedIdentity | None = None,
-) -> GetSignalsResponse:
-    """Shared implementation for get_signals (used by both MCP and A2A)."""
-    assert identity is not None, "identity is required for signals"
-    tenant = identity.tenant
-    if not tenant:
-        raise AdCPAuthenticationError("No tenant context available")
-
-    # Mock implementation - in production, this would query from a signal
-    # provider or the ad server's available audience segments
-    signals = []
-    sample_signals = [
-        Signal(signal_agent_segment_id="auto_intenders_q1_2025", ...),
-        # ...
-    ]
-    return GetSignalsResponse(signals=signals)
-```
-
-One function dispatches across all tenants. Per-tenant agent lookup
-exists in `src/core/signals_agent_registry.py` — the registry
-returns tenant-specific signal-agent configs and
-`ADCPMultiAgentClient` queries them — but the dispatch surface
-itself is tool-level. Multi-tenant deployments end up with one
-`get_signals` body that has to know about every tenant's signal
-sources.
-
-**After** — `SignalsPlatform`
-(`adcp.decisioning.specialisms.signals`) is per-tenant, sitting
-behind the same `PlatformRouter` as every other specialism. Two
-methods:
+**For the migration today:** port the existing
+`core/tools/signals.py` body into a `SignalsPlatform` impl per
+tenant that has a real upstream signal source. The
+`signals_agent_registry.py` lookup survives essentially intact —
+it lives inside `SignalsPlatform.__init__` or a per-request
+`upstream_for` resolver. `SignalsPlatform`
+(`adcp.decisioning.specialisms.signals`) ships two methods:
 
 * `get_signals(req, ctx)` — sync catalog discovery
 * `activate_signal(req, ctx)` — sync provisioning onto destination
-  platforms (with long-running activation pipelines surfacing state
-  via `ctx.publish_status_change(resource_type='signal', ...)`)
+  platforms (long-running activations surface state via
+  `ctx.publish_status_change(resource_type='signal', ...)`)
 
 ```python
 from adcp.decisioning.specialisms import SignalsPlatform
@@ -663,7 +612,6 @@ class AcmeSignalsPlatform(DecisioningPlatform, SignalsPlatform):
 
     capabilities = DecisioningCapabilities(
         specialisms=["signal-marketplace"],
-        # ...
     )
 
     def __init__(self, *, api_key: str) -> None:
@@ -677,36 +625,21 @@ class AcmeSignalsPlatform(DecisioningPlatform, SignalsPlatform):
         )
 
     async def activate_signal(self, req, ctx):
-        # ... provision onto Snap/Meta/TikTok per req.deployments ...
+        # ... provision onto destination platforms per req.deployments ...
 ```
 
-In multi-tenant deployments, tenant A might run `LiveRampPlatform`,
-tenant B might run `AdsquarePlatform`, tenant C might not claim
-signals at all. The router dispatches on
-`account.metadata['tenant_id']` and the buyer hits the right one
-without any tool-level branching.
-
 Tenants that don't claim signals leave the platform out of the
-router entirely. Buyers calling `get_signals` against those tenants
-get `UNSUPPORTED_FEATURE` from the framework — the
-`validate_platform()` boot check ensures specialism declaration and
-method presence stay in sync.
+router entirely; buyers calling `get_signals` against those tenants
+get `UNSUPPORTED_FEATURE` from the framework via
+`validate_platform()`.
 
-The migration is more structural than line-by-line:
-
-1. Move the signal-resolution logic out of `core/tools/signals.py`
-   into a `SignalsPlatform` impl per tenant that supports signals.
-2. Replace the global tool dispatch with the router's
-   `account_metadata` resolution (which you're already wiring for
-   sales).
-3. Drop `core/tools/signals.py` once every tenant that claimed
-   signals has its own platform behind the router.
-
-The `signals_agent_registry.py` lookup logic — discovering which
-upstream signal agent serves a tenant — survives essentially intact;
-it just lives inside the `SignalsPlatform.__init__` (or a
-per-request `upstream_for` resolver) rather than inside the global
-tool body.
+**Expect this surface to evolve.** If the SDK grows `inventory_store`
++ `signal_store` primitives, the dynamic-product-assembly logic
+that lives in salesagent's `get_products` today moves into shared
+SDK infrastructure, and the key-value-targeting threading becomes
+SDK-owned. Adopters who port to `SignalsPlatform` now will inherit
+that evolution; the platform method bodies don't need to change
+when the assembly primitives land.
 
 ### 3.6 Reporting and delivery surfaces
 
@@ -773,56 +706,67 @@ don't want to poll), the adopter declares the method in
 `DecisioningCapabilities` and implements the push code. Skip this
 unless a buyer asks for it.
 
-### 3.7 Governance specialisms — three Platform Protocols
+### 3.7 Governance: configuration today, enforcement lifecycle pending on both sides
 
-Salesagent's only governance surface today is
-`Account.governance_agents` (`models.py:826`) — a `list[GovernanceAgent]`
-JSON column that round-trips through the accounts tool. Serialization
-and equality logic live at `core/tools/accounts.py:70, 263, 307-311,
-567`, but that's the entirety of the code path: the field is
-descriptive (which agents this account is wired to), not enforcing.
-No request gating, no per-tenant brand-rights check, no
-content-standards calibration.
+`Account.governance_agents` (`models.py:826`) is the seller's
+configuration declaring which governance agents this account is
+wired to. It's not decorative metadata. When the field is populated,
+the seller MUST consult those agents via `check_governance` before
+approving operations. Buyers depend on that enforcement — a seller
+that holds the field but skips the calls is silently breaking the
+governance contract.
 
-AdCP 3.0 splits active governance across three independently
-claimable Platform Protocols:
+This is the `governance-aware-seller` lifecycle: the seller-side
+slug for a sales agent that composes with a buyer's governance
+agent — calls `check_governance`, accepts `sync_governance`,
+propagates approvals / conditions / denials.
 
-* **`BrandRightsPlatform`** (`brand-rights` specialism) — brand
-  identity discovery + rights licensing. Three required methods:
-  `get_brand_identity`, `get_rights`, `acquire_rights`.
-* **`ContentStandardsPlatform`** (`content-standards` specialism) —
+**SDK status today.** The SDK ships three Platform Protocols for
+adopters BUILDING governance agents:
+
+* **`BrandRightsPlatform`** (`brand-rights`) — brand identity +
+  rights licensing. Required: `get_brand_identity`, `get_rights`,
+  `acquire_rights`.
+* **`ContentStandardsPlatform`** (`content-standards`) —
   brand-safety policy CRUD, calibration, post-flight conformance.
-  Six required methods (CRUD + `calibrate_content` +
-  `validate_content_delivery`).
 * **`CampaignGovernancePlatform`** (`governance-spend-authority` /
   `governance-delivery-monitor`) — runtime decisions, plan CRUD,
-  outcome reporting, audit logs. Required: `check_governance`,
-  `sync_plans`, `report_plan_outcome`, `get_plan_audit_logs`.
-  Adopters claiming any `governance-*` slug must also set
-  `DecisioningCapabilities.governance_aware=True` and wire a
-  custom `StateReader` returning real `GovernanceContextJWS` values
-  — `validate_platform()` fails-fast at boot otherwise.
+  outcome reporting, audit logs.
 
-Each is a separate Protocol with its own claim, consulted
-independently per-tenant. A tenant declares zero, one, or all three
-depending on its deployment.
+These cover the governance-AGENT side. The SELLER side — the
+`governance-aware-seller` claim where a sales platform CALLS
+`check_governance` before approving operations — is currently
+"spec-recognized but unenforced" in the SDK. The slug is in the
+spec, but `sync_governance` handler shim wiring for sales adopters
+hasn't landed. Adopters declaring `governance-aware-seller` today
+wire the calls themselves.
 
-**Migration shape:**
+(Adopters claiming any `governance-*` slug must set
+`DecisioningCapabilities.governance_aware=True` and wire a custom
+`StateReader` returning real `GovernanceContextJWS` values —
+`validate_platform()` fails-fast at boot otherwise.)
 
-The `Account.governance_agents` field stays — it's still useful as
-buyer-facing metadata. Active enforcement is greenfield. Recommended
-order:
+**Migration shape.** Salesagent's existing `governance_agents`
+field is the right shape — keep it. The gap is the runtime
+enforcement lifecycle, and it's an unfinished surface on BOTH
+sides:
 
-1. Start with `BrandRightsPlatform` — smallest surface (3 methods),
-   most commonly required by buyers running branded inventory.
-2. Add `ContentStandardsPlatform` next if the upstream supports
-   category-blocking lists (most ad servers do).
-3. `CampaignGovernancePlatform` is the heaviest lift — adopters with
-   existing approval-workflow code can wrap that as the platform
-   impl.
+* **SDK side:** the seller-side `check_governance` call wiring is
+  unenforced today; landing `sync_governance` handler shim wiring
+  for sales adopters is the path forward.
+* **Salesagent side:** the field exists but no code calls
+  `check_governance` against the configured agents.
 
-A minimum-viable `BrandRightsPlatform` consulting a per-tenant
-block-list:
+Recommended path: when the SDK ships the `governance-aware-seller`
+lifecycle wiring, salesagent gets the call-out for free against its
+existing `governance_agents` configuration. Until that lands, this
+is a known unfinished surface — flagged here so adopters don't
+mistake the field for decoration.
+
+For adopters who want to BUILD a governance agent (separate from
+the salesagent migration), the three Platform Protocols above are
+the entry points; each is independently claimable per-tenant. A
+sketch:
 
 ```python
 from adcp.decisioning.specialisms import BrandRightsPlatform
@@ -844,9 +788,7 @@ class AcmeBrandRightsPlatform(DecisioningPlatform, BrandRightsPlatform):
         ...
 ```
 
-Three platforms, three claims, three independent migrations. None of
-them block the sales-side port — adopters can ship the sales platform
-without governance and add it incrementally per-tenant.
+None of the governance-agent specialisms block the sales-side port.
 
 ### 3.8 Property lists, collection lists, and `adagents.json`
 
@@ -1313,16 +1255,13 @@ step:
 6. **Move HITL gates into `compose_method`.** One gate function,
    composed onto every method that previously checked
    `manual_approval_required`. Delete the inline checks.
-7. **Port `CreativeEngineAdapter.process_creatives` into the
-   platform's `CreativeAdServerPlatform` surface.** The
-   approval-status return shape ports to `sync_creatives`; the
-   inline `associate_creatives` code at
-   `google_ad_manager.py:921` ports to `build_creative` (or
-   `sync_creatives`, depending on whether your platform builds
-   ad-server tags). Add `list_creatives` and
-   `get_creative_delivery` — the latter is a new surface for
-   salesagent (per-creative pacing data the existing GAM adapter
-   doesn't expose).
+7. **Leave creative as it is.** Salesagent's existing
+   `CreativeEngineAdapter` shape is fine for AdCP 3.0. The wire
+   spec for creative is in flux (§3.4); the SDK absorbs the
+   3.0 → 3.1 translation as it lands. Don't port to
+   `CreativeAdServerPlatform` / `CreativeBuilderPlatform` as part
+   of this migration unless a buyer asks for `get_creative_delivery`
+   or one of the builder specialisms.
 8. **Move signals from `core/tools/signals.py` into a
    `SignalsPlatform` impl per tenant that supports signals.** Not
    every tenant will claim signals — only the ones that have a
@@ -1345,15 +1284,18 @@ step:
     declare `reporting_delivery_methods` in
     `DecisioningCapabilities` and implement the push code. Skip
     unless a buyer asks. See §3.6.
-11. **Add governance specialism platforms per-tenant.** Greenfield.
-    Per-tenant; not every tenant needs every governance specialism.
-    Recommended order: `BrandRightsPlatform` first (3 methods,
-    smallest surface), then `ContentStandardsPlatform` if the
-    upstream supports category blocks, then
-    `CampaignGovernancePlatform` if the deployment has approval-
-    workflow code to wrap. Each adopts independently behind the
-    router. The `Account.governance_agents` field stays as
-    descriptive metadata. See §3.7.
+11. **(Pending) Wire the `governance-aware-seller` lifecycle.**
+    `Account.governance_agents` is configuration declaring which
+    governance agents this account must consult — not metadata.
+    Today the seller-side `check_governance` call wiring is
+    "spec-recognized but unenforced" in the SDK; salesagent has
+    the field but no enforcement code. When the SDK lands the
+    `sync_governance` handler shim for sales adopters, salesagent
+    inherits the lifecycle against its existing field. Adopters
+    who want to BUILD a governance agent (a separate role) can
+    implement `BrandRightsPlatform` /
+    `ContentStandardsPlatform` / `CampaignGovernancePlatform`
+    independently. See §3.7.
 12. **Port `core/tools/properties.py` to `PropertyListsPlatform`.**
     Same tool→platform shape change as signals (step 8).
     Publisher-domain enumeration and policy-text projection port
@@ -1422,23 +1364,28 @@ gaps from the migration, not flaws in the SDK:
   hook. The first pragmatic pass is per-product narrowing; the full
   proposal lifecycle (`'draft'` → `'committed'`, expiry,
   inventory-reservation semantics) is a larger build.
-* **Per-tenant signals dispatch is a structural change.** §3.5
-  covers the move from one global tool body to per-tenant
-  `SignalsPlatform` instances behind the router. The signals
-  business logic translates; the dispatch model doesn't. Tenants
-  that claim signals each get their own platform; tenants that
-  don't get `UNSUPPORTED_FEATURE` from the framework.
+* **Signals has an open architectural question.** §3.5 covers the
+  port from `core/tools/signals.py` to a per-tenant
+  `SignalsPlatform`. The bigger question — whether the SDK should
+  grow `inventory_store` / `signal_store` primitives so
+  `get_products` can assemble dynamic products with key-value
+  targeting threading — is unresolved. Adopters port what they
+  have today; expect that surface to evolve.
 * **Per-creative delivery analytics are upstream-dependent.**
   `get_creative_delivery` (§3.6) requires reporting at creative
   granularity. GAM exposes this; most other ad servers don't. If
   the upstream can't report at creative level, the adopter omits
   the field on the wire response — minimum-viable returns lifetime
   impressions + `last_served` only.
-* **Active governance enforcement is greenfield.** §3.7 covers the
-  three Platform Protocols. Salesagent's `governance_agents` field
-  is descriptive metadata — it doesn't gate requests today. Each
-  governance specialism is an independent build per-tenant; none
-  block the sales port.
+* **`governance-aware-seller` is unfinished on both sides.** §3.7
+  covers the lifecycle. Salesagent's `governance_agents` field is
+  configuration (not decoration), but no enforcement code calls
+  `check_governance` against it today. The SDK's seller-side
+  call wiring is "spec-recognized but unenforced" — landing
+  `sync_governance` handler shim wiring for sales adopters is the
+  path forward. Adopters BUILDING governance agents (a separate
+  role) can implement the three Platform Protocols independently
+  per-tenant; none block the sales port.
 * **`CollectionListsPlatform` is greenfield.** §3.8 covers the
   Protocol shape. Salesagent has no collection-list code; adopters
   whose business model needs program-level brand-safety bundles
