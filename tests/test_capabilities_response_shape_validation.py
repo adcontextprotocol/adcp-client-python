@@ -1,0 +1,319 @@
+"""Boot-time validation of the projected ``get_adcp_capabilities`` response.
+
+Exercises :func:`adcp.decisioning.validate_capabilities.validate_capabilities_response_shape`
+across:
+
+* a conformant platform (sales-non-guaranteed with billing) — passes;
+* a media_buy claimer that omits ``supported_billing`` — fails with a
+  diagnostic naming the missing invariant (the historical v3 ref seller
+  bug pre-#402);
+* a platform whose handler override returns an empty
+  ``supported_protocols`` — fails on the schema's ``minItems: 1``;
+* a regression guard wiring the actual v3 reference seller platform
+  through :func:`create_adcp_server_from_platform` — server boot
+  succeeds.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
+
+import pytest
+
+from adcp.decisioning import (
+    DecisioningCapabilities,
+    DecisioningPlatform,
+    InMemoryTaskRegistry,
+    SingletonAccounts,
+)
+from adcp.decisioning.handler import PlatformHandler
+from adcp.decisioning.serve import create_adcp_server_from_platform
+from adcp.decisioning.types import AdcpError
+from adcp.decisioning.validate_capabilities import (
+    validate_capabilities_response_shape,
+)
+
+
+@pytest.fixture
+def executor():
+    pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="test-caps-shape-")
+    yield pool
+    pool.shutdown(wait=True)
+
+
+def _build_handler(platform: DecisioningPlatform, executor: ThreadPoolExecutor) -> PlatformHandler:
+    return PlatformHandler(
+        platform,
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+
+
+# ---- Conformant platform ----
+
+
+class _ConformantSalesPlatform(DecisioningPlatform):
+    """Sales-non-guaranteed with supported_billing — projects a valid response.
+
+    Stubs the five SalesPlatform-required methods so ``validate_platform``
+    accepts the class when it's wired through
+    :func:`create_adcp_server_from_platform`. The capabilities-shape
+    validator under test runs *after* ``validate_platform``.
+    """
+
+    capabilities = DecisioningCapabilities(
+        specialisms=("sales-non-guaranteed",),
+        channels=("display",),
+        pricing_models=("cpm",),
+        supported_billing=("operator", "agent"),
+    )
+    accounts = SingletonAccounts(account_id="test")
+
+    def get_products(self, req, ctx):
+        return {"products": []}
+
+    def create_media_buy(self, req, ctx):
+        return {"media_buy_id": "x", "status": "active"}
+
+    def update_media_buy(self, media_buy_id, patch, ctx):
+        return {"media_buy_id": media_buy_id, "status": "active"}
+
+    def sync_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def get_media_buy_delivery(self, req, ctx):
+        return {"media_buy_deliveries": []}
+
+
+def test_conformant_platform_passes(executor: ThreadPoolExecutor) -> None:
+    """A platform whose projection conforms to the spec passes silently."""
+    handler = _build_handler(_ConformantSalesPlatform(), executor)
+    # Returns None on success.
+    assert validate_capabilities_response_shape(handler) is None
+
+
+# ---- media_buy claimer missing supported_billing ----
+
+
+class _MediaBuyMissingBillingPlatform(DecisioningPlatform):
+    """Claims sales-non-guaranteed (→ media_buy) but omits supported_billing.
+
+    Recreates the v3 reference seller's pre-#402 misconfiguration: the
+    framework's projection skips the ``account`` block when
+    ``supported_billing`` is absent, so the wire response advertises
+    ``media_buy`` without the spec-required billing array.
+    """
+
+    capabilities = DecisioningCapabilities(
+        specialisms=("sales-non-guaranteed",),
+        channels=("display",),
+        pricing_models=("cpm",),
+        # supported_billing intentionally unset.
+    )
+    accounts = SingletonAccounts(account_id="test")
+
+
+def test_media_buy_without_supported_billing_fails(executor: ThreadPoolExecutor) -> None:
+    handler = _build_handler(_MediaBuyMissingBillingPlatform(), executor)
+    with pytest.raises(AdcpError) as exc_info:
+        validate_capabilities_response_shape(handler)
+
+    err = exc_info.value
+    assert err.code == "INVALID_REQUEST"
+    assert err.recovery == "terminal"
+    # The invariant must be named in the diagnostic so operators don't
+    # have to grep the schema to figure out what's wrong.
+    assert "supported_billing" in str(err) or "account" in str(err)
+
+
+# ---- Empty supported_protocols (handler override) ----
+
+
+class _EmptyProtocolsHandler(PlatformHandler):
+    """Override that emits an empty ``supported_protocols`` list."""
+
+    async def get_adcp_capabilities(
+        self,
+        params: Any = None,
+        context: Any = None,
+    ) -> dict[str, Any]:
+        del params, context
+        return {
+            "adcp": {
+                "major_versions": ["3"],
+                "idempotency": {"supported": False},
+            },
+            "supported_protocols": [],
+        }
+
+
+class _BarePlatform(DecisioningPlatform):
+    capabilities = DecisioningCapabilities()
+    accounts = SingletonAccounts(account_id="test")
+
+
+def test_empty_supported_protocols_fails(executor: ThreadPoolExecutor) -> None:
+    """An override that violates ``supported_protocols`` minItems: 1 fails."""
+    handler = _EmptyProtocolsHandler(
+        _BarePlatform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    with pytest.raises(AdcpError) as exc_info:
+        validate_capabilities_response_shape(handler)
+
+    err = exc_info.value
+    assert err.code == "INVALID_REQUEST"
+    assert err.recovery == "terminal"
+    # Either the schema's minItems issue, or the explicit invariant
+    # check, must surface ``supported_protocols`` in the diagnostic.
+    issues = (err.details or {}).get("issues") or []
+    issue_blob = " ".join(
+        f"{i.get('pointer', '')} {i.get('message', '')} {i.get('keyword', '')}" for i in issues
+    )
+    assert (
+        "supported_protocols" in str(err)
+        or "supported_protocols" in issue_blob
+        or "/supported_protocols" in issue_blob
+    )
+
+
+# ---- Schema-driven validation: malformed override ----
+
+
+class _MalformedHandler(PlatformHandler):
+    """Override that omits the spec-required ``adcp`` top-level block."""
+
+    async def get_adcp_capabilities(
+        self,
+        params: Any = None,
+        context: Any = None,
+    ) -> dict[str, Any]:
+        del params, context
+        # ``adcp`` is required at the top level (response schema
+        # ``required: ["adcp", "supported_protocols"]``).
+        return {"supported_protocols": ["media_buy"]}
+
+
+def test_schema_violation_in_override_fails(executor: ThreadPoolExecutor) -> None:
+    """An override that violates the bundled schema fails with structured issues."""
+    handler = _MalformedHandler(
+        _BarePlatform(),
+        executor=executor,
+        registry=InMemoryTaskRegistry(),
+    )
+    with pytest.raises(AdcpError) as exc_info:
+        validate_capabilities_response_shape(handler)
+
+    err = exc_info.value
+    assert err.code == "INVALID_REQUEST"
+    # Schema violations carry a structured ``issues`` list so callers
+    # can index every failure.
+    assert err.details is not None
+    assert "issues" in err.details
+    assert err.details["issues"], "expected at least one schema issue"
+
+
+# ---- Wired into create_adcp_server_from_platform ----
+
+
+class _NonConformantSalesPlatform(DecisioningPlatform):
+    """Sales platform with required-method coverage but missing
+    ``supported_billing`` — passes ``validate_platform`` so the
+    capabilities-shape validator is the gate that fails.
+    """
+
+    capabilities = DecisioningCapabilities(
+        specialisms=("sales-non-guaranteed",),
+        channels=("display",),
+        pricing_models=("cpm",),
+        # supported_billing intentionally unset.
+    )
+    accounts = SingletonAccounts(account_id="test")
+
+    def get_products(self, req, ctx):
+        return {"products": []}
+
+    def create_media_buy(self, req, ctx):
+        return {"media_buy_id": "x", "status": "active"}
+
+    def update_media_buy(self, media_buy_id, patch, ctx):
+        return {"media_buy_id": media_buy_id, "status": "active"}
+
+    def sync_creatives(self, req, ctx):
+        return {"creatives": []}
+
+    def get_media_buy_delivery(self, req, ctx):
+        return {"media_buy_deliveries": []}
+
+
+def test_create_adcp_server_rejects_non_conformant_platform() -> None:
+    """The validator is wired into server boot — a non-conformant platform
+    refuses to start. ``validate_platform`` passes (required methods
+    present), F12 is bypassed via ``auto_emit_completion_webhooks=False``,
+    so the capabilities-shape validator is the gate that fires.
+    """
+    with pytest.raises(AdcpError) as exc_info:
+        create_adcp_server_from_platform(
+            _NonConformantSalesPlatform(),
+            auto_emit_completion_webhooks=False,
+        )
+
+    err = exc_info.value
+    assert err.code == "INVALID_REQUEST"
+    # The diagnostic should point operators at the capabilities-shape
+    # validator — not, say, at validate_platform's error.
+    assert "supported_billing" in str(err) or "get_adcp_capabilities response failed" in str(err)
+
+
+def test_create_adcp_server_accepts_conformant_platform() -> None:
+    """A conformant platform boots cleanly through the public entrypoint.
+
+    ``auto_emit_completion_webhooks=False`` opts out of the F12 webhook
+    gate (the SalesPlatform stubs above expose webhook-eligible tools
+    but no sender is wired in this unit test). The capabilities-shape
+    validator under test is independent of that gate.
+    """
+    handler, executor, registry = create_adcp_server_from_platform(
+        _ConformantSalesPlatform(),
+        auto_emit_completion_webhooks=False,
+    )
+    try:
+        assert handler is not None
+        assert registry is not None
+    finally:
+        executor.shutdown(wait=True)
+
+
+# ---- Regression guard: same shape as the v3 reference seller ----
+
+
+def test_v3_reference_seller_shape_passes(executor: ThreadPoolExecutor) -> None:
+    """Mirrors the v3 reference seller's capabilities declaration shape
+    (sales-non-guaranteed + supported_billing=("operator", "agent")
+    per ``examples/v3_reference_seller/src/platform.py``). The full
+    example platform isn't importable from the SDK test suite (it
+    declares mixed absolute/relative imports against a local ``src``
+    layout), so this guard recreates the exact capabilities tuple the
+    reference declares — pre-#402 the projection dropped
+    ``supported_billing`` entirely; this test would have caught that.
+    """
+
+    class _V3RefSellerShape(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=("sales-non-guaranteed",),
+            channels=("display", "ctv"),
+            pricing_models=("cpm",),
+            supported_billing=("operator", "agent"),
+        )
+        accounts = SingletonAccounts(account_id="test")
+
+    handler = _build_handler(_V3RefSellerShape(), executor)
+    response = asyncio.run(handler.get_adcp_capabilities())
+    # Sanity: confirm media_buy is claimed; otherwise the guard
+    # wouldn't exercise the supported_billing invariant.
+    assert "media_buy" in response["supported_protocols"]
+
+    assert validate_capabilities_response_shape(handler) is None

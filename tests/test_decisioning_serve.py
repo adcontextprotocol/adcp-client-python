@@ -38,7 +38,13 @@ from adcp.decisioning.serve import (
 
 
 class _BarePlatform(DecisioningPlatform):
-    capabilities = DecisioningCapabilities()
+    # ``supported_billing`` is declared so the boot-time
+    # capabilities-shape validator (DX #422) accepts the projection.
+    # The bare-specialism case projects to
+    # ``supported_protocols=['media_buy']`` (handler.py fallback for
+    # minItems: 1 satisfaction); the spec then requires
+    # ``account.supported_billing``.
+    capabilities = DecisioningCapabilities(supported_billing=("agent",))
     accounts = SingletonAccounts(account_id="hello")
 
 
@@ -48,7 +54,12 @@ class _SalesPlatformWithRequiredMethods(DecisioningPlatform):
     required SalesPlatform methods are stubbed so ``validate_platform``
     passes; the test focuses on the webhook gate."""
 
-    capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+    capabilities = DecisioningCapabilities(
+        specialisms=["sales-non-guaranteed"],
+        # supported_billing required by the boot-time capabilities-shape
+        # validator (DX #422) whenever media_buy is claimed.
+        supported_billing=("operator",),
+    )
     accounts = SingletonAccounts(account_id="hello")
 
     def get_products(self, req, ctx):

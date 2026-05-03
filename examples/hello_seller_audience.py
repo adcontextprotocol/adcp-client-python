@@ -32,7 +32,13 @@ class HelloAudienceSeller(DecisioningPlatform):
     ``req.audiences``.
     """
 
-    capabilities = DecisioningCapabilities(specialisms=["audience-sync"])
+    capabilities = DecisioningCapabilities(
+        specialisms=["audience-sync"],
+        # audience-sync maps to the media_buy protocol; the spec
+        # requires ``account.supported_billing`` whenever media_buy
+        # is claimed (minItems: 1).
+        supported_billing=("agent",),
+    )
     accounts = SingletonAccounts(account_id="hello-audience")
 
     def sync_audiences(
