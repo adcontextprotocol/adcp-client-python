@@ -87,6 +87,14 @@ The core names you'll reach for (everything else is for advanced use):
 
 from __future__ import annotations
 
+from adcp.signing.agent_resolver import (
+    AgentResolution,
+    AgentResolverError,
+    AgentResolverErrorCode,
+    TraceEntry,
+    async_resolve_agent,
+    resolve_agent,
+)
 from adcp.signing.autosign import (
     SigningConfig,
     SigningDecision,
@@ -266,6 +274,9 @@ __all__ = [
     "ALG_ED25519",
     "ALG_ES256",
     "ALLOWED_ALGS",
+    "AgentResolution",
+    "AgentResolverError",
+    "AgentResolverErrorCode",
     "AsyncCachingJwksResolver",
     "AsyncCachingRevocationChecker",
     "AsyncIpPinnedTransport",
@@ -336,6 +347,7 @@ __all__ = [
     "SigningDecision",
     "SigningProvider",
     "StaticJwksResolver",
+    "TraceEntry",
     "VerifiedSigner",
     "VerifierCapability",
     "VerifyOptions",
@@ -344,6 +356,7 @@ __all__ = [
     "as_async_resolver",
     "async_default_jwks_fetcher",
     "async_default_revocation_list_fetcher",
+    "async_resolve_agent",
     "async_sign_request",
     "averify_detached_jws",
     "averify_jws_document",
@@ -371,6 +384,7 @@ __all__ = [
     "pem_to_adcp_jwk",
     "private_key_from_jwk",
     "public_key_from_jwk",
+    "resolve_agent",
     "resolve_and_validate_host",
     "sign_request",
     "sign_signature_base",

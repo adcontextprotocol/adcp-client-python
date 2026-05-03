@@ -261,6 +261,14 @@ class BrandJsonJwksResolver:
         result attribution."""
         return self._snapshot.agent_url if self._snapshot is not None else None
 
+    @property
+    def jwks_uri(self) -> str | None:
+        """The JWKS URI selected from brand.json's ``agents[]`` for
+        this resolver's ``(agent_type, agent_id, brand_id)`` tuple.
+        Populated after the first successful refresh; ``None`` on
+        cold cache."""
+        return self._snapshot.jwks_uri if self._snapshot is not None else None
+
     async def force_refresh(self) -> None:
         """Force refetch of both brand.json and inner JWKS, bypassing
         the cooldown.

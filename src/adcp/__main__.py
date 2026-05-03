@@ -473,6 +473,71 @@ def handle_show_config() -> None:
     print(f"Config file: {CONFIG_FILE}")
 
 
+def handle_resolve(
+    agent_url: str,
+    agent_type: str | None,
+    agent_id: str | None,
+    json_output: bool,
+) -> None:
+    """Handle --resolve command — bootstrap from agent URL to JWK set.
+
+    Walks ``agent_url`` → ``get_adcp_capabilities`` →
+    ``identity.brand_json_url`` → ``brand.json`` → ``jwks_uri`` →
+    JWK set, with SSRF guards on each hop. Prints either the
+    full :class:`AgentResolution` as JSON (``--json``) or a short
+    human-readable summary.
+
+    ``--agent-type`` is required because brand.json may list multiple
+    agents (sales, governance, creative, etc.) under the same operator
+    and the resolver can't infer which one ``agent_url`` corresponds to
+    from the URL alone.
+    """
+    from adcp.signing.agent_resolver import (
+        AgentResolverError,
+        async_resolve_agent,
+    )
+
+    if not agent_type:
+        print(
+            "Error: --agent-type is required with --resolve "
+            "(brand|rights|measurement|governance|creative|sales|buying|signals)",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    try:
+        result = asyncio.run(
+            async_resolve_agent(
+                agent_url,
+                agent_type=cast(Any, agent_type),
+                agent_id=agent_id,
+            )
+        )
+    except AgentResolverError as exc:
+        if json_output:
+            print(json.dumps({"error": {"code": exc.code, "message": exc.message}}, indent=2))
+        else:
+            print(f"Error [{exc.code}]: {exc.message}", file=sys.stderr)
+        sys.exit(1)
+
+    if json_output:
+        print(result.model_dump_json(indent=2, exclude_none=True))
+        return
+
+    print(f"agent_url:       {result.agent_url}")
+    print(f"brand_json_url:  {result.brand_json_url}")
+    print(f"jwks_uri:        {result.jwks_uri}")
+    print(f"agent_entry:     {json.dumps(result.agent_entry)}")
+    print(f"jwks keys:       {len(result.jwks.get('keys', []))}")
+    print("trace:")
+    for entry in result.trace:
+        marker = "✓" if entry.status == "ok" else "✗"
+        line = f"  {marker} [{entry.hop}] {entry.url} ({entry.latency_ms:.0f}ms)"
+        if entry.error_code:
+            line += f"  error={entry.error_code}: {entry.error_message}"
+        print(line)
+
+
 def resolve_agent_config(agent_identifier: str) -> dict[str, Any]:
     """Resolve agent identifier to configuration."""
     # Check if it's a saved alias
@@ -516,6 +581,33 @@ def main() -> None:
     parser.add_argument("--remove-agent", metavar="ALIAS", help="Remove saved agent")
     parser.add_argument("--show-config", action="store_true", help="Show config file location")
     parser.add_argument("--version", action="store_true", help="Show SDK and AdCP version")
+    parser.add_argument(
+        "--resolve",
+        metavar="AGENT_URL",
+        help="Resolve agent identity via brand.json (capabilities → brand.json → JWKS).",
+    )
+    parser.add_argument(
+        "--agent-type",
+        metavar="TYPE",
+        choices=[
+            "brand",
+            "rights",
+            "measurement",
+            "governance",
+            "creative",
+            "sales",
+            "buying",
+            "signals",
+        ],
+        help="Agent type for --resolve (matches the brand.json agents[] entry). "
+        "Required with --resolve.",
+    )
+    parser.add_argument(
+        "--agent-id",
+        metavar="ID",
+        help="Optional agent ID for --resolve (disambiguates multiple agents of "
+        "the same type in brand.json).",
+    )
 
     # Execution options
     parser.add_argument("--protocol", choices=["mcp", "a2a"], help="Force protocol type")
@@ -542,6 +634,7 @@ def main() -> None:
                 args.remove_agent,
                 args.show_config,
                 args.version,
+                args.resolve,
             ]
         )
     ):
@@ -559,6 +652,12 @@ def main() -> None:
         print('  adcp cs-agent calibrate_content \'{"content_standards_id":"cs-123"}\'')
         print("  adcp si-agent si_get_offering")
         print("  adcp gov-agent list_property_lists")
+        print("\nIdentity Resolution Examples:")
+        print("  adcp --resolve https://buyer.example.com/mcp --agent-type sales")
+        print(
+            "  adcp --resolve https://buyer.example.com/mcp --agent-type sales --json | "
+            "jq .jwks_uri"
+        )
         sys.exit(0)
 
     # Handle configuration commands
@@ -585,6 +684,10 @@ def main() -> None:
 
     if args.show_config:
         handle_show_config()
+        sys.exit(0)
+
+    if args.resolve:
+        handle_resolve(args.resolve, args.agent_type, args.agent_id, args.json)
         sys.exit(0)
 
     # Execute tool
