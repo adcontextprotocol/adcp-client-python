@@ -161,7 +161,9 @@ def test_list_accounts_projection_strips_bank_details() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_accounts_runs_projection_on_every_row() -> None:
+async def test_list_accounts_runs_projection_on_every_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """End-to-end: drive ``V3ReferenceSeller.list_accounts`` against a
     mocked session whose row carries bank details and assert no
     response account leaks them. This is the platform-level guarantee
@@ -169,6 +171,7 @@ async def test_list_accounts_runs_projection_on_every_row() -> None:
     """
     from unittest.mock import AsyncMock, MagicMock
 
+    import src.platform as platform_module
     from src.models import Account as AccountRow
     from src.models import BuyerAgent as BuyerAgentRow
     from src.platform import V3ReferenceSeller
@@ -220,46 +223,38 @@ async def test_list_accounts_runs_projection_on_every_row() -> None:
     session.execute = AsyncMock(side_effect=[ba_result, accounts_result])
     sessionmaker = MagicMock(return_value=session)
 
-    # Mock the tenant contextvar reader.
-    import src.platform as platform_module
-
-    from adcp.server import current_tenant as _real
-
+    # Patch the tenant contextvar reader where the platform looks it up.
     class _Tenant:
         id = "t_acme"
 
-    has_current = hasattr(platform_module, "current_tenant")
-    original = platform_module.current_tenant if has_current else _real
-    # Patch the import inside the method by patching at module level.
-    import adcp.server as server_module
+    monkeypatch.setattr(platform_module, "current_tenant", lambda: _Tenant())
 
-    monkeypatched = lambda: _Tenant()  # noqa: E731
-    setattr(server_module, "current_tenant", monkeypatched)
-    try:
-        platform = V3ReferenceSeller(sessionmaker=sessionmaker)
+    platform = V3ReferenceSeller(sessionmaker=sessionmaker)
 
-        ctx = RequestContext(
-            buyer_agent=BuyerAgent(
-                agent_url="https://signed-buyer.example/",
-                display_name="Signed Buyer",
-                status="active",
-                billing_capabilities=frozenset({"operator", "agent"}),
-            ),
-            account=None,
-        )
-        req = ListAccountsRequest()
-        resp = await platform.list_accounts(req, ctx)
-    finally:
-        setattr(server_module, "current_tenant", original)
+    ctx = RequestContext(
+        buyer_agent=BuyerAgent(
+            agent_url="https://signed-buyer.example/",
+            display_name="Signed Buyer",
+            status="active",
+            billing_capabilities=frozenset({"operator", "agent"}),
+        ),
+        account=None,
+    )
+    req = ListAccountsRequest()
+    resp = await platform.list_accounts(req, ctx)
 
     payload = resp.model_dump(mode="json", exclude_none=True)
     assert payload["accounts"], "expected at least one account in response"
     for acct in payload["accounts"]:
-        # The headline guarantee — bank MUST NOT echo on the wire.
-        if "billing_entity" in acct:
-            assert (
-                "bank" not in acct["billing_entity"]
-            ), f"bank details leaked on list_accounts response: {acct}"
+        # The 3.1-readiness headline: billing_entity SHOULD echo on the
+        # wire (the spec requires it for invoicing visibility) — but
+        # the write-only ``bank`` block MUST NOT.
+        assert (
+            "billing_entity" in acct
+        ), f"billing_entity missing from list_accounts response: {acct}"
+        assert (
+            "bank" not in acct["billing_entity"]
+        ), f"bank details leaked on list_accounts response: {acct}"
 
 
 # ---------------------------------------------------------------------------
@@ -315,8 +310,10 @@ async def test_creative_round_trip_through_sync_then_list() -> None:
         return list(written_rows)
 
     def _list_session_factory() -> MagicMock:
+        # The platform issues ``select(func.count()).select_from(...)``
+        # for total, then a paged ``select(CreativeRow)`` for rows.
         count_result = MagicMock()
-        count_result.scalars = MagicMock(side_effect=lambda: iter(_hydrate_rows()))
+        count_result.scalar = MagicMock(side_effect=lambda: len(_hydrate_rows()))
         page_result = MagicMock()
         page_result.scalars = MagicMock(side_effect=lambda: iter(_hydrate_rows()))
         s = MagicMock()

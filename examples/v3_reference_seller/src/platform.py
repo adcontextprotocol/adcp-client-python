@@ -56,6 +56,7 @@ from adcp.decisioning import (
     project_business_entity_for_response,
 )
 from adcp.decisioning.specialisms import SalesPlatform
+from adcp.server import current_tenant
 from adcp.types import (
     Account as AccountWire,
 )
@@ -76,7 +77,6 @@ from adcp.types import (
     ListCreativeFormatsResponse,
     ListCreativesRequest,
     ListCreativesResponse,
-    MediaBuy as MediaBuyWire,
     Product,
     ProvidePerformanceFeedbackRequest,
     ProvidePerformanceFeedbackSuccessResponse,
@@ -88,7 +88,9 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuySuccessResponse,
 )
-from adcp.server import current_tenant
+from adcp.types import (
+    MediaBuy as MediaBuyWire,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -531,7 +533,13 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             "media_buys.list",
             {"account_id": ctx.account.id, "limit": limit, "offset": offset},
         )
-        return GetMediaBuysResponse(media_buys=media_buys)
+        # Pydantic re-validates each item against the response-specific
+        # ``MediaBuy`` shape. Passing the public-API ``MediaBuy``
+        # instances we built above ensures field drift surfaces here
+        # rather than at the wire boundary.
+        return GetMediaBuysResponse.model_validate(
+            {"media_buys": [m.model_dump(mode="python", exclude_none=True) for m in media_buys]}
+        )
 
     # ----- provide_performance_feedback ------------------------------------
 
