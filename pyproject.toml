@@ -238,4 +238,12 @@ dev = [
     "datamodel-code-generator==0.56.1",
     "pre-commit>=4.4.0",
     "types-protobuf>=7.34.1.20260408",
+    # Pinned in the dev group so ``uv run mypy`` (used by the pre-commit
+    # hook) installs mypy into the project venv instead of falling
+    # through to whatever ``mypy`` happens to be on $PATH (e.g. a
+    # homebrew install). Without this, pre-commit's mypy version drifts
+    # from CI's, producing a different error count than CI on the same
+    # source — and a dead-weight hook that everyone bypasses with
+    # ``SKIP=mypy``.
+    "mypy>=1.20.0",
 ]
