@@ -65,7 +65,12 @@ _DISCOVERY_SCHEMA: dict = {
                         "minLength": 1,
                         "maxLength": 64,
                     },
-                    "url": {"type": "string", "format": "uri", "minLength": 1},
+                    "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "minLength": 1,
+                        "pattern": r"^https://",
+                    },
                     "transport": {
                         "type": "string",
                         "minLength": 1,
@@ -201,9 +206,61 @@ def test_build_manifest_passes_through_specialisms_and_description() -> None:
 def test_resolve_base_url_projects_wildcard_to_localhost() -> None:
     """``0.0.0.0`` is a wildcard bind, not a routable URL — the manifest
     uses a localhost projection so a default-config dev binary serves
-    a usable URL for local testing."""
+    a usable URL for local testing. Loopback hosts keep ``http://``
+    because the schema allows that exception."""
     assert resolve_base_url("0.0.0.0", 3001) == "http://127.0.0.1:3001"
-    assert resolve_base_url("example.com", 8080) == "http://example.com:8080"
+    assert resolve_base_url("127.0.0.1", 3001) == "http://127.0.0.1:3001"
+    assert resolve_base_url("localhost", 3001) == "http://localhost:3001"
+
+
+def test_resolve_base_url_rejects_non_localhost_without_base_url() -> None:
+    """The discovery schema mandates ``https://`` on every agent ``url``;
+    the SDK refuses to synthesize an ``http://`` URL for a routable
+    interface so the operator notices at boot rather than publishing a
+    non-conformant manifest to a CDN."""
+    with pytest.raises(ValueError, match="base_url"):
+        resolve_base_url("my-internal.example.com", 8080)
+
+
+def test_resolve_base_url_passes_through_https_base_url() -> None:
+    """Operator-supplied ``https://`` URLs are returned verbatim — no
+    re-projection through host/port, since the public origin frequently
+    differs from the bound socket (TLS terminates upstream)."""
+    assert (
+        resolve_base_url("0.0.0.0", 3001, base_url="https://sales.example.com")
+        == "https://sales.example.com"
+    )
+    assert (
+        resolve_base_url(
+            "my-internal.example.com",
+            8080,
+            base_url="https://sales.example.com",
+        )
+        == "https://sales.example.com"
+    )
+
+
+def test_resolve_base_url_rejects_http_base_url_for_non_loopback() -> None:
+    """An explicit ``http://`` ``base_url`` against a non-loopback host
+    is a configuration mistake — the manifest would publish an URL
+    that fails the schema's ``^https://`` pattern, so we raise instead
+    of silently emitting it."""
+    with pytest.raises(ValueError, match="https://"):
+        resolve_base_url(
+            "my-internal.example.com",
+            8080,
+            base_url="http://my-internal.example.com:8080",
+        )
+
+
+def test_resolve_base_url_allows_http_base_url_for_loopback() -> None:
+    """An explicit ``http://localhost`` ``base_url`` is fine — the
+    schema's documented loopback exception covers it, and adopters
+    sometimes set this to override the default 127.0.0.1 projection."""
+    assert (
+        resolve_base_url("127.0.0.1", 3001, base_url="http://localhost:3001")
+        == "http://localhost:3001"
+    )
 
 
 # ----- ASGI integration --------------------------------------------------

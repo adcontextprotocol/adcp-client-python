@@ -1010,7 +1010,7 @@ def _run_mcp_http(
 
     from adcp.server.discovery import resolve_base_url
 
-    resolved_base_url = discovery_base_url or resolve_base_url(host, port)
+    resolved_base_url = resolve_base_url(host, port, discovery_base_url)
 
     app = _wrap_with_path_normalize(app)
     app = _wrap_with_discovery(
@@ -1076,7 +1076,7 @@ def _serve_a2a(
     from adcp.server.discovery import resolve_base_url
 
     resolved_port = port or int(os.environ.get("PORT", "3001"))
-    resolved_base_url = base_url or resolve_base_url("0.0.0.0", resolved_port)
+    resolved_base_url = resolve_base_url("0.0.0.0", resolved_port, base_url)
 
     app = create_a2a_server(
         handler,
@@ -1243,7 +1243,7 @@ def _build_mcp_and_a2a_app(
     app: ASGIApp = _dispatch
     from adcp.server.discovery import resolve_base_url
 
-    resolved_base_url = base_url or resolve_base_url(host, port)
+    resolved_base_url = resolve_base_url(host, port, base_url)
     app = _wrap_with_discovery(
         app,
         name=name,

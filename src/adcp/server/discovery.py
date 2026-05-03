@@ -64,11 +64,15 @@ def _normalize_agent_id(name: str) -> str:
             out.append("-")
     cleaned = "".join(out).strip("-_")
     # Collapse runs of separators — looks better and stays under the
-    # 64-char cap on long names.
+    # 64-char cap on long names. Strip BEFORE the length cap so the
+    # truncation never lands on a separator that would be stripped
+    # away (which would make ``agent_id`` len differ from len(cleaned)
+    # in surprising ways).
     while "--" in cleaned:
         cleaned = cleaned.replace("--", "-")
     while "__" in cleaned:
         cleaned = cleaned.replace("__", "_")
+    cleaned = cleaned.strip("-_")
     if not cleaned:
         return "agent"
     return cleaned[:64].strip("-_") or "agent"
@@ -142,11 +146,22 @@ def build_manifest(
             entry["description"] = description
         agents.append(entry)
 
+    # Truncate to whole-hour granularity so consecutive requests within
+    # the same hour produce byte-identical manifests — lets HTTP caches
+    # (CDNs, conformance runners polling on a loop) collapse repeated
+    # fetches instead of seeing a fresh second-resolution timestamp on
+    # every hit. Hour-resolution is well within the spec's "informational
+    # only" semantics for ``last_updated``.
+    last_updated = (
+        datetime.now(timezone.utc)
+        .replace(minute=0, second=0, microsecond=0)
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
     manifest: dict[str, Any] = {
         "$schema": MANIFEST_SCHEMA_URI,
         "version": MANIFEST_VERSION,
         "agents": agents,
-        "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "last_updated": last_updated,
     }
     if name:
         manifest["contact"] = {"name": name}
@@ -185,17 +200,62 @@ def make_discovery_route(
     return Route(DISCOVERY_PATH, _handler, methods=["GET"])
 
 
-def resolve_base_url(host: str, port: int) -> str:
-    """Construct an origin URL from a bound host/port pair.
+#: Hosts the spec lets us project as ``http://`` — the AdCP discovery
+#: schema's ``url`` field requires ``^https://`` for non-loopback
+#: targets, but consumers MAY accept ``http://`` for literal localhost
+#: so a dev binary works without TLS scaffolding.
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
-    Falls back to ``http://`` because the SDK's reusable-socket binder
-    does not terminate TLS — production deployments terminate TLS at a
-    reverse proxy and the manifest's ``url`` field SHOULD be edited /
-    overridden when the public origin differs from the bound socket.
-    Adopters who need an https URL pass ``base_url=`` to ``serve()``.
+
+def resolve_base_url(host: str, port: int, base_url: str | None = None) -> str:
+    """Construct an origin URL from a bound host/port pair, enforcing
+    the spec's ``https://`` requirement for non-loopback targets.
+
+    The AdCP discovery schema requires ``url`` to match ``^https://``
+    on every agent entry; the only documented exception is loopback
+    (``127.0.0.1`` / ``localhost`` / ``::1``) for dev binaries that
+    haven't terminated TLS yet. This resolver therefore:
+
+    * Projects ``0.0.0.0`` (wildcard) to ``http://127.0.0.1:<port>`` —
+      it's a dev-only convenience and the projection IS loopback.
+    * Returns ``http://<host>:<port>`` for literal loopback hosts.
+    * Pass-through any caller-supplied ``base_url`` that already starts
+      with ``https://``.
+    * Raises :class:`ValueError` for non-loopback binds without an
+      explicit ``base_url=`` (operator MUST publish a TLS URL), and for
+      explicit ``base_url=`` that uses ``http://`` against a non-
+      loopback host (refuse to publish a non-conformant manifest).
+
+    Raise-at-boot is deliberate: a quietly-mis-published manifest
+    survives in CDNs and conformance reports for hours, so we make the
+    operator notice on launch instead.
     """
+    is_loopback = host in _LOOPBACK_HOSTS or host in ("0.0.0.0", "::", "")
+
+    if base_url is not None:
+        if base_url.startswith("https://"):
+            return base_url
+        if base_url.startswith("http://") and is_loopback:
+            return base_url
+        raise ValueError(
+            "Discovery manifest requires an https:// base_url for non-"
+            f"localhost binds (got base_url={base_url!r}, host={host!r}). "
+            "The AdCP discovery schema mandates https:// on every "
+            "agent entry — pass base_url='https://your-host:port' to "
+            "serve()."
+        )
+
+    if not is_loopback:
+        raise ValueError(
+            "Discovery manifest requires base_url= for non-localhost "
+            f"binds (host={host!r}); the AdCP discovery schema mandates "
+            "https:// URLs and the SDK won't synthesize an http:// URL "
+            "for a routable interface. Pass base_url='https://your-"
+            "host:port' to serve()."
+        )
+
     # ``0.0.0.0`` is a wildcard bind, not a routable origin. Project to
     # localhost so a default-config dev binary serves a usable manifest
-    # for local testing; production sets ``base_url`` explicitly.
+    # for local testing.
     display_host = "127.0.0.1" if host in ("0.0.0.0", "::", "") else host
     return f"http://{display_host}:{port}"
