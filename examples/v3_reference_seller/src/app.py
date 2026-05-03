@@ -85,6 +85,14 @@ async def _bootstrap_schema(engine) -> None:
     """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # asyncpg binds connection-internal Future objects to the loop
+    # they were opened on. Bootstrapping via ``asyncio.run`` runs on
+    # a transient loop that closes when ``asyncio.run`` returns; if
+    # those connections stay in the pool, uvicorn's own loop trips
+    # ``RuntimeError: got Future attached to a different loop`` on
+    # the first request. Dispose so uvicorn opens a fresh pool on
+    # its own loop.
+    await engine.dispose()
 
 
 def main() -> None:
