@@ -52,6 +52,7 @@ from adcp.types.generated_poc.enums.error_code import ErrorCode
 # spec-drift point that should ideally migrate upstream.
 # ---------------------------------------------------------------------------
 KNOWN_NON_SPEC_CODES: dict[str, str] = {
+    # TODO: track upstream addition to error-code.json enum.
     # Universal "framework caught an unhandled exception" wrap. Used by
     # the dispatch layer to project arbitrary Python exceptions to a
     # safe wire shape (without leaking stack traces). The spec
@@ -62,6 +63,7 @@ KNOWN_NON_SPEC_CODES: dict[str, str] = {
         "Universal exception wrap used by adcp.decisioning.dispatch. "
         "Spec allows codes outside the enum; this is the SDK's fallback."
     ),
+    # TODO: track upstream 3.1 split of AUTH_REQUIRED → AUTH_MISSING + AUTH_INVALID.
     # 3.1 will split AUTH_REQUIRED into AUTH_MISSING + AUTH_INVALID per
     # the canonical enumDescription on AUTH_REQUIRED. The SDK uses
     # AUTH_INVALID at the FromAuthAccounts gate where the principal is
@@ -70,13 +72,6 @@ KNOWN_NON_SPEC_CODES: dict[str, str] = {
     "AUTH_INVALID": (
         "Pre-canonical 3.1 split of AUTH_REQUIRED. Documented in the "
         "AUTH_REQUIRED enumDescription as a future spec change."
-    ),
-    # Spec-conformant fix from PR #393 for the previously non-spec
-    # INVALID_BILLING_MODEL. Tracked for upstream migration; pinned by
-    # tests/test_tier2_spec_conformance.py.
-    "BILLING_NOT_PERMITTED_FOR_AGENT": (
-        "Tier-2 commercial-identity gate (PR #393). Pinned by "
-        "tests/test_tier2_spec_conformance.py."
     ),
 }
 
@@ -164,7 +159,7 @@ def _is_acceptable_code(code: str) -> bool:
 
 
 def test_canonical_enum_is_loaded() -> None:
-    """Sanity-check: the bundled enum has the expected 45-entry shape.
+    """Sanity-check: the bundled enum has the expected shape.
 
     Pins the assumption that the generated ``ErrorCode`` enum mirrors
     the schema. If this drifts (e.g. the schema gains a code), this
@@ -173,9 +168,14 @@ def test_canonical_enum_is_loaded() -> None:
     """
     assert "PERMISSION_DENIED" in CANONICAL_CODES
     assert "ACCOUNT_SUSPENDED" in CANONICAL_CODES
-    # Spot-check a few that historically got misnamed:
-    assert "AGENT_SUSPENDED" not in CANONICAL_CODES
+    # Spot-check a non-spec code that historically got misnamed and is
+    # still not in the canonical enum:
     assert "INVALID_BILLING_MODEL" not in CANONICAL_CODES
+    assert "REQUEST_AUTH_UNRECOGNIZED_AGENT" not in CANONICAL_CODES
+    # If this assertion fails, the bundled error-code.json was resynced;
+    # update both the count AND audit allowlist entries that may now be
+    # in the canonical enum.
+    assert len(CANONICAL_CODES) == 60, f"Expected 60 spec error codes, got {len(CANONICAL_CODES)}"
 
 
 def test_adcp_error_codes_are_spec_conformant() -> None:
