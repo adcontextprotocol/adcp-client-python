@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from mcp import ClientSession
 
 from adcp._version import resolve_adcp_version
-from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver
+from adcp.capabilities import TASK_FEATURE_MAP, FeatureResolver, looks_like_v3_capabilities
 from adcp.exceptions import ADCPError, ADCPWebhookSignatureError
 from adcp.protocols.a2a import A2AAdapter
 from adcp.protocols.base import ProtocolAdapter
@@ -1042,8 +1042,22 @@ class ADCPClient:
     async def refresh_capabilities(self) -> GetAdcpCapabilitiesResponse:
         """Fetch capabilities from the seller, bypassing cache.
 
+        On strict-schema validation failure the raw response is inspected with
+        ``looks_like_v3_capabilities``: if the agent is structurally v3-shaped,
+        a wire-shape bug is surfaced loudly with the original validation error
+        rather than silently downgrading to v2 (the v2 fallback would then ask
+        for v2.5 schemas, which aren't shipped — one missing field would
+        cascade into "AdCP schema data for version v2.5 not found"). Genuinely
+        non-v3 responses still fall through to the transport-error path.
+
         Returns:
             The seller's capabilities response.
+
+        Raises:
+            ADCPError: On transport failure, or when the response is
+                v3-shaped but fails schema validation. The error message
+                explicitly references v3 in the latter case so the underlying
+                wire-shape bug doesn't get blamed on a v2.5-schema cascade.
         """
         result = await self.get_adcp_capabilities(GetAdcpCapabilitiesRequest())
         if result.success and result.data is not None:
@@ -1051,6 +1065,48 @@ class ADCPClient:
             self._feature_resolver = FeatureResolver(result.data)
             self._capabilities_fetched_at = time.monotonic()
             return self._capabilities
+
+        # The typed call discards the raw payload on parse failure (only the
+        # error string survives). Distinguish parse-failure (worth shape-
+        # checking) from transport-failure (no data ever arrived) by the
+        # error prefix produced by ProtocolAdapter._parse_response. Only on
+        # parse-failure do we re-fetch the raw dict from the adapter to
+        # inspect its shape; transport failures fall straight through to
+        # the original error path.
+        raw_data: Any = None
+        is_parse_failure = result.error is not None and result.error.startswith(
+            "Failed to parse response:"
+        )
+        if is_parse_failure:
+            raw_result = await self.adapter.get_adcp_capabilities(
+                GetAdcpCapabilitiesRequest().model_dump(mode="json", exclude_none=True)
+            )
+            raw_data = raw_result.data
+            if isinstance(raw_data, list) and len(raw_data) == 1 and isinstance(raw_data[0], dict):
+                # MCP content array — unwrap a single-item content envelope
+                # so the heuristic sees the same shape the parser would.
+                raw_data = raw_data[0]
+
+        if looks_like_v3_capabilities(raw_data):
+            logger.warning(
+                "[AdCP] Agent %r returned a get_adcp_capabilities response that "
+                "failed validation, but the response is structurally v3-shaped. "
+                "The agent has a wire-shape bug — that's the thing to fix. "
+                "(has_error=%s, has_data=%s)",
+                self.agent_config.id,
+                bool(result.error),
+                raw_data is not None,
+            )
+            raise ADCPError(
+                f"v3 capabilities response from agent {self.agent_config.id!r} "
+                f"failed schema validation: {result.error or result.message}. "
+                f"The response is structurally v3-shaped (carries `adcp`, "
+                f"`supported_protocols`, or a v3 protocol block) — fix the "
+                f"agent's wire shape rather than downgrading to v2.",
+                agent_id=self.agent_config.id,
+                agent_uri=self.agent_config.agent_uri,
+            )
+
         raise ADCPError(
             f"Failed to fetch capabilities: {result.error or result.message}",
             agent_id=self.agent_config.id,

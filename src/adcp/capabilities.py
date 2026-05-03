@@ -87,6 +87,70 @@ for _task, _feature in TASK_FEATURE_MAP.items():
 del _task, _feature
 
 
+def _is_plain_object(value: Any) -> bool:
+    """Return True iff ``value`` is a non-array dict.
+
+    Mirrors the JS ``isPlainObject`` helper used by ``looks_like_v3_capabilities``.
+    Excludes lists so that ``adcp: []`` or ``media_buy: []`` don't get mistaken
+    for v3 envelope blocks just because ``isinstance(_, dict)`` would have
+    happened to return False anyway — kept for symmetry with the JS check
+    so future contributors don't reintroduce a ``isinstance(_, (dict, list))``
+    false-positive.
+    """
+    return isinstance(value, dict)
+
+
+def looks_like_v3_capabilities(data: Any) -> bool:
+    """Heuristic: does this ``get_adcp_capabilities`` response look v3-shaped?
+
+    Used by ``ADCPClient.refresh_capabilities`` when the response fails strict
+    schema validation but is structurally non-empty. The question the heuristic
+    answers is "is this a v3 agent with a wire-shape bug, or a v2 agent that
+    happens to advertise the tool?". Falling back to v2 in the former case
+    masks the original bug behind cascading v2.5-schema-not-found errors;
+    treating it as v3 surfaces the wire-shape bug at its source.
+
+    Affirmative v3 signals (any one is enough):
+
+    - ``adcp`` block (only v3 servers carry the
+      ``{ major_versions, idempotency, ... }`` envelope)
+    - ``supported_protocols`` array (v3-only top-level field)
+    - any v3 protocol-level capability block (``account``, ``media_buy``,
+      ``signals``, ``creative``, ``brand``, ``governance``,
+      ``sponsored_intelligence``, ``compliance_testing``)
+
+    v2 servers don't expose ``get_adcp_capabilities`` at all (the tool itself
+    is a v3-only addition), so reaching this function with a non-empty payload
+    already strongly implies v3 — but the structural check belt-and-suspenders
+    against genuinely empty / null responses.
+
+    Args:
+        data: Raw response payload (typically a dict, but accepts any value
+            so callers don't have to narrow before calling).
+
+    Returns:
+        True if any v3 signal is present; False for empty, null, non-dict,
+        or shape-mismatched inputs.
+    """
+    if not _is_plain_object(data):
+        return False
+    if _is_plain_object(data.get("adcp")):
+        return True
+    if isinstance(data.get("supported_protocols"), list):
+        return True
+    v3_blocks = (
+        "account",
+        "media_buy",
+        "signals",
+        "creative",
+        "brand",
+        "governance",
+        "sponsored_intelligence",
+        "compliance_testing",
+    )
+    return any(_is_plain_object(data.get(block)) for block in v3_blocks)
+
+
 def build_synthetic_capabilities(
     supported_protocols: list[str],
     *,
@@ -171,7 +235,7 @@ class FeatureResolver:
 
         # Targeting check: "targeting.geo_countries"
         if feature.startswith("targeting."):
-            attr_name = feature[len("targeting."):]
+            attr_name = feature[len("targeting.") :]
             if caps.media_buy is None or caps.media_buy.execution is None:
                 return False
             targeting = caps.media_buy.execution.targeting
@@ -307,8 +371,7 @@ def validate_capabilities(
         for method_name in handler_methods:
             if not hasattr(handler, method_name):
                 warnings.append(
-                    f"Feature '{feature}' is declared but handler has no "
-                    f"'{method_name}' method"
+                    f"Feature '{feature}' is declared but handler has no " f"'{method_name}' method"
                 )
                 continue
 
