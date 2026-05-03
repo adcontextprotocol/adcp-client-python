@@ -44,6 +44,9 @@ def load_schema(name: str) -> dict[str, Any]:
         ``jsonschema`` is a required dependency of ``adcp``.
     """
     # Guard against path traversal: reject names that could escape the package.
+    # Intentionally conservative — any name containing ".." is rejected even if
+    # it wouldn't actually traverse (e.g. "..future.json"); prefer a clear
+    # "invalid" error over a subtle escape.
     if "/" in name or "\\" in name or ".." in name:
         raise FileNotFoundError(
             f"AdCP schema name {name!r} is invalid. "
@@ -67,7 +70,7 @@ def load_schema(name: str) -> dict[str, Any]:
         available = ", ".join(
             sorted(f.name for f in files("adcp.schemas").iterdir() if f.name.endswith(".json"))
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 — intentional: don't mask the real FileNotFoundError
         available = ADCP_AGENTS
 
     raise FileNotFoundError(

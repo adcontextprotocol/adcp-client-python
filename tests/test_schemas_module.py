@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 
 from adcp.schemas import ADCP_AGENTS, load_schema
@@ -45,13 +50,11 @@ def test_load_schema_rejects_path_traversal(traversal: str) -> None:
         load_schema(traversal)
 
 
-def test_load_schema_corrupted_schema_raises_file_not_found(tmp_path) -> None:
+def test_load_schema_corrupted_schema_raises_file_not_found(tmp_path: Path) -> None:
     """A corrupted bundled file should surface as FileNotFoundError, not JSONDecodeError."""
-    from contextlib import contextmanager
-    from unittest.mock import patch
 
-    @contextmanager  # type: ignore[misc]
-    def _bad_as_file(resource) -> None:  # type: ignore[misc]
+    @contextmanager
+    def _bad_as_file(resource: object) -> Iterator[Path]:
         bad = tmp_path / "bad.json"
         bad.write_text("not json", encoding="utf-8")
         yield bad
