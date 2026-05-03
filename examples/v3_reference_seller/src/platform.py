@@ -12,7 +12,7 @@ Sales-non-guaranteed specialism with all nine Sales methods:
 * :meth:`list_creative_formats` — return supported format catalog (stub)
 * :meth:`list_creatives` — list buyer-uploaded creatives (stub)
 
-All five run against the SQLAlchemy models in :mod:`models`. The
+All six run against the SQLAlchemy models in :mod:`models`. The
 platform reads the resolved :class:`adcp.decisioning.BuyerAgent`
 from :attr:`RequestContext.buyer_agent` (set by the framework's
 dispatch gate) and the :class:`adcp.decisioning.Account` from
