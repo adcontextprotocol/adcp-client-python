@@ -33,6 +33,19 @@ from adcp.server.mcp_tools import (
     create_tool_caller,
     get_tools_for_handler,
 )
+from adcp.validation.client_hooks import (
+    SERVER_DEFAULT_VALIDATION as DEFAULT_VALIDATION,
+)
+from adcp.validation.client_hooks import (
+    ValidationHookConfig,
+)
+
+# Re-exported as ``adcp.server.serve.DEFAULT_VALIDATION`` for adopters who
+# want a non-magic name when constructing their own
+# ``ValidationHookConfig`` overrides. The canonical definition lives in
+# :mod:`adcp.validation.client_hooks` so both the server-side and any
+# future server-creation seam can share one constant without a circular
+# import via this module.
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -44,7 +57,6 @@ if TYPE_CHECKING:
 
     from adcp.server.a2a_server import MessageParser
     from adcp.server.test_controller import TestControllerStore
-    from adcp.validation.client_hooks import ValidationHookConfig
 
 
 @dataclass(frozen=True)
@@ -413,7 +425,7 @@ def serve(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     enable_debug_endpoints: bool = False,
     debug_traffic_source: Callable[[], dict[str, int]] | None = None,
     base_url: str | None = None,
@@ -543,16 +555,24 @@ def serve(
             their specialism SHOULD pass it.
         description: Optional human-readable description surfaced in
             the discovery manifest's per-agent ``description`` field.
-        validation: Optional :class:`ValidationHookConfig` enabling
-            schema validation of every request and response against the
+        validation: :class:`ValidationHookConfig` enabling schema
+            validation of every request and response against the
             bundled AdCP JSON schemas. ``requests="strict"`` raises
             ``VALIDATION_ERROR`` before the handler runs on a malformed
             payload; ``responses="strict"`` raises after the handler
-            returns when the response shape drifts from spec. Sellers
-            who want their server to enforce wire conformance pass
-            ``ValidationHookConfig(requests="strict", responses="strict")``;
-            the default ``None`` keeps validation off (zero overhead).
-            Applies to both MCP and A2A transports.
+            returns when the response shape drifts from spec.
+
+            **Defaults to** :data:`DEFAULT_VALIDATION` (strict on both
+            sides) — wire-conformance by default. This catches the
+            class of bug that shipped the ``pricing_options``
+            regression past Pydantic ``extra="allow"`` silently
+            swallowing an unknown shape. Adopters mid-migration who
+            need response drift to warn rather than fail pass
+            ``ValidationHookConfig(responses="warn")``; adopters who
+            want validation off entirely pass
+            ``ValidationHookConfig(requests="off", responses="off")``
+            or ``validation=None``. Applies to both MCP and A2A
+            transports.
 
     Security:
         This function does NOT configure authentication. In production,
@@ -936,7 +956,7 @@ def _serve_mcp(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1064,7 +1084,7 @@ def _serve_a2a(
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1135,7 +1155,7 @@ def _build_mcp_and_a2a_app(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1272,7 +1292,7 @@ def _serve_mcp_and_a2a(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
     base_url: str | None = None,
     specialisms: list[str] | None = None,
     description: str | None = None,
@@ -1350,7 +1370,7 @@ def create_mcp_server(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     streaming_responses: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
 ) -> Any:
     """Create a FastMCP server from an ADCP handler without starting it.
 
@@ -1486,7 +1506,7 @@ def _register_handler_tools(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = DEFAULT_VALIDATION,
 ) -> None:
     """Register all ADCP tools from a handler onto a FastMCP server."""
     # Freeze middleware ordering at registration time. Tuple both guards

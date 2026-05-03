@@ -147,16 +147,15 @@ def main() -> None:
         asgi_middleware=[
             (SubdomainTenantMiddleware, {"router": router}),
         ],
-        # Schema-driven validation in strict mode on both sides:
-        # the dispatcher validates every request against the bundled
-        # AdCP JSON schemas before the platform method runs, and
-        # validates every response after it returns. Bugs like the
-        # ``pricing_options`` shape regression that shipped in the
-        # initial v3 ref seller are caught at boot / first call
-        # rather than during a buyer's storyboard run. Adopters
-        # forking this entrypoint inherit the strict default — drop
-        # to ``responses="warn"`` only when you have a deliberate
-        # reason to ship spec-divergent responses.
+        # Schema-driven validation in strict mode on both sides.
+        # This is the framework default since DX#8 (strict by default
+        # to catch ``pricing_options``-class bugs that ``extra="allow"``
+        # Pydantic models silently swallow), but pinned explicitly here
+        # so the reference seller's posture is self-evident from the
+        # serve call. Adopters forking this entrypoint can drop to
+        # ``responses="warn"`` if they have a deliberate reason to
+        # ship spec-divergent responses; they cannot escape detection
+        # by simply omitting the kwarg.
         validation=ValidationHookConfig(requests="strict", responses="strict"),
         # Wire the anti-façade traffic counters. Storyboard runners
         # poll ``GET /_debug/traffic`` to assert the platform actually

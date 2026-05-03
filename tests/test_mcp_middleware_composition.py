@@ -149,6 +149,12 @@ async def handler_and_client() -> Any:
         handler,
         name="test-agent",
         context_factory=_build_context,
+        # Tests assert middleware composition / context-factory plumbing
+        # against a stub handler that returns minimal payloads — opt out
+        # of the framework's strict-by-default wire-conformance check
+        # so a non-spec-conformant stub response doesn't get rewritten
+        # into a VALIDATION_ERROR before the assertion runs.
+        validation=None,
     )
     # Force stateless JSON responses. Production deployments mount the
     # MCP app behind a reverse proxy; this test covers that shape.
@@ -435,6 +441,7 @@ async def middleware_handler_and_client(middleware_events: list[str]) -> Any:
         name="mw-test",
         context_factory=_build_context,
         middleware=[outer, inner],
+        validation=None,  # transport plumbing test, not wire-conformance
     )
     mcp.settings.stateless_http = True
     mcp.settings.json_response = True

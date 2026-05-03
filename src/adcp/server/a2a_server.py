@@ -47,9 +47,13 @@ if TYPE_CHECKING:
     from a2a.server.tasks.task_store import TaskStore
 
     from adcp.server.serve import ContextFactory, SkillMiddleware
-    from adcp.validation.client_hooks import ValidationHookConfig
 
 from collections.abc import Callable  # noqa: E402
+
+from adcp.validation.client_hooks import (  # noqa: E402
+    SERVER_DEFAULT_VALIDATION,
+    ValidationHookConfig,
+)
 
 MessageParser = Callable[[RequestContext], tuple[str | None, dict[str, Any]]]
 """Callable that extracts ``(skill_name, params)`` from an incoming
@@ -125,7 +129,7 @@ class ADCPAgentExecutor(AgentExecutor):
         middleware: Sequence[SkillMiddleware] | None = None,
         message_parser: MessageParser | None = None,
         advertise_all: bool = False,
-        validation: ValidationHookConfig | None = None,
+        validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
     ) -> None:
         self._handler = handler
         self._context_factory = context_factory
@@ -600,7 +604,7 @@ def create_a2a_server(
     middleware: Sequence[SkillMiddleware] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
-    validation: ValidationHookConfig | None = None,
+    validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
 ) -> Any:
     """Create an A2A Starlette application from an ADCP handler.
 
@@ -678,6 +682,14 @@ def create_a2a_server(
             ``skills`` list and in the executor's tool-caller registry.
             Turn on for spec-compliance storyboards or when the agent
             deliberately wants clients to see a ``not_supported`` tool.
+        validation: :class:`ValidationHookConfig` enabling schema
+            validation of every request and response against the
+            bundled AdCP JSON schemas. Defaults to
+            :data:`~adcp.validation.client_hooks.SERVER_DEFAULT_VALIDATION`
+            (strict on both sides). Pass
+            ``ValidationHookConfig(responses="warn")`` to log+continue
+            on response drift, or ``validation=None`` to disable
+            validation entirely.
 
     Returns:
         A Starlette app ready to be run with uvicorn.

@@ -298,7 +298,10 @@ async def test_typed_handler_works_under_a2a_executor():
         async def get_adcp_capabilities(self, params, context=None):
             return {"adcp": {"major_versions": [3]}, "supported_protocols": ["media_buy"]}
 
-    executor = ADCPAgentExecutor(_TypedAgent())
+    # validation=None opts out of strict-by-default wire-conformance —
+    # this test asserts dispatch plumbing under a TypeVar'd handler,
+    # not the schema shape of the stub's response.
+    executor = ADCPAgentExecutor(_TypedAgent(), validation=None)
     msg = Message(
         message_id="m-1",
         role=Role.user,
@@ -384,7 +387,8 @@ async def test_account_aware_context_flows_through_a2a_executor():
             account_id="acct-42",
         )
 
-    executor = ADCPAgentExecutor(_AccountAwareAgent(), context_factory=_factory)
+    # See note on _TypedAgent above re: validation=None opt-out.
+    executor = ADCPAgentExecutor(_AccountAwareAgent(), context_factory=_factory, validation=None)
     msg = Message(
         message_id="m-1",
         role=Role.user,
