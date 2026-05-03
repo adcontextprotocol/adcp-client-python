@@ -106,6 +106,28 @@ populated by the framework's dispatch gate before the method runs.
 This file is the bulk of what an adopter customizes. Everything
 else is boilerplate the seller wires once.
 
+## Validation mode
+
+The seller boots with `ValidationHookConfig(requests="strict", responses="strict")` by default. In strict mode the SDK schema-validates every incoming request **before** the handler runs and every outgoing response **after** the handler returns. A malformed request is rejected immediately with a spec-shaped `VALIDATION_ERROR` response; no business logic is touched.
+
+**When to drop to warn mode** — buyers and sellers in mixed-version rollouts sometimes send payloads that are valid under a slightly different spec revision. In `warn` mode the SDK logs a warning and processes the request/response normally, so you can observe drift without hard-failing traffic.
+
+Set `ADCP_ENV=production` (or `prod`) in your deployment environment to activate warn mode:
+
+```bash
+ADCP_ENV=production DATABASE_URL=... python -m src.app
+```
+
+This reuses the same convention the SDK's client-side validator uses, so both sides flip together when `ADCP_ENV` changes.
+
+**Trade-offs at a glance**
+
+| | `strict` (default) | `warn` (`ADCP_ENV=production`) |
+|---|---|---|
+| Malformed requests | Rejected — `VALIDATION_ERROR` | Processed + warning logged |
+| Non-conformant responses | Rejected — `VALIDATION_ERROR` | Returned to buyer + warning logged |
+| Best for | Dev / CI / compliance testing | Production rollouts with mixed buyer versions |
+
 ## Auth modes
 
 The seller supports both v3 signed-request and pre-trust beta

@@ -111,3 +111,95 @@ async def test_buyer_registry_returns_none_without_tenant() -> None:
     cred = ApiKeyCredential(kind="api_key", key_id="any")
     assert await registry.resolve_by_agent_url("https://x/") is None
     assert await registry.resolve_by_credential(cred) is None
+
+
+# ---------------------------------------------------------------------------
+# Validation config smoke tests (no DB, no HTTP)
+# ---------------------------------------------------------------------------
+
+
+def test_build_validation_config_strict_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_build_validation_config() defaults to strict when ADCP_ENV is unset."""
+    monkeypatch.delenv("ADCP_ENV", raising=False)
+
+    from src.app import _build_validation_config
+
+    cfg = _build_validation_config()
+    assert cfg.requests == "strict"
+    assert cfg.responses == "strict"
+
+
+def test_build_validation_config_warn_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_build_validation_config() returns warn mode when ADCP_ENV=production."""
+    monkeypatch.setenv("ADCP_ENV", "production")
+
+    from src.app import _build_validation_config
+
+    cfg = _build_validation_config()
+    assert cfg.requests == "warn"
+    assert cfg.responses == "warn"
+
+
+def test_build_validation_config_warn_for_prod_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_build_validation_config() also accepts ADCP_ENV=prod (short form)."""
+    monkeypatch.setenv("ADCP_ENV", "prod")
+
+    from src.app import _build_validation_config
+
+    cfg = _build_validation_config()
+    assert cfg.requests == "warn"
+
+
+@pytest.mark.asyncio
+async def test_strict_validation_rejects_malformed_request() -> None:
+    """Strict mode rejects an empty get_products call before the handler runs."""
+    from adcp.exceptions import ADCPTaskError
+    from adcp.server.base import ADCPHandler, ToolContext
+    from adcp.server.mcp_tools import create_tool_caller
+    from adcp.validation import ValidationHookConfig
+
+    class _StubSeller(ADCPHandler):  # type: ignore[type-arg]
+        called = False
+
+        async def get_products(self, params: dict, context: ToolContext | None = None) -> dict:  # type: ignore[override]
+            _StubSeller.called = True
+            return {"products": []}
+
+    handler = _StubSeller()
+    caller = create_tool_caller(
+        handler, "get_products", validation=ValidationHookConfig(requests="strict")
+    )
+    with pytest.raises(ADCPTaskError) as exc_info:
+        await caller({})
+    assert not handler.called, "handler must not be called when request is invalid"
+    assert exc_info.value.errors[0].code == "VALIDATION_ERROR"
+    assert exc_info.value.errors[0].details["side"] == "request"
+
+
+@pytest.mark.asyncio
+async def test_warn_validation_processes_malformed_request(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Warn mode logs a warning but still dispatches the handler."""
+    import logging
+
+    from adcp.server.base import ADCPHandler, ToolContext
+    from adcp.server.mcp_tools import create_tool_caller
+    from adcp.validation import ValidationHookConfig
+
+    class _StubSeller(ADCPHandler):  # type: ignore[type-arg]
+        called = False
+
+        async def get_products(self, params: dict, context: ToolContext | None = None) -> dict:  # type: ignore[override]
+            _StubSeller.called = True
+            return {"products": []}
+
+    handler = _StubSeller()
+    caller = create_tool_caller(
+        handler, "get_products", validation=ValidationHookConfig(requests="warn")
+    )
+    with caplog.at_level(logging.WARNING, logger="adcp.server.mcp_tools"):
+        result = await caller({})
+    assert handler.called, "handler must be called in warn mode"
+    assert isinstance(result.get("products"), list)
+    assert any("validation warning" in r.message.lower() for r in caplog.records)

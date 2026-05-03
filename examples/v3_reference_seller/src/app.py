@@ -43,6 +43,7 @@ from adcp.server import (
     ToolContext,
     current_tenant,
 )
+from adcp.validation import ValidationHookConfig
 
 from .audit import make_sink as make_audit_sink
 from .buyer_registry import make_registry as make_buyer_registry
@@ -86,6 +87,26 @@ async def _bootstrap_schema(engine) -> None:
         await conn.run_sync(Base.metadata.create_all)
 
 
+def _build_validation_config() -> ValidationHookConfig:
+    """Return a :class:`ValidationHookConfig` for boot-time wiring.
+
+    Defaults to ``strict`` on both sides so malformed requests and
+    responses are rejected at the boundary — bugs like the recent
+    ``pricing_options`` shape conformance issue surface immediately
+    rather than at storyboard run time.
+
+    Drops to ``warn`` when ``ADCP_ENV`` is ``prod`` or ``production``
+    (the same convention :func:`adcp.validation.client_hooks._default_response_mode`
+    uses on the client side).  This lets sellers running a mixed-buyer
+    rollout tolerate minor out-of-spec traffic without hard-failing
+    requests.  Set ``ADCP_ENV=production`` in your deployment environment
+    when you need the softer mode.
+    """
+    adcp_env = os.environ.get("ADCP_ENV", "").strip().lower()
+    mode: str = "warn" if adcp_env in {"prod", "production"} else "strict"
+    return ValidationHookConfig(requests=mode, responses=mode)  # type: ignore[arg-type]
+
+
 def main() -> None:
     """Entrypoint — boot the seller."""
     logging.basicConfig(
@@ -123,6 +144,7 @@ def main() -> None:
         transport="both",
         buyer_agent_registry=buyer_registry,
         context_factory=_build_context_factory(),
+        validation=_build_validation_config(),
         # SubdomainTenantMiddleware reads the request Host header,
         # resolves it via the SQL router, and sets the
         # ``current_tenant()`` contextvar before the handler runs.

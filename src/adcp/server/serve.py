@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 
     from adcp.server.a2a_server import MessageParser
     from adcp.server.test_controller import TestControllerStore
+    from adcp.validation.client_hooks import ValidationHookConfig
 
 
 @dataclass(frozen=True)
@@ -412,6 +413,7 @@ def serve(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Start an MCP or A2A server from an ADCP handler or server builder.
 
@@ -561,6 +563,7 @@ def serve(
             message_parser=message_parser,
             advertise_all=advertise_all,
             max_request_size=max_request_size,
+            validation=validation,
         )
     elif transport in ("streamable-http", "sse", "stdio"):
         _serve_mcp(
@@ -577,6 +580,7 @@ def serve(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
+            validation=validation,
         )
     elif transport == "both":
         _serve_mcp_and_a2a(
@@ -595,6 +599,7 @@ def serve(
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
+            validation=validation,
         )
     else:
         valid = ", ".join(sorted(("a2a", "both", "streamable-http", "sse", "stdio")))
@@ -782,6 +787,7 @@ def _serve_mcp(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Start an MCP server."""
     mcp = create_mcp_server(
@@ -795,6 +801,7 @@ def _serve_mcp(
         middleware=middleware,
         advertise_all=advertise_all,
         streaming_responses=streaming_responses,
+        validation=validation,
     )
 
     if test_controller is not None:
@@ -885,6 +892,7 @@ def _serve_a2a(
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Start an A2A server using uvicorn."""
     import uvicorn
@@ -904,6 +912,7 @@ def _serve_a2a(
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
+        validation=validation,
     )
     app = _wrap_with_size_limit(app, max_request_size)
     app = _apply_asgi_middleware(app, asgi_middleware)
@@ -941,6 +950,7 @@ def _build_mcp_and_a2a_app(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> Any:
     """Build the unified MCP+A2A ASGI app without starting a server.
 
@@ -974,6 +984,7 @@ def _build_mcp_and_a2a_app(
         middleware=middleware,
         advertise_all=advertise_all,
         streaming_responses=streaming_responses,
+        validation=validation,
     )
     if test_controller is not None:
         from adcp.server.test_controller import register_test_controller
@@ -1000,6 +1011,7 @@ def _build_mcp_and_a2a_app(
         middleware=middleware,
         message_parser=message_parser,
         advertise_all=advertise_all,
+        validation=validation,
     )
 
     # Lifespan composition: FastMCP's session manager initializes a
@@ -1061,6 +1073,7 @@ def _serve_mcp_and_a2a(
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Serve MCP and A2A on a single port via path dispatch.
 
@@ -1098,6 +1111,7 @@ def _serve_mcp_and_a2a(
         advertise_all=advertise_all,
         max_request_size=max_request_size,
         streaming_responses=streaming_responses,
+        validation=validation,
     )
     app = _apply_asgi_middleware(app, asgi_middleware)
 
@@ -1131,6 +1145,7 @@ def create_mcp_server(
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
     streaming_responses: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> Any:
     """Create a FastMCP server from an ADCP handler without starting it.
 
@@ -1253,6 +1268,7 @@ def create_mcp_server(
         context_factory=context_factory,
         middleware=middleware,
         advertise_all=advertise_all,
+        validation=validation,
     )
     return mcp
 
@@ -1265,6 +1281,7 @@ def _register_handler_tools(
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     advertise_all: bool = False,
+    validation: ValidationHookConfig | None = None,
 ) -> None:
     """Register all ADCP tools from a handler onto a FastMCP server."""
     # Freeze middleware ordering at registration time. Tuple both guards
@@ -1283,7 +1300,7 @@ def _register_handler_tools(
             continue
         description = tool_def.get("description", "")
         input_schema = tool_def.get("inputSchema", {"type": "object", "properties": {}})
-        caller = create_tool_caller(handler, tool_name)
+        caller = create_tool_caller(handler, tool_name, validation=validation)
         _register_tool(
             mcp,
             tool_name,
