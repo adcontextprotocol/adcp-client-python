@@ -166,7 +166,7 @@ class MockGuaranteedPlatform(DecisioningPlatform, SalesPlatform):
         req: Any,
         ctx: RequestContext[Any],
     ) -> dict[str, Any]:
-        """Reserve capacity. Rejects ``INVENTORY_UNAVAILABLE`` when the
+        """Reserve capacity. Rejects ``PRODUCT_UNAVAILABLE`` when the
         requested impressions exceed remaining capacity for ANY of the
         requested products. Atomic per-call: either every package
         reserves or none does.

@@ -727,7 +727,7 @@ jobs:
           adcp storyboard run \
             http://tenant-a.localhost:3001/mcp media_buy_seller \
             --json --allow-http \
-            > tenant-a-storyboard.json || true
+            > tenant-a-storyboard.json
           cat tenant-a-storyboard.json | head -50
 
       - name: Run storyboard — tenant-b (sales-non-guaranteed)
@@ -736,7 +736,7 @@ jobs:
           adcp storyboard run \
             http://tenant-b.localhost:3001/mcp media_buy_seller \
             --json --allow-http \
-            > tenant-b-storyboard.json || true
+            > tenant-b-storyboard.json
           cat tenant-b-storyboard.json | head -50
 
       - if: always()

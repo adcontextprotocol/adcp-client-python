@@ -20,7 +20,7 @@ against the same boot.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from adcp.decisioning import AdcpError
 from adcp.decisioning.accounts import AccountStore
@@ -117,9 +117,14 @@ def _auth_info_to_dict(auth_info: AuthInfo | None) -> dict[str, Any] | None:
 
 
 # Static-type assertion: the store satisfies the AccountStore Protocol.
-# Mypy reads this at type-check time; runtime uses isinstance via the
-# Protocol's @runtime_checkable decorator.
-_ASSERT: AccountStore[dict[str, Any]] = MultiTenantAccountStore(tenants=frozenset({"_assertion"}))
+# TYPE_CHECKING-only so the assertion has zero runtime cost and never
+# exposes a dummy "_assertion" tenant via the registry. Mypy still
+# reads it; runtime callers use isinstance via the Protocol's
+# @runtime_checkable decorator.
+if TYPE_CHECKING:
+    _ASSERT: AccountStore[dict[str, Any]] = MultiTenantAccountStore(
+        tenants=frozenset({"_assertion"})
+    )
 
 
 __all__ = ["MultiTenantAccountStore"]

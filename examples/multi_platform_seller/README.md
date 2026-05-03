@@ -12,8 +12,8 @@ shape) maintain a registry like
 
 ```python
 ADAPTER_REGISTRY: dict[str, Type[AdServerAdapter]] = {
-    "gam": GAMAdapter,
-    "kevel": KevelAdapter,
+    "adserver_a": AdServerAAdapter,
+    "adserver_b": AdServerBAdapter,
     "mock": MockAdapter,
     ...
 }
@@ -117,14 +117,14 @@ tenants DO support, breaking the "one URL → many tenants" model.
 
 ## Migration target — `ADAPTER_REGISTRY` adopters
 
-A separate `MIGRATION_FROM_ADAPTER_REGISTRY.md` (companion PR) walks
-through the salesagent translation step-by-step. The short version:
+A separate [`MIGRATION_FROM_ADAPTER_REGISTRY.md`](./MIGRATION_FROM_ADAPTER_REGISTRY.md)
+walks through the salesagent translation step-by-step. The short version:
 
 ```python
 # Before — runtime adapter instantiation per tenant
 ADAPTER_REGISTRY: dict[str, Type[AdServerAdapter]] = {
-    "gam": GAMAdapter,
-    "kevel": KevelAdapter,
+    "adserver_a": AdServerAAdapter,
+    "adserver_b": AdServerBAdapter,
 }
 adapter = ADAPTER_REGISTRY[tenant.backend](tenant.config, principal)
 result = adapter.create_media_buy(request)

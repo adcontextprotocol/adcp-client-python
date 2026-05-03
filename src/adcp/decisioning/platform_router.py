@@ -328,7 +328,9 @@ class PlatformRouter(DecisioningPlatform):
         # to a callable that closes over ``self`` and ``method_name``.
         # The framework's dispatcher uses ``getattr(platform, name)``
         # to find methods; instance-level callables work for that.
-        for method_name in _all_specialism_methods():
+        # Sorted for deterministic synthesis order — easier to debug
+        # than the underlying frozenset iteration order.
+        for method_name in sorted(_all_specialism_methods()):
             if method_name in _ACCOUNT_STORE_METHODS:
                 # Defensive: AccountStore methods MUST stay on the
                 # router's accounts store, not be synthesized as

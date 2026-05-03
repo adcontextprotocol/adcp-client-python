@@ -456,3 +456,59 @@ def test_resolve_ctx_missing_raises_internal_error() -> None:
     with pytest.raises(AdcpError) as excinfo:
         _resolve_ctx_from_args(args=(), kwargs={})
     assert excinfo.value.code == "INTERNAL_ERROR"
+
+
+def test_known_specialism_protocols_matches_specialisms_module() -> None:
+    """Guards the router's extension contract.
+
+    When a new Protocol class is added to ``adcp.decisioning.specialisms``,
+    it MUST also be added to ``_KNOWN_SPECIALISM_PROTOCOLS`` in
+    ``platform_router.py`` — otherwise the router silently fails to
+    synthesize delegates for the new specialism's methods, and the only
+    buyer-side signal is UNSUPPORTED_FEATURE on calls that should work.
+
+    This test fails the moment that drift exists.
+    """
+    from adcp.decisioning import specialisms
+    from adcp.decisioning.platform_router import _KNOWN_SPECIALISM_PROTOCOLS
+
+    known = {p.__name__ for p in _KNOWN_SPECIALISM_PROTOCOLS}
+    in_module = {name for name in specialisms.__all__ if name.endswith("Platform")}
+
+    drift = in_module ^ known
+    assert not drift, (
+        f"PlatformRouter extension contract drift. Mismatch between "
+        f"specialisms.__all__ Platform classes and _KNOWN_SPECIALISM_PROTOCOLS: "
+        f"{sorted(drift)}. Update _KNOWN_SPECIALISM_PROTOCOLS to match."
+    )
+
+
+def test_account_store_methods_denylist_matches_protocols() -> None:
+    """Guards ``_ACCOUNT_STORE_METHODS`` membership against AccountStore Protocol drift.
+
+    If ``AccountStore`` / ``AccountStoreList`` / ``AccountStoreUpsert`` /
+    ``AccountStoreSyncGovernance`` add a new method, the denylist must
+    grow with them — otherwise the router could synthesize a tenant-keyed
+    delegate over an AccountStore method by accident.
+    """
+    from adcp.decisioning.accounts import (
+        AccountStore,
+        AccountStoreList,
+        AccountStoreSyncGovernance,
+        AccountStoreUpsert,
+    )
+    from adcp.decisioning.platform_router import (
+        _ACCOUNT_STORE_METHODS,
+    )
+
+    expected = (
+        _protocol_method_names(AccountStore)
+        | _protocol_method_names(AccountStoreList)
+        | _protocol_method_names(AccountStoreUpsert)
+        | _protocol_method_names(AccountStoreSyncGovernance)
+    )
+    drift = expected ^ _ACCOUNT_STORE_METHODS
+    assert not drift, (
+        f"AccountStore Protocol method drift. Update _ACCOUNT_STORE_METHODS "
+        f"in platform_router.py: {sorted(drift)}"
+    )

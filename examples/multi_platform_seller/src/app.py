@@ -100,19 +100,13 @@ def build_subdomain_middleware() -> tuple[type, dict[str, object]]:
     ``asgi_middleware=`` shape so ``serve()`` adds it to the Starlette
     stack with the right router.
     """
+    # The router's ``_normalize_host`` (see
+    # ``adcp.server.tenant_router._normalize_host``) lower-cases the
+    # host and strips any ``:port`` suffix at construction AND at
+    # lookup, so ``tenant-a.localhost:3001`` and ``tenant-a.localhost``
+    # resolve identically. Register the bare host once.
     subdomain_router = InMemorySubdomainTenantRouter(
         tenants={
-            f"tenant-a.localhost:{PORT}": Tenant(
-                id="tenant-a", display_name="Mock Guaranteed Tenant"
-            ),
-            f"tenant-b.localhost:{PORT}": Tenant(
-                id="tenant-b", display_name="Mock Non-Guaranteed Tenant"
-            ),
-            # The middleware strips the port suffix before lookup, so
-            # the entries above also match ``tenant-a.localhost`` /
-            # ``tenant-b.localhost`` without the explicit port. Adding
-            # the port-suffixed keys is belt-and-braces in case the
-            # normalization changes.
             "tenant-a.localhost": Tenant(id="tenant-a", display_name="Mock Guaranteed Tenant"),
             "tenant-b.localhost": Tenant(id="tenant-b", display_name="Mock Non-Guaranteed Tenant"),
         }
