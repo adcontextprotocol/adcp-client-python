@@ -18,7 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 from pydantic import BaseModel, Field
 
-from adcp.signing.brand_jwks import BrandJsonResolverError, _fetch_brand_json
+from adcp.signing.brand_jwks import BrandJsonResolverError, _default_jwks_uri, _fetch_brand_json
 from adcp.signing.capability_priming import _unwrap_response
 from adcp.signing.ip_pinned_transport import build_async_ip_pinned_transport
 from adcp.signing.jwks import SSRFValidationError, async_default_jwks_fetcher
@@ -42,6 +42,7 @@ AgentResolverErrorCode = Literal[
     "invalid_url",
     "capability_fetch_failed",
     "brand_json_url_missing",
+    "brand_json_origin_mismatch",
     "brand_json_fetch_failed",
     "brand_json_agent_not_found",
     "jwks_fetch_failed",
@@ -147,6 +148,11 @@ async def async_resolve_agent(
             "get_adcp_capabilities response has no identity.brand_json_url",
         )
 
+    # Domain-binding guard: brand_json_url must be same-origin or parent-domain
+    # of agent_url so a compromised agent cannot redirect key discovery to an
+    # attacker-controlled public host (SSRF validation only blocks private IPs).
+    _validate_brand_json_origin(brand_json_url, agent_url)
+
     # Step 3: fetch brand.json and locate the agent entry
     try:
         fetched = await _fetch_brand_json(
@@ -216,6 +222,7 @@ async def verify_from_agent_url(
     body: bytes,
     agent_url: str,
     options: VerifyOptions,
+    _client_factory: _ClientFactory | None = None,
 ) -> VerifiedSigner:
     """Resolve agent keys then verify the request signature.
 
@@ -226,11 +233,14 @@ async def verify_from_agent_url(
 
     Raises AgentResolverError on resolution failure, SignatureVerificationError
     on signature failure.
+
+    ``_client_factory`` is a test seam forwarded to async_resolve_agent;
+    leave None in production.
     """
     from adcp.signing.jwks import StaticJwksResolver
     from adcp.signing.verifier import verify_request_signature
 
-    resolution = await async_resolve_agent(agent_url)
+    resolution = await async_resolve_agent(agent_url, _client_factory=_client_factory)
     jwks_resolver = StaticJwksResolver(resolution.jwks)
     pinned = _replace(options, jwks_resolver=jwks_resolver)
     return verify_request_signature(
@@ -241,6 +251,53 @@ async def verify_from_agent_url(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _validate_brand_json_origin(brand_json_url: str, agent_url: str) -> None:
+    """Reject brand_json_url values not same-origin or parent-domain of agent_url.
+
+    A compromised agent can advertise any brand_json_url; without this guard
+    it could redirect key discovery to an attacker-controlled public host.
+    SSRF validation on hop 2 blocks private IPs but not public attacker domains.
+
+    Accepted relationships (brand_host → agent_host examples):
+      example.com → buyer.example.com  (agent is a subdomain of brand domain)
+      buyer.example.com → buyer.example.com  (exact match)
+
+    Rejected (cross-domain trust pivot):
+      evil.com → buyer.example.com
+
+    Cross-subdomain cases (brand.example.com for buyer.example.com) require
+    the [identity] tldextract extra for eTLD+1 comparison; those are gated
+    on Tier-3 work tracked in adcp#3690.
+    """
+    try:
+        brand_parts = urlsplit(brand_json_url)
+        agent_parts = urlsplit(agent_url)
+    except ValueError as exc:
+        raise AgentResolverError("invalid_url", f"invalid URL in origin check: {exc}") from exc
+
+    if brand_parts.scheme != "https":
+        raise AgentResolverError(
+            "brand_json_origin_mismatch",
+            f"brand_json_url must use HTTPS (got scheme {brand_parts.scheme!r})",
+        )
+
+    brand_host = (brand_parts.hostname or "").lower()
+    agent_host = (agent_parts.hostname or "").lower()
+
+    if not brand_host:
+        raise AgentResolverError("brand_json_origin_mismatch", "brand_json_url has no host")
+
+    if brand_host == agent_host or agent_host.endswith("." + brand_host):
+        return
+
+    raise AgentResolverError(
+        "brand_json_origin_mismatch",
+        f"brand_json_url host ({brand_host!r}) must be the same as or a parent "
+        f"domain of agent_url host ({agent_host!r}); use the [identity] extra "
+        "for cross-subdomain brand.json (e.g. brand.acme.com for buyer.acme.com)",
+    )
 
 
 async def _fetch_capabilities(
@@ -352,12 +409,13 @@ def _norm_url(raw: str) -> str:
 def _find_agent_by_url(
     data: dict[str, Any],
     agent_url: str,
-    final_brand_url: str,  # noqa: ARG001 — reserved for future origin-check
+    final_brand_url: str,
 ) -> tuple[dict[str, Any], str]:
     """Find the brand.json agent entry whose url matches agent_url.
 
     Walks the same structure as _select_agent in brand_jwks: portfolio
-    brands[] first, then house.agents[], then top-level agents[].
+    brands[] first, then house.agents[].  Top-level agents[] is used when
+    there is no ``house`` key (flat brand.json).
     """
     target = _norm_url(agent_url)
 
@@ -375,12 +433,14 @@ def _find_agent_by_url(
             jwks_uri_raw = entry.get("jwks_uri")
             if isinstance(jwks_uri_raw, str):
                 return entry, jwks_uri_raw
-            # Fallback: agent-origin well-known per spec default
+            # Fallback: spec default /.well-known/jwks.json on the agent origin.
+            # _default_jwks_uri enforces that agent.url and brand.json share an
+            # origin, preventing a malicious brand.json from directing JWKS fetch
+            # to an attacker-controlled host (cross-origin trust pivot).
             try:
-                p = urlsplit(url)
-                return entry, f"{p.scheme}://{p.netloc}/.well-known/jwks.json"
-            except ValueError:
-                continue
+                return entry, _default_jwks_uri(url, final_brand_url)
+            except BrandJsonResolverError as exc:
+                raise AgentResolverError("brand_json_agent_not_found", str(exc)) from exc
         return None
 
     house = data.get("house")

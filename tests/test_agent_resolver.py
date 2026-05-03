@@ -12,14 +12,12 @@ import pytest
 from adcp.signing.agent_resolver import (
     AgentResolution,
     AgentResolutionFreshness,
-    AgentResolutionHop,
     AgentResolverError,
     _find_agent_by_url,
     _norm_url,
     async_resolve_agent,
     resolve_agent,
 )
-
 
 # ---------------------------------------------------------------------------
 # Test helpers
@@ -342,13 +340,15 @@ class TestAsyncResolveAgent:
             yield client
 
         with pytest.raises(AgentResolverError) as exc_info:
-            await async_resolve_agent(agent_url, capabilities_body_cap=64 * 1024, _client_factory=_factory)
+            await async_resolve_agent(
+                agent_url, capabilities_body_cap=64 * 1024, _client_factory=_factory
+            )
         assert exc_info.value.code == "capability_fetch_failed"
 
     @pytest.mark.asyncio
     async def test_agent_not_in_brand_json(self) -> None:
         agent_url = "https://buyer.example.com/mcp"
-        brand_json_url = "https://brand.example.com/.well-known/brand.json"
+        brand_json_url = "https://buyer.example.com/.well-known/brand.json"
         caps = _make_caps_http_response(brand_json_url)
         brand_json_no_match: dict[str, Any] = {
             "agents": [
@@ -379,7 +379,7 @@ class TestAsyncResolveAgent:
     @pytest.mark.asyncio
     async def test_brand_json_fetch_error_wrapped(self) -> None:
         agent_url = "https://buyer.example.com/mcp"
-        brand_json_url = "https://brand.example.com/.well-known/brand.json"
+        brand_json_url = "https://buyer.example.com/.well-known/brand.json"
         caps = _make_caps_http_response(brand_json_url)
 
         from adcp.signing.brand_jwks import BrandJsonResolverError
@@ -424,6 +424,113 @@ class TestAsyncResolveAgent:
 
         assert result.freshness.cache_control == "max-age=1800"
         assert result.freshness.fetched_at <= time.time()
+
+    @pytest.mark.asyncio
+    async def test_brand_json_origin_mismatch_rejected(self) -> None:
+        """brand_json_url on a different domain from agent_url is rejected before hop 2."""
+        agent_url = "https://buyer.example.com/mcp"
+        # evil.com is not same-origin or parent-domain of buyer.example.com
+        bad_brand_json_url = "https://evil.com/.well-known/brand.json"
+        caps = _make_caps_http_response(bad_brand_json_url)
+
+        with pytest.raises(AgentResolverError) as exc_info:
+            await async_resolve_agent(agent_url, _client_factory=_caps_client_factory(caps))
+        assert exc_info.value.code == "brand_json_origin_mismatch"
+
+    @pytest.mark.asyncio
+    async def test_brand_json_parent_domain_accepted(self) -> None:
+        """brand_json_url on a parent domain of agent_url is accepted."""
+        agent_url = "https://buyer.example.com/mcp"
+        brand_json_url = "https://example.com/.well-known/brand.json"
+        jwks_uri = "https://buyer.example.com/.well-known/jwks.json"
+        brand_json = _make_brand_json(agent_url, jwks_uri)
+        caps = _make_caps_http_response(brand_json_url)
+
+        from adcp.signing.brand_jwks import _FetchedBrandJson
+
+        with (
+            patch(
+                "adcp.signing.agent_resolver._fetch_brand_json",
+                return_value=_FetchedBrandJson(
+                    status="ok",
+                    final_url=brand_json_url,
+                    data=brand_json,
+                    etag=None,
+                    cache_control=None,
+                ),
+            ),
+            patch(
+                "adcp.signing.agent_resolver.async_default_jwks_fetcher",
+                return_value=_make_jwks(),
+            ),
+        ):
+            result = await async_resolve_agent(
+                agent_url, _client_factory=_caps_client_factory(caps)
+            )
+
+        assert result.brand_json_url == brand_json_url
+
+    @pytest.mark.asyncio
+    async def test_verify_from_agent_url(self) -> None:
+        """verify_from_agent_url resolves keys then delegates to verify_request_signature."""
+        from unittest.mock import MagicMock
+
+        from adcp.signing.agent_resolver import verify_from_agent_url
+        from adcp.signing.verifier import VerifiedSigner, VerifyOptions
+
+        agent_url = "https://buyer.example.com/mcp"
+        brand_json_url = "https://buyer.example.com/.well-known/brand.json"
+        jwks_uri = "https://buyer.example.com/.well-known/jwks.json"
+        brand_json = _make_brand_json(agent_url, jwks_uri)
+        jwks = _make_jwks()
+        caps = _make_caps_http_response(brand_json_url)
+
+        fake_signer = MagicMock(spec=VerifiedSigner)
+
+        from adcp.signing.brand_jwks import _FetchedBrandJson
+        from adcp.signing.verifier import VerifierCapability
+
+        base_options = VerifyOptions(
+            now=0.0,
+            capability=VerifierCapability(),
+            operation="test_op",
+            jwks_resolver=MagicMock(),
+        )
+
+        with (
+            patch(
+                "adcp.signing.agent_resolver._fetch_brand_json",
+                return_value=_FetchedBrandJson(
+                    status="ok",
+                    final_url=brand_json_url,
+                    data=brand_json,
+                    etag=None,
+                    cache_control=None,
+                ),
+            ),
+            patch("adcp.signing.agent_resolver.async_default_jwks_fetcher", return_value=jwks),
+            patch(
+                "adcp.signing.verifier.verify_request_signature",
+                return_value=fake_signer,
+            ) as mock_verify,
+        ):
+            options = base_options
+            result = await verify_from_agent_url(
+                method="POST",
+                url="https://seller.example.com/api",
+                headers={"signature": "sig1=:abc:"},
+                body=b"{}",
+                agent_url=agent_url,
+                options=options,
+                _client_factory=_caps_client_factory(caps),
+            )
+
+        assert result is fake_signer
+        # jwks_resolver in the call must be a StaticJwksResolver, not the original mock
+        call_options = mock_verify.call_args.kwargs["options"]
+        from adcp.signing.jwks import StaticJwksResolver
+
+        assert isinstance(call_options.jwks_resolver, StaticJwksResolver)
 
 
 # ---------------------------------------------------------------------------

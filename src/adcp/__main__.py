@@ -548,8 +548,7 @@ def main() -> None:
     parser.add_argument(
         "--resolve", metavar="AGENT_URL", help="Resolve agent URL to signing keys"
     )
-    parser.add_argument("--fresh", action="store_true", help="Bypass cache when resolving")
-    parser.add_argument("--quiet", action="store_true", help="Suppress non-essential output")
+    parser.add_argument("--quiet", action="store_true", help="Suppress trace output from --resolve")
 
     # Execution options
     parser.add_argument("--protocol", choices=["mcp", "a2a"], help="Force protocol type")
