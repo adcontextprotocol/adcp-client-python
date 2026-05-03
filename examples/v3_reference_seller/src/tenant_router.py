@@ -6,8 +6,10 @@ threads the result onto the ``current_tenant()`` contextvar; the
 adopter's ``context_factory`` reads it to populate
 :attr:`ToolContext.tenant_id`.
 
-Cached lookups via a small in-process LRU keep the hot path off the
-database. The cache is invalidated when an admin update changes
+Cached lookups via a small in-process bounded FIFO keep the hot
+path off the database. Adopters with > ``cache_size`` distinct
+hosts under load swap to ``cachetools.LRUCache`` — the Protocol is
+one method. The cache is invalidated when an admin update changes
 ``tenants.host`` (admin API publishes a tenant-changed event;
 production sellers wire a Postgres LISTEN / pub-sub for the
 invalidation).
@@ -47,9 +49,11 @@ class SqlSubdomainTenantRouter:
         self._cache_lock = asyncio.Lock()
 
     async def resolve(self, host: str) -> Tenant | None:
-        # Tiny LRU-ish cache — first-write-wins eviction. Adopters
-        # under heavy traffic swap to a real LRU (functools.lru_cache
-        # doesn't compose with async, so we hand-roll).
+        # Bounded FIFO cache — when full, the oldest insertion is
+        # evicted regardless of access frequency. Fine for stable
+        # tenant sets under ``cache_size``; adopters with churn or
+        # > 256 active hosts swap in ``cachetools.LRUCache``
+        # (functools.lru_cache doesn't compose with async).
         async with self._cache_lock:
             if host in self._cache:
                 return self._cache[host]
@@ -69,10 +73,8 @@ class SqlSubdomainTenantRouter:
             )
         async with self._cache_lock:
             if len(self._cache) >= self._cache_size:
-                # Simple eviction: drop one arbitrary entry. With
-                # cache_size=256 across thousands of QPS this
-                # smoothly cycles. Adopters needing strict LRU swap
-                # in ``cachetools.LRUCache``.
+                # Drop the oldest insertion (dict iteration order is
+                # insertion-order in CPython 3.7+).
                 self._cache.pop(next(iter(self._cache)))
             self._cache[host] = tenant
         return tenant

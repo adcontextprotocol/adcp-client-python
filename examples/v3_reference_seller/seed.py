@@ -19,7 +19,6 @@ the seeded ``api_key_id``.
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -55,7 +54,7 @@ async def main() -> None:
                         agent_url="https://signed-buyer.example/",
                         display_name="Signed Buyer",
                         status="active",
-                        billing_capabilities=json.dumps(["operator", "agent"]),
+                        billing_capabilities=["operator", "agent"],
                         api_key_id=None,
                     ),
                     BuyerAgent(
@@ -64,7 +63,7 @@ async def main() -> None:
                         agent_url="https://bearer-buyer.example/",
                         display_name="Bearer Buyer",
                         status="active",
-                        billing_capabilities=json.dumps(["operator"]),
+                        billing_capabilities=["operator"],
                         api_key_id="dev-bearer-token-acme-1",
                     ),
                     BuyerAgent(
@@ -73,7 +72,7 @@ async def main() -> None:
                         agent_url="https://suspended.example/",
                         display_name="Suspended Buyer",
                         status="suspended",
-                        billing_capabilities=json.dumps(["operator"]),
+                        billing_capabilities=["operator"],
                     ),
                 ]
             )

@@ -27,7 +27,6 @@ Admin API and protocol-side audit log live in separate tables
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -131,8 +130,9 @@ class BuyerAgent(Base):
     :class:`buyer_registry.TenantScopedBuyerAgentRegistry` on top.
 
     ``billing_capabilities`` is the framework-enforced
-    ``frozenset[BillingMode]`` from the spec — adopters store as a
-    JSON array and project at the seam.
+    ``frozenset[BillingMode]`` from the spec — stored as a native
+    JSON array column and projected to ``frozenset`` at the
+    registry seam.
     """
 
     __tablename__ = "buyer_agents"
@@ -156,11 +156,11 @@ class BuyerAgent(Base):
     #: (terminal) before the platform method runs.
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
 
-    #: JSON-encoded list of permitted ``BillingMode`` values. Default
-    #: ``["operator"]`` is the pre-trust passthrough posture — agents
-    #: under this row get operator-billed accounts only.
-    billing_capabilities: Mapped[str] = mapped_column(
-        String(255), nullable=False, default=lambda: json.dumps(["operator"])
+    #: List of permitted ``BillingMode`` values. Default ``["operator"]``
+    #: is the pre-trust passthrough posture — agents under this row
+    #: get operator-billed accounts only.
+    billing_capabilities: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=lambda: ["operator"]
     )
 
     #: Pre-trust beta API key. Adopters running signing-only auth
@@ -168,12 +168,12 @@ class BuyerAgent(Base):
     api_key_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     #: Default account terms (rate card, payment terms, credit limit,
-    #: billing entity FK). JSON for portability.
-    default_terms_json: Mapped[str | None] = mapped_column(String, nullable=True)
+    #: billing entity FK).
+    default_terms: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     #: Pre-RFC allowlist of brand domains. Layered with the (Tier 3)
     #: ``BrandAuthorizationResolver`` once spec #3690 lands.
-    allowed_brands: Mapped[str | None] = mapped_column(String, nullable=True)
+    allowed_brands: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     #: Adopter passthrough — internal ids, contract refs, etc.
     ext: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

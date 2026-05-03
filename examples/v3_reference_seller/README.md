@@ -10,13 +10,14 @@ ships into one runnable binary:
 | Component | Module | Source |
 |---|---|---|
 | Tier 2 commercial-identity gate | `src/buyer_registry.py` | `adcp.decisioning.BuyerAgentRegistry` |
-| HTTP-Sig verifier → AuthInfo | (use `AuthInfo.from_verified_signer`) | `adcp.decisioning.AuthInfo` |
-| Subdomain tenant routing | `src/tenant_router.py` | `adcp.server.SubdomainTenantMiddleware` |
-| Account v3 projection (bank guard) | inline in platform | `adcp.types.project_account_for_response` |
+| Subdomain tenant routing | `src/tenant_router.py` + `src/app.py` | `adcp.server.SubdomainTenantMiddleware` |
+| Account v3 storage (bank-details column) | `src/models.py` | `Account.billing_entity` JSON column |
 | Audit trail | `src/audit.py` | `adcp.audit_sink.AuditSink` |
+| MCP + A2A on one binary | `src/app.py` | `serve(transport="both", asgi_middleware=...)` |
 | Durable HITL tasks (optional) | swap to `PgTaskRegistry` | `adcp.decisioning.pg.PgTaskRegistry` |
 | Durable webhook delivery (optional) | swap to `PgWebhookDeliverySupervisor` | `adcp.webhook_supervisor_pg` |
-| MCP + A2A on one binary | `src/app.py` | `serve(transport="both")` |
+| HTTP-Sig verifier → AuthInfo (TODO) | adopter middleware | `adcp.decisioning.AuthInfo.from_verified_signer` |
+| Account v3 projection on read (TODO) | adopter wires in `sync_accounts` | `adcp.types.project_account_for_response` |
 
 ## Run it
 
@@ -36,6 +37,15 @@ DATABASE_URL=postgresql+asyncpg://postgres@localhost/adcp \
 
 The server binds `0.0.0.0:3001` and serves both transports.
 
+> ⚠️ **Local-dev only.** `docker-compose.yml` uses
+> `POSTGRES_HOST_AUTH_METHOD=trust` and exposes 5432 on
+> `0.0.0.0`. Do not run this compose file on a host reachable from
+> an untrusted network. `seed.py` plants a literal dev bearer
+> token (`dev-bearer-token-acme-1`) — do not run `seed.py` against
+> a production `DATABASE_URL`. Production deployments point
+> `DATABASE_URL` at managed Postgres with scram-sha-256 + a real
+> password, and seed via the admin API (not this script).
+
 ## What's wired
 
 ### Schema (`src/models.py`)
@@ -50,9 +60,13 @@ Four tables — the spine of a multi-tenant v3 seller:
   rejects suspended (transient) and blocked (terminal) agents with
   structured errors.
 - `accounts` — buyer-side accounts under recognized agents. Carries
-  the spec 3.1-ready `billing_entity` (write-only bank details
-  guarded via `project_account_for_response`) and `reporting_bucket`
-  (offline reporting target).
+  the spec 3.1-ready `billing_entity` (write-only bank details on
+  responses) and `reporting_bucket` (offline reporting target). The
+  reference seller does not implement `sync_accounts`, so the
+  bank-details projection is a column-level architectural seam, not
+  an enforced runtime guard — adopters who add `sync_accounts`
+  MUST project through `adcp.types.project_account_for_response`
+  before returning the row.
 - `media_buys` — terminal artifact of `create_media_buy`,
   idempotency-keyed for replay safety.
 
@@ -83,10 +97,11 @@ alerting compose with `adcp.audit_sink.SlackAlertSink` via
 ### Platform (`src/platform.py`)
 
 `V3ReferenceSeller` implements `sales-non-guaranteed` — the five
-required Sales methods. Every method body reads
-`ctx.buyer_agent` (the resolved Tier 2 record) and `ctx.account`
-(the resolved account); both are populated by the framework's
-dispatch gate before the method runs.
+required Sales methods (`get_products`, `create_media_buy`,
+`update_media_buy`, `sync_creatives`, `get_media_buy_delivery`).
+Every method body reads `ctx.buyer_agent` (the resolved Tier 2
+record) and `ctx.account` (the resolved account); both are
+populated by the framework's dispatch gate before the method runs.
 
 This file is the bulk of what an adopter customizes. Everything
 else is boilerplate the seller wires once.

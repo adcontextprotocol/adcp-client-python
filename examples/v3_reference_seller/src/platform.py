@@ -24,6 +24,7 @@ boilerplate the seller wires once and forgets.
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -198,7 +199,21 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 message="Dispatch should have populated buyer_agent and account.",
                 recovery="terminal",
             )
-        media_buy_id = f"mb_{req.idempotency_key[:16]}"
+        # The (tenant_id, idempotency_key) unique constraint already
+        # enforces replay safety; the public id just needs to be
+        # globally unique. Don't derive from the idempotency key —
+        # a 16-hex prefix of a UUID v4 collides at scale, throwing
+        # IntegrityError on the unique constraint over media_buy_id.
+        media_buy_id = f"mb_{uuid.uuid4().hex}"
+        # CreateMediaBuyRequest fields:
+        #   total_budget: TotalBudget | None  (with .amount + .currency)
+        #   start_time: StartTiming           (root: 'asap' | AwareDatetime)
+        #   end_time:   AwareDatetime
+        # Project at the seam — the SQL columns are flat float / str /
+        # datetime so the platform owns the unwrapping.
+        budget_amount = req.total_budget.amount if req.total_budget else None
+        budget_currency = req.total_budget.currency if req.total_budget else None
+        start_dt = _project_start_time(req.start_time)
         row = MediaBuyRow(
             tenant_id=ctx.account.metadata["tenant_id"],
             account_id=ctx.account.id,
@@ -206,10 +221,10 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             idempotency_key=req.idempotency_key,
             status="active",
             brand_domain=getattr(req.brand, "domain", None) if req.brand else None,
-            total_budget=getattr(req, "total_budget", None),
-            currency=getattr(req, "currency", None),
-            start_time=_to_dt(req.start_time),
-            end_time=_to_dt(req.end_time),
+            total_budget=budget_amount,
+            currency=budget_currency,
+            start_time=start_dt,
+            end_time=req.end_time,
             request_snapshot=req.model_dump(mode="json"),
         )
         async with self._sessionmaker() as session, session.begin():
@@ -291,18 +306,27 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         return GetMediaBuyDeliveryResponse(media_buys=[])
 
 
-def _to_dt(value: Any) -> datetime | None:
-    """Best-effort coercion to timezone-aware UTC datetime."""
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-    if isinstance(value, str):
-        try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except ValueError:
-            return None
-    return None
+def _project_start_time(value: Any) -> datetime:
+    """Project :class:`StartTiming` (root: ``'asap'`` | :class:`AwareDatetime`)
+    into a flat timezone-aware datetime for SQL storage.
+
+    The spec lets buyers send either ``'asap'`` or an ISO 8601 datetime;
+    this seller normalizes ``'asap'`` to ``now()`` so the column is
+    always populated. Adopters who need to preserve the literal flag
+    add a separate ``start_immediately`` boolean column and project
+    here.
+    """
+    root = getattr(value, "root", value)
+    if root == "asap":
+        return datetime.now(timezone.utc)
+    if isinstance(root, datetime):
+        return root if root.tzinfo else root.replace(tzinfo=timezone.utc)
+    raise AdcpError(
+        "INVALID_REQUEST",
+        message=f"Unrecognized StartTiming value {root!r}.",
+        recovery="terminal",
+        field="start_time",
+    )
 
 
 __all__ = ["V3ReferenceSeller"]

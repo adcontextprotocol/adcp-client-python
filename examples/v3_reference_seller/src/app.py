@@ -12,8 +12,9 @@ Boot sequence:
    * :class:`DbAuditSink` for compliance trail
    * :class:`V3ReferenceSeller` (the platform impl)
 
-4. ``adcp.decisioning.serve(transport="both", ...)`` — single
-   binary serving MCP at ``/mcp`` and A2A at ``/``.
+4. ``adcp.decisioning.serve(transport="both", asgi_middleware=[...])``
+   — single binary serving MCP at ``/mcp`` and A2A at ``/`` with
+   :class:`SubdomainTenantMiddleware` layered on the outer HTTP app.
 
 Adopters fork this file and replace the platform impl, the seller-
 specific column populators, and the seed fixtures. Everything else
@@ -38,6 +39,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from adcp.decisioning import serve
 from adcp.server import (
+    SubdomainTenantMiddleware,
     ToolContext,
     current_tenant,
 )
@@ -54,7 +56,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _build_context_factory(router: SqlSubdomainTenantRouter):
+def _build_context_factory():
     """``context_factory`` that pins :attr:`ToolContext.tenant_id`
     from the resolved tenant.
 
@@ -62,7 +64,6 @@ def _build_context_factory(router: SqlSubdomainTenantRouter):
     dispatch; this factory reads it and writes ``tenant_id`` so the
     framework's idempotency middleware scopes correctly.
     """
-    del router  # router is consumed via current_tenant(); kept for symmetry
 
     def build(meta: RequestMetadata) -> ToolContext:
         tenant = current_tenant()
@@ -114,84 +115,28 @@ def main() -> None:
     )
     logger.info("Audit sink wired: %s. Tenant router cache: 256 hosts.", type(audit_sink).__name__)
 
-    # The framework's serve() drives uvicorn. We layer the tenant
-    # middleware on the parent Starlette app via a build hook —
-    # for the MVP we wire it inline by passing a custom ``app``
-    # builder. For the Tier-2 wiring we use the ``buyer_agent_registry``
-    # and ``context_factory`` kwargs the framework already supports.
     serve(
         platform=platform,
         name="v3-reference-seller",
         port=port,
+        host="0.0.0.0",
         transport="both",
         buyer_agent_registry=buyer_registry,
-        context_factory=_build_context_factory(router),
-        # NOTE: SubdomainTenantMiddleware is added to the unified
-        # Starlette app via ``add_middleware``. The current public
-        # surface of ``serve()`` doesn't expose a hook for adopter
-        # ASGI middleware on the parent — adopters who want it today
-        # call ``_build_mcp_and_a2a_app`` directly and run uvicorn
-        # themselves. Filed as a follow-up DX issue: the helper
-        # below shows the pattern.
-        host="0.0.0.0",
+        context_factory=_build_context_factory(),
+        # SubdomainTenantMiddleware reads the request Host header,
+        # resolves it via the SQL router, and sets the
+        # ``current_tenant()`` contextvar before the handler runs.
+        # The buyer_registry, AccountStore, and audit sink all read
+        # that contextvar — this is the only multi-tenant wiring
+        # point.
+        asgi_middleware=[
+            (SubdomainTenantMiddleware, {"router": router}),
+        ],
     )
-
-
-# Adopter-side helper for wiring SubdomainTenantMiddleware directly.
-# Until ``serve()`` accepts an ``asgi_middleware=`` kwarg, callers who
-# need tenant routing build the unified app themselves and run
-# uvicorn outside the framework's ``serve()`` wrapper.
-def build_app(
-    platform: V3ReferenceSeller,
-    *,
-    router: SqlSubdomainTenantRouter,
-    buyer_registry,  # type: ignore[no-untyped-def]
-    audit_sink,  # type: ignore[no-untyped-def]
-):
-    """Construct the unified MCP+A2A app with the tenant middleware.
-
-    Returns an ASGI app callable; the caller runs uvicorn against it.
-    """
-    from concurrent.futures import ThreadPoolExecutor
-
-    from adcp.decisioning.handler import PlatformHandler
-    from adcp.decisioning.serve import _build_mcp_and_a2a_app
-    from adcp.decisioning.task_registry import InMemoryTaskRegistry
-
-    executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="v3-ref-")
-    handler = PlatformHandler(
-        platform,
-        executor=executor,
-        registry=InMemoryTaskRegistry(),
-        buyer_agent_registry=buyer_registry,
-    )
-    app = _build_mcp_and_a2a_app(
-        handler,
-        name="v3-reference-seller",
-        port=3001,
-        host="0.0.0.0",
-        instructions=None,
-        test_controller=None,
-        context_factory=_build_context_factory(router),
-    )
-    # Wrap with the tenant middleware. ASGI middleware composes
-    # outermost-first: requests pass through the tenant resolver
-    # before reaching the dispatcher.
-    from adcp.server.tenant_router import SubdomainTenantMiddleware as _SubdomainTenantMiddleware
-
-    class _Wrapped:
-        def __init__(self, app):
-            self._app = app
-            self._mw = _SubdomainTenantMiddleware(app, router=router)
-
-        async def __call__(self, scope, receive, send):
-            await self._mw(scope, receive, send)
-
-    return _Wrapped(app)
 
 
 if __name__ == "__main__":
     main()
 
 
-__all__ = ["build_app", "main"]
+__all__ = ["main"]

@@ -16,7 +16,6 @@ async dispatch the framework calls.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import TYPE_CHECKING
 
@@ -106,10 +105,10 @@ class TenantScopedBuyerAgentRegistry:
 
 def _row_to_agent(row: BuyerAgentRow) -> BuyerAgent:
     """Project ORM row → framework typed :class:`BuyerAgent`."""
-    capabilities = frozenset(json.loads(row.billing_capabilities))
+    capabilities = frozenset(row.billing_capabilities or ())
     terms: BuyerAgentDefaultTerms | None = None
-    if row.default_terms_json:
-        d = json.loads(row.default_terms_json)
+    if row.default_terms:
+        d = row.default_terms
         terms = BuyerAgentDefaultTerms(
             rate_card=d.get("rate_card"),
             payment_terms=d.get("payment_terms"),
@@ -118,7 +117,7 @@ def _row_to_agent(row: BuyerAgentRow) -> BuyerAgent:
         )
     brands: frozenset[str] | None = None
     if row.allowed_brands:
-        brands = frozenset(json.loads(row.allowed_brands))
+        brands = frozenset(row.allowed_brands)
     return BuyerAgent(
         agent_url=row.agent_url,
         display_name=row.display_name,

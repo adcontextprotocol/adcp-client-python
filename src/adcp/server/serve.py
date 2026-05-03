@@ -407,6 +407,7 @@ def serve(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
@@ -452,6 +453,17 @@ def serve(
             rate limiting, tracing. Composes outermost-first. See
             :data:`SkillMiddleware` for the signature and composition
             semantics.
+        asgi_middleware: Optional sequence of ``(MiddlewareClass, kwargs)``
+            tuples — Starlette-shape ASGI middleware applied to the
+            outer HTTP app before uvicorn binds. Use for cross-cutting
+            HTTP concerns the SDK does not own: tenant resolution
+            (:class:`adcp.server.SubdomainTenantMiddleware`), CORS,
+            request-id propagation, IP allowlists, custom auth.
+            Composes outermost-first — the first entry sees every
+            request before later entries. Each class is invoked as
+            ``cls(app, **kwargs)``. Applied on every HTTP transport
+            (``streamable-http``, ``a2a``, ``both``); ignored on
+            ``stdio``.
         message_parser: Optional
             :data:`~adcp.server.a2a_server.MessageParser` callable for
             alternative A2A wire shapes (A2A transport only). The
@@ -539,6 +551,7 @@ def serve(
             task_store=task_store,
             push_config_store=push_config_store,
             middleware=middleware,
+            asgi_middleware=asgi_middleware,
             message_parser=message_parser,
             advertise_all=advertise_all,
             max_request_size=max_request_size,
@@ -554,6 +567,7 @@ def serve(
             test_controller=test_controller,
             context_factory=context_factory,
             middleware=middleware,
+            asgi_middleware=asgi_middleware,
             advertise_all=advertise_all,
             max_request_size=max_request_size,
             streaming_responses=streaming_responses,
@@ -570,6 +584,7 @@ def serve(
             task_store=task_store,
             push_config_store=push_config_store,
             middleware=middleware,
+            asgi_middleware=asgi_middleware,
             message_parser=message_parser,
             advertise_all=advertise_all,
             max_request_size=max_request_size,
@@ -578,6 +593,26 @@ def serve(
     else:
         valid = ", ".join(sorted(("a2a", "both", "streamable-http", "sse", "stdio")))
         raise ValueError(f"Unknown transport {transport!r}. Valid: {valid}")
+
+
+def _apply_asgi_middleware(
+    app: Any,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None,
+) -> Any:
+    """Wrap ``app`` with operator-supplied Starlette-style ASGI middleware.
+
+    Each entry is ``(MiddlewareClass, kwargs)`` and is invoked as
+    ``cls(app, **kwargs)``. Composition is outermost-first — the first
+    entry sees every request before later entries — so we wrap in
+    reverse, matching :meth:`Starlette.add_middleware` semantics.
+
+    No-op when the sequence is empty or ``None``.
+    """
+    if not asgi_middleware:
+        return app
+    for cls, kwargs in reversed(list(asgi_middleware)):
+        app = cls(app, **kwargs)
+    return app
 
 
 def _wrap_with_path_normalize(app: Any) -> Any:
@@ -737,6 +772,7 @@ def _serve_mcp(
     test_controller: TestControllerStore | None,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
     streaming_responses: bool = False,
@@ -761,13 +797,24 @@ def _serve_mcp(
         register_test_controller(mcp, test_controller, context_factory=context_factory)
 
     if transport in ("streamable-http", "sse"):
-        _run_mcp_http(mcp, transport=transport, max_request_size=max_request_size)
+        _run_mcp_http(
+            mcp,
+            transport=transport,
+            max_request_size=max_request_size,
+            asgi_middleware=asgi_middleware,
+        )
     else:
         # stdio — no listening socket, nothing to configure.
         mcp.run(transport=transport)
 
 
-def _run_mcp_http(mcp: Any, *, transport: str, max_request_size: int | None = None) -> None:
+def _run_mcp_http(
+    mcp: Any,
+    *,
+    transport: str,
+    max_request_size: int | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
+) -> None:
     """Run FastMCP's HTTP transports with a pre-bound SO_REUSEADDR socket.
 
     FastMCP builds its own ``uvicorn.Server(config).serve()`` inside
@@ -790,6 +837,7 @@ def _run_mcp_http(mcp: Any, *, transport: str, max_request_size: int | None = No
 
     app = _wrap_with_path_normalize(app)
     app = _wrap_with_size_limit(app, max_request_size)
+    app = _apply_asgi_middleware(app, asgi_middleware)
 
     sock = _bind_reusable_socket(host, port)
     try:
@@ -827,6 +875,7 @@ def _serve_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
@@ -851,6 +900,7 @@ def _serve_a2a(
         advertise_all=advertise_all,
     )
     app = _wrap_with_size_limit(app, max_request_size)
+    app = _apply_asgi_middleware(app, asgi_middleware)
     sock = _bind_reusable_socket("0.0.0.0", resolved_port)
     try:
         # Same bind-boundary INFO as the MCP path so A2A adopters
@@ -1000,6 +1050,7 @@ def _serve_mcp_and_a2a(
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
+    asgi_middleware: Sequence[tuple[type, dict[str, Any]]] | None = None,
     message_parser: MessageParser | None = None,
     advertise_all: bool = False,
     max_request_size: int | None = None,
@@ -1042,6 +1093,7 @@ def _serve_mcp_and_a2a(
         max_request_size=max_request_size,
         streaming_responses=streaming_responses,
     )
+    app = _apply_asgi_middleware(app, asgi_middleware)
 
     sock = _bind_reusable_socket(resolved_host, resolved_port)
     try:

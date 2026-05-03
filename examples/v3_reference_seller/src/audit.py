@@ -5,14 +5,17 @@ durable trail for compliance review, anomaly detection, and ops
 queries ("who suspended buyer X yesterday?").
 
 Adopters with Slack / PagerDuty alerting compose this sink with
-:class:`adcp.audit_sink.SlackAlertSink` via a
-``CompositeAuditSink`` — both fire on every event; Slack is
-fire-and-forget, the DB sink is the durable record.
+:class:`adcp.audit_sink.SlackAlertSink` via a ``CompositeAuditSink``
+so each sink fires on every event — Slack for the alert, this DB
+sink for the durable record.
 
-The sink is **fire-and-forget** by contract: failures inside
-:meth:`record` are bounded and swallowed by the framework's audit
-middleware. Adopters needing transactional audit (refusing the
-request if audit fails) implement their own pre-dispatch middleware.
+Failure semantics: ``record()`` is **best-effort** — it ``await`` s
+the DB write inline, then swallows any exception so the audit step
+never fails the request. The audit step is therefore in the latency
+path of every skill call; adopters with high-volume audit traffic
+either decouple via an ``asyncio.Queue`` worker or batch writes.
+Adopters needing transactional audit (refusing the request if audit
+fails) implement their own pre-dispatch middleware.
 """
 
 from __future__ import annotations
