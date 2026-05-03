@@ -49,6 +49,11 @@ from adcp.decisioning.property_list import (
     maybe_apply_property_list_filter,
     property_list_capability_enabled,
 )
+from adcp.decisioning.refine import (
+    assert_buying_mode_consistent,
+    has_refine_support,
+    project_refine_response,
+)
 from adcp.decisioning.time_budget import project_incomplete_response, resolve_time_budget
 from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
 from adcp.server.base import ADCPHandler, ToolContext
@@ -1071,8 +1076,48 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         response passes through unchanged.
         """
         tool_ctx = context or ToolContext()
+        # Pre-adapter: validate buying_mode against the wire spec's
+        # mutual-exclusion rules (refine+brief, wholesale+brief, refine
+        # without refine[]).
+        assert_buying_mode_consistent(params)
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
+        # Refine flow: when buying_mode='refine' the framework dispatches
+        # to refine_get_products() (when present) and projects the result
+        # into the wire response — adopters return a RefineResult and
+        # framework constructs position-matched refinement_applied[].
+        mode = (
+            (
+                params.buying_mode.value
+                if hasattr(params.buying_mode, "value")
+                else str(params.buying_mode)
+            )
+            if params.buying_mode is not None
+            else None
+        )
+        if mode == "refine":
+            from adcp.decisioning.types import AdcpError
+
+            if not has_refine_support(self._platform):
+                raise AdcpError(
+                    "INVALID_REQUEST",
+                    message=(
+                        "buying_mode='refine' is not supported by this "
+                        "seller. The platform does not implement "
+                        "refine_get_products(). Buyers should retry with "
+                        "buying_mode='brief' or 'wholesale'."
+                    ),
+                    field="buying_mode",
+                )
+            refine_result = await _invoke_platform_method(
+                self._platform,
+                "refine_get_products",
+                params,
+                ctx,
+                executor=self._executor,
+                registry=self._registry,
+            )
+            return project_refine_response(refine_result, params.refine or [])
         # Resolve time_budget to a seconds deadline. _resolve_account and
         # _build_ctx are intentionally outside this try/except so their
         # AdcpErrors propagate unmodified; only the platform call is deadline-

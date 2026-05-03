@@ -121,6 +121,15 @@ from adcp.decisioning.property_list import (
     resolve_property_list,
     validate_property_list_config,
 )
+from adcp.decisioning.refine import (
+    RefinementOutcome,
+    RefinementStatus,
+    RefineResult,
+    assert_buying_mode_consistent,
+    build_refinement_applied,
+    has_refine_support,
+    project_refine_response,
+)
 from adcp.decisioning.registry import (
     ApiKeyCredential,
     BillingMode,
@@ -321,6 +330,13 @@ __all__ = [
     "filter_products_by_property_list",
     "resolve_property_list",
     "validate_property_list_config",
+    "RefineResult",
+    "RefinementOutcome",
+    "RefinementStatus",
+    "assert_buying_mode_consistent",
+    "build_refinement_applied",
+    "has_refine_support",
+    "project_refine_response",
     "RateLimitedBuyerAgentRegistry",
     "RateLimitedError",
     "RequestContext",

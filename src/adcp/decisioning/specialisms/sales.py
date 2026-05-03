@@ -115,8 +115,36 @@ class SalesPlatform(Protocol, Generic[TMeta]):
         ``ctx.publish_status_change(resource_type='proposal', ...)``
         rather than blocking ``get_products`` waiting for trafficker
         approval.
+
+        **Buying mode dispatch:** when ``req.buying_mode == 'refine'`` and
+        the platform implements :meth:`refine_get_products`, the framework
+        dispatches there instead of this method.  Platforms that do not
+        implement ``refine_get_products`` reject ``buying_mode='refine'``
+        with ``AdcpError(INVALID_REQUEST, field='buying_mode')`` at the
+        framework layer — the platform method is not called.
         """
         ...
+
+    # Truly optional — adopters who don't implement refine_get_products
+    # remain structurally conformant.  The framework uses
+    # :func:`adcp.decisioning.has_refine_support` (a ``hasattr`` check) at
+    # dispatch time and rejects ``buying_mode='refine'`` with
+    # ``AdcpError(INVALID_REQUEST, field='buying_mode')`` when absent.
+    #
+    # Implementations match this signature::
+    #
+    #     def refine_get_products(
+    #         self,
+    #         req: GetProductsRequest,
+    #         ctx: RequestContext[TMeta],
+    #     ) -> MaybeAsync[RefineResult]: ...
+    #
+    # Return a :class:`adcp.decisioning.RefineResult` with ``products``,
+    # ``proposals``, and exactly ``len(req.refine)`` outcomes in
+    # ``per_refine_outcome``.  The framework constructs the wire
+    # ``refinement_applied[]`` by zipping outcomes with ``req.refine`` —
+    # adopters do NOT echo ``scope`` / ``product_id`` / ``proposal_id``
+    # manually.
 
     def create_media_buy(
         self,
