@@ -43,6 +43,8 @@ from adcp.types import (
     CreateMediaBuySuccessResponse,
     GetMediaBuyDeliveryRequest,
     GetMediaBuyDeliveryResponse,
+    GetMediaBuysRequest,
+    GetMediaBuysResponse,
     GetProductsRequest,
     GetProductsResponse,
     Product,
@@ -51,6 +53,7 @@ from adcp.types import (
     UpdateMediaBuyRequest,
     UpdateMediaBuySuccessResponse,
 )
+from adcp.types.projections import BusinessEntityResponse
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -220,6 +223,9 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         budget_amount = req.total_budget.amount if req.total_budget else None
         budget_currency = req.total_budget.currency if req.total_budget else None
         start_dt = _project_start_time(req.start_time)
+        invoice_recipient_json = (
+            req.invoice_recipient.model_dump(mode="json") if req.invoice_recipient else None
+        )
         row = MediaBuyRow(
             tenant_id=ctx.account.metadata["tenant_id"],
             account_id=ctx.account.id,
@@ -231,6 +237,7 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             currency=budget_currency,
             start_time=start_dt,
             end_time=req.end_time,
+            invoice_recipient=invoice_recipient_json,
             request_snapshot=req.model_dump(mode="json"),
         )
         async with self._sessionmaker() as session, session.begin():
@@ -241,10 +248,12 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             ctx.account.id,
             ctx.buyer_agent.agent_url,
         )
+        ir_response = _project_invoice_recipient(invoice_recipient_json)
         return CreateMediaBuySuccessResponse(
             media_buy_id=media_buy_id,
             packages=[],
             status="active",
+            invoice_recipient=ir_response,
         )
 
     # ----- update_media_buy ------------------------------------------------
@@ -283,12 +292,73 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 row.status = "paused"
             elif patch.paused is False and row.status == "paused":
                 row.status = "active"
+            if patch.invoice_recipient is not None:
+                row.invoice_recipient = patch.invoice_recipient.model_dump(mode="json")
             row.updated_at = datetime.now(timezone.utc)
+        ir_response = _project_invoice_recipient(row.invoice_recipient)
         return UpdateMediaBuySuccessResponse(
             media_buy_id=row.media_buy_id,
             status=row.status,  # type: ignore[arg-type]
             packages=[],
+            invoice_recipient=ir_response,
         )
+
+    # ----- get_media_buys --------------------------------------------------
+
+    async def get_media_buys(
+        self, req: GetMediaBuysRequest, ctx: RequestContext
+    ) -> GetMediaBuysResponse:
+        """Return media buys for the resolved account, optionally filtered
+        by IDs or status. Populates ``invoice_recipient`` from the
+        first-class column, with ``bank`` stripped via
+        :class:`~adcp.types.projections.BusinessEntityResponse`."""
+        if ctx.account is None:
+            raise AdcpError(
+                "INTERNAL_ERROR",
+                message="Dispatch should have populated account.",
+                recovery="terminal",
+            )
+        tenant_id = ctx.account.metadata["tenant_id"]
+        stmt = select(MediaBuyRow).where(
+            MediaBuyRow.tenant_id == tenant_id,
+            MediaBuyRow.account_id == ctx.account.id,
+        )
+        if req.media_buy_ids:
+            stmt = stmt.where(MediaBuyRow.media_buy_id.in_(list(req.media_buy_ids)))
+        else:
+            # Default status filter: active only (mirrors spec default).
+            status_filter = req.status_filter
+            if status_filter is None:
+                stmt = stmt.where(MediaBuyRow.status == "active")
+            elif hasattr(status_filter, "root"):
+                # StatusFilter RootModel wrapping a list
+                stmt = stmt.where(MediaBuyRow.status.in_(list(status_filter.root)))
+            else:
+                stmt = stmt.where(MediaBuyRow.status == str(status_filter))
+        async with self._sessionmaker() as session:
+            result = await session.execute(stmt)
+            rows = list(result.scalars())
+
+        from adcp.types.generated_poc.media_buy.get_media_buys_response import (
+            MediaBuy as MediaBuyItem,
+        )
+
+        items = []
+        for row in rows:
+            ir = _project_invoice_recipient(row.invoice_recipient)
+            items.append(
+                MediaBuyItem(
+                    media_buy_id=row.media_buy_id,
+                    status=row.status,  # type: ignore[arg-type]
+                    currency=row.currency or "USD",
+                    total_budget=row.total_budget or 0.0,
+                    packages=[],
+                    invoice_recipient=ir,
+                    created_at=row.created_at,
+                    updated_at=row.updated_at,
+                )
+            )
+        return GetMediaBuysResponse(media_buys=items)
 
     # ----- sync_creatives --------------------------------------------------
 
@@ -310,6 +380,20 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         delivery / pacing query."""
         del req, ctx
         return GetMediaBuyDeliveryResponse(media_buys=[])
+
+
+def _project_invoice_recipient(data: dict[str, Any] | None) -> BusinessEntityResponse | None:
+    """Project a raw ``invoice_recipient`` JSON blob to its response shape.
+
+    Mirrors :func:`adcp.types.projections.to_account_response` for the
+    per-buy billing override: strips write-only ``bank`` details before
+    constructing :class:`~adcp.types.projections.BusinessEntityResponse`.
+    """
+    if not data:
+        return None
+    payload = dict(data)
+    payload.pop("bank", None)
+    return BusinessEntityResponse.model_validate(payload)
 
 
 def _project_start_time(value: Any) -> datetime:

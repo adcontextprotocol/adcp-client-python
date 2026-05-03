@@ -179,7 +179,8 @@ Adopters typically *don't* change:
 
 This seller is **3.0-compliant on the wire** — every field it sends
 matches the AdCP 3.0 schemas. The schema and architecture is
-**3.1-ready** (`billing_entity` + `reporting_bucket` columns,
-typed `BillingMode`, write-only bank-details projection). Sellers
-running this code today serve 3.0 buyers; the same code serves
-3.1 buyers when the spec lands.
+**3.1-ready** (`billing_entity` + `reporting_bucket` columns on
+`Account`; `invoice_recipient` column on `MediaBuy`; typed
+`BillingMode`; write-only bank-details projection via
+`BusinessEntityResponse`). Sellers running this code today serve
+3.0 buyers; the same code serves 3.1 buyers when the spec lands.

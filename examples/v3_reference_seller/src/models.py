@@ -19,7 +19,9 @@ Four tables make up the spine:
   details — projection-guarded) and ``reporting_bucket`` (offline
   delivery target).
 * :class:`MediaBuy` — terminal artifact of ``create_media_buy``.
-  Idempotency-keyed for replay safety.
+  Idempotency-keyed for replay safety. Carries the 3.1-ready column
+  ``invoice_recipient`` (per-buy billing entity override —
+  projection-guarded; ``bank`` is stripped on response).
 
 Admin API and protocol-side audit log live in separate tables
 (:mod:`audit` ships :class:`AuditEvent`).
@@ -326,6 +328,14 @@ class MediaBuy(Base):
     currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     start_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    #: Per-buy invoice recipient override — stored as a raw BusinessEntity
+    #: JSON blob. Adopters MUST project through BusinessEntityResponse
+    #: before serializing on any response payload (strips write-only
+    #: bank details). NULL when the buyer did not supply invoice_recipient.
+    #: NOTE: adding this column to an existing DB requires a migration:
+    #:   ALTER TABLE media_buys ADD COLUMN invoice_recipient JSONB;
+    invoice_recipient: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     request_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     response_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

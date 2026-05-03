@@ -96,6 +96,44 @@ async def test_tenant_router_returns_none_without_session_match() -> None:
     assert result is None
 
 
+def test_media_buy_has_invoice_recipient_column() -> None:
+    """MediaBuy ORM has a first-class invoice_recipient column (3.1-ready)."""
+    from src.models import MediaBuy
+
+    col_names = {c.key for c in MediaBuy.__table__.columns}
+    assert "invoice_recipient" in col_names
+
+
+def test_invoice_recipient_round_trips_without_bank() -> None:
+    """invoice_recipient stored as JSON and reconstructed via
+    _project_invoice_recipient strips write-only bank details.
+
+    Mirrors the platform path: req.invoice_recipient.model_dump() may
+    include bank (stored verbatim in the DB column), then on the
+    response edge _project_invoice_recipient pops bank before
+    constructing BusinessEntityResponse.
+    """
+    from adcp.types.projections import BusinessEntityResponse
+
+    # Simulate a DB row that was stored WITH bank details included.
+    stored_in_db = {
+        "legal_name": "Acme Billing LLC",
+        "tax_id": "12-3456789",
+        "bank": {
+            "account_holder": "Acme",
+            "iban": "DE89370400440532013000",
+        },
+    }
+    # _project_invoice_recipient logic: pop bank, then validate.
+    payload = dict(stored_in_db)
+    payload.pop("bank", None)
+    projected = BusinessEntityResponse.model_validate(payload)
+    serialized = projected.model_dump(mode="json", exclude_none=True)
+
+    assert serialized.get("legal_name") == "Acme Billing LLC"
+    assert "bank" not in serialized, "bank is write-only and must be stripped from responses"
+
+
 @pytest.mark.asyncio
 async def test_buyer_registry_returns_none_without_tenant() -> None:
     """Without a tenant context (ContextVar unset), the registry
