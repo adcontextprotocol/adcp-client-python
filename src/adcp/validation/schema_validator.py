@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from itertools import islice
 from typing import Any
 
+from adcp.validation.oneof_hints import compute_oneof_hint
 from adcp.validation.schema_loader import Direction, ResponseVariant, get_validator
 
 # Cap the number of issues returned. A hostile peer sending a deeply-
@@ -48,12 +49,18 @@ class ValidationIssue:
         keyword: jsonschema keyword that rejected the payload
             (``required``, ``type``, ``enum``, etc.).
         schema_path: Path inside the schema that rejected the payload.
+        hint: Optional near-miss diagnostic naming the closest matching
+            ``oneOf`` variant and the wrong discriminator key. Only
+            populated when the heuristic in :mod:`adcp.validation.oneof_hints`
+            picks a clear winner; ``None`` otherwise. Additive — clients
+            that ignore the field behave as before.
     """
 
     pointer: str
     message: str
     keyword: str
     schema_path: str
+    hint: str | None = None
 
 
 @dataclass(frozen=True)
@@ -101,15 +108,7 @@ class SchemaValidationError(Exception):
         self.details = {
             "tool": tool,
             "side": side,
-            "issues": [
-                {
-                    "pointer": i.pointer,
-                    "message": i.message,
-                    "keyword": i.keyword,
-                    "schema_path": i.schema_path,
-                }
-                for i in issues
-            ],
+            "issues": [_issue_to_wire(i) for i in issues],
         }
         if message is None:
             first = issues[0] if issues else None
@@ -124,6 +123,23 @@ class SchemaValidationError(Exception):
 
 
 _OK_SKIPPED = ValidationOutcome(valid=True, issues=[], variant="skipped")
+
+
+def _issue_to_wire(issue: ValidationIssue) -> dict[str, Any]:
+    """Serialize a :class:`ValidationIssue` for the wire envelope.
+
+    ``hint`` is only included when populated — clients ignoring the
+    field see exactly the pre-hint envelope shape.
+    """
+    payload: dict[str, Any] = {
+        "pointer": issue.pointer,
+        "message": issue.message,
+        "keyword": issue.keyword,
+        "schema_path": issue.schema_path,
+    }
+    if issue.hint is not None:
+        payload["hint"] = issue.hint
+    return payload
 
 
 def _path_to_pointer(path: Any) -> str:
@@ -208,8 +224,18 @@ def _missing_required_key(err: Any) -> str | None:
     return None
 
 
-def _format_error(err: Any) -> ValidationIssue:
-    """Turn a ``jsonschema.exceptions.ValidationError`` into a ``ValidationIssue``."""
+def _format_error(
+    err: Any,
+    root_schema: Any | None = None,
+    payload: Any = None,
+) -> ValidationIssue:
+    """Turn a ``jsonschema.exceptions.ValidationError`` into a ``ValidationIssue``.
+
+    When ``root_schema`` and ``payload`` are supplied and the failing
+    keyword is ``oneOf``, attaches a near-miss ``hint`` naming the closest
+    matching variant and the wrong discriminator key (see
+    :mod:`adcp.validation.oneof_hints`).
+    """
     pointer = _path_to_pointer(list(err.absolute_path))
     keyword = str(err.validator or "validation")
 
@@ -220,11 +246,21 @@ def _format_error(err: Any) -> ValidationIssue:
 
     schema_path = "#/" + "/".join(str(seg) for seg in err.absolute_schema_path)
 
+    hint: str | None = None
+    if keyword == "oneOf" and root_schema is not None:
+        hint = compute_oneof_hint(
+            root_schema,
+            list(err.absolute_schema_path),
+            list(err.absolute_path),
+            payload,
+        )
+
     return ValidationIssue(
         pointer=pointer,
         message=_safe_message(err, keyword),
         keyword=keyword,
         schema_path=schema_path,
+        hint=hint,
     )
 
 
@@ -278,9 +314,10 @@ def validate_request(tool_name: str, payload: Any) -> ValidationOutcome:
     errors = _iter_errors_bounded(validator, payload)
     if not errors:
         return ValidationOutcome(valid=True, issues=[], variant="request")
+    root_schema = getattr(validator, "schema", None)
     return ValidationOutcome(
         valid=False,
-        issues=[_format_error(e) for e in errors],
+        issues=[_format_error(e, root_schema, payload) for e in errors],
         variant="request",
     )
 
@@ -332,9 +369,10 @@ def validate_response(tool_name: str, payload: Any) -> ValidationOutcome:
     errors = _iter_errors_bounded(validator, payload)
     if not errors:
         return ValidationOutcome(valid=True, issues=[], variant=used_variant)
+    root_schema = getattr(validator, "schema", None)
     return ValidationOutcome(
         valid=False,
-        issues=[_format_error(e) for e in errors],
+        issues=[_format_error(e, root_schema, payload) for e in errors],
         variant=used_variant,
     )
 

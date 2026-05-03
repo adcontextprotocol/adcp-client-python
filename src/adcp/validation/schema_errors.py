@@ -6,7 +6,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from adcp.validation.schema_validator import SchemaValidationError, ValidationIssue
+from adcp.validation.schema_validator import (
+    SchemaValidationError,
+    ValidationIssue,
+    _issue_to_wire,
+)
 
 
 @dataclass(frozen=True)
@@ -72,15 +76,7 @@ def build_adcp_validation_error_payload(
         "details": {
             "tool": tool,
             "side": side,
-            "issues": [
-                {
-                    "pointer": i.pointer,
-                    "message": i.message,
-                    "keyword": i.keyword,
-                    "schema_path": i.schema_path,
-                }
-                for i in issues
-            ],
+            "issues": [_issue_to_wire(i) for i in issues],
         },
     }
     if first is not None and first.pointer:
