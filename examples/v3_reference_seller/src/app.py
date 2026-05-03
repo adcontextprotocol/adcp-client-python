@@ -106,8 +106,13 @@ def main() -> None:
     asyncio.run(_bootstrap_schema(engine))
 
     router = SqlSubdomainTenantRouter(sessionmaker=sessionmaker)
-    buyer_registry = make_buyer_registry(sessionmaker)
     audit_sink = make_audit_sink(sessionmaker)
+    # The buyer registry composes cache + rate-limit + audit around
+    # the SQL-backed lookup. Wiring the same audit_sink at every
+    # layer means cached_hit / cached_miss / rate_limited / resolved
+    # / miss outcomes ALL land in the audit trail; SecOps can
+    # reconstruct every resolve attempt.
+    buyer_registry = make_buyer_registry(sessionmaker, audit_sink=audit_sink)
     # Anti-façade traffic recorder. The reference seller is a dev /
     # storyboard target, so we wire the in-memory recorder and flip
     # ``enable_debug_endpoints=True`` below to expose

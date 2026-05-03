@@ -87,6 +87,11 @@ from adcp.decisioning.registry import (
     signing_only_registry,
     validate_billing_for_agent,
 )
+from adcp.decisioning.registry_cache import (
+    AuditingBuyerAgentRegistry,
+    CachingBuyerAgentRegistry,
+    RateLimitedBuyerAgentRegistry,
+)
 from adcp.decisioning.resolve import (
     CollectionList,
     Format,
@@ -173,6 +178,7 @@ __all__ = [
     "AdcpError",
     "ApiKeyCredential",
     "AudiencePlatform",
+    "AuditingBuyerAgentRegistry",
     "AuthInfo",
     "BillingMode",
     "BrandRightsPlatform",
@@ -180,6 +186,7 @@ __all__ = [
     "BuyerAgentDefaultTerms",
     "BuyerAgentRegistry",
     "BuyerAgentStatus",
+    "CachingBuyerAgentRegistry",
     "CampaignGovernancePlatform",
     "CollectionList",
     "CollectionListsPlatform",
@@ -207,6 +214,7 @@ __all__ = [
     "PropertyList",
     "PropertyListReference",
     "PropertyListsPlatform",
+    "RateLimitedBuyerAgentRegistry",
     "RequestContext",
     "ResourceResolver",
     "SalesPlatform",
