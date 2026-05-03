@@ -1553,6 +1553,15 @@ def _generate_pydantic_output_schemas() -> dict[str, dict[str, Any]]:
                 tool_name,
             )
             continue
+        # MCP requires ``outputSchema`` root-level ``type: "object"`` —
+        # the schema describes ``CallToolResult.structuredContent`` which
+        # is always a JSON object. Discriminated-union responses
+        # (CreateMediaBuyResponse, AcquireRightsResponse, etc.) come
+        # back from Pydantic as ``{"anyOf": [...]}`` with no ``type``,
+        # which Zod-validated MCP clients reject. Every variant in the
+        # union is itself an object, so adding ``"type": "object"``
+        # at the root is semantically equivalent and MCP-spec-conformant.
+        schema.setdefault("type", "object")
         schemas[tool_name] = schema
 
     return schemas
