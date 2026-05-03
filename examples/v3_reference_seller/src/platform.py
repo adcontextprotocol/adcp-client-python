@@ -144,7 +144,7 @@ logger = logging.getLogger(__name__)
 def _make_account_store(
     sessionmaker: async_sessionmaker,
     *,
-    mock_upstream_url: str,
+    mock_upstream_url: str | None,
 ) -> ExplicitAccounts:
     """Adopter ``AccountStore`` — resolves ``request.account.account_id``
     against the ``accounts`` table.
@@ -161,6 +161,14 @@ def _make_account_store(
     :meth:`DecisioningPlatform.upstream_for` reads it to point the
     :class:`UpstreamHttpClient` at the fixture.
 
+    When ``mock_upstream_url`` is ``None`` the loader fails-fast with
+    ``CONFIGURATION_ERROR`` — there is no URL to stamp onto a
+    ``mode='mock'`` Account, so resolving here would only defer the
+    failure to a downstream :class:`httpx.ConnectError` that the SDK's
+    :class:`UpstreamHttpClient` does not project. ``None`` is only legal
+    when callers bypass the AccountStore by constructing ``Account``
+    objects directly into ``RequestContext`` (the unit-test pattern).
+
     Adopters with a real production upstream:
 
     * Declare :attr:`V3ReferenceSeller.upstream_url` to their production URL.
@@ -170,6 +178,26 @@ def _make_account_store(
     """
 
     async def loader(account_id: str) -> Account[dict[str, Any]]:
+        if mock_upstream_url is None:
+            # Reference seller is mock-mode by design — every Account
+            # this loader returns will have ``mode='mock'`` and rely on
+            # ``metadata['mock_upstream_url']`` for upstream routing. If
+            # the platform was constructed without a mock_upstream_url,
+            # there is no URL to stamp; resolving here would produce an
+            # Account that ``upstream_for(ctx)`` cannot route. Fail loud
+            # at the resolution boundary rather than letting the
+            # placeholder cascade into an httpx ConnectError downstream.
+            raise AdcpError(
+                "CONFIGURATION_ERROR",
+                message=(
+                    "V3ReferenceSeller account loader was invoked without a "
+                    "mock_upstream_url. Pass mock_upstream_url to "
+                    "V3ReferenceSeller(...) (sourced from the MOCK_AD_SERVER_URL "
+                    "env in app.main), or override the AccountStore in tests "
+                    "that construct Account objects directly."
+                ),
+                recovery="terminal",
+            )
         tenant = current_tenant()
         if tenant is None:
             raise AdcpError(
@@ -328,14 +356,14 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
             :class:`adcp.decisioning.StaticBearer` and threaded through
             every :meth:`upstream_for` call.
         :param mock_upstream_url: Where the JS mock-server is listening.
-            When set, every Account this platform resolves is
-            ``mode='mock'`` and carries this URL in
-            ``account.metadata['mock_upstream_url']``. When ``None``,
-            accounts are still ``mode='mock'`` (the reference seller has
-            no real production upstream) but the URL is not stamped —
-            tests construct Accounts directly with their own
-            ``mock_upstream_url``. :func:`app.main` always sets this
-            from the ``MOCK_AD_SERVER_URL`` env.
+            When set, every Account the loader resolves is ``mode='mock'``
+            and carries this URL in ``account.metadata['mock_upstream_url']``.
+            When ``None``, the loader fails-fast with ``CONFIGURATION_ERROR``
+            if anything ever resolves through it — only legal when callers
+            bypass the AccountStore by constructing ``Account`` objects
+            directly into ``RequestContext`` (the unit-test pattern).
+            :func:`app.main` always sets this from the ``MOCK_AD_SERVER_URL``
+            env.
         :param mock_ad_server: Optional anti-façade traffic recorder.
         :param approval_poll_interval_s: Base sleep between polls of
             ``/v1/tasks/{id}`` during async order approval.
@@ -356,11 +384,11 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
         # passing ``Account`` objects directly into ``RequestContext``)
         # still need a non-None ``accounts`` attribute for
         # ``validate_platform`` — they pass ``mock_upstream_url=None``
-        # and the store is built with a placeholder; the loader is
-        # never invoked in those tests.
+        # and the loader fails-fast with CONFIGURATION_ERROR if anything
+        # ever resolves through it.
         self.accounts = _make_account_store(
             sessionmaker,
-            mock_upstream_url=mock_upstream_url or "http://mock-upstream-not-configured.invalid",
+            mock_upstream_url=mock_upstream_url,
         )
 
     def _client(self, ctx: RequestContext) -> UpstreamHttpClient:
@@ -413,12 +441,6 @@ class V3ReferenceSeller(DecisioningPlatform, SalesPlatform):
                 recovery="transient",
             )
         network_code = ctx.account.metadata["network_code"]
-        # Forward optional filtering hints to the upstream.
-        # ``GetProductsRequest.brief`` / ``targeting`` are AdCP-shaped;
-        # adopters with their own upstream translate the AdCP brief
-        # into upstream targeting json here. The reference seller keeps
-        # it minimal — pass the targeting as a JSON string when
-        # provided so the upstream can perturb supply.
         client = self._client(ctx)
         payload = await upstream_helpers.list_products(client, network_code=network_code)
         self._record("products.list", {"network_code": network_code})

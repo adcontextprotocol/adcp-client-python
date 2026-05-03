@@ -1229,7 +1229,10 @@ async def test_create_media_buy_raises_when_polling_times_out(
     handoff = await platform.create_media_buy(req, ctx)
     # Drive the handoff fn directly — the framework would wrap it in
     # background dispatch. We assert it raises rather than fabricates.
-    fn = handoff._fn  # type: ignore[attr-defined]
+    # ``TaskHandoff`` exposes no public driver — the framework dispatches
+    # via the private ``_fn`` attr; reach for it here so the test can
+    # observe the AdcpError the coroutine would raise into the registry.
+    fn = handoff._fn  # type: ignore[attr-defined]  # noqa: SLF001
     with pytest.raises(AdcpError) as excinfo:
         await fn(None)
     assert excinfo.value.code == "SERVICE_UNAVAILABLE"
@@ -1301,7 +1304,9 @@ async def test_create_media_buy_raises_when_task_rejected(respx_mock: Any) -> No
         }
     )
     handoff = await platform.create_media_buy(req, ctx)
-    fn = handoff._fn  # type: ignore[attr-defined]
+    # See ``test_create_media_buy_raises_when_polling_times_out`` above
+    # for why the test reaches for the private ``_fn`` attr.
+    fn = handoff._fn  # type: ignore[attr-defined]  # noqa: SLF001
     with pytest.raises(AdcpError) as excinfo:
         await fn(None)
     assert excinfo.value.code == "POLICY_VIOLATION"

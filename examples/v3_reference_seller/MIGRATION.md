@@ -5,6 +5,125 @@ Audience: maintainers of existing pre-v3 sales agents — Prebid's
 FreeWheel-fronting middleware, in-house seller adapters — who want to
 adopt the AdCP Python SDK without rewriting their ad-ops integration.
 
+## Migrating from a bespoke httpx upstream client (Phase 2 → Phase 3)
+
+If you've already started porting to v3 with a hand-rolled httpx wrapper
+on the platform class (the Phase 2 shape), here are the specific
+mechanical edits to land on the Phase 3 shape: SDK-owned
+`UpstreamHttpClient`, framework-resolved `upstream_for(ctx)`, and
+`Account.mode='mock'` for storyboard accounts.
+
+### Class field — drop the bespoke client, declare the URL + auth
+
+Before — bespoke httpx client constructed at platform-init:
+
+```python
+class MyAdServerSeller(SalesPlatform):
+    def __init__(self, *, sessionmaker, upstream_base_url, api_key):
+        self._sessionmaker = sessionmaker
+        self._upstream = MyHttpxClient(base_url=upstream_base_url, api_key=api_key)
+```
+
+After — production URL declared on the class, auth held as an instance
+attribute. The framework constructs (and pools) the `UpstreamHttpClient`
+on demand via `upstream_for(ctx)`:
+
+```python
+class MyAdServerSeller(DecisioningPlatform, SalesPlatform):
+    upstream_url = "https://prod.example/v1"
+
+    def __init__(self, *, sessionmaker, upstream_api_key):
+        self._sessionmaker = sessionmaker
+        self._upstream_auth = StaticBearer(token=upstream_api_key)
+```
+
+### Per-method usage — module-level helpers, not instance methods
+
+Before — bespoke client owns the helpers as instance methods:
+
+```python
+async def create_media_buy(self, req, ctx):
+    order = await self._upstream.create_order(advertiser_id=..., payload=...)
+```
+
+After — helpers are module-level functions taking the framework-resolved
+client plus per-call routing kwargs:
+
+```python
+async def create_media_buy(self, req, ctx):
+    client = self.upstream_for(ctx, auth=self._upstream_auth)
+    order = await create_order(
+        client,
+        network_code=ctx.account.metadata["network_code"],
+        payload=...,
+    )
+```
+
+### Account wiring — stamp `mode` and `mock_upstream_url`
+
+Before — account loaded as plain row, no routing context:
+
+```python
+account = Account(id="...", name=row.name, status="active")
+```
+
+After — explicit `mode` plus `mock_upstream_url` for storyboard /
+conformance accounts. Production accounts use `mode='live'`, your test
+infra uses `mode='sandbox'`, conformance / mock-fronted accounts use
+`mode='mock'` with the fixture URL on metadata:
+
+```python
+account = Account(
+    id="...",
+    name=row.name,
+    status="active",
+    mode="mock",
+    metadata={
+        "network_code": row.ext["network_code"],
+        "advertiser_id": row.ext["advertiser_id"],
+        "mock_upstream_url": os.environ["MOCK_AD_SERVER_URL"],
+    },
+    _mode_explicit=True,
+)
+```
+
+### Error handling — drop the custom translator
+
+Before — bespoke `UpstreamError` + a `_translate_upstream` helper that
+maps HTTP status to AdCP codes:
+
+```python
+try:
+    await self._upstream.create_order(...)
+except UpstreamError as exc:
+    raise self._translate_upstream(exc)
+```
+
+After — the SDK's `UpstreamHttpClient` already projects upstream
+non-2xx onto `AdcpError` with spec-conformant codes (401 →
+`AUTH_REQUIRED`, 403 → `PERMISSION_DENIED`, 404 → configurable
+`not_found_code`, 429 → `RATE_LIMITED`, 5xx → `SERVICE_UNAVAILABLE`,
+other 4xx → `INVALID_REQUEST` with `recovery='retry_with_changes'`).
+Drop the bespoke `UpstreamError` class, the `_translate_upstream`
+helper, and the surrounding try/except — let the helper raise.
+
+If a specific helper needs different per-call semantics (e.g.
+`ACCOUNT_NOT_FOUND` for a 404 on `list_products` instead of the default
+`MEDIA_BUY_NOT_FOUND`), pass `not_found_code='ACCOUNT_NOT_FOUND'` to
+the SDK helper rather than wrapping the call.
+
+### Tests — constructor takes `upstream_api_key` (not `upstream_base_url`)
+
+The platform constructor no longer takes the upstream base URL — that's
+on the class as `upstream_url`, and per-account routing comes from
+`account.metadata['mock_upstream_url']` for `mode='mock'` accounts.
+Update the constructor call in `tests/test_validate_platform_warnings.py`
+(and any other test that builds the platform directly) to pass
+`upstream_api_key=...` instead of `upstream_base_url=...`. Tests that
+build their own `Account` and inject it into `RequestContext` should
+stamp `mode='mock'` and `metadata['mock_upstream_url']` so
+`upstream_for(ctx)` resolves at the test fixture URL.
+
 ## Pre-v3 → v3 model/method mapping (Prebid salesagent porting checklist)
 
 This is a checklist for porting your existing AdCP 3.0.0-beta.2 sales
@@ -87,7 +206,7 @@ Common codes the translator emits:
 
 | Code | When to use | `recovery` |
 |---|---|---|
-| `INVALID_REQUEST` | Buyer sent a malformed request, or upstream rejected the translated payload (400). | `terminal` |
+| `INVALID_REQUEST` | Buyer sent a malformed request, or upstream rejected the translated payload (400). | `retry_with_changes` |
 | `MEDIA_BUY_NOT_FOUND` | Upstream 404 on a known-media-buy operation (`get_order`, `get_delivery`, `post_conversions`). | `terminal` |
 | `ACCOUNT_NOT_FOUND` | Upstream 404 on an account-scoped operation (`get_products`, `list_creatives`, `list_accounts`). | `terminal` |
 | `SERVICE_UNAVAILABLE` | Upstream 5xx, network timeout, JSON decode failure, server-side onboarding misconfig (account missing `ext.network_code`), or polling timeout on async approval. | `transient` |
@@ -97,6 +216,14 @@ Common codes the translator emits:
 | `UNSUPPORTED_FEATURE` | Method exists on the Protocol but this upstream doesn't support it (e.g. `update_media_buy` against an upstream with no order-update endpoint). | `terminal` |
 | `POLICY_VIOLATION` | Buyer's request fails a policy check upstream (brand-safety, traffic-quality). | `terminal` |
 | `CONFLICT` | Upstream 409 (e.g. duplicate idempotency_key with a different body). | `terminal` |
+
+These projections are SDK defaults from `UpstreamHttpClient` (see
+[`src/adcp/decisioning/upstream.py`](../../src/adcp/decisioning/upstream.py) —
+`_project_status`). Adopters who need different per-helper semantics
+(e.g. `recovery='terminal'` for a 400 that the upstream guarantees is
+unfixable, or `recovery='transient'` for a 400 that papers over an
+upstream race) override per-call by catching the `AdcpError` from the
+helper and re-raising with the desired code / recovery.
 
 **DO NOT raise on the wire**:
 
