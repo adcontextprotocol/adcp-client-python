@@ -93,6 +93,9 @@ from adcp.decisioning.mock_ad_server import (
     InMemoryMockAdServer,
     MockAdServer,
 )
+from adcp.decisioning.oauth_passthrough import (
+    create_oauth_passthrough_resolver,
+)
 from adcp.decisioning.platform import (
     GOVERNANCE_SPECIALISMS,
     DecisioningCapabilities,
@@ -313,6 +316,7 @@ __all__ = [
     "bearer_only_registry",
     "compose_method",
     "create_adcp_server_from_platform",
+    "create_oauth_passthrough_resolver",
     "create_roster_account_store",
     "create_translation_map",
     "create_upstream_http_client",
