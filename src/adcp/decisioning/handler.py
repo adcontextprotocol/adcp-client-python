@@ -32,6 +32,9 @@ get a focused ``tools/list`` filter without manual registration.
 from __future__ import annotations
 
 import asyncio
+import inspect
+import logging
+import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from adcp.decisioning.context import AuthInfo
@@ -39,8 +42,11 @@ from adcp.decisioning.dispatch import (
     _build_request_context,
     _invoke_platform_method,
 )
+from adcp.decisioning.implementation_config import ProductConfigStore
 from adcp.decisioning.webhook_emit import maybe_emit_sync_completion
 from adcp.server.base import ADCPHandler, ToolContext
+
+logger = logging.getLogger(__name__)
 
 # Pydantic Request/Response types are imported at module scope (NOT
 # under TYPE_CHECKING) so that ``typing.get_type_hints(method)`` can
@@ -574,6 +580,18 @@ def _project_sync_audiences(result: Any) -> Any:
     return result
 
 
+def _method_accepts_configs(platform: Any, method_name: str) -> bool:
+    """Return True when the platform's ``method_name`` declares a ``configs`` parameter."""
+    method = getattr(platform, method_name, None)
+    if method is None:
+        return False
+    try:
+        sig = inspect.signature(method)
+        return "configs" in sig.parameters
+    except (ValueError, TypeError):
+        return False
+
+
 class PlatformHandler(ADCPHandler[ToolContext]):
     """ADCPHandler subclass that routes wire requests to a
     :class:`DecisioningPlatform` via :func:`_invoke_platform_method`.
@@ -675,6 +693,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         webhook_supervisor: WebhookDeliverySupervisor | None = None,
         auto_emit_completion_webhooks: bool = True,
         buyer_agent_registry: BuyerAgentRegistry | None = None,
+        config_store: ProductConfigStore | None = None,
     ) -> None:
         super().__init__()
         self._platform = platform
@@ -686,6 +705,23 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         self._webhook_supervisor = webhook_supervisor
         self._auto_emit_completion_webhooks = auto_emit_completion_webhooks
         self._buyer_agent_registry = buyer_agent_registry
+        self._config_store = config_store
+
+        # Cache whether the platform's create_media_buy accepts 'configs'
+        # so we only pay the inspect.signature cost at construction time.
+        self._create_media_buy_accepts_configs = _method_accepts_configs(
+            platform, "create_media_buy"
+        )
+        if config_store is None and self._create_media_buy_accepts_configs:
+            warnings.warn(
+                "create_media_buy declares a 'configs' parameter but no "
+                "ProductConfigStore was wired — the framework will inject "
+                "configs={} (empty dict) on every call. Wire a store via "
+                "config_store= in create_adcp_server_from_platform to enable "
+                "automatic implementation_config lookup.",
+                UserWarning,
+                stacklevel=2,
+            )
 
     # ----- account resolution helper -----
 
@@ -1037,9 +1073,42 @@ class PlatformHandler(ADCPHandler[ToolContext]):
         params: CreateMediaBuyRequest,
         context: ToolContext | None = None,
     ) -> CreateMediaBuySuccessResponse:
+        from adcp.decisioning.types import AdcpError
+
         tool_ctx = context or ToolContext()
         account = await self._resolve_account(params.account, tool_ctx)
         ctx = self._build_ctx(tool_ctx, account)
+
+        configs: dict[str, Any] = {}
+        if self._config_store is not None:
+            # proposal_id flows have packages=None — skip lookup, inject {}
+            if params.packages:
+                product_ids = list({p.product_id for p in params.packages})
+                try:
+                    configs = await self._config_store.lookup_implementation_configs(
+                        product_ids, ctx
+                    )
+                except AdcpError:
+                    raise
+                except Exception as exc:
+                    logger.exception(
+                        "[adcp.decisioning] ProductConfigStore.lookup_implementation_configs "
+                        "raised for create_media_buy — translating to SERVICE_UNAVAILABLE"
+                    )
+                    raise AdcpError(
+                        "SERVICE_UNAVAILABLE",
+                        message=(
+                            "implementation_config lookup failed for "
+                            f"{len(product_ids)} product(s). Retry the request; "
+                            "if the problem persists contact the seller."
+                        ),
+                        recovery="transient",
+                        details={"caused_by": {"type": type(exc).__name__}},
+                    ) from exc
+
+        extra: dict[str, Any] | None = (
+            {"configs": configs} if self._create_media_buy_accepts_configs else None
+        )
         result = await _invoke_platform_method(
             self._platform,
             "create_media_buy",
@@ -1047,6 +1116,7 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ctx,
             executor=self._executor,
             registry=self._registry,
+            extra_kwargs=extra,
         )
         self._maybe_auto_emit_sync_completion("create_media_buy", params, result)
         return cast("CreateMediaBuySuccessResponse", result)

@@ -136,6 +136,21 @@ class SalesPlatform(Protocol, Generic[TMeta]):
         * ``media_buy_id`` field present → sync success
         * ``task_id`` + ``status='submitted'`` → poll ``tasks_get`` or
           receive webhook
+
+        **Framework injection:** when a :class:`~adcp.decisioning.ProductConfigStore`
+        is wired via ``config_store=`` in
+        :func:`adcp.decisioning.serve.create_adcp_server_from_platform`,
+        the framework calls the store before invoking this method and
+        injects the result as ``configs: dict[str, dict[str, Any]]``.
+        Declare ``configs`` in your method signature to receive it::
+
+            def create_media_buy(self, req, ctx, configs=None):
+                configs = configs or {}
+                line_item_id = configs.get(pkg.product_id, {}).get("line_item_id")
+
+        When the store is not wired, or when ``req.packages`` is
+        ``None`` (proposal-id flow), ``configs`` arrives as an empty
+        dict ``{}``.
         """
         ...
 

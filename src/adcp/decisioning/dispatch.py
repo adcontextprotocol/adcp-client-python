@@ -1040,6 +1040,7 @@ async def _invoke_platform_method(
     executor: ThreadPoolExecutor,
     registry: TaskRegistry,
     arg_projector: dict[str, Any] | None = None,
+    extra_kwargs: dict[str, Any] | None = None,
 ) -> Any:
     """Invoke a platform method, projecting hybrid returns.
 
@@ -1064,8 +1065,13 @@ async def _invoke_platform_method(
     :param arg_projector: Optional kwargs dict for tools whose Python
         method signature differs from the wire shape (D1
         arg-projection, e.g. ``update_media_buy(media_buy_id, patch,
-        ctx)``). Codegen-emitted shims pass this for those tools;
-        most tools call with ``None``.
+        ctx)``). Replaces the default positional ``(params, ctx)``
+        call entirely. Codegen-emitted shims pass this for those
+        tools; most tools call with ``None``.
+    :param extra_kwargs: Optional additional kwargs appended to the
+        normal ``(params, ctx)`` call, used when the framework injects
+        framework-computed values (e.g. ``configs=`` from
+        ``ProductConfigStore``). Ignored when ``arg_projector`` is set.
     """
     method = getattr(platform, method_name)
 
@@ -1073,6 +1079,8 @@ async def _invoke_platform_method(
         if asyncio.iscoroutinefunction(method):
             if arg_projector is not None:
                 result = await method(**arg_projector, ctx=ctx)
+            elif extra_kwargs:
+                result = await method(params, ctx, **extra_kwargs)
             else:
                 result = await method(params, ctx)
         else:
@@ -1083,6 +1091,11 @@ async def _invoke_platform_method(
                 result = await loop.run_in_executor(
                     executor,
                     functools.partial(ctx_snapshot.run, method, **projected_kwargs),
+                )
+            elif extra_kwargs:
+                result = await loop.run_in_executor(
+                    executor,
+                    functools.partial(ctx_snapshot.run, method, params, ctx, **extra_kwargs),
                 )
             else:
                 result = await loop.run_in_executor(

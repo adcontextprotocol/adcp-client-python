@@ -40,6 +40,7 @@ from adcp.decisioning.task_registry import InMemoryTaskRegistry
 from adcp.decisioning.types import AdcpError
 
 if TYPE_CHECKING:
+    from adcp.decisioning.implementation_config import ProductConfigStore
     from adcp.decisioning.platform import DecisioningPlatform
     from adcp.decisioning.registry import BuyerAgentRegistry
     from adcp.decisioning.resolve import ResourceResolver
@@ -83,6 +84,7 @@ def create_adcp_server_from_platform(
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_completion_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
+    config_store: ProductConfigStore | None = None,
 ) -> tuple[PlatformHandler, ThreadPoolExecutor, TaskRegistry]:
     """Build the :class:`PlatformHandler` + supporting wiring from a
     :class:`DecisioningPlatform`.
@@ -272,6 +274,7 @@ def create_adcp_server_from_platform(
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         buyer_agent_registry=buyer_agent_registry,
+        config_store=config_store,
     )
 
     # F12 boot-time fail-fast (Emma sales-direct P0 root cause): if
@@ -322,6 +325,7 @@ def serve(
     webhook_supervisor: WebhookDeliverySupervisor | None = None,
     auto_emit_completion_webhooks: bool = True,
     buyer_agent_registry: BuyerAgentRegistry | None = None,
+    config_store: ProductConfigStore | None = None,
     advertise_all: bool = False,
     mock_ad_server: Any | None = None,
     enable_debug_endpoints: bool = False,
@@ -399,6 +403,7 @@ def serve(
         webhook_supervisor=webhook_supervisor,
         auto_emit_completion_webhooks=auto_emit_completion_webhooks,
         buyer_agent_registry=buyer_agent_registry,
+        config_store=config_store,
     )
 
     # Phase 1 sandbox-authority — wire the comply controller's account

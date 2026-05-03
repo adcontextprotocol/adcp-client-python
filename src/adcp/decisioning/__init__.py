@@ -96,6 +96,7 @@ from adcp.decisioning.errors import (
     ValidationError,
 )
 from adcp.decisioning.helpers import ref_account_id
+from adcp.decisioning.implementation_config import ProductConfigStore
 from adcp.decisioning.media_buy_store import (
     MediaBuyStore,
     create_media_buy_store,
@@ -296,6 +297,7 @@ __all__ = [
     "Proposal",
     "PropertyList",
     "PropertyListReference",
+    "ProductConfigStore",
     "PropertyListsPlatform",
     "RateLimitedBuyerAgentRegistry",
     "RateLimitedError",
