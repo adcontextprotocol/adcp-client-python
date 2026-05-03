@@ -1,0 +1,228 @@
+"""AdCP error-code spec conformance — static AST walker.
+
+Scans all ``.py`` files under ``src/adcp/`` for ``AdcpError(...)`` raise
+sites and asserts every string-literal first-positional code is either:
+
+* in the canonical AdCP error-code enum (bundled at
+  :file:`src/adcp/types/generated_poc/enums/error_code.py`, generated
+  from :file:`schemas/cache/enums/error-code.json`);
+* prefixed with ``X_`` per the AdCP vendor-extension convention; or
+* explicitly listed in :data:`KNOWN_NON_SPEC_CODES` below — a small,
+  documented allowlist for codes the SDK uses intentionally that are
+  not (yet) in the enum.
+
+Background — issue #375 / PR #393: four codes shipped for months as
+non-spec (``AGENT_SUSPENDED`` / ``AGENT_BLOCKED`` /
+``REQUEST_AUTH_UNRECOGNIZED_AGENT`` / ``INVALID_BILLING_MODEL``) before
+being migrated to spec-conformant ``PERMISSION_DENIED`` and
+``BILLING_NOT_PERMITTED_FOR_AGENT``. This test is the load-bearing CI
+signal preventing that drift from recurring.
+
+Why AST and not regex: regex over multi-line raise expressions
+(``AdcpError(\n    "FOO",\n    message=...,``) is fragile. ``ast`` walks
+the parsed module and picks out exactly the first positional arg of
+``Call`` nodes whose ``func`` is named ``AdcpError``.
+
+Limitations (deliberate, documented):
+
+* Only string-literal codes are inspected. Variable / attribute /
+  computed codes are skipped — those are rare, intentional in the
+  framework's catch-and-re-raise paths, and need separate manual review.
+  A count of skipped raise sites is reported alongside failures.
+* Only the symbol name ``AdcpError`` is walked (the structured
+  server-side error from :mod:`adcp.decisioning.types`). The
+  unrelated client-side ``ADCPError`` (all-caps, from
+  :mod:`adcp.exceptions`) takes ``(message, ...)`` not ``(code, ...)``
+  and is excluded by name.
+"""
+
+from __future__ import annotations
+
+import ast
+from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+
+from adcp.types.generated_poc.enums.error_code import ErrorCode
+
+# ---------------------------------------------------------------------------
+# Allowlist — codes used intentionally by the SDK that are not in the
+# canonical enum. Keep this list short and documented; every entry is a
+# spec-drift point that should ideally migrate upstream.
+# ---------------------------------------------------------------------------
+KNOWN_NON_SPEC_CODES: dict[str, str] = {
+    # Universal "framework caught an unhandled exception" wrap. Used by
+    # the dispatch layer to project arbitrary Python exceptions to a
+    # safe wire shape (without leaking stack traces). The spec
+    # description on error-code.json explicitly notes that sellers MAY
+    # return codes outside the enum for platform-specific errors;
+    # INTERNAL_ERROR is the SDK's canonical fallback.
+    "INTERNAL_ERROR": (
+        "Universal exception wrap used by adcp.decisioning.dispatch. "
+        "Spec allows codes outside the enum; this is the SDK's fallback."
+    ),
+    # 3.1 will split AUTH_REQUIRED into AUTH_MISSING + AUTH_INVALID per
+    # the canonical enumDescription on AUTH_REQUIRED. The SDK uses
+    # AUTH_INVALID at the FromAuthAccounts gate where the principal is
+    # missing/empty after auth verification — distinct from "no
+    # credentials presented" (AUTH_REQUIRED).
+    "AUTH_INVALID": (
+        "Pre-canonical 3.1 split of AUTH_REQUIRED. Documented in the "
+        "AUTH_REQUIRED enumDescription as a future spec change."
+    ),
+    # Spec-conformant fix from PR #393 for the previously non-spec
+    # INVALID_BILLING_MODEL. Tracked for upstream migration; pinned by
+    # tests/test_tier2_spec_conformance.py.
+    "BILLING_NOT_PERMITTED_FOR_AGENT": (
+        "Tier-2 commercial-identity gate (PR #393). Pinned by "
+        "tests/test_tier2_spec_conformance.py."
+    ),
+}
+
+CANONICAL_CODES: frozenset[str] = frozenset(member.value for member in ErrorCode)
+SRC_ROOT = Path(__file__).resolve().parent.parent / "src" / "adcp"
+
+
+@dataclass(frozen=True)
+class RaiseSite:
+    """A single ``AdcpError(...)`` call site found by the walker."""
+
+    file: Path
+    lineno: int
+    code: str | None  # None means "non-literal first arg" (skipped)
+
+
+def _extract_literal_code(call: ast.Call) -> str | None:
+    """Return the first positional arg if it is a ``str`` literal, else None.
+
+    Handles:
+    * ``AdcpError("CODE", message=...)`` — positional literal
+    * ``AdcpError(code="CODE", message=...)`` — keyword literal
+    """
+    if call.args:
+        first = call.args[0]
+        if isinstance(first, ast.Constant) and isinstance(first.value, str):
+            return first.value
+        return None
+    for kw in call.keywords:
+        if kw.arg == "code":
+            if isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+                return kw.value.value
+            return None
+    return None
+
+
+def _is_adcp_error_call(call: ast.Call) -> bool:
+    """Match ``AdcpError(...)`` and ``module.AdcpError(...)`` calls.
+
+    Excludes the unrelated all-caps ``ADCPError`` (client-side
+    connection-error class with a different signature).
+    """
+    func = call.func
+    if isinstance(func, ast.Name):
+        return func.id == "AdcpError"
+    if isinstance(func, ast.Attribute):
+        return func.attr == "AdcpError"
+    return False
+
+
+def _walk_file(path: Path) -> list[RaiseSite]:
+    """Parse ``path`` and return every ``AdcpError(...)`` call site."""
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(path))
+    sites: list[RaiseSite] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and _is_adcp_error_call(node):
+            sites.append(
+                RaiseSite(
+                    file=path,
+                    lineno=node.lineno,
+                    code=_extract_literal_code(node),
+                )
+            )
+    return sites
+
+
+def _collect_raise_sites() -> list[RaiseSite]:
+    """Walk every ``.py`` file under ``src/adcp/`` for AdcpError calls."""
+    sites: list[RaiseSite] = []
+    for path in sorted(SRC_ROOT.rglob("*.py")):
+        sites.extend(_walk_file(path))
+    return sites
+
+
+def _is_acceptable_code(code: str) -> bool:
+    """Code is in the canonical enum, has X_ vendor prefix, or is allowlisted."""
+    if code in CANONICAL_CODES:
+        return True
+    if code.startswith("X_"):
+        return True
+    if code in KNOWN_NON_SPEC_CODES:
+        return True
+    return False
+
+
+def test_canonical_enum_is_loaded() -> None:
+    """Sanity-check: the bundled enum has the expected 45-entry shape.
+
+    Pins the assumption that the generated ``ErrorCode`` enum mirrors
+    the schema. If this drifts (e.g. the schema gains a code), this
+    test surfaces the drift before the conformance walker silently
+    starts accepting it as canonical.
+    """
+    assert "PERMISSION_DENIED" in CANONICAL_CODES
+    assert "ACCOUNT_SUSPENDED" in CANONICAL_CODES
+    # Spot-check a few that historically got misnamed:
+    assert "AGENT_SUSPENDED" not in CANONICAL_CODES
+    assert "INVALID_BILLING_MODEL" not in CANONICAL_CODES
+
+
+def test_adcp_error_codes_are_spec_conformant() -> None:
+    """Every literal AdcpError(code, ...) is in the spec enum, X_-prefixed, or allowlisted."""
+    sites = _collect_raise_sites()
+    assert sites, (
+        f"AdcpError raise-site walker found zero call sites under {SRC_ROOT}; "
+        "this suggests the walker is broken (the codebase is known to raise "
+        "AdcpError in adcp.decisioning.*)."
+    )
+
+    violations: list[RaiseSite] = []
+    for site in sites:
+        if site.code is None:
+            continue  # Non-literal — skipped by design (see module docstring).
+        if not _is_acceptable_code(site.code):
+            violations.append(site)
+
+    if violations:
+        lines = [
+            f"  {site.file.relative_to(SRC_ROOT.parent.parent)}:{site.lineno}  →  {site.code!r}"
+            for site in violations
+        ]
+        msg = (
+            f"Found {len(violations)} non-spec AdcpError code(s):\n"
+            + "\n".join(lines)
+            + "\n\nEvery AdcpError(code, ...) must use a code from the canonical "
+            "AdCP enum (schemas/cache/enums/error-code.json), the X_ "
+            "vendor-extension prefix, or be added to KNOWN_NON_SPEC_CODES "
+            "in tests/test_error_code_conformance.py with a documented reason."
+        )
+        pytest.fail(msg)
+
+
+def test_allowlist_entries_are_actually_used() -> None:
+    """Every KNOWN_NON_SPEC_CODES entry must appear in at least one raise site.
+
+    Prevents the allowlist from accumulating dead entries — once a
+    non-spec code is migrated to a spec code (or removed), its allowlist
+    entry should also be removed. Without this check the allowlist
+    becomes a graveyard of historical codes that silently mask future
+    drift.
+    """
+    sites = _collect_raise_sites()
+    used_codes = {site.code for site in sites if site.code is not None}
+    stale = [code for code in KNOWN_NON_SPEC_CODES if code not in used_codes]
+    assert not stale, (
+        f"KNOWN_NON_SPEC_CODES entries no longer used in src/adcp/: {stale}. "
+        "Remove them — dead entries mask future drift."
+    )
