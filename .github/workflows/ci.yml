@@ -356,6 +356,34 @@ jobs:
         with:
           node-version: "22"
 
+      # Cache the npm tarball + extracted package directory so the
+      # storyboard runner install isn't a cold network fetch every run.
+      # Key by OS only (not by version) so the cache survives across
+      # ``@adcp/sdk`` releases — npm install reuses tarballs that are
+      # already in the cache and only fetches the delta. ``@latest`` is
+      # intentional for drift detection (see "Run storyboard suite"
+      # below); the cache amortizes the 5-15 s of fetch+extract that
+      # would otherwise repeat on every CI run.
+      - name: Cache ~/.npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-adcp-sdk
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Pre-install @adcp/sdk (once, then call binary directly)
+        # Single install step at the top of the job; subsequent runner
+        # calls invoke the already-installed binary instead of paying
+        # the ``npx -y -p ...`` per-invocation extract+link tax.
+        # ``@adcp/sdk@latest`` is intentionally unpinned: this is AdCP's
+        # own CI running AdCP's own canonical runner — tracking latest
+        # surfaces protocol drift as soon as it ships, which is the
+        # point of this job.
+        run: |
+          npm install -g @adcp/sdk@latest
+          adcp --version
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -388,11 +416,11 @@ jobs:
 
       - name: Run storyboard suite
         timeout-minutes: 5
-        # @adcp/sdk@latest is intentionally unpinned — this is AdCP's own CI
-        # running AdCP's own canonical runner. Tracking latest surfaces protocol
-        # drift as soon as it ships, which is the point of this job.
+        # ``adcp`` was installed once at job start (see "Pre-install"
+        # step) — call the binary directly to skip per-invocation
+        # ``npx`` extract+link overhead.
         run: |
-          npx -y -p @adcp/sdk@latest adcp storyboard run \
+          adcp storyboard run \
             http://127.0.0.1:3001/mcp media_buy_seller \
             --json --allow-http \
             > storyboard-result.json
@@ -484,23 +512,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          # No cache: requires a package-lock.json which this Python
-          # repo doesn't ship. The pre-install step below uses
-          # ``npm install -g`` which is fast on the runner anyway
-          # (~3-5s with warm tarball mirrors).
+
+      # Cache ~/.npm by OS only so subsequent runs hit the tarball
+      # cache; npm install reuses what's there and only fetches the
+      # delta on a new ``@latest`` release. See the storyboard job
+      # above for the same pattern + rationale.
+      - name: Cache ~/.npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-adcp-sdk
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,pg]"
 
-      - name: Pre-install @adcp/client (separate from boot)
-        # Pull the package + its deps into the npm cache up-front so the
-        # boot step doesn't have to do an install in its 60s readiness
-        # window. ``npx --yes`` fetches into the cache; the
-        # ``--package=...`` form leaves an installed copy that subsequent
-        # ``npx`` invocations resolve instantly. ``adcp --version`` is a
-        # cheap smoke that the binary is wired correctly.
+      - name: Pre-install @adcp/sdk (once, then call binary directly)
         run: |
           npm install -g @adcp/sdk@latest
           adcp --version
@@ -592,7 +622,9 @@ jobs:
           # /etc/hosts override so the buyer can reach acme.localhost
           # (the seeded tenant subdomain).
           echo "127.0.0.1 acme.localhost" | sudo tee -a /etc/hosts
-          npx -y -p @adcp/sdk@latest adcp storyboard run \
+          # ``adcp`` was installed once at job start — call the binary
+          # directly to skip per-invocation ``npx`` extract+link.
+          adcp storyboard run \
             http://acme.localhost:3001/mcp media_buy_seller \
             --json --allow-http \
             > v3-storyboard-result.json || true
