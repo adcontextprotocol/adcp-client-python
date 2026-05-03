@@ -438,6 +438,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+          # Example-local deps: the v3 reference seller imports
+          # sqlalchemy + asyncpg + httpx-respx but those aren't in the
+          # SDK's [dev] extras. Install them inline rather than adding
+          # a separate optional-dependencies group for a single example.
+          pip install "sqlalchemy>=2.0" "asyncpg>=0.29" "respx>=0.20"
 
       - name: Run translator-pattern tests
         # The tests respx-mock the JS mock-server upstream so we don't
