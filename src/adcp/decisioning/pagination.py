@@ -87,7 +87,6 @@ def _decode_cursor(cursor: str, expected_query_hash: str, secret: bytes | None =
         ),
         field="pagination.cursor",
         recovery="correctable",
-        suggestion="Omit the cursor to start from the first page.",
     )
     try:
         # Restore stripped padding before decoding.
@@ -97,19 +96,19 @@ def _decode_cursor(cursor: str, expected_query_hash: str, secret: bytes | None =
         payload_str: str = envelope["p"]
         sig: str = envelope["s"]
     except Exception:
-        raise _bad
+        raise _bad from None  # suppress decode-error chain; internal detail
 
     payload_bytes = payload_str.encode()
     expected_sig = _sign(payload_bytes, secret if secret is not None else _secret())
     if not hmac.compare_digest(sig, expected_sig):
-        raise _bad
+        raise _bad from None
 
     try:
         inner = json.loads(payload_bytes)
         offset: int = int(inner["o"])
         qh: str = inner["qh"]
     except Exception:
-        raise _bad
+        raise _bad from None
 
     if not hmac.compare_digest(qh, expected_query_hash):
         raise AdcpError(
@@ -168,12 +167,18 @@ def apply_framework_pagination(
         (``max_results``, ``cursor``).
     :param query_hash: Filter fingerprint from :func:`_query_hash` on the
         original request. Used to anchor the cursor.
-    :param secret: HMAC key override. ``None`` uses the active process secret.
+    :param secret: HMAC key override for testing and direct use. ``None`` uses
+        :func:`_secret` (reads ``ADCP_PAGINATION_SECRET`` env var, falls back
+        to the per-process random secret). The handler always passes ``None``
+        — configure production secrets via the env var.
     :returns: A new ``GetProductsResponse`` with ``products`` sliced to the
         page and ``pagination`` populated, or the original *response* if the
         short-circuit fired.
     """
-    # Short-circuit: adopter already populated pagination.
+    # Short-circuit: adopter already populated pagination. Also short-circuits
+    # when _invoke_platform_method returned a TaskHandoff projection dict
+    # ({"task_id": ..., "status": "submitted"}) — dicts have no .products
+    # attribute so the products-None branch below fires and passes through.
     if getattr(response, "pagination", None) is not None:
         return response
 
@@ -199,6 +204,7 @@ def apply_framework_pagination(
         _encode_cursor(offset + max_results, query_hash, secret) if has_more else None
     )
 
+    # Deferred: adcp.types imports adcp.decisioning.types; top-level import is circular.
     from adcp.types import PaginationResponse
 
     new_pagination = PaginationResponse(has_more=has_more, cursor=next_cursor)
