@@ -18,15 +18,18 @@ Required methods (every sales-* specialism):
 * :meth:`sync_creatives` — hybrid for creative review
 * :meth:`get_media_buy_delivery` — sync delivery read
 
-Optional methods present-or-absent (gated by specialism — see per-method
-docstrings):
+Warn-if-absent methods (v6.0 alpha → hard-required in v6.0 rc.1):
+
+:func:`adcp.decisioning.dispatch.validate_platform` emits a one-time
+``UserWarning`` at server boot for each of these that is missing.
+They become hard-enforced (``AdcpError``) in v6.0 rc.1.
 
 * :meth:`get_media_buys`
 * :meth:`provide_performance_feedback`
 * :meth:`list_creative_formats`
 * :meth:`list_creatives`
 * :meth:`sync_catalogs` — required when claiming
-  ``sales-catalog-driven``
+  ``sales-catalog-driven`` (already hard-enforced)
 
 The framework's :func:`validate_platform` walks ``capabilities.specialisms``
 and confirms each specialism's required methods exist on the platform
@@ -188,9 +191,8 @@ class SalesPlatform(Protocol, Generic[TMeta]):
     ) -> MaybeAsync[GetMediaBuysResponse]:
         """List media buys for the resolved account.
 
-        Required when claiming any ``sales-*`` specialism in v6.0 rc.1+.
-        ``validate_platform`` fails server boot if a sales-claiming
-        platform doesn't implement this.
+        ``validate_platform`` emits a ``UserWarning`` at server boot in v6.0
+        if this method is absent. Becomes a hard boot-time error in v6.0 rc.1.
         """
         ...
 
@@ -201,7 +203,8 @@ class SalesPlatform(Protocol, Generic[TMeta]):
     ) -> MaybeAsync[ProvidePerformanceFeedbackResponse]:
         """Buyer-supplied performance signal back to the seller.
 
-        Required when claiming any ``sales-*`` specialism in v6.0 rc.1+.
+        ``validate_platform`` emits a ``UserWarning`` at server boot in v6.0
+        if this method is absent. Becomes a hard boot-time error in v6.0 rc.1.
         """
         ...
 
@@ -212,7 +215,8 @@ class SalesPlatform(Protocol, Generic[TMeta]):
     ) -> MaybeAsync[ListCreativeFormatsResponse]:
         """Catalog of accepted creative formats.
 
-        Required when claiming any ``sales-*`` specialism in v6.0 rc.1+.
+        ``validate_platform`` emits a ``UserWarning`` at server boot in v6.0
+        if this method is absent. Becomes a hard boot-time error in v6.0 rc.1.
         """
         ...
 
@@ -223,6 +227,7 @@ class SalesPlatform(Protocol, Generic[TMeta]):
     ) -> MaybeAsync[ListCreativesResponse]:
         """List the seller's view of buyer-uploaded creatives.
 
-        Required when claiming any ``sales-*`` specialism in v6.0 rc.1+.
+        ``validate_platform`` emits a ``UserWarning`` at server boot in v6.0
+        if this method is absent. Becomes a hard boot-time error in v6.0 rc.1.
         """
         ...

@@ -334,6 +334,38 @@ REQUIRED_METHODS_PER_SPECIALISM: dict[str, frozenset[str]] = {
 
 
 # ---------------------------------------------------------------------------
+# WARN_IF_MISSING_PER_SPECIALISM — v6.0 rc.1 promotion candidates
+# ---------------------------------------------------------------------------
+
+#: Methods that are required by the spec in v6.0 rc.1 but tolerated-absent
+#: in v6.0 alpha so adopters can ship in stages. ``validate_platform`` emits
+#: a one-time ``UserWarning`` per missing method at server boot — one warning
+#: per unique method name, deduplicated across multiple ``sales-*`` specialism
+#: claims on the same platform.
+#:
+#: When v6.0 rc.1 ships, move each entry here into
+#: :data:`REQUIRED_METHODS_PER_SPECIALISM` (which converts the warning to an
+#: ``AdcpError`` hard-fail) and drop it from this dict.
+_SALES_WARN_IF_MISSING: frozenset[str] = frozenset(
+    {
+        "get_media_buys",
+        "provide_performance_feedback",
+        "list_creative_formats",
+        "list_creatives",
+    }
+)
+
+WARN_IF_MISSING_PER_SPECIALISM: dict[str, frozenset[str]] = {
+    "sales-non-guaranteed": _SALES_WARN_IF_MISSING,
+    "sales-guaranteed": _SALES_WARN_IF_MISSING,
+    "sales-broadcast-tv": _SALES_WARN_IF_MISSING,
+    "sales-social": _SALES_WARN_IF_MISSING,
+    "sales-proposal-mode": _SALES_WARN_IF_MISSING,
+    "sales-catalog-driven": _SALES_WARN_IF_MISSING,
+}
+
+
+# ---------------------------------------------------------------------------
 # INTERNAL_ERROR breadcrumbs (Emma AudioStack P2)
 # ---------------------------------------------------------------------------
 
@@ -628,6 +660,30 @@ def validate_platform(platform: DecisioningPlatform) -> None:
                 "governance_specialisms": sorted(governance_specialisms_claimed),
                 "governance_aware": False,
             },
+        )
+
+    # v6.0 rc.1 promotion warnings. Methods in WARN_IF_MISSING_PER_SPECIALISM
+    # become required at rc.1; warn once per method at server boot so adopters
+    # surface the gap before buyers hit NOT_SUPPORTED at runtime.
+    # Deduped: platforms claiming multiple sales-* specialisms warn once per
+    # unique missing method (keyed on method name, not specialism).
+    warn_missing: dict[str, str] = {}  # method → first claiming specialism
+    for specialism in platform.capabilities.specialisms:
+        for method_name in WARN_IF_MISSING_PER_SPECIALISM.get(specialism, frozenset()):
+            if method_name not in warn_missing and not _has_overridden_method(
+                platform, method_name
+            ):
+                warn_missing[method_name] = specialism
+    for method_name, specialism in sorted(warn_missing.items()):
+        warnings.warn(
+            (
+                f"DecisioningPlatform claims {specialism!r} but is missing "
+                f"{method_name!r}, which becomes required in v6.0 rc.1. "
+                f"Buyers calling this method will receive NOT_SUPPORTED until "
+                f"it is implemented on your platform subclass."
+            ),
+            UserWarning,
+            stacklevel=2,
         )
 
 
@@ -1145,6 +1201,7 @@ async def _project_workflow_handoff(
 
 __all__ = [
     "REQUIRED_METHODS_PER_SPECIALISM",
+    "WARN_IF_MISSING_PER_SPECIALISM",
     "SPEC_SPECIALISM_ENUM",
     "compose_caller_identity",
     "validate_platform",

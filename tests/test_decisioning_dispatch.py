@@ -28,6 +28,7 @@ from adcp.decisioning import (
 from adcp.decisioning.dispatch import (
     REQUIRED_METHODS_PER_SPECIALISM,
     SPEC_SPECIALISM_ENUM,
+    WARN_IF_MISSING_PER_SPECIALISM,
     _build_request_context,
     _invoke_platform_method,
     _project_handoff,
@@ -50,6 +51,8 @@ def executor():
 
 
 class _ValidPlatform(DecisioningPlatform):
+    """Fully-implemented sales-non-guaranteed platform — all 9 methods."""
+
     capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
     accounts = SingletonAccounts(account_id="hello")
 
@@ -67,6 +70,18 @@ class _ValidPlatform(DecisioningPlatform):
 
     def get_media_buy_delivery(self, req, ctx):
         return {"deliveries": []}
+
+    def get_media_buys(self, req, ctx):
+        return {"media_buys": []}
+
+    def provide_performance_feedback(self, req, ctx):
+        return {}
+
+    def list_creative_formats(self, req, ctx):
+        return {"formats": []}
+
+    def list_creatives(self, req, ctx):
+        return {"creatives": []}
 
 
 def test_validate_platform_passes_for_valid_subclass() -> None:
@@ -320,6 +335,110 @@ def test_validate_platform_warns_on_unenforced_spec_specialism() -> None:
     matched = [w for w in caught if "governance-aware-seller" in str(w.message)]
     assert len(matched) == 1
     assert "spec-recognized" in str(matched[0].message)
+
+
+def test_validate_platform_warns_on_missing_rc1_methods() -> None:
+    """Platform claiming sales-non-guaranteed that implements the 5 required
+    core methods but omits the 4 v6.0 rc.1 promotion methods emits one
+    UserWarning per missing method at server boot."""
+
+    class _FiveCoreOnlyPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(specialisms=["sales-non-guaranteed"])
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {}
+
+        def create_media_buy(self, req, ctx):
+            return {}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {}
+
+        def sync_creatives(self, req, ctx):
+            return {}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {}
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        validate_platform(_FiveCoreOnlyPlatform())
+
+    rc1_warns = [w for w in caught if "v6.0 rc.1" in str(w.message)]
+    assert len(rc1_warns) == 4, f"Expected 4 rc.1 warnings, got: {rc1_warns}"
+    warning_text = " ".join(str(w.message) for w in rc1_warns)
+    assert "get_media_buys" in warning_text
+    assert "provide_performance_feedback" in warning_text
+    assert "list_creative_formats" in warning_text
+    assert "list_creatives" in warning_text
+
+
+def test_validate_platform_no_rc1_warn_when_all_methods_present() -> None:
+    """Fully-implemented platform (all 9 methods) emits no rc.1 UserWarnings."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        validate_platform(_ValidPlatform())
+
+    rc1_warns = [w for w in caught if "v6.0 rc.1" in str(w.message)]
+    assert rc1_warns == [], f"Unexpected rc.1 warnings on fully-impl platform: {rc1_warns}"
+
+
+def test_validate_platform_rc1_warns_deduped_across_sales_specialisms() -> None:
+    """Platform claiming two sales-* specialisms emits exactly 4 rc.1 warnings
+    (one per missing method, not one per specialism × method)."""
+
+    class _DualSalesPlatform(DecisioningPlatform):
+        capabilities = DecisioningCapabilities(
+            specialisms=["sales-non-guaranteed", "sales-guaranteed"]
+        )
+        accounts = SingletonAccounts(account_id="hello")
+
+        def get_products(self, req, ctx):
+            return {}
+
+        def create_media_buy(self, req, ctx):
+            return {}
+
+        def update_media_buy(self, media_buy_id, patch, ctx):
+            return {}
+
+        def sync_creatives(self, req, ctx):
+            return {}
+
+        def get_media_buy_delivery(self, req, ctx):
+            return {}
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", UserWarning)
+        validate_platform(_DualSalesPlatform())
+
+    rc1_warns = [w for w in caught if "v6.0 rc.1" in str(w.message)]
+    assert len(rc1_warns) == 4, (
+        f"Expected exactly 4 deduplicated rc.1 warnings, got {len(rc1_warns)}: {rc1_warns}"
+    )
+
+
+def test_warn_if_missing_per_specialism_pinned_for_sales() -> None:
+    """Contract test — locks the rc.1-promoted method set so future spec
+    churn surfaces as a visible test failure."""
+    expected_warn_methods = {
+        "get_media_buys",
+        "provide_performance_feedback",
+        "list_creative_formats",
+        "list_creatives",
+    }
+    for slug in (
+        "sales-non-guaranteed",
+        "sales-guaranteed",
+        "sales-broadcast-tv",
+        "sales-social",
+        "sales-proposal-mode",
+        "sales-catalog-driven",
+    ):
+        assert WARN_IF_MISSING_PER_SPECIALISM[slug] == expected_warn_methods, (
+            f"WARN_IF_MISSING_PER_SPECIALISM rc.1 method drift on {slug}"
+        )
 
 
 def test_validate_platform_typo_check_uses_spec_enum() -> None:
