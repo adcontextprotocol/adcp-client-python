@@ -482,10 +482,9 @@ jobs:
   storyboard-v3-reference-seller:
     name: AdCP storyboard runner — v3 reference seller (translator)
     runs-on: ubuntu-latest
-    # Non-blocking until storyboard tooling settles for the translator
-    # pattern. Promote to required once the JS mock-server's
-    # sales-guaranteed surface is canonical.
-    continue-on-error: true
+    # Required as of @adcp/sdk@6.7.0 (sales-guaranteed mock-server
+    # canonicalized; closes #449). Storyboard run + traffic-counter
+    # assertions gate every PR's translator-pattern conformance.
     services:
       postgres:
         image: postgres:16
