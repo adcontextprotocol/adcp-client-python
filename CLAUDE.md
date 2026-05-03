@@ -149,6 +149,41 @@ pytest tests/ -v          # Tests
 
 All three must pass. CI runs them across Python 3.10–3.13; locally running on your current version catches most issues.
 
+## Parallel Agent Isolation (git worktrees)
+
+When multiple agents work in the same checkout simultaneously, they clobber each other's
+branches — there is no error, the work is silently lost. Use `git worktree` to give each
+agent an isolated checkout.
+
+> **Note:** Conductor worktrees handle this automatically via `.conductor.json`
+> (runs `setup_conductor_env.py` + `pre-commit install` on create). Use the
+> manual steps below only for raw `git worktree` outside of Conductor.
+
+**Create a worktree:**
+
+```bash
+git worktree add /tmp/claude-issue-<N>-<slug> -b claude/issue-<N>-<slug> main
+```
+
+**Setup checklist (run inside the new worktree):**
+
+```bash
+cd /tmp/claude-issue-<N>-<slug>
+cp /path/to/repo-root/.env .env   # .env is not inherited; copy from repo root
+pre-commit install                 # hooks are not inherited from parent worktree
+pip install -e .[dev]              # install in this worktree's context
+```
+
+**Teardown (after branch is merged):**
+
+```bash
+git worktree remove /tmp/claude-issue-<N>-<slug>
+# or: git worktree prune   # removes all stale worktrees at once
+```
+
+**Branch naming:** always follow `claude/issue-<N>-<short-slug>` — branch-protection
+rules enforce this pattern and PRs from non-conforming names may be rejected.
+
 ## Additional Important Reminders
 
 **NEVER**:
