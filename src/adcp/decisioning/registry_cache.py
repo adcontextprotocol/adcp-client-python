@@ -397,19 +397,30 @@ class CachingBuyerAgentRegistry:
                     exc_info=True,
                 )
 
-    def invalidate(self, *, tenant_id: str | None, lookup_key: str) -> None:
+    async def invalidate(self, *, tenant_id: str | None, lookup_key: str) -> None:
         """Drop a single ``(tenant_id, lookup_key)`` entry.
 
         Called by admin / management code on a status flip — e.g.,
         when an operator suspends an agent the management API calls
         ``invalidate`` so the next dispatch sees the new status
         immediately rather than waiting for TTL expiry.
-        """
-        self._cache.pop((tenant_id, lookup_key), None)
 
-    def clear(self) -> None:
-        """Drop every cached entry. For tests + post-config-reload."""
-        self._cache.clear()
+        Async + lock-held because admin paths run concurrently with
+        dispatch traffic; mutating the underlying ``OrderedDict``
+        while ``_store`` is reordering or evicting can corrupt the
+        LRU order or raise ``RuntimeError: OrderedDict mutated
+        during iteration``.
+        """
+        async with self._lock:
+            self._cache.pop((tenant_id, lookup_key), None)
+
+    async def clear(self) -> None:
+        """Drop every cached entry. For tests + post-config-reload.
+
+        Async + lock-held for the same reason as :meth:`invalidate`.
+        """
+        async with self._lock:
+            self._cache.clear()
 
 
 # ----- Token-bucket rate limiter ------------------------------------

@@ -225,7 +225,7 @@ async def test_cache_invalidate_drops_single_entry() -> None:
     await cache.resolve_by_agent_url("https://agent.example/")
     assert inner.agent_url_calls == 1
 
-    cache.invalidate(tenant_id=None, lookup_key="agent_url:https://agent.example/")
+    await cache.invalidate(tenant_id=None, lookup_key="agent_url:https://agent.example/")
 
     await cache.resolve_by_agent_url("https://agent.example/")
     assert inner.agent_url_calls == 2
