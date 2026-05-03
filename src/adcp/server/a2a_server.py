@@ -130,9 +130,11 @@ class ADCPAgentExecutor(AgentExecutor):
         message_parser: MessageParser | None = None,
         advertise_all: bool = False,
         validation: ValidationHookConfig | None = SERVER_DEFAULT_VALIDATION,
+        test_controller_account_resolver: Any | None = None,
     ) -> None:
         self._handler = handler
         self._context_factory = context_factory
+        self._test_controller_account_resolver = test_controller_account_resolver
         # Store as a tuple so the executor can't be mutated from underneath
         # at runtime (a flaky test or a handler reaching self._middleware
         # can't corrupt the dispatch chain). Tuple ordering = runtime
@@ -174,10 +176,17 @@ class ADCPAgentExecutor(AgentExecutor):
         ``comply_test_controller`` skill. See #227.
         """
 
+        resolver = self._test_controller_account_resolver
+
         async def _call_test_controller(
             params: dict[str, Any], context: ToolContext | None = None
         ) -> Any:
-            return await _handle_test_controller(store, params, context=context)
+            return await _handle_test_controller(
+                store,
+                params,
+                context=context,
+                account_resolver=resolver,
+            )
 
         self._tool_callers["comply_test_controller"] = _call_test_controller
 
@@ -598,6 +607,7 @@ def create_a2a_server(
     description: str | None = None,
     version: str = "1.0.0",
     test_controller: TestControllerStore | None = None,
+    test_controller_account_resolver: Any | None = None,
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
@@ -704,6 +714,7 @@ def create_a2a_server(
         message_parser=message_parser,
         advertise_all=advertise_all,
         validation=validation,
+        test_controller_account_resolver=test_controller_account_resolver,
     )
 
     agent_card = _build_agent_card(

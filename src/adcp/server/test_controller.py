@@ -38,11 +38,34 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import TYPE_CHECKING, Any
+import os
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from adcp.server.base import ToolContext
     from adcp.server.serve import ContextFactory
+
+
+class _AccountResolver(Protocol):
+    """Async-or-sync callable that resolves a wire ``account`` ref to a
+    framework :class:`Account`-shaped object.
+
+    Adopters who use the v6 :class:`DecisioningPlatform` get this hooked
+    automatically by ``register_test_controller`` — the framework wraps
+    ``platform.accounts.resolve`` so the comply controller can apply the
+    sandbox-authority gate against the resolved account.
+
+    Returns the resolved account on success. Raises (any exception) on
+    miss / unauthorized / other resolution failure — the caller treats
+    raises as "no account resolved" and falls through to the wire-ref /
+    env fallback gates. This is deliberately permissive: the gate's
+    fail-closed posture ensures unresolved accounts get denied unless
+    the request carries ``account.sandbox: true`` or the env fallback
+    is in effect.
+    """
+
+    def __call__(self, ref: dict[str, Any] | None) -> Any: ...
+
 
 # Scenario names — must match the AdCP comply_test_controller schema
 SCENARIOS = [
@@ -446,10 +469,148 @@ def _accepts_context_kwarg(method: Any) -> bool:
     return _accepts_kwarg(method, "context")
 
 
+async def _apply_sandbox_gate(
+    params: dict[str, Any],
+    account_resolver: _AccountResolver | None,
+) -> dict[str, Any] | None:
+    """Phase 1 sandbox-authority gate for ``comply_test_controller``.
+
+    Order of admission (mirrors JS PR #1453):
+
+    1. Resolve the account via ``account_resolver`` when wired. The
+       framework reads the wire ref from top-level ``account`` (extended
+       shape) or ``context.account`` (canonical AdCP). On resolution
+       success, ``mode in {sandbox, mock}`` (or legacy ``sandbox=True``)
+       admits; ``mode='live'`` denies regardless of any wire signal.
+
+    2. When the resolver returned no account (no resolver wired, or
+       resolver raised), consult the request's ``account.sandbox`` /
+       ``context.sandbox`` wire flag — capability-probe / pre-bootstrap
+       fallback. The buyer's wire claim NEVER overrides a resolved live
+       account.
+
+    3. Env fallback: ``ADCP_SANDBOX=1`` admits (deprecated, kept for
+       back-compat with adopters who haven't migrated to ``mode``).
+
+    4. Otherwise refuse with a controller-shaped FORBIDDEN envelope.
+
+    **Fail-closed env-fallback guard.** When the env fallback is the
+    only signal that would admit AND this process has resolved any
+    explicit ``mode='live'`` account, the function raises a runtime
+    error loudly. That pairing is a deployment misconfiguration —
+    silent admission would unlock the comply controller for live
+    principals. See :mod:`adcp.decisioning.observed_modes`.
+
+    Returns ``None`` when admitted (caller proceeds to dispatch); a
+    controller-shaped error dict when refused.
+    """
+    # Pre-Phase-1 back-compat: when no resolver is wired AND
+    # ADCP_SANDBOX is not set, the gate is dormant — adopters who
+    # haven't opted into the new wiring keep the previous behavior
+    # (any caller can hit the controller, same as before this PR).
+    # Adopters opt in by either passing ``account_resolver=`` to
+    # ``register_test_controller`` (decisioning-platform serve does
+    # this automatically) OR by setting ``ADCP_SANDBOX=1``. JS PR
+    # #1453 takes the equivalent posture: the gate lives at the
+    # framework boundary, not inside store-direct dispatch.
+    env_sandbox_raw = os.environ.get("ADCP_SANDBOX") == "1"
+    if account_resolver is None and not env_sandbox_raw:
+        return None
+
+    # 1. Resolve account
+    account_ref = params.get("account")
+    if not isinstance(account_ref, dict) or not account_ref:
+        # AdCP canonical routing puts the ref at context.account; the
+        # extended top-level shape is what existing storyboards use.
+        # First non-null wins.
+        wire_context = params.get("context")
+        if isinstance(wire_context, dict):
+            ctx_ref = wire_context.get("account")
+            if isinstance(ctx_ref, dict) and ctx_ref:
+                account_ref = ctx_ref
+
+    resolved_account: Any | None = None
+    if account_resolver is not None:
+        try:
+            ref_arg: dict[str, Any] | None = (
+                account_ref if isinstance(account_ref, dict) and account_ref else None
+            )
+            result = account_resolver(ref_arg)
+            if inspect.iscoroutine(result):
+                resolved_account = await result
+            else:
+                resolved_account = result
+        except Exception:
+            # Resolver miss / unauthorized / any failure: treat as
+            # "no account resolved" and fall through to the wire-ref
+            # and env fallbacks. The fail-closed posture below ensures
+            # we don't accidentally admit when the caller intended to
+            # gate on resolution.
+            resolved_account = None
+
+    # 2. Compute admission signals (each independent so we can apply the
+    # observed-modes fail-closed guard precisely).
+    from adcp.decisioning.account_mode import is_sandbox_or_mock_account
+    from adcp.decisioning.observed_modes import has_observed_live_mode
+
+    account_is_sandbox = resolved_account is not None and is_sandbox_or_mock_account(
+        resolved_account
+    )
+
+    # Wire ref `sandbox: true` only consulted when no account resolved.
+    # If the resolver names the account, the resolver wins. The buyer's
+    # wire claim NEVER overrides a resolved live account.
+    ref_sandbox = (
+        resolved_account is None
+        and isinstance(account_ref, dict)
+        and account_ref.get("sandbox") is True
+    )
+
+    # `context.sandbox: true` — secondary fallback for unresolved accounts
+    # (capability probes / conformance bootstrap that don't carry an
+    # account ref at all).
+    wire_context = params.get("context")
+    context_sandbox = (
+        resolved_account is None
+        and isinstance(wire_context, dict)
+        and wire_context.get("sandbox") is True
+    )
+
+    env_sandbox = os.environ.get("ADCP_SANDBOX") == "1"
+
+    would_admit_only_via_env = env_sandbox and not (
+        account_is_sandbox or ref_sandbox or context_sandbox
+    )
+
+    # 3. Fail-closed guard on env fallback. ADCP_SANDBOX=1 + observed
+    # explicit live mode = misconfig; refuse loudly so operators notice.
+    if would_admit_only_via_env and has_observed_live_mode():
+        raise RuntimeError(
+            "comply_test_controller: ADCP_SANDBOX=1 is set but this process has "
+            "resolved at least one live-mode account from "
+            "platform.accounts.resolve. Remove ADCP_SANDBOX from your prod "
+            "environment; gate the controller via mode='sandbox' on resolved "
+            "sandbox accounts instead. See "
+            "docs/proposals/lifecycle-state-and-sandbox-authority.md."
+        )
+
+    allowed = account_is_sandbox or ref_sandbox or context_sandbox or env_sandbox
+
+    if not allowed:
+        return _controller_error(
+            "PERMISSION_DENIED",
+            "comply_test_controller requires a sandbox or mock account; "
+            "resolved account is in live mode (or no account resolved).",
+        )
+
+    return None
+
+
 async def _handle_test_controller(
     store: TestControllerStore,
     params: dict[str, Any],
     context: ToolContext | None = None,
+    account_resolver: _AccountResolver | None = None,
 ) -> dict[str, Any]:
     """Dispatch a comply_test_controller request to the store.
 
@@ -458,15 +619,34 @@ async def _handle_test_controller(
     mock behavior composed with storyboard-driven compliance testing.
     Methods without ``context`` in their signature keep working
     unchanged.
+
+    When ``account_resolver`` is supplied, the comply controller runs
+    the Phase 1 sandbox-authority gate before dispatching to the store
+    (see :func:`_apply_sandbox_gate`). When ``None``, falls through to
+    the legacy ``ADCP_SANDBOX=1`` env-fallback (with the fail-closed
+    observation guard). Phase 1 of the lifecycle-state-and-sandbox-
+    authority proposal — see
+    ``docs/proposals/lifecycle-state-and-sandbox-authority.md``.
     """
     scenario = params.get("scenario")
     implemented = _list_scenarios(store)
 
     if scenario == "list_scenarios":
+        # Capability probe — exempt from the sandbox gate. Returning the
+        # implemented-scenarios list is a discovery surface every buyer
+        # needs to call regardless of mode.
         return {
             "success": True,
             "scenarios": implemented,
         }
+
+    # Phase 1 sandbox-authority gate — refuse for live-mode accounts.
+    # Runs BEFORE scenario validation so a buyer probing with garbage
+    # scenarios on a live account gets PERMISSION_DENIED, not
+    # UNKNOWN_SCENARIO (which would leak which scenarios exist).
+    gate_response = await _apply_sandbox_gate(params, account_resolver)
+    if gate_response is not None:
+        return gate_response
 
     if scenario not in SCENARIOS:
         return _controller_error(
@@ -677,6 +857,7 @@ def register_test_controller(
     store: TestControllerStore,
     *,
     context_factory: ContextFactory | None = None,
+    account_resolver: _AccountResolver | None = None,
 ) -> None:
     """Register the comply_test_controller tool on an MCP server.
 
@@ -695,6 +876,17 @@ def register_test_controller(
             ``comply_test_controller`` skill. Wire the same factory you
             pass to :func:`create_mcp_server` so both paths see the
             same per-request context.
+        account_resolver: Optional async-or-sync callable that resolves
+            a wire account ref to a framework :class:`Account`. When
+            supplied, the comply controller applies the Phase 1
+            sandbox-authority gate against the resolved account: only
+            accounts with ``mode in {'sandbox', 'mock'}`` (or legacy
+            ``sandbox=True``) are admitted; ``mode='live'`` is denied
+            regardless of wire signals. v6 :class:`DecisioningPlatform`
+            adopters get this hooked automatically by
+            ``decisioning.serve``. Adopters wiring the controller
+            manually pass a closure over their own account store. See
+            ``docs/proposals/lifecycle-state-and-sandbox-authority.md``.
 
     Example:
         from adcp.server.test_controller import TestControllerStore, register_test_controller
@@ -727,7 +919,12 @@ def register_test_controller(
                     "context_factory for comply_test_controller returned "
                     f"{type(context).__name__}, not a ToolContext instance"
                 )
-        return await _handle_test_controller(store, kwargs, context=context)
+        return await _handle_test_controller(
+            store,
+            kwargs,
+            context=context,
+            account_resolver=account_resolver,
+        )
 
     tool = Tool.from_function(
         comply_test_controller,

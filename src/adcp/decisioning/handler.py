@@ -738,8 +738,18 @@ class PlatformHandler(ADCPHandler[ToolContext]):
             ref_dict = cast("dict[str, Any]", ref)
         result = self._platform.accounts.resolve(ref_dict, auth_info=auth_info)
         if asyncio.iscoroutine(result):
-            return cast("Account[Any]", await result)
-        return cast("Account[Any]", result)
+            resolved = cast("Account[Any]", await result)
+        else:
+            resolved = cast("Account[Any]", result)
+        # Phase 1 sandbox-authority — track explicit mode values for the
+        # comply controller's env-fallback fail-closed guard. Implicit
+        # default-live (resolver didn't populate mode) is intentionally
+        # NOT recorded so pre-migration adopters keep working with
+        # ADCP_SANDBOX=1.
+        from adcp.decisioning.observed_modes import record_resolved_account_mode
+
+        record_resolved_account_mode(resolved)
+        return resolved
 
     @staticmethod
     def _extract_auth_info(ctx: ToolContext) -> AuthInfo | None:

@@ -431,6 +431,14 @@ class Account(Generic[TMeta]):
         seller-side string; emitted unchanged.
     :param reporting_bucket: Cloud storage bucket where the seller
         delivers offline reporting files for this account.
+    :param mode: SDK-internal account mode — ``'live'`` (default,
+        production), ``'sandbox'`` (adopter's test infra), or
+        ``'mock'`` (Phase 2 — SDK routes to mock-server backend).
+        Sourced from the adopter's :class:`AccountStore.resolve`
+        return value; never echoed to the wire. Drives the
+        sandbox-authority gate on ``comply_test_controller`` and other
+        test-only surfaces. See
+        ``docs/proposals/lifecycle-state-and-sandbox-authority.md``.
     """
 
     id: str
@@ -453,6 +461,40 @@ class Account(Generic[TMeta]):
     credit_limit: CreditLimit | None = None
     rate_card: str | None = None
     reporting_bucket: ReportingBucket | None = None
+
+    # SDK-internal account mode for sandbox-authority gating. Default
+    # ``'live'`` preserves all existing-adopter behavior — pre-mode
+    # adopters' accounts read as live. Adopters mark conformance /
+    # test accounts ``'sandbox'`` (or ``'mock'`` in Phase 2) in their
+    # ``AccountStore.resolve``. Not echoed to the wire by
+    # ``to_wire_account`` — purely internal to dispatch.
+    mode: Literal["live", "sandbox", "mock"] = "live"
+
+    # Explicit-vs-implicit marker for the observed-modes tracker.
+    # Set ``True`` when an :class:`AccountStore` deliberately populated
+    # ``mode``; left ``False`` when ``mode`` was left at its default.
+    # The fail-closed env-fallback guard in ``observed_modes.py`` only
+    # tracks explicit mode values — pre-mode adopters whose resolvers
+    # don't stamp this don't trip the guard, preserving back-compat.
+    # Built-in stores (``SingletonAccounts(mode=...)``) set this when
+    # the adopter passed an explicit mode. Custom :class:`AccountStore`
+    # implementations set it on the returned :class:`Account`
+    # directly (``account._mode_explicit = True``) when they want the
+    # observed-modes tracker to count them. Hidden from ``repr`` to
+    # keep test diffs clean.
+    _mode_explicit: bool = field(default=False, repr=False, compare=False)
+
+    @property
+    def sandbox(self) -> bool:
+        """Back-compat accessor for ``account.sandbox``.
+
+        ``True`` when :attr:`mode` is ``'sandbox'`` or ``'mock'``;
+        ``False`` for ``'live'``. Adopters reading the legacy
+        ``account.sandbox`` boolean keep working — the property
+        derives from :attr:`mode`. New code should read :attr:`mode`
+        directly to distinguish ``'sandbox'`` from ``'mock'``.
+        """
+        return self.mode in ("sandbox", "mock")
 
 
 # ---------------------------------------------------------------------------

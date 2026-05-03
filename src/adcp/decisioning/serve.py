@@ -400,6 +400,20 @@ def serve(
         buyer_agent_registry=buyer_agent_registry,
     )
 
+    # Phase 1 sandbox-authority — wire the comply controller's account
+    # gate to the platform's AccountStore. When a test_controller is
+    # present and the adopter hasn't supplied their own resolver, build
+    # a closure over ``platform.accounts.resolve`` so the gate refuses
+    # for live-mode accounts. Adopters supplying their own resolver
+    # (``test_controller_account_resolver=``) take precedence.
+    if (
+        serve_kwargs.get("test_controller") is not None
+        and "test_controller_account_resolver" not in serve_kwargs
+    ):
+        serve_kwargs["test_controller_account_resolver"] = _build_test_controller_account_resolver(
+            platform
+        )
+
     server_name = name or type(platform).__name__
     debug_traffic_source = mock_ad_server.get_traffic if mock_ad_server is not None else None
     _adcp_serve(
@@ -410,6 +424,37 @@ def serve(
         debug_traffic_source=debug_traffic_source,
         **serve_kwargs,
     )
+
+
+def _build_test_controller_account_resolver(
+    platform: DecisioningPlatform,
+) -> Any:
+    """Build a closure over ``platform.accounts.resolve`` for the
+    comply controller's sandbox gate.
+
+    The resolver takes a wire account ref dict (from the request's
+    ``account`` or ``context.account``) and returns the framework
+    :class:`Account` or raises. The comply gate consults
+    ``account.mode`` to admit / deny — see :mod:`adcp.decisioning.account_mode`.
+
+    Pulls auth_info from a thread-local set by the dispatcher when
+    available; falls back to ``None`` when the comply call arrives
+    outside an authenticated context (e.g., conformance bootstrap).
+    The framework's :class:`AccountStore` impls handle missing-auth
+    cases per their own resolution mode.
+    """
+
+    def _resolve(ref: dict[str, Any] | None) -> Any:
+        # Phase 1 keeps auth_info unthreaded — the comply controller's
+        # gate runs in advance of the per-tool dispatch's auth wiring,
+        # and the resolver only needs the wire ref to admit/deny.
+        # ``FromAuthAccounts`` adopters whose resolution depends on
+        # auth_info will fall through to the ``None`` branch in their
+        # store's ``resolve``; the gate then drops to the wire-ref /
+        # env fallback path. That preserves the JS PR #1453 posture.
+        return platform.accounts.resolve(ref, auth_info=None)
+
+    return _resolve
 
 
 __all__ = [

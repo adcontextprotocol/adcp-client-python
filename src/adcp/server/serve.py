@@ -429,6 +429,7 @@ def serve(
     transport: str = "streamable-http",
     instructions: str | None = None,
     test_controller: TestControllerStore | None = None,
+    test_controller_account_resolver: Any | None = None,
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
@@ -662,6 +663,7 @@ def serve(
             name=name,
             port=port,
             test_controller=test_controller,
+            test_controller_account_resolver=test_controller_account_resolver,
             context_factory=context_factory,
             task_store=task_store,
             push_config_store=push_config_store,
@@ -684,6 +686,7 @@ def serve(
             transport=transport,
             instructions=instructions,
             test_controller=test_controller,
+            test_controller_account_resolver=test_controller_account_resolver,
             context_factory=context_factory,
             middleware=middleware,
             asgi_middleware=asgi_middleware,
@@ -706,6 +709,7 @@ def serve(
             host=host,
             instructions=instructions,
             test_controller=test_controller,
+            test_controller_account_resolver=test_controller_account_resolver,
             context_factory=context_factory,
             task_store=task_store,
             push_config_store=push_config_store,
@@ -995,6 +999,7 @@ def _serve_mcp(
     transport: str,
     instructions: str | None,
     test_controller: TestControllerStore | None,
+    test_controller_account_resolver: Any | None = None,
     context_factory: ContextFactory | None = None,
     middleware: Sequence[SkillMiddleware] | None = None,
     asgi_middleware: Sequence[ASGIMiddlewareEntry] | None = None,
@@ -1030,7 +1035,12 @@ def _serve_mcp(
     if test_controller is not None:
         from adcp.server.test_controller import register_test_controller
 
-        register_test_controller(mcp, test_controller, context_factory=context_factory)
+        register_test_controller(
+            mcp,
+            test_controller,
+            context_factory=context_factory,
+            account_resolver=test_controller_account_resolver,
+        )
 
     if transport in ("streamable-http", "sse"):
         _run_mcp_http(
@@ -1131,6 +1141,7 @@ def _serve_a2a(
     name: str,
     port: int | None,
     test_controller: TestControllerStore | None,
+    test_controller_account_resolver: Any | None = None,
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
@@ -1158,6 +1169,7 @@ def _serve_a2a(
         name=name,
         port=resolved_port,
         test_controller=test_controller,
+        test_controller_account_resolver=test_controller_account_resolver,
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,
@@ -1202,6 +1214,7 @@ def _build_mcp_and_a2a_app(
     host: str,
     instructions: str | None,
     test_controller: TestControllerStore | None,
+    test_controller_account_resolver: Any | None = None,
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
@@ -1258,7 +1271,12 @@ def _build_mcp_and_a2a_app(
     if test_controller is not None:
         from adcp.server.test_controller import register_test_controller
 
-        register_test_controller(mcp, test_controller, context_factory=context_factory)
+        register_test_controller(
+            mcp,
+            test_controller,
+            context_factory=context_factory,
+            account_resolver=test_controller_account_resolver,
+        )
     mcp_inner = mcp.streamable_http_app()
     # Wrap with the standard trailing-slash normalizer so ``/mcp/``
     # and ``/mcp`` resolve to the same FastMCP endpoint. Keep the
@@ -1274,6 +1292,7 @@ def _build_mcp_and_a2a_app(
         name=name,
         port=port,
         test_controller=test_controller,
+        test_controller_account_resolver=test_controller_account_resolver,
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,
@@ -1344,6 +1363,7 @@ def _serve_mcp_and_a2a(
     host: str | None = None,
     instructions: str | None,
     test_controller: TestControllerStore | None,
+    test_controller_account_resolver: Any | None = None,
     context_factory: ContextFactory | None = None,
     task_store: TaskStore | None = None,
     push_config_store: PushNotificationConfigStore | None = None,
@@ -1389,6 +1409,7 @@ def _serve_mcp_and_a2a(
         host=resolved_host,
         instructions=instructions,
         test_controller=test_controller,
+        test_controller_account_resolver=test_controller_account_resolver,
         context_factory=context_factory,
         task_store=task_store,
         push_config_store=push_config_store,

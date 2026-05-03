@@ -386,6 +386,15 @@ class SingletonAccounts(Generic[TMeta]):
     :param metadata_factory: Optional factory for ``Account.metadata``
         — adopters with typed metadata pass a closure that returns the
         right TypedDict / dataclass instance.
+    :param mode: Optional account-mode flag. When set, every resolved
+        :class:`Account` carries ``mode`` and is stamped explicit so
+        the framework's observed-modes tracker counts the resolution.
+        Default ``None`` — leaves accounts at the implicit-default
+        ``'live'`` (pre-mode behavior). Pass ``'sandbox'`` for a
+        single-platform conformance / dev deployment that should admit
+        ``comply_test_controller``; pass ``'live'`` to deliberately mark
+        the singleton as production (the env-fallback guard then trips
+        loudly if ``ADCP_SANDBOX=1`` is also set).
     """
 
     resolution: Literal["derived"] = "derived"
@@ -396,6 +405,7 @@ class SingletonAccounts(Generic[TMeta]):
         *,
         name: str = "",
         metadata_factory: Callable[[], TMeta] | None = None,
+        mode: Literal["live", "sandbox", "mock"] | None = None,
     ) -> None:
         if not account_id or not isinstance(account_id, str):
             raise ValueError(
@@ -404,6 +414,7 @@ class SingletonAccounts(Generic[TMeta]):
         self._account_id = account_id
         self._name = name or account_id
         self._metadata_factory = metadata_factory
+        self._mode = mode
 
     def resolve(
         self,
@@ -416,12 +427,21 @@ class SingletonAccounts(Generic[TMeta]):
         metadata: TMeta = (
             self._metadata_factory() if self._metadata_factory else {}  # type: ignore[assignment]
         )
+        kwargs: dict[str, Any] = {}
+        if self._mode is not None:
+            # Adopter passed explicit mode at construction — stamp it on
+            # the Account AND mark explicit so the observed-modes tracker
+            # counts this resolution for the env-fallback fail-closed
+            # guard.
+            kwargs["mode"] = self._mode
+            kwargs["_mode_explicit"] = True
         return Account(
             id=scoped_id,
             name=f"{self._name} ({principal})" if principal != "anonymous" else self._name,
             status="active",
             metadata=metadata,
             auth_info=_auth_info_to_dict(auth_info),
+            **kwargs,
         )
 
 
